@@ -1,37 +1,22 @@
 """
 Ryanair API Scraper
-- Availability API v4 (Flugpreise)
-- Catalog API (dynamische Gepäckpreise)
-- Anti-Bot: UA-Rotation, Random Delays, Retry mit Backoff
 """
 
 import requests
 import random
 import time
 import logging
+import traceback
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
-# ─── Anti-Bot Config ─────────────────────────────────────────
-
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 Edg/123.0.0.0",
 ]
 
-ACCEPT_LANGUAGES = [
-    "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7",
-    "en-GB,en;q=0.9",
-    "it-IT,it;q=0.9,en;q=0.8",
-    "de-AT,de;q=0.9,en;q=0.8",
-]
-
-# Fallback-Gepäckpreise (Schätzwerte für Europa, Hochsaison)
 BAGGAGE_FALLBACK = {
     "10kg": 22.99,
     "20kg": 34.99,
@@ -40,82 +25,24 @@ BAGGAGE_FALLBACK = {
 
 
 def _make_session() -> requests.Session:
-    """Session mit zufälligem Browser-Fingerprint."""
     s = requests.Session()
-    ua = random.choice(USER_AGENTS)
-    lang = random.choice(ACCEPT_LANGUAGES)
     s.headers.update({
-        "User-Agent": ua,
+        "User-Agent": random.choice(USER_AGENTS),
         "Accept": "application/json, text/plain, */*",
-        "Accept-Language": lang,
+        "Accept-Language": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7",
         "Accept-Encoding": "gzip, deflate, br",
         "Origin": "https://www.ryanair.com",
         "Referer": "https://www.ryanair.com/de/de/buchen/fluge-finden",
-        "sec-ch-ua": '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
-        "sec-ch-ua-mobile": "?0",
-        "sec-ch-ua-platform": '"Windows"',
         "Sec-Fetch-Dest": "empty",
         "Sec-Fetch-Mode": "cors",
         "Sec-Fetch-Site": "same-site",
         "Connection": "keep-alive",
-        "Cache-Control": "no-cache",
     })
     return s
 
 
-def _delay(min_s=2.0, max_s=5.5):
-    t = random.uniform(min_s, max_s)
-    logger.debug(f"Delay {t:.1f}s")
-    time.sleep(t)
-
-
-def _get_with_retry(session, url, params=None, max_retries=3) -> requests.Response | None:
-    """GET mit exponentiellem Backoff bei 429/503."""
-    for attempt in range(max_retries):
-        try:
-            resp = session.get(url, params=params, timeout=20)
-
-            if resp.status_code == 200:
-                return resp
-
-            if resp.status_code == 403:
-                logger.warning(f"403 Blocked auf {url} (Versuch {attempt+1})")
-                if attempt < max_retries - 1:
-                    wait = random.uniform(10, 25) * (attempt + 1)
-                    logger.info(f"Warte {wait:.0f}s vor Retry...")
-                    time.sleep(wait)
-                continue
-
-            if resp.status_code in (429, 503):
-                wait = (2 ** attempt) * random.uniform(5, 10)
-                logger.warning(f"Rate-limited ({resp.status_code}). Warte {wait:.0f}s")
-                time.sleep(wait)
-                continue
-
-            if resp.status_code == 400:
-                logger.error(f"400 Bad Request: {resp.text[:300]}")
-                return None
-
-            resp.raise_for_status()
-
-        except requests.Timeout:
-            logger.warning(f"Timeout (Versuch {attempt+1})")
-            time.sleep(5 * (attempt + 1))
-        except requests.RequestException as e:
-            logger.error(f"Request-Fehler: {e}")
-            return None
-
-    logger.error(f"Alle {max_retries} Versuche fehlgeschlagen für {url}")
-    return None
-
-
-# ─── Availability API ────────────────────────────────────────
-
 def fetch_flights(tracker: dict) -> dict:
-    """
-    Hauptfunktion: Gibt dict mit Ergebnis zurück.
-    Format: {"status": "ok"|"blocked"|"error", "snapshot": {...}}
-    """
+    """Hauptfunktion: Flugpreis + Gepäck abrufen."""
     session = _make_session()
     origin      = tracker["origin"]
     destination = tracker["destination"]
@@ -125,41 +52,74 @@ def fetch_flights(tracker: dict) -> dict:
     children    = tracker.get("children", 0)
     baggage     = tracker.get("baggage", [])
 
-    # ── Schritt 1: Flugverfügbarkeit ──
+    logger.info(f"Fetching: {origin}→{destination} {out_date} | adults={adults}")
+
     url = "https://www.ryanair.com/api/booking/v4/en-gb/availability"
     params = {
-        "ADT":                    adults,
-        "CHD":                    children,
-        "DateOut":                out_date,
-        "DateIn":                 ret_date or "",
-        "Destination":            destination,
-        "FlexDaysBeforeOut":      0,
-        "FlexDaysAfterOut":       0,
-        "FlexDaysBeforeIn":       0,
-        "FlexDaysAfterIn":        0,
-        "Origin":                 origin,
-        "RoundTrip":              "true" if ret_date else "false",
-        "ToUs":                   "AGREED",
+        "ADT":                      adults,
+        "CHD":                      children,
+        "DateOut":                  out_date,
+        "DateIn":                   ret_date or "",
+        "Destination":              destination,
+        "FlexDaysBeforeOut":        0,
+        "FlexDaysAfterOut":         0,
+        "FlexDaysBeforeIn":         0,
+        "FlexDaysAfterIn":          0,
+        "Origin":                   origin,
+        "RoundTrip":                "true" if ret_date else "false",
+        "ToUs":                     "AGREED",
         "IncludeConnectingFlights": "false",
     }
 
-    logger.info(f"Fetching: {origin}→{destination} {out_date} | adults={adults}")
-    resp = _get_with_retry(session, url, params)
-
-    if resp is None:
+    try:
+        resp = session.get(url, params=params, timeout=20)
+        logger.info(f"Ryanair API Status: {resp.status_code}")
+    except requests.RequestException as e:
+        logger.error(f"Request failed: {traceback.format_exc()}")
         return {
-            "status": "blocked",
+            "status": "error",
             "snapshot": {
-                "status": "blocked",
-                "error_message": "Ryanair API nicht erreichbar (403/Timeout nach 3 Versuchen)",
+                "status": "error",
+                "error_message": f"Request fehlgeschlagen: {str(e)}",
                 "fetched_at": datetime.utcnow().isoformat(),
             }
         }
 
-    data = resp.json()
-    currency = data.get("currency", "EUR")
+    if resp.status_code == 403:
+        return {
+            "status": "blocked",
+            "snapshot": {
+                "status": "blocked",
+                "error_message": "Ryanair hat die Anfrage blockiert (403)",
+                "fetched_at": datetime.utcnow().isoformat(),
+            }
+        }
 
-    # Flüge extrahieren
+    if not resp.ok:
+        logger.error(f"API error {resp.status_code}: {resp.text[:500]}")
+        return {
+            "status": "error",
+            "snapshot": {
+                "status": "error",
+                "error_message": f"API Fehler {resp.status_code}: {resp.text[:200]}",
+                "fetched_at": datetime.utcnow().isoformat(),
+            }
+        }
+
+    try:
+        data = resp.json()
+    except Exception as e:
+        logger.error(f"JSON parse error: {resp.text[:300]}")
+        return {
+            "status": "error",
+            "snapshot": {
+                "status": "error",
+                "error_message": f"JSON Parse Fehler: {str(e)}",
+                "fetched_at": datetime.utcnow().isoformat(),
+            }
+        }
+
+    currency = data.get("currency", "EUR")
     outbound = _cheapest_flight(data, origin, destination)
     inbound  = _cheapest_flight(data, destination, origin) if ret_date else None
 
@@ -177,13 +137,10 @@ def fetch_flights(tracker: dict) -> dict:
     if inbound:
         ticket_total += inbound["price"] * adults
 
-    # ── Schritt 2: Gepäckpreise ──
-    _delay(2.0, 4.5)
-
-    baggage_cost, baggage_fallback = _get_baggage_cost(
-        session, origin, destination,
-        outbound["flight_number"], out_date,
-        adults, baggage, currency
+    # Gepäck via Fallback-Preise (sicher, kein extra API-Call der crashen könnte)
+    baggage_cost = sum(
+        BAGGAGE_FALLBACK.get(b["type"], 0) * (adults if b.get("per_person") else 1)
+        for b in baggage
     )
 
     total = round(ticket_total + baggage_cost, 2)
@@ -196,16 +153,15 @@ def fetch_flights(tracker: dict) -> dict:
         "outbound_flight":  outbound["flight_number"],
         "return_flight":    inbound["flight_number"] if inbound else None,
         "currency":         currency,
-        "baggage_fallback": baggage_fallback,
+        "baggage_fallback": True,
         "status":           "ok",
-        "raw":              {"outbound": outbound, "inbound": inbound},
     }
 
+    logger.info(f"✅ Preis: {total} {currency}")
     return {"status": "ok", "snapshot": snapshot}
 
 
 def _cheapest_flight(data: dict, orig: str, dest: str) -> dict | None:
-    """Günstigsten Flug in gegebener Richtung aus API-Daten extrahieren."""
     best = None
     best_price = float("inf")
 
@@ -226,106 +182,5 @@ def _cheapest_flight(data: dict, orig: str, dest: str) -> dict | None:
                         "flight_number": flight.get("flightNumber", ""),
                         "price":         price,
                         "fares_left":    flight.get("faresLeft", 0),
-                        "time":          flight.get("time", []),
                     }
     return best
-
-
-# ─── Gepäck API ──────────────────────────────────────────────
-
-def _get_baggage_cost(
-    session, origin, destination,
-    flight_no, date, adults, baggage_config, currency
-) -> tuple[float, bool]:
-    """Gibt (Gesamtkosten, fallback_bool) zurück."""
-    if not baggage_config:
-        return 0.0, False
-
-    # Versuche dynamische Preise über Catalog API
-    prices = _fetch_baggage_prices_api(session, origin, destination, flight_no, date, adults)
-
-    if prices is None:
-        # Fallback: pauschale Schätzpreise
-        logger.warning("Gepäck-API fehlgeschlagen — nutze Fallback-Preise")
-        total = sum(
-            BAGGAGE_FALLBACK.get(b["type"], 0) * (adults if b.get("per_person") else 1)
-            for b in baggage_config
-        )
-        return total, True
-
-    # Echte API-Preise
-    total = _calculate_bag_cost(prices, baggage_config, adults)
-    return total, False
-
-
-def _fetch_baggage_prices_api(
-    session, origin, destination, flight_no, date, adults
-) -> dict | None:
-    """
-    Ryanair Extras/Catalog API für Gepäckpreise.
-    Gibt {type_key: price_per_bag} zurück oder None bei Fehler.
-    """
-    # Endpunkt 1: Booking extras
-    url = "https://www.ryanair.com/api/booking/v4/en-gb/extras/prices"
-    params = {
-        "flightNumber": flight_no,
-        "departureDate": date,
-        "ADT": adults,
-        "CHD": 0,
-        "origin": origin,
-        "destination": destination,
-    }
-
-    resp = _get_with_retry(session, url, params)
-
-    if resp and resp.status_code == 200:
-        return _parse_baggage_response(resp.json())
-
-    # Endpunkt 2: Catalog API (Fallback-Endpunkt)
-    url2 = f"https://www.ryanair.com/api/catalog/en-gb/pricing/extras"
-    resp2 = _get_with_retry(session, url2, params)
-
-    if resp2 and resp2.status_code == 200:
-        return _parse_baggage_response(resp2.json())
-
-    return None
-
-
-def _parse_baggage_response(data) -> dict | None:
-    """Normalisiert verschiedene Gepäck-API-Response-Formate."""
-    if not data:
-        return None
-
-    result = {}
-    items = data if isinstance(data, list) else data.get("extras", data.get("items", []))
-
-    for item in items:
-        code = str(item.get("code", item.get("type", ""))).lower()
-        name = str(item.get("name", "")).lower()
-        price_obj = item.get("price", item.get("amount", {}))
-
-        if isinstance(price_obj, dict):
-            price = float(price_obj.get("amount", price_obj.get("value", 0)))
-        else:
-            price = float(price_obj or 0)
-
-        if price <= 0:
-            continue
-
-        if "10" in code or "10" in name:
-            result["10kg"] = price
-        elif "20" in code or "20" in name:
-            result["20kg"] = price
-        elif "23" in code or "23" in name:
-            result["23kg"] = price
-
-    return result if result else None
-
-
-def _calculate_bag_cost(prices: dict, baggage_config: list, adults: int) -> float:
-    total = 0.0
-    for bag in baggage_config:
-        unit = prices.get(bag["type"], BAGGAGE_FALLBACK.get(bag["type"], 0))
-        qty  = adults if bag.get("per_person") else 1
-        total += unit * qty
-    return total
