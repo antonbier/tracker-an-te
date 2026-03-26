@@ -3,533 +3,108 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ryanair Preistracker</title>
+<title>Preistracker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
-  /* ── Reset & Variables ─────────────────────────── */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
   :root {
-    --bg:        #0d0e11;
-    --surface:   #141519;
-    --border:    #2a2b30;
-    --muted:     #3a3c44;
-    --text:      #e8e9ec;
-    --sub:       #7a7d88;
-    --accent:    #ff5533;
-    --accent2:   #ff8c00;
-    --green:     #00d97e;
-    --yellow:    #ffd166;
-    --red:       #ff4757;
-    --mono:      'Space Mono', monospace;
-    --sans:      'Syne', sans-serif;
-    --radius:    6px;
-    --transition: 180ms ease;
+    --bg: #0d0e11; --surface: #141519; --border: #2a2b30; --muted: #3a3c44;
+    --text: #e8e9ec; --sub: #7a7d88; --accent: #ff5533; --accent2: #ff8c00;
+    --green: #00d97e; --yellow: #ffd166; --red: #ff4757;
+    --mono: 'Space Mono', monospace; --sans: 'Syne', sans-serif;
+    --radius: 6px; --transition: 180ms ease;
   }
-
   html { font-size: 15px; scroll-behavior: smooth; }
-
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--sans);
-    min-height: 100vh;
-    line-height: 1.5;
-  }
-
-  /* ── Layout ─────────────────────────────────────── */
-  .header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1.25rem 2rem;
-    border-bottom: 1px solid var(--border);
-    position: sticky;
-    top: 0;
-    background: rgba(13,14,17,.92);
-    backdrop-filter: blur(12px);
-    z-index: 100;
-  }
-
-  .logo {
-    display: flex;
-    align-items: center;
-    gap: .6rem;
-    font-size: 1.1rem;
-    font-weight: 800;
-    letter-spacing: -.02em;
-  }
-
-  .logo-icon {
-    width: 28px; height: 28px;
-    background: var(--accent);
-    border-radius: 4px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: .85rem;
-  }
-
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; line-height: 1.5; }
+  .header { display: flex; align-items: center; justify-content: space-between; padding: 1.25rem 2rem; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: rgba(13,14,17,.92); backdrop-filter: blur(12px); z-index: 100; }
+  .logo { display: flex; align-items: center; gap: .6rem; font-size: 1.1rem; font-weight: 800; letter-spacing: -.02em; }
+  .logo-icon { width: 28px; height: 28px; background: var(--accent); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: .85rem; }
   .header-actions { display: flex; gap: .75rem; align-items: center; }
-
-  .status-dot {
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: var(--green);
-    box-shadow: 0 0 6px var(--green);
-    animation: pulse 2.5s ease-in-out infinite;
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: .35; }
-  }
-
-  .container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 2rem;
-  }
-
-  .grid-2 {
-    display: grid;
-    grid-template-columns: 400px 1fr;
-    gap: 1.5rem;
-    align-items: start;
-  }
-
-  @media (max-width: 900px) {
-    .grid-2 { grid-template-columns: 1fr; }
-    .container { padding: 1rem; }
-  }
-
-  /* ── Cards ──────────────────────────────────────── */
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 1.5rem;
-  }
-
-  .card-title {
-    font-size: .7rem;
-    font-weight: 700;
-    letter-spacing: .12em;
-    text-transform: uppercase;
-    color: var(--sub);
-    margin-bottom: 1.25rem;
-    display: flex;
-    align-items: center;
-    gap: .5rem;
-  }
-
-  .card-title::before {
-    content: '';
-    display: block;
-    width: 3px; height: 14px;
-    background: var(--accent);
-    border-radius: 2px;
-  }
-
-  /* ── Form ───────────────────────────────────────── */
-  .form-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: .75rem;
-    margin-bottom: .75rem;
-  }
-
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse 2.5s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+  .lang-switcher { display: flex; gap: 2px; background: var(--border); border-radius: 5px; padding: 2px; }
+  .lang-btn { padding: .25rem .5rem; border: none; border-radius: 3px; cursor: pointer; font-family: var(--mono); font-size: .7rem; font-weight: 700; letter-spacing: .05em; background: transparent; color: var(--sub); transition: all var(--transition); }
+  .lang-btn:hover { color: var(--text); }
+  .lang-btn.active { background: var(--surface); color: var(--accent); }
+  .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+  .grid-2 { display: grid; grid-template-columns: 400px 1fr; gap: 1.5rem; align-items: start; }
+  @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } .container { padding: 1rem; } }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; }
+  .card-title { font-size: .7rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--sub); margin-bottom: 1.25rem; display: flex; align-items: center; gap: .5rem; }
+  .card-title::before { content: ''; display: block; width: 3px; height: 14px; background: var(--accent); border-radius: 2px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; margin-bottom: .75rem; }
   .form-group { display: flex; flex-direction: column; gap: .35rem; }
-  .form-group.full { grid-column: 1 / -1; }
-
-  label {
-    font-size: .7rem;
-    font-weight: 700;
-    letter-spacing: .08em;
-    text-transform: uppercase;
-    color: var(--sub);
-  }
-
-  input, select {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    color: var(--text);
-    font-family: var(--mono);
-    font-size: .85rem;
-    padding: .6rem .75rem;
-    outline: none;
-    transition: border-color var(--transition);
-    width: 100%;
-  }
-
-  input:focus, select:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 2px rgba(255,85,51,.12);
-  }
-
+  label { font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--sub); }
+  input, select { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-family: var(--mono); font-size: .85rem; padding: .6rem .75rem; outline: none; transition: border-color var(--transition); width: 100%; }
+  input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(255,85,51,.12); }
   input::placeholder { color: var(--muted); }
-
   .iata-input { text-transform: uppercase; letter-spacing: .1em; }
-
-  /* ── Gepäck ─────────────────────────────────────── */
-  .baggage-section {
-    margin-top: 1rem;
-    padding-top: 1rem;
-    border-top: 1px solid var(--border);
-  }
-
-  .baggage-title {
-    font-size: .68rem;
-    font-weight: 700;
-    letter-spacing: .1em;
-    text-transform: uppercase;
-    color: var(--sub);
-    margin-bottom: .75rem;
-  }
-
-  .bag-option {
-    display: flex;
-    align-items: center;
-    gap: .75rem;
-    padding: .55rem .75rem;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    margin-bottom: .4rem;
-    cursor: pointer;
-    transition: border-color var(--transition), background var(--transition);
-    user-select: none;
-  }
-
+  .baggage-section { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+  .baggage-title { font-size: .68rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--sub); margin-bottom: .75rem; }
+  .bag-option { display: flex; align-items: center; gap: .75rem; padding: .55rem .75rem; border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: .4rem; cursor: pointer; transition: border-color var(--transition), background var(--transition); user-select: none; }
   .bag-option:hover { border-color: var(--muted); }
   .bag-option.selected { border-color: var(--accent); background: rgba(255,85,51,.06); }
-
-  .bag-checkbox {
-    width: 16px; height: 16px;
-    border: 1.5px solid var(--muted);
-    border-radius: 3px;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-    font-size: .6rem;
-    transition: all var(--transition);
-  }
-
-  .bag-option.selected .bag-checkbox {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: white;
-  }
-
+  .bag-checkbox { width: 16px; height: 16px; border: 1.5px solid var(--muted); border-radius: 3px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: .6rem; transition: all var(--transition); }
+  .bag-option.selected .bag-checkbox { background: var(--accent); border-color: var(--accent); color: white; }
   .bag-label { font-size: .82rem; flex: 1; }
   .bag-note { font-size: .7rem; color: var(--sub); font-family: var(--mono); }
-
-  /* ── Buttons ────────────────────────────────────── */
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    gap: .5rem;
-    padding: .65rem 1.25rem;
-    border: none;
-    border-radius: var(--radius);
-    font-family: var(--sans);
-    font-size: .82rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all var(--transition);
-    letter-spacing: .02em;
-  }
-
-  .btn-primary {
-    background: var(--accent);
-    color: white;
-    width: 100%;
-    justify-content: center;
-    margin-top: 1rem;
-    padding: .75rem;
-    font-size: .88rem;
-  }
-
+  .btn { display: inline-flex; align-items: center; gap: .5rem; padding: .65rem 1.25rem; border: none; border-radius: var(--radius); font-family: var(--sans); font-size: .82rem; font-weight: 700; cursor: pointer; transition: all var(--transition); letter-spacing: .02em; }
+  .btn-primary { background: var(--accent); color: white; width: 100%; justify-content: center; margin-top: 1rem; padding: .75rem; font-size: .88rem; }
   .btn-primary:hover { background: #e64422; transform: translateY(-1px); }
   .btn-primary:active { transform: translateY(0); }
   .btn-primary:disabled { opacity: .45; cursor: not-allowed; transform: none; }
-
-  .btn-ghost {
-    background: transparent;
-    color: var(--sub);
-    border: 1px solid var(--border);
-    padding: .4rem .7rem;
-    font-size: .75rem;
-  }
-
+  .btn-ghost { background: transparent; color: var(--sub); border: 1px solid var(--border); padding: .4rem .7rem; font-size: .75rem; }
   .btn-ghost:hover { color: var(--text); border-color: var(--muted); }
-
-  .btn-icon {
-    background: transparent;
-    color: var(--sub);
-    padding: .3rem .5rem;
-    font-size: .8rem;
-    border-radius: 4px;
-  }
-
+  .btn-icon { background: transparent; color: var(--sub); padding: .3rem .5rem; font-size: .8rem; border-radius: 4px; }
   .btn-icon:hover { background: var(--border); color: var(--text); }
-
   .btn-danger { color: var(--red); }
   .btn-danger:hover { background: rgba(255,71,87,.1); border-color: var(--red); color: var(--red); }
-
-  .btn-scrape {
-    background: transparent;
-    color: var(--accent2);
-    border: 1px solid rgba(255,140,0,.25);
-    padding: .35rem .65rem;
-    font-size: .72rem;
-  }
-
+  .btn-scrape { background: transparent; color: var(--accent2); border: 1px solid rgba(255,140,0,.25); padding: .35rem .65rem; font-size: .72rem; }
   .btn-scrape:hover { background: rgba(255,140,0,.08); border-color: var(--accent2); }
-
-  /* ── Tracker List ───────────────────────────────── */
   .tracker-list { margin-top: 1.5rem; }
-  .tracker-list-title {
-    font-size: .7rem;
-    font-weight: 700;
-    letter-spacing: .12em;
-    text-transform: uppercase;
-    color: var(--sub);
-    margin-bottom: 1rem;
-    display: flex;
-    align-items: center;
-    gap: .5rem;
-  }
-
-  .tracker-list-title::before {
-    content: '';
-    display: block;
-    width: 3px; height: 14px;
-    background: var(--accent2);
-    border-radius: 2px;
-  }
-
-  .tracker-item {
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 1rem;
-    margin-bottom: .6rem;
-    cursor: pointer;
-    transition: border-color var(--transition), background var(--transition);
-    position: relative;
-  }
-
+  .tracker-list-title { font-size: .7rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--sub); margin-bottom: 1rem; display: flex; align-items: center; gap: .5rem; }
+  .tracker-list-title::before { content: ''; display: block; width: 3px; height: 14px; background: var(--accent2); border-radius: 2px; }
+  .tracker-item { border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; margin-bottom: .6rem; cursor: pointer; transition: border-color var(--transition), background var(--transition); }
   .tracker-item:hover { border-color: var(--muted); }
   .tracker-item.active-tracker { border-color: var(--accent); background: rgba(255,85,51,.04); }
-
-  .tracker-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: .5rem;
-  }
-
-  .tracker-route {
-    font-size: 1rem;
-    font-weight: 800;
-    letter-spacing: .05em;
-    font-family: var(--mono);
-  }
-
-  .tracker-meta {
-    font-size: .72rem;
-    color: var(--sub);
-    display: flex;
-    gap: .75rem;
-    flex-wrap: wrap;
-  }
-
-  .tracker-price {
-    font-family: var(--mono);
-    font-size: .88rem;
-    color: var(--green);
-    font-weight: 700;
-  }
-
+  .tracker-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: .5rem; }
+  .tracker-route { font-size: 1rem; font-weight: 800; letter-spacing: .05em; font-family: var(--mono); }
+  .tracker-meta { font-size: .72rem; color: var(--sub); display: flex; gap: .75rem; flex-wrap: wrap; }
+  .tracker-price { font-family: var(--mono); font-size: .88rem; color: var(--green); font-weight: 700; }
   .tracker-price.stale { color: var(--sub); }
-
   .tracker-actions { display: flex; gap: .3rem; }
-
-  .badge {
-    display: inline-block;
-    padding: .15rem .4rem;
-    border-radius: 3px;
-    font-size: .62rem;
-    font-weight: 700;
-    letter-spacing: .06em;
-    text-transform: uppercase;
-    font-family: var(--mono);
-  }
-
+  .badge { display: inline-block; padding: .15rem .4rem; border-radius: 3px; font-size: .62rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; font-family: var(--mono); }
   .badge-ok { background: rgba(0,217,126,.12); color: var(--green); }
   .badge-blocked { background: rgba(255,71,87,.12); color: var(--red); }
   .badge-fallback { background: rgba(255,209,102,.12); color: var(--yellow); }
   .badge-paused { background: rgba(122,125,136,.12); color: var(--sub); }
-
-  /* ── Chart Panel ────────────────────────────────── */
-  .chart-panel { }
-  .chart-empty {
-    height: 320px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    color: var(--muted);
-    border: 1px dashed var(--border);
-    border-radius: var(--radius);
-    gap: .75rem;
-  }
-
+  .chart-empty { height: 320px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--muted); border: 1px dashed var(--border); border-radius: var(--radius); gap: .75rem; }
   .chart-empty-icon { font-size: 2.5rem; opacity: .35; }
-
-  .chart-wrap {
-    position: relative;
-    height: 280px;
-  }
-
-  .chart-stats {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: .75rem;
-    margin-top: 1rem;
-  }
-
-  .stat {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: .75rem 1rem;
-  }
-
+  .chart-wrap { position: relative; height: 280px; }
+  .chart-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .75rem; margin-top: 1rem; }
+  .stat { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: .75rem 1rem; }
   .stat-label { font-size: .65rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--sub); margin-bottom: .3rem; }
   .stat-value { font-family: var(--mono); font-size: 1.1rem; font-weight: 700; }
-  .stat-value.green { color: var(--green); }
-  .stat-value.yellow { color: var(--yellow); }
-  .stat-value.red { color: var(--red); }
-
-  /* ── Snapshots Table ────────────────────────────── */
+  .stat-value.green { color: var(--green); } .stat-value.red { color: var(--red); }
   .table-wrap { margin-top: 1.5rem; overflow-x: auto; }
-
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: .78rem;
-  }
-
+  table { width: 100%; border-collapse: collapse; font-size: .78rem; }
   thead tr { border-bottom: 1px solid var(--border); }
-
-  th {
-    text-align: left;
-    padding: .5rem .75rem;
-    font-size: .65rem;
-    font-weight: 700;
-    letter-spacing: .1em;
-    text-transform: uppercase;
-    color: var(--sub);
-  }
-
-  td {
-    padding: .55rem .75rem;
-    border-bottom: 1px solid rgba(42,43,48,.6);
-    font-family: var(--mono);
-    font-size: .78rem;
-  }
-
+  th { text-align: left; padding: .5rem .75rem; font-size: .65rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--sub); }
+  td { padding: .55rem .75rem; border-bottom: 1px solid rgba(42,43,48,.6); font-family: var(--mono); font-size: .78rem; }
   tr:last-child td { border-bottom: none; }
   tr:hover td { background: rgba(255,255,255,.02); }
-
-  /* ── Toast ──────────────────────────────────────── */
-  .toast-container {
-    position: fixed;
-    bottom: 1.5rem;
-    right: 1.5rem;
-    z-index: 999;
-    display: flex;
-    flex-direction: column;
-    gap: .5rem;
-  }
-
-  .toast {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: .75rem 1rem;
-    font-size: .8rem;
-    display: flex;
-    align-items: center;
-    gap: .5rem;
-    min-width: 260px;
-    animation: slideIn .2s ease;
-    box-shadow: 0 8px 24px rgba(0,0,0,.4);
-  }
-
-  .toast.success { border-color: var(--green); }
-  .toast.error   { border-color: var(--red); }
-  .toast.warning { border-color: var(--yellow); }
-
-  @keyframes slideIn {
-    from { transform: translateX(20px); opacity: 0; }
-    to   { transform: translateX(0);    opacity: 1; }
-  }
-
-  /* ── Loading ─────────────────────────────────────── */
-  .spinner {
-    display: inline-block;
-    width: 14px; height: 14px;
-    border: 2px solid rgba(255,255,255,.2);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin .7s linear infinite;
-  }
-
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  .loading-overlay {
-    position: absolute;
-    inset: 0;
-    background: rgba(13,14,17,.7);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: var(--radius);
-    z-index: 10;
-    gap: .75rem;
-    font-size: .85rem;
-    color: var(--sub);
-    backdrop-filter: blur(2px);
-  }
-
-  /* ── Config notice ───────────────────────────────── */
-  .api-notice {
-    background: rgba(255,140,0,.07);
-    border: 1px solid rgba(255,140,0,.2);
-    border-radius: var(--radius);
-    padding: .75rem 1rem;
-    font-size: .78rem;
-    color: var(--yellow);
-    margin-bottom: 1.5rem;
-    display: flex;
-    gap: .5rem;
-    align-items: flex-start;
-    line-height: 1.5;
-  }
-
-  .api-url-input {
-    font-family: var(--mono);
-    font-size: .78rem;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    color: var(--text);
-    padding: .4rem .6rem;
-    width: 100%;
-    margin-top: .4rem;
-  }
+  .toast-container { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 999; display: flex; flex-direction: column; gap: .5rem; }
+  .toast { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: .75rem 1rem; font-size: .8rem; display: flex; align-items: center; gap: .5rem; min-width: 260px; animation: slideIn .2s ease; box-shadow: 0 8px 24px rgba(0,0,0,.4); }
+  .toast.success { border-color: var(--green); } .toast.error { border-color: var(--red); } .toast.warning { border-color: var(--yellow); }
+  @keyframes slideIn { from{transform:translateX(20px);opacity:0} to{transform:translateX(0);opacity:1} }
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.2); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+  .loading-overlay { position: absolute; inset: 0; background: rgba(13,14,17,.7); display: flex; align-items: center; justify-content: center; border-radius: var(--radius); z-index: 10; gap: .75rem; font-size: .85rem; color: var(--sub); backdrop-filter: blur(2px); }
+  .api-notice { background: rgba(255,140,0,.07); border: 1px solid rgba(255,140,0,.2); border-radius: var(--radius); padding: .75rem 1rem; font-size: .78rem; color: var(--yellow); margin-bottom: 1.5rem; display: flex; gap: .5rem; align-items: flex-start; line-height: 1.5; }
+  .api-url-input { font-family: var(--mono); font-size: .78rem; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--text); padding: .4rem .6rem; width: 100%; margin-top: .4rem; }
   .api-url-input:focus { outline: none; border-color: var(--accent2); }
 </style>
 </head>
@@ -538,593 +113,377 @@
 <header class="header">
   <div class="logo">
     <div class="logo-icon">✈</div>
-    Preistracker
-
+    <span data-i18n="title">Preistracker</span>
   </div>
   <div class="header-actions">
-    <div class="status-dot" id="statusDot" title="API-Status"></div>
-    <button class="btn btn-ghost" onclick="loadTrackers()">↺ Aktualisieren</button>
+    <div class="lang-switcher">
+      <button class="lang-btn" onclick="setLang('de')">DE</button>
+      <button class="lang-btn" onclick="setLang('it')">IT</button>
+      <button class="lang-btn" onclick="setLang('en')">EN</button>
+    </div>
+    <div class="status-dot" id="statusDot"></div>
+    <button class="btn btn-ghost" onclick="loadTrackers()">↺ <span data-i18n="refresh">Aktualisieren</span></button>
   </div>
 </header>
 
 <div class="container">
-
-  <!-- API-URL Konfiguration -->
   <div class="api-notice">
     ⚙ <div>
-      <strong>Backend-URL konfigurieren</strong> — trage die URL deines Railway/Render-Deployments ein:
-      <input class="api-url-input" id="apiUrlInput" type="text"
-             placeholder="https://ryanair-tracker.up.railway.app"
-             oninput="saveApiUrl(this.value)">
+      <strong data-i18n="backendConfig">Backend-URL konfigurieren</strong> — <span data-i18n="backendHint">trage die URL deines Railway-Deployments ein</span>:
+      <input class="api-url-input" id="apiUrlInput" type="text" placeholder="https://tracker-an-te-production.up.railway.app" oninput="saveApiUrl(this.value)">
     </div>
   </div>
 
   <div class="grid-2">
-
-    <!-- ── Linke Spalte: Formular + Tracker-Liste ── -->
     <div>
-
-      <!-- Neuer Tracker -->
       <div class="card">
-        <div class="card-title">Neuen Tracker anlegen</div>
-
+        <div class="card-title" data-i18n="newTracker">Neuen Tracker anlegen</div>
         <div class="form-row">
-          <div class="form-group">
-            <label>Von (IATA)</label>
-            <input class="iata-input" id="origin" placeholder="BGY" maxlength="3">
-          </div>
-          <div class="form-group">
-            <label>Nach (IATA)</label>
-            <input class="iata-input" id="destination" placeholder="DUB" maxlength="3">
-          </div>
+          <div class="form-group"><label data-i18n="from">Von (IATA)</label><input class="iata-input" id="origin" placeholder="BGY" maxlength="3"></div>
+          <div class="form-group"><label data-i18n="to">Nach (IATA)</label><input class="iata-input" id="destination" placeholder="DUB" maxlength="3"></div>
         </div>
-
         <div class="form-row">
-          <div class="form-group">
-            <label>Hinflug</label>
-            <input type="date" id="outboundDate">
-          </div>
-          <div class="form-group">
-            <label>Rückflug (opt.)</label>
-            <input type="date" id="returnDate">
-          </div>
+          <div class="form-group"><label data-i18n="outbound">Hinflug</label><input type="date" id="outboundDate"></div>
+          <div class="form-group"><label data-i18n="return">Rückflug (opt.)</label><input type="date" id="returnDate"></div>
         </div>
-
         <div class="form-row">
           <div class="form-group">
-            <label>Erwachsene</label>
+            <label data-i18n="adults">Erwachsene</label>
             <select id="adults">
-              <option value="1">1 Erwachsener</option>
-              <option value="2" selected>2 Erwachsene</option>
-              <option value="3">3 Erwachsene</option>
-              <option value="4">4 Erwachsene</option>
-              <option value="5">5 Erwachsene</option>
+              <option value="1" data-i18n-opt="adult1">1 Erwachsener</option>
+              <option value="2" selected data-i18n-opt="adult2">2 Erwachsene</option>
+              <option value="3" data-i18n-opt="adult3">3 Erwachsene</option>
+              <option value="4" data-i18n-opt="adult4">4 Erwachsene</option>
+              <option value="5" data-i18n-opt="adult5">5 Erwachsene</option>
             </select>
           </div>
           <div class="form-group">
-            <label>Kinder</label>
+            <label data-i18n="children">Kinder</label>
             <select id="children">
-              <option value="0" selected>Keine Kinder</option>
-              <option value="1">1 Kind</option>
-              <option value="2">2 Kinder</option>
-              <option value="3">3 Kinder</option>
+              <option value="0" data-i18n-opt="child0">Keine Kinder</option>
+              <option value="1" data-i18n-opt="child1">1 Kind</option>
+              <option value="2" data-i18n-opt="child2">2 Kinder</option>
+              <option value="3" data-i18n-opt="child3">3 Kinder</option>
             </select>
           </div>
         </div>
-
-        <!-- Gepäck -->
         <div class="baggage-section">
-          <div class="baggage-title">🧳 Gepäck (pro Person)</div>
-
-          <div class="bag-option" id="bag-10kg" onclick="toggleBag('10kg')">
-            <div class="bag-checkbox" id="chk-10kg"></div>
-            <div class="bag-label">10 kg Check-in Koffer</div>
-            <div class="bag-note">+10kg</div>
-          </div>
-
-          <div class="bag-option" id="bag-20kg" onclick="toggleBag('20kg')">
-            <div class="bag-checkbox" id="chk-20kg"></div>
-            <div class="bag-label">20 kg Check-in Koffer</div>
-            <div class="bag-note">+20kg</div>
-          </div>
-
-          <div class="bag-option" id="bag-23kg" onclick="toggleBag('23kg')">
-            <div class="bag-checkbox" id="chk-23kg"></div>
-            <div class="bag-label">23 kg Koffer (Large)</div>
-            <div class="bag-note">+23kg</div>
-          </div>
-
-          <div style="font-size:.7rem;color:var(--sub);margin-top:.6rem">
-            ✓ Basic/Value-Tarif (kleiner Rucksack) immer inklusive
-          </div>
+          <div class="baggage-title" data-i18n="baggageTitle">🧳 Gepäck (pro Person)</div>
+          <div class="bag-option" id="bag-10kg" onclick="toggleBag('10kg')"><div class="bag-checkbox" id="chk-10kg"></div><div class="bag-label" data-i18n="bag10">10 kg Check-in Koffer</div><div class="bag-note">+10kg</div></div>
+          <div class="bag-option" id="bag-20kg" onclick="toggleBag('20kg')"><div class="bag-checkbox" id="chk-20kg"></div><div class="bag-label" data-i18n="bag20">20 kg Check-in Koffer</div><div class="bag-note">+20kg</div></div>
+          <div class="bag-option" id="bag-23kg" onclick="toggleBag('23kg')"><div class="bag-checkbox" id="chk-23kg"></div><div class="bag-label" data-i18n="bag23">23 kg Koffer (Large)</div><div class="bag-note">+23kg</div></div>
+          <div style="font-size:.7rem;color:var(--sub);margin-top:.6rem" data-i18n="baggageNote">✓ Basic/Value-Tarif (kleiner Rucksack) immer inklusive</div>
         </div>
-
-        <button class="btn btn-primary" id="addBtn" onclick="addTracker()">
-          + Tracker starten
-        </button>
+        <button class="btn btn-primary" id="addBtn" onclick="addTracker()">+ <span data-i18n="startTracker">Tracker starten</span></button>
       </div>
 
-      <!-- Tracker-Liste -->
       <div class="tracker-list">
-        <div class="tracker-list-title">Aktive Tracker</div>
-        <div id="trackerList">
-          <div style="color:var(--muted);font-size:.82rem;padding:.5rem 0">
-            Lade Tracker...
-          </div>
-        </div>
+        <div class="tracker-list-title" data-i18n="activeTrackers">Aktive Tracker</div>
+        <div id="trackerList"><div style="color:var(--muted);font-size:.82rem;padding:.5rem 0" data-i18n="loading">Lade...</div></div>
       </div>
-
     </div>
 
-    <!-- ── Rechte Spalte: Chart + Tabelle ── -->
     <div class="chart-panel">
-
       <div class="card" id="chartCard">
-        <div class="card-title" id="chartTitle">Preisverlauf</div>
-
+        <div class="card-title" id="chartTitle" data-i18n="priceHistory">Preisverlauf</div>
         <div id="chartEmpty" class="chart-empty">
           <div class="chart-empty-icon">📈</div>
-          <div style="font-size:.85rem">Wähle einen Tracker aus um den Verlauf zu sehen</div>
+          <div style="font-size:.85rem" data-i18n="selectTracker">Wähle einen Tracker aus</div>
         </div>
-
         <div id="chartContainer" style="display:none">
           <div class="chart-stats" id="chartStats"></div>
-          <div class="chart-wrap" style="margin-top:1rem">
-            <canvas id="priceChart"></canvas>
-          </div>
+          <div class="chart-wrap" style="margin-top:1rem"><canvas id="priceChart"></canvas></div>
         </div>
       </div>
-
-      <!-- Snapshot-Tabelle -->
       <div class="card" id="tableCard" style="margin-top:1.25rem;display:none">
-        <div class="card-title">Verlaufsdetails</div>
+        <div class="card-title" data-i18n="historyDetails">Verlaufsdetails</div>
         <div class="table-wrap">
           <table>
-            <thead>
-              <tr>
-                <th>Datum</th>
-                <th>Hinflug</th>
-                <th>Rückflug</th>
-                <th>Tickets</th>
-                <th>Gepäck</th>
-                <th>Gesamt</th>
-                <th>Status</th>
-              </tr>
-            </thead>
+            <thead><tr>
+              <th data-i18n="date">Datum</th><th data-i18n="outboundFlight">Hinflug</th>
+              <th data-i18n="returnFlight">Rückflug</th><th data-i18n="tickets">Tickets</th>
+              <th data-i18n="baggage">Gepäck</th><th data-i18n="total">Gesamt</th><th data-i18n="status">Status</th>
+            </tr></thead>
             <tbody id="snapshotTable"></tbody>
           </table>
         </div>
       </div>
-
     </div>
   </div>
 </div>
 
-<!-- Toasts -->
 <div class="toast-container" id="toastContainer"></div>
 
 <script>
-// ── Config ──────────────────────────────────────────
+const TRANSLATIONS = {
+  de: {
+    title:'Preistracker',refresh:'Aktualisieren',backendConfig:'Backend-URL konfigurieren',
+    backendHint:'trage die URL deines Railway-Deployments ein',newTracker:'Neuen Tracker anlegen',
+    from:'Von (IATA)',to:'Nach (IATA)',outbound:'Hinflug',return:'Rückflug (opt.)',
+    adults:'Erwachsene',children:'Kinder',
+    adult1:'1 Erwachsener',adult2:'2 Erwachsene',adult3:'3 Erwachsene',adult4:'4 Erwachsene',adult5:'5 Erwachsene',
+    child0:'Keine Kinder',child1:'1 Kind',child2:'2 Kinder',child3:'3 Kinder',
+    baggageTitle:'🧳 Gepäck (pro Person)',bag10:'10 kg Check-in Koffer',bag20:'20 kg Check-in Koffer',bag23:'23 kg Koffer (Large)',
+    baggageNote:'✓ Basic/Value-Tarif (kleiner Rucksack) immer inklusive',
+    startTracker:'Tracker starten',activeTrackers:'Aktive Tracker',loading:'Lade...',
+    noTrackers:'Noch keine Tracker — leg einen an!',priceHistory:'Preisverlauf',
+    selectTracker:'Wähle einen Tracker aus um den Verlauf zu sehen',historyDetails:'Verlaufsdetails',
+    date:'Datum',outboundFlight:'Hinflug',returnFlight:'Rückflug',tickets:'Tickets',baggage:'Gepäck',total:'Gesamt',status:'Status',
+    current:'Aktuell',lowestPrice:'Tiefstpreis',change:'Änderung',
+    scrapeStarted:'Abruf gestartet...',scrapeError:'Scraping fehlgeschlagen',
+    deleteConfirm:'Tracker und alle gespeicherten Preise löschen?',deleted:'Tracker gelöscht',
+    error:'Fehler',paused:'Pausiert',activated:'Aktiviert',trackerAdded:'Tracker angelegt',
+    estimate:'Schätzung',oneWay:'Einweg',adultShort:'Erw.',backpackOnly:'Nur Rucksack',
+    loadingChart:'Lade Preisverlauf...',noData:'Noch keine Daten',blocked:'Geblockt',
+    invalidOrigin:'Gültigen Abflug-IATA eingeben (z.B. BGY)',invalidDest:'Gültigen Ziel-IATA eingeben (z.B. DUB)',
+    missingDate:'Hinflugdatum wählen',missingUrl:'Bitte zuerst Backend-URL eintragen',creatingTracker:'Anlegen...',
+  },
+  it: {
+    title:'Tracciatore Prezzi',refresh:'Aggiorna',backendConfig:'Configura URL Backend',
+    backendHint:"inserisci l'URL del tuo deployment Railway",newTracker:'Nuovo Tracker',
+    from:'Da (IATA)',to:'A (IATA)',outbound:'Andata',return:'Ritorno (opt.)',
+    adults:'Adulti',children:'Bambini',
+    adult1:'1 Adulto',adult2:'2 Adulti',adult3:'3 Adulti',adult4:'4 Adulti',adult5:'5 Adulti',
+    child0:'Nessun bambino',child1:'1 Bambino',child2:'2 Bambini',child3:'3 Bambini',
+    baggageTitle:'🧳 Bagaglio (per persona)',bag10:'Valigia 10 kg da stiva',bag20:'Valigia 20 kg da stiva',bag23:'Valigia 23 kg (Large)',
+    baggageNote:'✓ Tariffa Basic/Value (zaino piccolo) sempre inclusa',
+    startTracker:'Avvia Tracker',activeTrackers:'Tracker Attivi',loading:'Caricamento...',
+    noTrackers:'Nessun tracker — creane uno!',priceHistory:'Storico Prezzi',
+    selectTracker:'Seleziona un tracker per vedere lo storico',historyDetails:'Dettagli Storico',
+    date:'Data',outboundFlight:'Andata',returnFlight:'Ritorno',tickets:'Biglietti',baggage:'Bagaglio',total:'Totale',status:'Stato',
+    current:'Attuale',lowestPrice:'Prezzo minimo',change:'Variazione',
+    scrapeStarted:'Richiesta avviata...',scrapeError:'Errore scraping',
+    deleteConfirm:'Eliminare il tracker e tutti i prezzi salvati?',deleted:'Tracker eliminato',
+    error:'Errore',paused:'In pausa',activated:'Riattivato',trackerAdded:'Tracker creato',
+    estimate:'Stima',oneWay:'Solo andata',adultShort:'Ad.',backpackOnly:'Solo zaino',
+    loadingChart:'Caricamento storico...',noData:'Ancora nessun dato',blocked:'Bloccato',
+    invalidOrigin:'Inserisci un codice IATA valido per la partenza (es. BGY)',invalidDest:'Inserisci un codice IATA valido per la destinazione (es. DUB)',
+    missingDate:'Seleziona la data di andata',missingUrl:"Inserisci prima l'URL del Backend",creatingTracker:'Creazione...',
+  },
+  en: {
+    title:'Price Tracker',refresh:'Refresh',backendConfig:'Configure Backend URL',
+    backendHint:'enter your Railway deployment URL',newTracker:'New Tracker',
+    from:'From (IATA)',to:'To (IATA)',outbound:'Outbound',return:'Return (opt.)',
+    adults:'Adults',children:'Children',
+    adult1:'1 Adult',adult2:'2 Adults',adult3:'3 Adults',adult4:'4 Adults',adult5:'5 Adults',
+    child0:'No children',child1:'1 Child',child2:'2 Children',child3:'3 Children',
+    baggageTitle:'🧳 Baggage (per person)',bag10:'10 kg Check-in Bag',bag20:'20 kg Check-in Bag',bag23:'23 kg Bag (Large)',
+    baggageNote:'✓ Basic/Value fare (small backpack) always included',
+    startTracker:'Start Tracker',activeTrackers:'Active Trackers',loading:'Loading...',
+    noTrackers:'No trackers yet — create one!',priceHistory:'Price History',
+    selectTracker:'Select a tracker to view its history',historyDetails:'History Details',
+    date:'Date',outboundFlight:'Outbound',returnFlight:'Return',tickets:'Tickets',baggage:'Baggage',total:'Total',status:'Status',
+    current:'Current',lowestPrice:'Lowest Price',change:'Change',
+    scrapeStarted:'Fetch started...',scrapeError:'Scraping failed',
+    deleteConfirm:'Delete tracker and all saved prices?',deleted:'Tracker deleted',
+    error:'Error',paused:'Paused',activated:'Activated',trackerAdded:'Tracker created',
+    estimate:'Estimate',oneWay:'One-way',adultShort:'Ad.',backpackOnly:'Backpack only',
+    loadingChart:'Loading history...',noData:'No data yet',blocked:'Blocked',
+    invalidOrigin:'Enter a valid origin IATA code (e.g. BGY)',invalidDest:'Enter a valid destination IATA code (e.g. DUB)',
+    missingDate:'Select outbound date',missingUrl:'Please enter the Backend URL first',creatingTracker:'Creating...',
+  }
+};
+
+let currentLang = localStorage.getItem('lang') || 'de';
 let API_URL = localStorage.getItem('apiUrl') || '';
 let selectedTrackerId = null;
 let priceChart = null;
 let selectedBags = new Set();
 
-function saveApiUrl(val) {
-  API_URL = val.trim().replace(/\/$/, '');
-  localStorage.setItem('apiUrl', API_URL);
+function t(key) { return TRANSLATIONS[currentLang]?.[key] || TRANSLATIONS.de[key] || key; }
+
+function setLang(lang) {
+  currentLang = lang;
+  localStorage.setItem('lang', lang);
+  document.documentElement.lang = lang;
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.getAttribute('data-i18n')); });
+  document.querySelectorAll('[data-i18n-opt]').forEach(el => { el.textContent = t(el.getAttribute('data-i18n-opt')); });
+  document.querySelectorAll('.lang-btn').forEach(btn => { btn.classList.toggle('active', btn.textContent === lang.toUpperCase()); });
+  loadTrackers();
+  if (selectedTrackerId) selectTracker(selectedTrackerId);
 }
 
 window.addEventListener('DOMContentLoaded', () => {
   const saved = localStorage.getItem('apiUrl') || '';
   document.getElementById('apiUrlInput').value = saved;
   API_URL = saved;
-
-  // Datumsfelder vorbelegen
   const today = new Date();
   const out = new Date(today); out.setDate(out.getDate() + 30);
   const ret = new Date(today); ret.setDate(ret.getDate() + 37);
   document.getElementById('outboundDate').value = fmt(out);
-  document.getElementById('returnDate').value   = fmt(ret);
-
-  loadTrackers();
+  document.getElementById('returnDate').value = fmt(ret);
+  setLang(currentLang);
   checkApiStatus();
 });
 
-function fmt(d) {
-  return d.toISOString().slice(0,10);
-}
+function fmt(d) { return d.toISOString().slice(0,10); }
+function saveApiUrl(val) { API_URL = val.trim().replace(/\/$/, ''); localStorage.setItem('apiUrl', API_URL); }
 
-// ── API calls ────────────────────────────────────────
 async function api(path, opts = {}) {
-  if (!API_URL) throw new Error('Backend-URL nicht konfiguriert');
-  const r = await fetch(API_URL + path, {
-    headers: { 'Content-Type': 'application/json' },
-    ...opts
-  });
-  if (!r.ok) {
-    const err = await r.json().catch(() => ({ detail: r.statusText }));
-    throw new Error(err.detail || `HTTP ${r.status}`);
-  }
+  if (!API_URL) throw new Error(t('missingUrl'));
+  const r = await fetch(API_URL + path, { headers: { 'Content-Type': 'application/json' }, ...opts });
+  if (!r.ok) { const err = await r.json().catch(() => ({ detail: r.statusText })); throw new Error(err.detail || `HTTP ${r.status}`); }
   return r.json();
 }
 
 async function checkApiStatus() {
   const dot = document.getElementById('statusDot');
-  try {
-    await api('/health');
-    dot.style.background = 'var(--green)';
-    dot.style.boxShadow  = '0 0 6px var(--green)';
-    dot.title = 'Backend erreichbar';
-  } catch {
-    dot.style.background = 'var(--red)';
-    dot.style.boxShadow  = '0 0 6px var(--red)';
-    dot.title = 'Backend nicht erreichbar';
-  }
+  try { await api('/health'); dot.style.background = 'var(--green)'; dot.style.boxShadow = '0 0 6px var(--green)'; }
+  catch { dot.style.background = 'var(--red)'; dot.style.boxShadow = '0 0 6px var(--red)'; }
 }
 
-// ── Gepäck Toggle ────────────────────────────────────
 function toggleBag(type) {
-  if (selectedBags.has(type)) {
-    selectedBags.delete(type);
-    document.getElementById('bag-' + type).classList.remove('selected');
-    document.getElementById('chk-' + type).textContent = '';
-  } else {
-    selectedBags.add(type);
-    document.getElementById('bag-' + type).classList.add('selected');
-    document.getElementById('chk-' + type).textContent = '✓';
-  }
+  if (selectedBags.has(type)) { selectedBags.delete(type); document.getElementById('bag-'+type).classList.remove('selected'); document.getElementById('chk-'+type).textContent = ''; }
+  else { selectedBags.add(type); document.getElementById('bag-'+type).classList.add('selected'); document.getElementById('chk-'+type).textContent = '✓'; }
 }
 
-// ── Add Tracker ──────────────────────────────────────
 async function addTracker() {
   const btn = document.getElementById('addBtn');
   const origin = document.getElementById('origin').value.trim().toUpperCase();
-  const dest   = document.getElementById('destination').value.trim().toUpperCase();
+  const dest = document.getElementById('destination').value.trim().toUpperCase();
   const outDate = document.getElementById('outboundDate').value;
   const retDate = document.getElementById('returnDate').value;
-
-  if (!origin || origin.length !== 3) { toast('Gültigen Abflug-IATA eingeben (z.B. BGY)', 'error'); return; }
-  if (!dest   || dest.length !== 3)   { toast('Gültigen Ziel-IATA eingeben (z.B. DUB)', 'error'); return; }
-  if (!outDate)                        { toast('Hinflugdatum wählen', 'error'); return; }
-  if (!API_URL)                        { toast('Bitte zuerst Backend-URL eintragen', 'warning'); return; }
-
-  const baggage = [...selectedBags].map(type => ({ type, per_person: true }));
-
+  if (!origin || origin.length !== 3) { toast(t('invalidOrigin'), 'error'); return; }
+  if (!dest || dest.length !== 3) { toast(t('invalidDest'), 'error'); return; }
+  if (!outDate) { toast(t('missingDate'), 'error'); return; }
+  if (!API_URL) { toast(t('missingUrl'), 'warning'); return; }
   btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Anlegen...';
-
+  btn.innerHTML = `<span class="spinner"></span> ${t('creatingTracker')}`;
   try {
-    const payload = {
-      origin, destination: dest,
-      outbound_date: outDate,
-      return_date: retDate || null,
-      adults: parseInt(document.getElementById('adults').value),
-      children: parseInt(document.getElementById('children').value),
-      baggage,
-    };
-
-    await api('/api/trackers', { method: 'POST', body: JSON.stringify(payload) });
-    toast(`Tracker ${origin} → ${dest} angelegt ✓`, 'success');
-
-    // Felder leeren
+    await api('/api/trackers', { method: 'POST', body: JSON.stringify({ origin, destination: dest, outbound_date: outDate, return_date: retDate || null, adults: parseInt(document.getElementById('adults').value), children: parseInt(document.getElementById('children').value), baggage: [...selectedBags].map(type => ({ type, per_person: true })) }) });
+    toast(`${t('trackerAdded')} ✓ ${origin} → ${dest}`, 'success');
     document.getElementById('origin').value = '';
     document.getElementById('destination').value = '';
     selectedBags.clear();
-    ['10kg','20kg','23kg'].forEach(t => {
-      document.getElementById('bag-' + t).classList.remove('selected');
-      document.getElementById('chk-' + t).textContent = '';
-    });
-
+    ['10kg','20kg','23kg'].forEach(tp => { document.getElementById('bag-'+tp).classList.remove('selected'); document.getElementById('chk-'+tp).textContent = ''; });
     loadTrackers();
-  } catch(e) {
-    toast('Fehler: ' + e.message, 'error');
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = '+ Tracker starten';
-  }
+  } catch(e) { toast(`${t('error')}: ${e.message}`, 'error'); }
+  finally { btn.disabled = false; btn.innerHTML = `+ ${t('startTracker')}`; }
 }
 
-// ── Load Trackers ────────────────────────────────────
 async function loadTrackers() {
   const el = document.getElementById('trackerList');
-  try {
-    const trackers = await api('/api/trackers');
-    renderTrackers(trackers);
-  } catch(e) {
-    el.innerHTML = `<div style="color:var(--red);font-size:.8rem">⚠ ${e.message}</div>`;
-  }
+  try { const trackers = await api('/api/trackers'); renderTrackers(trackers); }
+  catch(e) { el.innerHTML = `<div style="color:var(--red);font-size:.8rem">⚠ ${e.message}</div>`; }
 }
 
 function renderTrackers(trackers) {
   const el = document.getElementById('trackerList');
-  if (!trackers.length) {
-    el.innerHTML = '<div style="color:var(--muted);font-size:.82rem;padding:.5rem 0">Noch keine Tracker — leg einen an!</div>';
-    return;
-  }
-
-  el.innerHTML = trackers.map(t => {
-    const snap = t.latest_snapshot;
-    const priceStr = snap && snap.total_price
-      ? `${snap.total_price.toFixed(2)} €`
-      : '–';
-    const priceClass = snap ? '' : 'stale';
-    const statusBadge = !t.active
-      ? '<span class="badge badge-paused">Pausiert</span>'
-      : snap && snap.status === 'ok'
-        ? (snap.baggage_fallback ? '<span class="badge badge-fallback">~Schätzung</span>' : '<span class="badge badge-ok">Live</span>')
-        : snap && snap.status === 'blocked'
-          ? '<span class="badge badge-blocked">Geblockt</span>'
-          : '';
-
-    const bagStr = (t.baggage || []).map(b => b.type).join(', ') || 'Nur Rucksack';
-    const retStr = t.return_date ? ` ⇄ ${t.return_date}` : ' (Einweg)';
-    const isSelected = t.id === selectedTrackerId;
-
-    return `
-      <div class="tracker-item ${isSelected ? 'active-tracker' : ''}"
-           onclick="selectTracker(${t.id})" id="tracker-${t.id}">
-        <div class="tracker-header">
-          <div class="tracker-route">${t.origin} → ${t.destination}</div>
-          <div class="tracker-price ${priceClass}">${priceStr}</div>
-        </div>
-        <div class="tracker-meta">
-          <span>${t.outbound_date}${retStr}</span>
-          <span>${t.adults} Erw.</span>
-          <span>🧳 ${bagStr}</span>
-          ${statusBadge}
-        </div>
-        <div class="tracker-actions" style="margin-top:.6rem">
-          <button class="btn btn-icon btn-scrape" onclick="event.stopPropagation();scrapeNow(${t.id})" title="Jetzt abrufen">
-            ⟳ Jetzt
-          </button>
-          <button class="btn btn-icon btn-ghost" onclick="event.stopPropagation();togglePause(${t.id},${t.active})" title="${t.active ? 'Pausieren' : 'Aktivieren'}">
-            ${t.active ? '⏸' : '▶'}
-          </button>
-          <button class="btn btn-icon btn-ghost btn-danger" onclick="event.stopPropagation();deleteTracker(${t.id})" title="Löschen">
-            ✕
-          </button>
-        </div>
-      </div>`;
+  if (!trackers.length) { el.innerHTML = `<div style="color:var(--muted);font-size:.82rem;padding:.5rem 0">${t('noTrackers')}</div>`; return; }
+  el.innerHTML = trackers.map(tr => {
+    const snap = tr.latest_snapshot;
+    const priceStr = snap?.total_price ? `${snap.total_price.toFixed(2)} €` : '–';
+    const statusBadge = !tr.active ? `<span class="badge badge-paused">${t('paused')}</span>`
+      : snap?.status === 'ok' ? (snap.baggage_fallback ? `<span class="badge badge-fallback">~${t('estimate')}</span>` : '<span class="badge badge-ok">Live</span>')
+      : snap?.status === 'blocked' ? `<span class="badge badge-blocked">${t('blocked')}</span>` : '';
+    const bagStr = (tr.baggage||[]).map(b => b.type).join(', ') || t('backpackOnly');
+    const retStr = tr.return_date ? ` ⇄ ${tr.return_date}` : ` (${t('oneWay')})`;
+    return `<div class="tracker-item ${tr.id===selectedTrackerId?'active-tracker':''}" onclick="selectTracker(${tr.id})">
+      <div class="tracker-header"><div class="tracker-route">${tr.origin} → ${tr.destination}</div><div class="tracker-price ${snap?'':'stale'}">${priceStr}</div></div>
+      <div class="tracker-meta"><span>${tr.outbound_date}${retStr}</span><span>${tr.adults} ${t('adultShort')}</span><span>🧳 ${bagStr}</span>${statusBadge}</div>
+      <div class="tracker-actions" style="margin-top:.6rem">
+        <button class="btn btn-icon btn-scrape" onclick="event.stopPropagation();scrapeNow(${tr.id})">⟳ ${t('current')}</button>
+        <button class="btn btn-icon btn-ghost" onclick="event.stopPropagation();togglePause(${tr.id},${tr.active})">${tr.active?'⏸':'▶'}</button>
+        <button class="btn btn-icon btn-ghost btn-danger" onclick="event.stopPropagation();deleteTracker(${tr.id})">✕</button>
+      </div></div>`;
   }).join('');
 }
 
-// ── Select & Chart ───────────────────────────────────
 async function selectTracker(id) {
-  selectedTrackerId = id;
-  loadTrackers(); // Highlight aktualisieren
-
+  selectedTrackerId = id; loadTrackers();
   const container = document.getElementById('chartContainer');
-  const empty     = document.getElementById('chartEmpty');
+  const empty = document.getElementById('chartEmpty');
   const tableCard = document.getElementById('tableCard');
-
-  container.style.display = 'none';
-  empty.style.display = 'none';
-
-  // Lade-Overlay
+  container.style.display = 'none'; empty.style.display = 'none';
   const card = document.getElementById('chartCard');
   const overlay = document.createElement('div');
   overlay.className = 'loading-overlay';
-  overlay.innerHTML = '<span class="spinner"></span> Lade Preisverlauf...';
-  card.style.position = 'relative';
-  card.appendChild(overlay);
-
+  overlay.innerHTML = `<span class="spinner"></span> ${t('loadingChart')}`;
+  card.style.position = 'relative'; card.appendChild(overlay);
   try {
     const data = await api(`/api/prices/${id}?limit=90`);
     card.removeChild(overlay);
-
-    if (!data.total_prices.length) {
-      empty.style.display = 'flex';
-      document.getElementById('chartTitle').textContent = 'Preisverlauf – Noch keine Daten';
-      return;
-    }
-
-    const t = data.tracker;
-    document.getElementById('chartTitle').textContent =
-      `${t.origin} → ${t.destination}  ${t.outbound_date}${t.return_date ? ' ⇄ '+t.return_date : ''}`;
-
-    renderStats(data);
-    renderChart(data);
-    renderTable(data.snapshots);
-
-    container.style.display = 'block';
-    tableCard.style.display = 'block';
-
-  } catch(e) {
-    card.removeChild(overlay);
-    empty.style.display = 'flex';
-    toast('Fehler beim Laden: ' + e.message, 'error');
-  }
+    if (!data.total_prices.length) { empty.style.display = 'flex'; document.getElementById('chartTitle').textContent = `${t('priceHistory')} – ${t('noData')}`; return; }
+    const tr = data.tracker;
+    document.getElementById('chartTitle').textContent = `${tr.origin} → ${tr.destination}  ${tr.outbound_date}${tr.return_date?' ⇄ '+tr.return_date:''}`;
+    renderStats(data); renderChart(data); renderTable(data.snapshots);
+    container.style.display = 'block'; tableCard.style.display = 'block';
+  } catch(e) { card.removeChild(overlay); empty.style.display = 'flex'; toast(`${t('error')}: ${e.message}`, 'error'); }
 }
 
 function renderStats(data) {
   const prices = data.total_prices.filter(p => p !== null);
   if (!prices.length) return;
-
-  const min = Math.min(...prices);
-  const max = Math.max(...prices);
-  const cur = prices[prices.length - 1];
-  const prev = prices.length > 1 ? prices[prices.length - 2] : cur;
-  const diff = cur - prev;
-  const diffStr = (diff >= 0 ? '+' : '') + diff.toFixed(2) + ' €';
-  const diffColor = diff > 0 ? 'red' : diff < 0 ? 'green' : '';
-
+  const min = Math.min(...prices), cur = prices[prices.length-1], prev = prices.length>1?prices[prices.length-2]:cur;
+  const diff = cur - prev, diffStr = (diff>=0?'+':'')+diff.toFixed(2)+' €';
   document.getElementById('chartStats').innerHTML = `
-    <div class="stat">
-      <div class="stat-label">Aktuell</div>
-      <div class="stat-value">${cur.toFixed(2)} €</div>
-      <div style="font-size:.68rem;color:var(--sub);margin-top:.2rem">${data.labels[data.labels.length-1]}</div>
-    </div>
-    <div class="stat">
-      <div class="stat-label">Tiefstpreis</div>
-      <div class="stat-value green">${min.toFixed(2)} €</div>
-    </div>
-    <div class="stat">
-      <div class="stat-label">Änderung</div>
-      <div class="stat-value ${diffColor}">${diffStr}</div>
-    </div>`;
+    <div class="stat"><div class="stat-label">${t('current')}</div><div class="stat-value">${cur.toFixed(2)} €</div><div style="font-size:.68rem;color:var(--sub);margin-top:.2rem">${data.labels[data.labels.length-1]}</div></div>
+    <div class="stat"><div class="stat-label">${t('lowestPrice')}</div><div class="stat-value green">${min.toFixed(2)} €</div></div>
+    <div class="stat"><div class="stat-label">${t('change')}</div><div class="stat-value ${diff>0?'red':diff<0?'green':''}">${diffStr}</div></div>`;
 }
 
 function renderChart(data) {
   if (priceChart) { priceChart.destroy(); priceChart = null; }
-
-  const ctx = document.getElementById('priceChart').getContext('2d');
-  priceChart = new Chart(ctx, {
+  priceChart = new Chart(document.getElementById('priceChart').getContext('2d'), {
     type: 'line',
-    data: {
-      labels: data.labels,
-      datasets: [
-        {
-          label: 'Gesamtpreis',
-          data: data.total_prices,
-          borderColor: '#ff5533',
-          backgroundColor: 'rgba(255,85,51,.08)',
-          borderWidth: 2,
-          pointRadius: 4,
-          pointHoverRadius: 6,
-          pointBackgroundColor: '#ff5533',
-          fill: true,
-          tension: .3,
-        },
-        {
-          label: 'Tickets',
-          data: data.flight_prices,
-          borderColor: '#ff8c00',
-          backgroundColor: 'transparent',
-          borderWidth: 1.5,
-          borderDash: [4,3],
-          pointRadius: 3,
-          fill: false,
-          tension: .3,
-        },
-        {
-          label: 'Gepäck',
-          data: data.baggage_prices,
-          borderColor: '#7a7d88',
-          backgroundColor: 'transparent',
-          borderWidth: 1.5,
-          borderDash: [2,4],
-          pointRadius: 2,
-          fill: false,
-          tension: .3,
-        },
-      ]
-    },
+    data: { labels: data.labels, datasets: [
+      { label: t('total'),   data: data.total_prices,   borderColor: '#ff5533', backgroundColor: 'rgba(255,85,51,.08)', borderWidth: 2, pointRadius: 4, pointHoverRadius: 6, pointBackgroundColor: '#ff5533', fill: true, tension: .3 },
+      { label: t('tickets'), data: data.flight_prices,  borderColor: '#ff8c00', backgroundColor: 'transparent', borderWidth: 1.5, borderDash: [4,3], pointRadius: 3, fill: false, tension: .3 },
+      { label: t('baggage'), data: data.baggage_prices, borderColor: '#7a7d88', backgroundColor: 'transparent', borderWidth: 1.5, borderDash: [2,4], pointRadius: 2, fill: false, tension: .3 },
+    ]},
     options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
+      responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: {
-          position: 'top',
-          labels: {
-            color: '#7a7d88',
-            font: { family: "'Space Mono', monospace", size: 11 },
-            boxWidth: 12, boxHeight: 2, padding: 16,
-          }
-        },
-        tooltip: {
-          backgroundColor: '#141519',
-          borderColor: '#2a2b30',
-          borderWidth: 1,
-          titleColor: '#e8e9ec',
-          bodyColor: '#7a7d88',
-          padding: 12,
-          callbacks: {
-            label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y?.toFixed(2) ?? '–'} €`
-          }
-        }
+        legend: { position: 'top', labels: { color: '#7a7d88', font: { family: "'Space Mono', monospace", size: 11 }, boxWidth: 12, boxHeight: 2, padding: 16 } },
+        tooltip: { backgroundColor: '#141519', borderColor: '#2a2b30', borderWidth: 1, titleColor: '#e8e9ec', bodyColor: '#7a7d88', padding: 12, callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y?.toFixed(2)??'–'} €` } }
       },
       scales: {
-        x: {
-          grid: { color: 'rgba(42,43,48,.5)' },
-          ticks: { color: '#7a7d88', font: { family: "'Space Mono'", size: 10 }, maxRotation: 45 }
-        },
-        y: {
-          grid: { color: 'rgba(42,43,48,.5)' },
-          ticks: {
-            color: '#7a7d88',
-            font: { family: "'Space Mono'", size: 10 },
-            callback: v => v + ' €'
-          }
-        }
+        x: { grid: { color: 'rgba(42,43,48,.5)' }, ticks: { color: '#7a7d88', font: { family: "'Space Mono'", size: 10 }, maxRotation: 45 } },
+        y: { grid: { color: 'rgba(42,43,48,.5)' }, ticks: { color: '#7a7d88', font: { family: "'Space Mono'", size: 10 }, callback: v => v+' €' } }
       }
     }
   });
 }
 
 function renderTable(snaps) {
-  const tbody = document.getElementById('snapshotTable');
-  const rows = [...snaps].reverse().slice(0, 30);
-  tbody.innerHTML = rows.map(s => {
-    const statusHtml = s.status === 'ok'
-      ? (s.baggage_fallback ? '<span class="badge badge-fallback">~</span>' : '<span class="badge badge-ok">✓</span>')
-      : `<span class="badge badge-blocked">${s.status}</span>`;
-
-    return `<tr>
-      <td>${(s.fetched_at || '').slice(0,10)}</td>
-      <td>${s.outbound_flight || '–'}</td>
-      <td>${s.return_flight  || '–'}</td>
-      <td>${s.flight_price  != null ? s.flight_price.toFixed(2)+' €'  : '–'}</td>
-      <td>${s.baggage_price != null ? s.baggage_price.toFixed(2)+' €' : '–'}</td>
-      <td style="color:var(--green);font-weight:700">${s.total_price != null ? s.total_price.toFixed(2)+' €' : '–'}</td>
-      <td>${statusHtml}</td>
-    </tr>`;
+  document.getElementById('snapshotTable').innerHTML = [...snaps].reverse().slice(0,30).map(s => {
+    const statusHtml = s.status==='ok' ? (s.baggage_fallback?`<span class="badge badge-fallback">~${t('estimate')}</span>`:'<span class="badge badge-ok">✓</span>') : `<span class="badge badge-blocked">${s.status}</span>`;
+    return `<tr><td>${(s.fetched_at||'').slice(0,10)}</td><td>${s.outbound_flight||'–'}</td><td>${s.return_flight||'–'}</td><td>${s.flight_price!=null?s.flight_price.toFixed(2)+' €':'–'}</td><td>${s.baggage_price!=null?s.baggage_price.toFixed(2)+' €':'–'}</td><td style="color:var(--green);font-weight:700">${s.total_price!=null?s.total_price.toFixed(2)+' €':'–'}</td><td>${statusHtml}</td></tr>`;
   }).join('');
 }
 
-// ── Actions ──────────────────────────────────────────
 async function scrapeNow(id) {
-  toast('Abruf gestartet...', 'warning');
+  toast(t('scrapeStarted'), 'warning');
   try {
     const result = await api(`/api/trackers/${id}/scrape`, { method: 'POST' });
     const snap = result.snapshot;
-    if (snap && snap.total_price) {
-      toast(`Aktuell: ${snap.total_price.toFixed(2)} € ${snap.baggage_fallback ? '(Gepäck: Schätzung)' : ''}`, 'success');
-    } else {
-      toast(`Status: ${snap?.status || 'unbekannt'}`, 'warning');
-    }
-    loadTrackers();
-    if (selectedTrackerId === id) selectTracker(id);
-  } catch(e) {
-    toast('Scraping fehlgeschlagen: ' + e.message, 'error');
-  }
+    if (snap?.total_price) toast(`${t('current')}: ${snap.total_price.toFixed(2)} €${snap.baggage_fallback?` (~${t('estimate')})`:''}`,'success');
+    else toast(`${t('status')}: ${snap?.status||'?'}`, 'warning');
+    loadTrackers(); if (selectedTrackerId===id) selectTracker(id);
+  } catch(e) { toast(`${t('scrapeError')}: ${e.message}`, 'error'); }
 }
 
 async function deleteTracker(id) {
-  if (!confirm('Tracker und alle gespeicherten Preise löschen?')) return;
+  if (!confirm(t('deleteConfirm'))) return;
   try {
     await api(`/api/trackers/${id}`, { method: 'DELETE' });
-    toast('Tracker gelöscht', 'success');
-    if (selectedTrackerId === id) {
-      selectedTrackerId = null;
-      document.getElementById('chartContainer').style.display = 'none';
-      document.getElementById('chartEmpty').style.display = 'flex';
-      document.getElementById('tableCard').style.display = 'none';
-    }
+    toast(t('deleted'), 'success');
+    if (selectedTrackerId===id) { selectedTrackerId=null; document.getElementById('chartContainer').style.display='none'; document.getElementById('chartEmpty').style.display='flex'; document.getElementById('tableCard').style.display='none'; }
     loadTrackers();
-  } catch(e) {
-    toast('Fehler: ' + e.message, 'error');
-  }
+  } catch(e) { toast(`${t('error')}: ${e.message}`, 'error'); }
 }
 
 async function togglePause(id, currentlyActive) {
-  try {
-    await api(`/api/trackers/${id}/toggle?active=${!currentlyActive}`, { method: 'PATCH' });
-    toast(currentlyActive ? 'Tracker pausiert' : 'Tracker aktiviert', 'success');
-    loadTrackers();
-  } catch(e) {
-    toast('Fehler: ' + e.message, 'error');
-  }
+  try { await api(`/api/trackers/${id}/toggle?active=${!currentlyActive}`, { method: 'PATCH' }); toast(currentlyActive?t('paused'):t('activated'), 'success'); loadTrackers(); }
+  catch(e) { toast(`${t('error')}: ${e.message}`, 'error'); }
 }
 
-// ── Toast ────────────────────────────────────────────
-function toast(msg, type = 'success') {
+function toast(msg, type='success') {
   const c = document.getElementById('toastContainer');
-  const icons = { success: '✓', error: '✕', warning: '⚠' };
+  const icons = { success:'✓', error:'✕', warning:'⚠' };
   const el = document.createElement('div');
   el.className = `toast ${type}`;
-  el.innerHTML = `<span>${icons[type] || '•'}</span> ${msg}`;
+  el.innerHTML = `<span>${icons[type]||'•'}</span> ${msg}`;
   c.appendChild(el);
   setTimeout(() => el.remove(), 4000);
 }
