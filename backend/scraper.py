@@ -29,7 +29,7 @@ def _make_session() -> requests.Session:
         "User-Agent": random.choice(USER_AGENTS),
         "Accept": "application/json, text/plain, */*",
         "Accept-Language": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7",
-        "Accept-Encoding": "gzip, deflate, br",
+        # Kein Accept-Encoding — requests handled Dekompression automatisch
         "Origin": "https://www.ryanair.com",
         "Referer": "https://www.ryanair.com/de/de/buchen/fluge-finden",
         "Sec-Fetch-Dest": "empty",
@@ -51,7 +51,7 @@ def fetch_flights(tracker: dict) -> dict:
 
     logger.info(f"Fetching: {origin}→{destination} {out_date} | adults={adults}")
 
-    # Zuerst Ryanair-Homepage aufrufen um Cookies zu holen (Anti-Bot)
+    # Cookies holen
     try:
         session.get("https://www.ryanair.com/de/de", timeout=10)
         time.sleep(random.uniform(1.5, 3.0))
@@ -77,25 +77,25 @@ def fetch_flights(tracker: dict) -> dict:
 
     try:
         resp = session.get(url, params=params, timeout=20)
-        logger.info(f"Status: {resp.status_code} | Content-Type: {resp.headers.get('content-type','?')} | Body[:200]: {resp.text[:200]}")
+        logger.info(f"Status: {resp.status_code} | Encoding: {resp.encoding} | Content-Type: {resp.headers.get('content-type','?')}")
     except requests.RequestException as e:
         return _error_snap(f"Request fehlgeschlagen: {str(e)}")
 
     if resp.status_code == 403:
-        return _error_snap(f"Ryanair blockiert (403). Body: {resp.text[:300]}", "blocked")
+        return _error_snap(f"Ryanair blockiert (403)", "blocked")
 
     if not resp.ok:
         return _error_snap(f"API Fehler {resp.status_code}: {resp.text[:300]}")
 
-    # Prüfen ob wirklich JSON zurückkommt
-    content_type = resp.headers.get("content-type", "")
-    if "json" not in content_type:
-        return _error_snap(f"Kein JSON: content-type={content_type} | body={resp.text[:300]}")
-
     try:
         data = resp.json()
     except Exception as e:
-        return _error_snap(f"JSON Parse Fehler: {str(e)} | body={resp.text[:300]}")
+        # Fallback: manuell dekodieren
+        try:
+            import json
+            data = json.loads(resp.content.decode("utf-8"))
+        except Exception as e2:
+            return _error_snap(f"JSON Parse Fehler: {str(e2)} | encoding={resp.encoding} | content-type={resp.headers.get('content-type')}")
 
     currency = data.get("currency", "EUR")
     outbound = _cheapest_flight(data, origin, destination)
@@ -117,15 +117,15 @@ def fetch_flights(tracker: dict) -> dict:
     logger.info(f"✅ Preis: {total} {currency}")
 
     return {"status": "ok", "snapshot": {
-        "fetched_at":      datetime.utcnow().isoformat(),
-        "flight_price":    round(ticket_total, 2),
-        "baggage_price":   round(baggage_cost, 2),
-        "total_price":     total,
-        "outbound_flight": outbound["flight_number"],
-        "return_flight":   inbound["flight_number"] if inbound else None,
-        "currency":        currency,
+        "fetched_at":       datetime.utcnow().isoformat(),
+        "flight_price":     round(ticket_total, 2),
+        "baggage_price":    round(baggage_cost, 2),
+        "total_price":      total,
+        "outbound_flight":  outbound["flight_number"],
+        "return_flight":    inbound["flight_number"] if inbound else None,
+        "currency":         currency,
         "baggage_fallback": True,
-        "status":          "ok",
+        "status":           "ok",
     }}
 
 
