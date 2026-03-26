@@ -6,7 +6,6 @@ import requests
 import random
 import time
 import logging
-import traceback
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
@@ -42,22 +41,27 @@ def _make_session() -> requests.Session:
 
 
 def fetch_flights(tracker: dict) -> dict:
-    """Hauptfunktion: Flugpreis + Gepäck abrufen."""
     session = _make_session()
     origin      = tracker["origin"]
     destination = tracker["destination"]
     out_date    = tracker["outbound_date"]
     ret_date    = tracker.get("return_date")
     adults      = tracker.get("adults", 1)
-    children    = tracker.get("children", 0)
     baggage     = tracker.get("baggage", [])
 
     logger.info(f"Fetching: {origin}→{destination} {out_date} | adults={adults}")
 
+    # Zuerst Ryanair-Homepage aufrufen um Cookies zu holen (Anti-Bot)
+    try:
+        session.get("https://www.ryanair.com/de/de", timeout=10)
+        time.sleep(random.uniform(1.5, 3.0))
+    except Exception:
+        pass
+
     url = "https://www.ryanair.com/api/booking/v4/en-gb/availability"
     params = {
         "ADT":                      adults,
-        "CHD":                      children,
+        "CHD":                      tracker.get("children", 0),
         "DateOut":                  out_date,
         "DateIn":                   ret_date or "",
         "Destination":              destination,
@@ -73,98 +77,70 @@ def fetch_flights(tracker: dict) -> dict:
 
     try:
         resp = session.get(url, params=params, timeout=20)
-        logger.info(f"Ryanair API Status: {resp.status_code}")
+        logger.info(f"Status: {resp.status_code} | Content-Type: {resp.headers.get('content-type','?')} | Body[:200]: {resp.text[:200]}")
     except requests.RequestException as e:
-        logger.error(f"Request failed: {traceback.format_exc()}")
-        return {
-            "status": "error",
-            "snapshot": {
-                "status": "error",
-                "error_message": f"Request fehlgeschlagen: {str(e)}",
-                "fetched_at": datetime.utcnow().isoformat(),
-            }
-        }
+        return _error_snap(f"Request fehlgeschlagen: {str(e)}")
 
     if resp.status_code == 403:
-        return {
-            "status": "blocked",
-            "snapshot": {
-                "status": "blocked",
-                "error_message": "Ryanair hat die Anfrage blockiert (403)",
-                "fetched_at": datetime.utcnow().isoformat(),
-            }
-        }
+        return _error_snap(f"Ryanair blockiert (403). Body: {resp.text[:300]}", "blocked")
 
     if not resp.ok:
-        logger.error(f"API error {resp.status_code}: {resp.text[:500]}")
-        return {
-            "status": "error",
-            "snapshot": {
-                "status": "error",
-                "error_message": f"API Fehler {resp.status_code}: {resp.text[:200]}",
-                "fetched_at": datetime.utcnow().isoformat(),
-            }
-        }
+        return _error_snap(f"API Fehler {resp.status_code}: {resp.text[:300]}")
+
+    # Prüfen ob wirklich JSON zurückkommt
+    content_type = resp.headers.get("content-type", "")
+    if "json" not in content_type:
+        return _error_snap(f"Kein JSON: content-type={content_type} | body={resp.text[:300]}")
 
     try:
         data = resp.json()
     except Exception as e:
-        logger.error(f"JSON parse error: {resp.text[:300]}")
-        return {
-            "status": "error",
-            "snapshot": {
-                "status": "error",
-                "error_message": f"JSON Parse Fehler: {str(e)}",
-                "fetched_at": datetime.utcnow().isoformat(),
-            }
-        }
+        return _error_snap(f"JSON Parse Fehler: {str(e)} | body={resp.text[:300]}")
 
     currency = data.get("currency", "EUR")
     outbound = _cheapest_flight(data, origin, destination)
     inbound  = _cheapest_flight(data, destination, origin) if ret_date else None
 
     if not outbound:
-        return {
-            "status": "no_flights",
-            "snapshot": {
-                "status": "error",
-                "error_message": f"Keine Flüge gefunden für {origin}→{destination} am {out_date}",
-                "fetched_at": datetime.utcnow().isoformat(),
-            }
-        }
+        return _error_snap(f"Keine Flüge: {origin}→{destination} am {out_date}")
 
     ticket_total = outbound["price"] * adults
     if inbound:
         ticket_total += inbound["price"] * adults
 
-    # Gepäck via Fallback-Preise (sicher, kein extra API-Call der crashen könnte)
     baggage_cost = sum(
         BAGGAGE_FALLBACK.get(b["type"], 0) * (adults if b.get("per_person") else 1)
         for b in baggage
     )
 
     total = round(ticket_total + baggage_cost, 2)
-
-    snapshot = {
-        "fetched_at":       datetime.utcnow().isoformat(),
-        "flight_price":     round(ticket_total, 2),
-        "baggage_price":    round(baggage_cost, 2),
-        "total_price":      total,
-        "outbound_flight":  outbound["flight_number"],
-        "return_flight":    inbound["flight_number"] if inbound else None,
-        "currency":         currency,
-        "baggage_fallback": True,
-        "status":           "ok",
-    }
-
     logger.info(f"✅ Preis: {total} {currency}")
-    return {"status": "ok", "snapshot": snapshot}
+
+    return {"status": "ok", "snapshot": {
+        "fetched_at":      datetime.utcnow().isoformat(),
+        "flight_price":    round(ticket_total, 2),
+        "baggage_price":   round(baggage_cost, 2),
+        "total_price":     total,
+        "outbound_flight": outbound["flight_number"],
+        "return_flight":   inbound["flight_number"] if inbound else None,
+        "currency":        currency,
+        "baggage_fallback": True,
+        "status":          "ok",
+    }}
+
+
+def _error_snap(msg: str, status: str = "error") -> dict:
+    logger.error(f"Scraper: {msg}")
+    return {"status": status, "snapshot": {
+        "status": status,
+        "error_message": msg,
+        "fetched_at": datetime.utcnow().isoformat(),
+    }}
 
 
 def _cheapest_flight(data: dict, orig: str, dest: str) -> dict | None:
     best = None
     best_price = float("inf")
-
     for trip in data.get("trips", []):
         if trip.get("origin") != orig or trip.get("destination") != dest:
             continue
@@ -180,7 +156,6 @@ def _cheapest_flight(data: dict, orig: str, dest: str) -> dict | None:
                     best_price = price
                     best = {
                         "flight_number": flight.get("flightNumber", ""),
-                        "price":         price,
-                        "fares_left":    flight.get("faresLeft", 0),
+                        "price": price,
                     }
     return best
