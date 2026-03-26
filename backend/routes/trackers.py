@@ -1,12 +1,13 @@
 """
 REST Routes: /api/trackers
-CRUD für Tracker + manuelles Scrapen triggern.
 """
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, field_validator
 from typing import Optional
 import re
+import traceback
+import logging
 
 from database import (
     create_tracker, list_trackers, get_tracker,
@@ -15,11 +16,11 @@ from database import (
 from scheduler import run_single_tracker
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
-# ─── Pydantic Models ─────────────────────────────────────────
 
 class BaggageItem(BaseModel):
-    type: str         # "10kg" | "20kg" | "23kg"
+    type: str
     per_person: bool = True
 
     @field_validator("type")
@@ -44,7 +45,7 @@ class TrackerCreate(BaseModel):
     def iata_upper(cls, v):
         v = v.strip().upper()
         if not re.match(r"^[A-Z]{3}$", v):
-            raise ValueError("IATA-Code muss genau 3 Buchstaben haben (z.B. BZO, DUB)")
+            raise ValueError("IATA-Code muss genau 3 Buchstaben haben")
         return v
 
     @field_validator("outbound_date", "return_date")
@@ -64,12 +65,9 @@ class TrackerCreate(BaseModel):
         return v
 
 
-# ─── Endpoints ───────────────────────────────────────────────
-
 @router.get("")
 def get_all_trackers():
     trackers = list_trackers(active_only=False)
-    # Letzten Snapshot anhängen
     for t in trackers:
         t["latest_snapshot"] = get_latest_snapshot(t["id"])
     return trackers
@@ -108,7 +106,6 @@ def toggle(tracker_id: int, active: bool):
 
 @router.post("/{tracker_id}/scrape")
 def manual_scrape(tracker_id: int):
-    """Manuell einen Preis-Abruf für einen Tracker triggern."""
     t = get_tracker(tracker_id)
     if not t:
         raise HTTPException(404, f"Tracker #{tracker_id} nicht gefunden")
@@ -116,4 +113,6 @@ def manual_scrape(tracker_id: int):
         snap = run_single_tracker(tracker_id)
         return {"message": "Scraping abgeschlossen", "snapshot": snap}
     except Exception as e:
-        raise HTTPException(500, f"Scraping-Fehler: {str(e)}")
+        tb = traceback.format_exc()
+        logger.error(f"Scraping Fehler Tracker #{tracker_id}:\n{tb}")
+        raise HTTPException(500, detail=f"{type(e).__name__}: {str(e)}\n\n{tb}")
