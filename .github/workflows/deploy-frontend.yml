@@ -1,0 +1,28 @@
+name: Deploy Frontend to here.now
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get install -y jq
+          npm install -g skills
+          npx skills add heredotnow/skill --skill here-now -g --yes
+
+      - name: Deploy to here.now
+        env:
+          HERENOW_API_KEY: ${{ secrets.HERENOW_API_KEY }}
+        run: |
+          bash ~/.agents/skills/here-now/scripts/publish.sh ./frontend \
+            --client github-actions \
+            --slug ryanair-tracker-an-te
