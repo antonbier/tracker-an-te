@@ -1,9 +1,8 @@
 """
 Ryanair Preistracker — FastAPI Backend
-Läuft auf Railway / Render. Täglicher Scheduler via APScheduler.
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from apscheduler.schedulers.background import BackgroundScheduler
 from contextlib import asynccontextmanager
@@ -19,7 +18,6 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
     init_db()
     logger.info("✅ Datenbank initialisiert")
 
@@ -27,32 +25,28 @@ async def lifespan(app: FastAPI):
     scheduler.add_job(
         run_all_trackers,
         trigger="cron",
-        hour=7, minute=0,          # Täglich 07:00 Uhr (Europe/Rome)
+        hour=7, minute=0,
         id="daily_price_fetch",
         replace_existing=True,
-        misfire_grace_time=3600,   # 1h Toleranz bei Serverausfall
+        misfire_grace_time=3600,
     )
     scheduler.start()
     logger.info("⏰ Scheduler gestartet — täglich 07:00 Uhr")
 
     yield
 
-    # Shutdown
     scheduler.shutdown(wait=False)
-    logger.info("Scheduler gestoppt")
 
 
-app = FastAPI(
-    title="Ryanair Preistracker API",
-    version="1.0.0",
-    lifespan=lifespan,
-)
+app = FastAPI(title="Ryanair Preistracker API", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],          # In Produktion: deine here.now-Domain
-    allow_methods=["*"],
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 app.include_router(trackers.router, prefix="/api/trackers", tags=["Trackers"])
