@@ -26,11 +26,12 @@ Repository: `https://github.com/antonbier/tracker-an-te`
 - Encrypted settings (AES-Fernet in SQLite)
 
 ### Known open issues
-- Dawarich: `normalize_point()` in `dawarich.py` may not correctly parse the
-  timestamp format depending on the Dawarich version. Use the debug endpoint
-  `POST /api/dawarich/debug` with `{}` body to inspect the raw point format.
-- ActualBudget: uses the server password as Bearer token
-- Google Flights: SerpAPI free plan = 100 searches/month
+
+> All previously documented issues have been resolved.
+
+- ~~Dawarich timestamp parsing~~ **fixed** (62278ff): `_parse_timestamp()` handles ISO-8601, date-only, Unix int/float/string.
+- ~~ActualBudget millicents~~ **fixed** (ece14b1): amounts divided by 1000 everywhere.
+- ~~SerpAPI quota invisible~~ **fixed** (a0e920c + 09f2b5c): `/api/settings/serpapi-quota` endpoint + progress bar in Settings.
 
 ## Deployment (Production — Unraid)
 
