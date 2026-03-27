@@ -2965,16 +2965,27 @@ async function syncJournal() {
   const btn = document.getElementById('journal-sync-btn');
   if (!API_URL) { toast(t('missingUrl'), 'warning'); return; }
 
-  const dawarichUrl   = localStorage.getItem('s-dawarichUrl')   || '';
-  const dawarichToken = localStorage.getItem('s-dawarichToken') || '';
-  const homeLat       = parseFloat(localStorage.getItem('s-homeLat') || '0');
-  const homeLon       = parseFloat(localStorage.getItem('s-homeLon') || '0');
+  let dawarichUrl   = localStorage.getItem('s-dawarichUrl')   || '';
+  let dawarichToken = localStorage.getItem('s-dawarichToken') || '';
+  let homeLat       = parseFloat(localStorage.getItem('s-homeLat') || '');
+  let homeLon       = parseFloat(localStorage.getItem('s-homeLon') || '');
+
+  // Koordinaten vom Server nachladen wenn localStorage leer oder ungültig
+  if (!dawarichUrl || !dawarichToken || isNaN(homeLat) || isNaN(homeLon) || (homeLat === 0 && homeLon === 0)) {
+    try {
+      const serverSettings = await api('/api/settings');
+      if (!dawarichUrl)            dawarichUrl   = serverSettings.dawarich_url   || '';
+      if (!dawarichToken)          dawarichToken = serverSettings.dawarich_token || '';
+      if (isNaN(homeLat) || homeLat === 0) homeLat = parseFloat(serverSettings.home_lat || '');
+      if (isNaN(homeLon) || homeLon === 0) homeLon = parseFloat(serverSettings.home_lon || '');
+    } catch(e) { /* ignorieren, weiter mit was wir haben */ }
+  }
 
   if (!dawarichUrl || !dawarichToken) {
     toast(t('dawarichError') + ': URL/Token fehlen — Einstellungen öffnen', 'warning');
     openSettings(); return;
   }
-  if (!homeLat && !homeLon) {
+  if (isNaN(homeLat) || isNaN(homeLon) || (homeLat === 0 && homeLon === 0)) {
     toast(t('dawarichError') + ': Home-Koordinaten fehlen — Einstellungen öffnen', 'warning');
     openSettings(); return;
   }
@@ -2996,11 +3007,13 @@ async function syncJournal() {
     const bar  = document.getElementById('journal-sync-bar');
     const info = document.getElementById('journal-sync-info');
     if (bar)  bar.style.display = 'flex';
-    if (info) info.innerHTML = `<strong>${result.points_loaded}</strong> Punkte geladen · <strong>${result.trips_detected}</strong> Reisen erkannt · <strong>${result.trips_saved}</strong> gespeichert`;
+    // trips_saved ist nur vorhanden wenn trips_detected > 0
+    const saved = result.trips_saved ?? result.trips_detected ?? 0;
+    if (info) info.innerHTML = `<strong>${result.points_loaded ?? 0}</strong> Punkte geladen · <strong>${result.trips_detected ?? 0}</strong> Reisen erkannt · <strong>${saved}</strong> gespeichert`;
 
-    toast(`${t('dawarichSynced')}: ${result.trips_detected} Reisen`, 'success');
+    toast(`${t('dawarichSynced')}: ${result.trips_detected ?? 0} Reisen`, 'success');
     loadJournalTrips();
-    loadDashboard(); // Refresh dashboard completed trips
+    loadDashboard();
 
   } catch(e) {
     toast(`${t('dawarichError')}: ${e.message}`, 'error');
@@ -3129,4 +3142,5 @@ function renderExpenseTable(expenses) {
 </body>
 </html>
 <!-- v1.0 build 20260327094623 -->
+
 
