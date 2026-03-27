@@ -5,6 +5,9 @@ API Docs: https://actualbudget.org/docs/api/
 
 Authentication: ActualBudget uses its server password as Bearer token.
 Amounts are stored in millicents (×1000) in ActualBudget — we divide by 1000 to get euros.
+
+Note: The REST API returns only category_id on transactions, not category_name.
+      We resolve names via GET /v1/categories and build an id→name map.
 """
 
 import requests
@@ -27,6 +30,33 @@ def get_accounts(base_url: str, token: str) -> dict:
         return {"error": f"ActualBudget Fehler: {e.response.status_code}"}
     except requests.RequestException as e:
         return {"error": f"Verbindungsfehler: {str(e)}"}
+
+
+def get_categories(base_url: str, token: str) -> dict[str, str]:
+    """
+    Alle Kategorien abrufen und id→name Map zurückgeben.
+    ActualBudget REST API: GET /v1/categories
+    """
+    url = f"{base_url.rstrip('/')}/v1/categories"
+    try:
+        resp = requests.get(url, headers=_headers(token), timeout=10)
+        if not resp.ok:
+            logger.warning(f"[ActualBudget] /v1/categories: HTTP {resp.status_code}")
+            return {}
+        data = resp.json()
+        # Response kann direkt [] oder {"categories": []} oder {"data": []} sein
+        cats = data if isinstance(data, list) else data.get("categories", data.get("data", []))
+        id_map: dict[str, str] = {}
+        for cat in cats:
+            cid  = cat.get("id", "")
+            name = cat.get("name", "")
+            if cid and name:
+                id_map[cid] = name
+        logger.info(f"[ActualBudget] {len(id_map)} Kategorien geladen")
+        return id_map
+    except requests.RequestException as e:
+        logger.warning(f"[ActualBudget] Kategorie-Abruf fehlgeschlagen: {e}")
+        return {}
 
 
 def get_budget_summary(base_url: str, token: str, month: str | None = None) -> dict:
@@ -54,9 +84,9 @@ def get_budget_summary(base_url: str, token: str, month: str | None = None) -> d
                 if any(kw in name_lower for kw in travel_keywords):
                     travel_categories.append({
                         "name":      cat.get("name"),
-                        "budgeted":  cat.get("budgeted", 0) / 1000,  # ActualBudget uses millicents
-                        "spent":     abs(cat.get("spent", 0)) / 1000,  # ActualBudget uses millicents
-                        "balance":   cat.get("balance", 0) / 1000,  # ActualBudget uses millicents
+                        "budgeted":  cat.get("budgeted", 0) / 1000,  # millicents → €
+                        "spent":     abs(cat.get("spent", 0)) / 1000,
+                        "balance":   cat.get("balance", 0) / 1000,
                     })
 
         return {
@@ -90,7 +120,7 @@ def add_transaction(
     url = f"{base_url.rstrip('/')}/v1/accounts/{account_id}/transactions"
     payload = [{
         "date":    date,
-        "amount":  int(amount * 1000),  # ActualBudget uses millicents
+        "amount":  int(amount * 1000),  # € → millicents
         "payee":   payee,
         "notes":   notes,
         "cleared": False,
@@ -109,8 +139,8 @@ def add_transaction(
 def _headers(token: str) -> dict:
     return {
         "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json",
-        "Accept": "application/json",
+        "Content-Type":  "application/json",
+        "Accept":        "application/json",
     }
 
 
@@ -123,6 +153,10 @@ def get_travel_expenses(
     """
     Reise-Transaktionen nach Kategorienamen abrufen.
     Gibt {transactions: [...], total: float} zurück.
+
+    Fix: ActualBudget REST API liefert bei Transaktionen nur category_id,
+    nicht category_name. Wir laden die Kategorien separat und bauen eine
+    id→name Map auf.
     """
     import datetime as dt
     if not year:
@@ -130,6 +164,10 @@ def get_travel_expenses(
 
     start = f"{year}-01-01"
     end   = f"{year}-12-31"
+
+    # Kategorien vorab laden: id → name
+    category_map = get_categories(base_url, token)
+    category_names_lower = [c.strip().lower() for c in category_names if c.strip()]
 
     # Alle Accounts laden
     accounts_result = get_accounts(base_url, token)
@@ -140,44 +178,49 @@ def get_travel_expenses(
     if not accounts:
         return {"error": "Keine Konten in ActualBudget gefunden"}
 
-    # Transaktionen aus allen Konten sammeln
     all_transactions = []
-    category_names_lower = [c.strip().lower() for c in category_names if c.strip()]
 
     for account in accounts:
-        account_id = account.get("id")
+        account_id   = account.get("id")
+        account_name = account.get("name", "")
         if not account_id:
             continue
 
-        url = f"{base_url.rstrip('/')}/v1/accounts/{account_id}/transactions"
+        url    = f"{base_url.rstrip('/')}/v1/accounts/{account_id}/transactions"
         params = {"start_date": start, "end_date": end}
 
         try:
             resp = requests.get(url, headers=_headers(token), params=params, timeout=15)
             if not resp.ok:
+                logger.warning(f"[ActualBudget] Account {account_name}: HTTP {resp.status_code}")
                 continue
             transactions = resp.json()
             if isinstance(transactions, dict):
                 transactions = transactions.get("data", transactions.get("transactions", []))
 
             for tx in transactions:
-                # Kategorie prüfen
-                cat_name = str(tx.get("category_name", tx.get("category", ""))).lower()
-                if not category_names_lower or any(c in cat_name for c in category_names_lower):
-                    amount_raw = tx.get("amount", 0)
-                    # ActualBudget speichert Beträge in Millicent (×1000)
-                    amount = float(amount_raw) / 1000
+                # category_id → name auflösen (REST API gibt nur die ID zurück)
+                cat_id   = tx.get("category_id", tx.get("category", "")) or ""
+                cat_name = category_map.get(cat_id, cat_id)  # fallback: ID selbst
 
-                    all_transactions.append({
-                        "date":       tx.get("date", ""),
-                        "payee":      tx.get("payee_name", tx.get("payee", "")),
-                        "category":   tx.get("category_name", tx.get("category", "")),
-                        "amount":     round(amount, 2),
-                        "account":    account.get("name", ""),
-                        "notes":      tx.get("notes", ""),
-                    })
+                # Kategorie-Filter anwenden
+                if category_names_lower and not any(c in cat_name.lower() for c in category_names_lower):
+                    continue
 
-        except requests.RequestException:
+                amount_raw = tx.get("amount", 0)
+                amount     = float(amount_raw) / 1000  # millicents → €
+
+                all_transactions.append({
+                    "date":     tx.get("date", ""),
+                    "payee":    tx.get("payee_name", tx.get("payee", "")),
+                    "category": cat_name,
+                    "amount":   round(amount, 2),
+                    "account":  account_name,
+                    "notes":    tx.get("notes", "") or "",
+                })
+
+        except requests.RequestException as e:
+            logger.warning(f"[ActualBudget] Account {account_name}: {e}")
             continue
 
     # Nach Datum sortieren (neueste zuerst)
@@ -191,4 +234,3 @@ def get_travel_expenses(
         "year":         year,
         "categories":   category_names,
     }
-
