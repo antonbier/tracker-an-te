@@ -10,723 +10,655 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
-/* ── Reset & Variables ──────────────────────────────── */
+/* ── Reset & Variables ─────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
-  --bg: #0d0e11; --surface: #141519; --surface2: #1a1b20;
-  --border: #2a2b30; --muted: #3a3c44;
-  --text: #e8e9ec; --sub: #7a7d88;
-  --accent: #ff5533; --accent2: #ff8c00;
-  --green: #00d97e; --yellow: #ffd166; --red: #ff4757;
-  --mono: 'Space Mono', monospace; --sans: 'Syne', sans-serif;
-  --radius: 6px; --transition: 180ms ease;
-  --header-h: 56px;
-  --sidebar-w: 0px; /* no sidebar in v0.1 */
+  --bg:#0d0e11; --surface:#141519; --surface2:#1a1b20;
+  --border:#2a2b30; --muted:#3a3c44;
+  --text:#e8e9ec; --sub:#7a7d88;
+  --accent:#ff5533; --accent2:#ff8c00;
+  --green:#00d97e; --yellow:#ffd166; --red:#ff4757;
+  --mono:'Space Mono',monospace; --sans:'Syne',sans-serif;
+  --radius:6px; --transition:180ms ease;
+  --header-h:54px; --nav-w:220px;
 }
-html { font-size: 15px; scroll-behavior: smooth; }
-body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; line-height: 1.5; }
+html { font-size:15px; scroll-behavior:smooth; }
+body { background:var(--bg); color:var(--text); font-family:var(--sans); min-height:100vh; display:flex; flex-direction:column; }
 
-/* ── Header ──────────────────────────────────────────── */
+/* ── Header ─────────────────────────────────────────── */
 .header {
-  position: sticky; top: 0; z-index: 200;
-  height: var(--header-h);
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0 1.25rem;
-  background: rgba(13,14,17,.95);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--border);
+  position:fixed; top:0; left:0; right:0; z-index:300;
+  height:var(--header-h);
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0 1.1rem 0 1.25rem;
+  background:rgba(13,14,17,.96); backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--border);
 }
-.logo {
-  display: flex; align-items: center; gap: .5rem;
-  font-size: 1rem; font-weight: 800; letter-spacing: -.02em;
-  white-space: nowrap;
-}
-.logo-icon {
-  width: 26px; height: 26px; background: var(--accent);
-  border-radius: 4px; display: flex; align-items: center;
-  justify-content: center; font-size: .8rem; flex-shrink: 0;
-}
-.logo-version {
-  font-size: .6rem; font-family: var(--mono);
-  color: var(--sub); font-weight: 400;
-  background: var(--border); padding: .1rem .35rem;
-  border-radius: 3px; margin-left: .15rem;
-}
-.header-right { display: flex; align-items: center; gap: .6rem; }
+.logo { display:flex; align-items:center; gap:.45rem; font-size:.95rem; font-weight:800; letter-spacing:-.02em; white-space:nowrap; text-decoration:none; color:var(--text); }
+.logo-icon { width:24px; height:24px; background:var(--accent); border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:.75rem; flex-shrink:0; }
+.logo-ver { font-size:.58rem; font-family:var(--mono); color:var(--sub); background:var(--border); padding:.1rem .3rem; border-radius:3px; }
+.header-right { display:flex; align-items:center; gap:.5rem; }
+.lang-switcher { display:flex; gap:2px; background:var(--border); border-radius:5px; padding:2px; }
+.lang-btn { padding:.18rem .42rem; border:none; border-radius:3px; cursor:pointer; font-family:var(--mono); font-size:.62rem; font-weight:700; background:transparent; color:var(--sub); transition:all var(--transition); }
+.lang-btn:hover { color:var(--text); }
+.lang-btn.active { background:var(--surface); color:var(--accent); }
+.btn-icon-hdr { width:28px; height:28px; border-radius:var(--radius); background:transparent; border:1px solid var(--border); color:var(--sub); cursor:pointer; font-size:.85rem; display:flex; align-items:center; justify-content:center; transition:all var(--transition); }
+.btn-icon-hdr:hover { color:var(--text); border-color:var(--muted); }
+.btn-settings:hover { transform:rotate(45deg); }
+.status-dot { width:7px; height:7px; border-radius:50%; background:var(--green); box-shadow:0 0 5px var(--green); animation:pulse 2.5s ease-in-out infinite; flex-shrink:0; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+.hamburger { display:none; flex-direction:column; justify-content:center; gap:5px; width:32px; height:32px; cursor:pointer; background:transparent; border:none; padding:3px; }
+.hamburger span { display:block; height:2px; background:var(--text); border-radius:2px; transition:all .25s; }
+.hamburger.open span:nth-child(1) { transform:translateY(7px) rotate(45deg); }
+.hamburger.open span:nth-child(2) { opacity:0; }
+.hamburger.open span:nth-child(3) { transform:translateY(-7px) rotate(-45deg); }
 
-/* Language Switcher */
-.lang-switcher { display: flex; gap: 2px; background: var(--border); border-radius: 5px; padding: 2px; }
-.lang-btn {
-  padding: .2rem .45rem; border: none; border-radius: 3px;
-  cursor: pointer; font-family: var(--mono); font-size: .65rem;
-  font-weight: 700; background: transparent; color: var(--sub);
-  transition: all var(--transition);
-}
-.lang-btn:hover { color: var(--text); }
-.lang-btn.active { background: var(--surface); color: var(--accent); }
+/* ── App Shell ──────────────────────────────────────── */
+.app-shell { display:flex; padding-top:var(--header-h); flex:1; }
 
-/* Status dot */
-.status-dot {
-  width: 8px; height: 8px; border-radius: 50%;
-  background: var(--green); box-shadow: 0 0 6px var(--green);
-  animation: pulse 2.5s ease-in-out infinite; flex-shrink: 0;
+/* ── Sidebar Nav ────────────────────────────────────── */
+.sidebar {
+  width:var(--nav-w); flex-shrink:0;
+  position:fixed; top:var(--header-h); left:0; bottom:0;
+  background:var(--surface); border-right:1px solid var(--border);
+  overflow-y:auto; z-index:200;
+  padding:.75rem 0;
+  transition:transform .25s ease;
 }
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
-
-/* Hamburger (mobile) */
-.hamburger {
-  display: none; flex-direction: column; justify-content: center;
-  gap: 5px; width: 36px; height: 36px; cursor: pointer;
-  background: transparent; border: none; padding: 4px;
+.nav-group { margin-bottom:.25rem; }
+.nav-group-label {
+  font-size:.6rem; font-weight:700; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--sub);
+  padding:.4rem 1rem .25rem; display:block;
 }
-.hamburger span {
-  display: block; height: 2px; background: var(--text);
-  border-radius: 2px; transition: all .25s ease;
+.nav-item {
+  display:flex; align-items:center; gap:.55rem;
+  padding:.5rem 1rem; font-size:.82rem; font-weight:600;
+  color:var(--sub); cursor:pointer; transition:all var(--transition);
+  border:none; background:none; width:100%; text-align:left;
+  border-left:2px solid transparent;
 }
-.hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
-.hamburger.open span:nth-child(2) { opacity: 0; }
-.hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
-
-/* ── Mobile Nav Drawer ───────────────────────────────── */
-.mobile-nav {
-  display: none;
-  position: fixed; top: var(--header-h); left: 0; right: 0;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  z-index: 190;
-  padding: 1rem;
-  flex-direction: column; gap: .5rem;
-}
-.mobile-nav.open { display: flex; }
-.mobile-nav-item {
-  padding: .65rem .75rem; border-radius: var(--radius);
-  color: var(--sub); font-size: .85rem; font-weight: 600;
-  cursor: pointer; transition: all var(--transition);
-  display: flex; align-items: center; gap: .5rem;
-}
-.mobile-nav-item:hover, .mobile-nav-item.active { background: var(--muted); color: var(--text); }
-
-/* Refresh btn */
-.btn-refresh {
-  display: flex; align-items: center; gap: .35rem;
-  background: transparent; border: 1px solid var(--border);
-  color: var(--sub); padding: .3rem .6rem;
-  border-radius: var(--radius); cursor: pointer;
-  font-family: var(--sans); font-size: .72rem; font-weight: 700;
-  transition: all var(--transition); white-space: nowrap;
-}
-.btn-refresh:hover { color: var(--text); border-color: var(--muted); }
-
-/* ── Layout ──────────────────────────────────────────── */
-.main-wrap { max-width: 1200px; margin: 0 auto; padding: 1.5rem 1.25rem; }
-
-/* Two-column on desktop, single on mobile */
-.grid-main {
-  display: grid;
-  grid-template-columns: 380px 1fr;
-  gap: 1.25rem;
-  align-items: start;
+.nav-item:hover { color:var(--text); background:rgba(255,255,255,.03); }
+.nav-item.active { color:var(--accent); background:rgba(255,85,51,.07); border-left-color:var(--accent); }
+.nav-item.sub { padding-left:2rem; font-size:.78rem; font-weight:500; }
+.nav-icon { font-size:.85rem; width:16px; text-align:center; flex-shrink:0; }
+.nav-badge {
+  margin-left:auto; font-size:.55rem; font-family:var(--mono);
+  background:var(--muted); color:var(--sub);
+  padding:.1rem .3rem; border-radius:3px; font-weight:700;
 }
 
-/* ── Cards ───────────────────────────────────────────── */
-.card {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: 1.25rem;
+/* ── Main Content ───────────────────────────────────── */
+.main-content {
+  margin-left:var(--nav-w);
+  flex:1; min-width:0;
+  padding:1.4rem 1.25rem;
 }
-.card-title {
-  font-size: .68rem; font-weight: 700; letter-spacing: .12em;
-  text-transform: uppercase; color: var(--sub);
-  margin-bottom: 1.1rem; display: flex; align-items: center; gap: .5rem;
-}
-.card-title::before {
-  content: ''; display: block; width: 3px; height: 13px;
-  background: var(--accent); border-radius: 2px;
-}
+.page { display:none; }
+.page.active { display:block; }
 
-/* ── API Notice ──────────────────────────────────────── */
-.api-notice {
-  background: rgba(255,140,0,.07); border: 1px solid rgba(255,140,0,.2);
-  border-radius: var(--radius); padding: .75rem 1rem;
-  font-size: .78rem; color: var(--yellow);
-  margin-bottom: 1.25rem; display: flex; gap: .5rem;
-  align-items: flex-start; line-height: 1.5;
+/* ── Cards & Forms ──────────────────────────────────── */
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1.2rem; }
+.card + .card { margin-top:1rem; }
+.card-title { font-size:.67rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--sub); margin-bottom:1rem; display:flex; align-items:center; gap:.45rem; }
+.card-title::before { content:''; display:block; width:3px; height:12px; background:var(--accent); border-radius:2px; }
+.section-title { font-size:.67rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--sub); margin-bottom:.85rem; display:flex; align-items:center; gap:.45rem; }
+.section-title::before { content:''; display:block; width:3px; height:12px; background:var(--accent2); border-radius:2px; }
+.grid-2 { display:grid; grid-template-columns:360px 1fr; gap:1.1rem; align-items:start; }
+.form-row { display:grid; grid-template-columns:1fr 1fr; gap:.55rem; margin-bottom:.55rem; }
+.form-group { display:flex; flex-direction:column; gap:.28rem; }
+label { font-size:.65rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--sub); }
+input, select, textarea {
+  background:var(--bg); border:1px solid var(--border); border-radius:var(--radius);
+  color:var(--text); font-family:var(--mono); font-size:.8rem;
+  padding:.52rem .68rem; outline:none; transition:border-color var(--transition); width:100%;
 }
-.api-notice > span { flex-shrink: 0; margin-top: .1rem; }
-.api-url-input {
-  font-family: var(--mono); font-size: .75rem;
-  background: var(--bg); border: 1px solid var(--border);
-  border-radius: 4px; color: var(--text);
-  padding: .35rem .6rem; width: 100%; margin-top: .35rem;
-}
-.api-url-input:focus { outline: none; border-color: var(--accent2); }
-
-/* ── Form ────────────────────────────────────────────── */
-.form-row {
-  display: grid; grid-template-columns: 1fr 1fr;
-  gap: .6rem; margin-bottom: .6rem;
-}
-.form-group { display: flex; flex-direction: column; gap: .3rem; }
-label {
-  font-size: .67rem; font-weight: 700; letter-spacing: .08em;
-  text-transform: uppercase; color: var(--sub);
-}
-input, select {
-  background: var(--bg); border: 1px solid var(--border);
-  border-radius: var(--radius); color: var(--text);
-  font-family: var(--mono); font-size: .82rem;
-  padding: .55rem .7rem; outline: none;
-  transition: border-color var(--transition); width: 100%;
-}
-input:focus, select:focus {
-  border-color: var(--accent); box-shadow: 0 0 0 2px rgba(255,85,51,.1);
-}
-input::placeholder { color: var(--muted); }
-.iata-input { text-transform: uppercase; letter-spacing: .1em; }
+input:focus, select:focus, textarea:focus { border-color:var(--accent); box-shadow:0 0 0 2px rgba(255,85,51,.1); }
+input::placeholder, textarea::placeholder { color:var(--muted); }
+.iata-input { text-transform:uppercase; letter-spacing:.1em; }
+textarea { resize:vertical; min-height:80px; font-family:var(--sans); font-size:.85rem; }
 
 /* ── Baggage ─────────────────────────────────────────── */
-.baggage-section {
-  margin-top: .9rem; padding-top: .9rem; border-top: 1px solid var(--border);
-}
-.baggage-title {
-  font-size: .67rem; font-weight: 700; letter-spacing: .1em;
-  text-transform: uppercase; color: var(--sub); margin-bottom: .6rem;
-}
-.bag-option {
-  display: flex; align-items: center; gap: .65rem;
-  padding: .5rem .65rem; border: 1px solid var(--border);
-  border-radius: var(--radius); margin-bottom: .35rem;
-  cursor: pointer; transition: all var(--transition); user-select: none;
-}
-.bag-option:hover { border-color: var(--muted); }
-.bag-option.selected { border-color: var(--accent); background: rgba(255,85,51,.06); }
-.bag-checkbox {
-  width: 15px; height: 15px; border: 1.5px solid var(--muted);
-  border-radius: 3px; display: flex; align-items: center;
-  justify-content: center; flex-shrink: 0; font-size: .6rem;
-  transition: all var(--transition);
-}
-.bag-option.selected .bag-checkbox { background: var(--accent); border-color: var(--accent); color: white; }
-.bag-label { font-size: .8rem; flex: 1; }
-.bag-note { font-size: .68rem; color: var(--sub); font-family: var(--mono); }
+.baggage-section { margin-top:.85rem; padding-top:.85rem; border-top:1px solid var(--border); }
+.baggage-title { font-size:.65rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--sub); margin-bottom:.55rem; }
+.bag-option { display:flex; align-items:center; gap:.6rem; padding:.48rem .62rem; border:1px solid var(--border); border-radius:var(--radius); margin-bottom:.32rem; cursor:pointer; transition:all var(--transition); user-select:none; }
+.bag-option:hover { border-color:var(--muted); }
+.bag-option.selected { border-color:var(--accent); background:rgba(255,85,51,.06); }
+.bag-checkbox { width:14px; height:14px; border:1.5px solid var(--muted); border-radius:3px; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:.55rem; transition:all var(--transition); }
+.bag-option.selected .bag-checkbox { background:var(--accent); border-color:var(--accent); color:white; }
+.bag-label { font-size:.78rem; flex:1; }
+.bag-note { font-size:.65rem; color:var(--sub); font-family:var(--mono); }
 
 /* ── Buttons ─────────────────────────────────────────── */
-.btn {
-  display: inline-flex; align-items: center; gap: .45rem;
-  padding: .6rem 1.1rem; border: none; border-radius: var(--radius);
-  font-family: var(--sans); font-size: .82rem; font-weight: 700;
-  cursor: pointer; transition: all var(--transition); letter-spacing: .02em;
-}
-.btn-primary {
-  background: var(--accent); color: white; width: 100%;
-  justify-content: center; margin-top: .9rem;
-  padding: .7rem; font-size: .85rem;
-}
-.btn-primary:hover { background: #e64422; transform: translateY(-1px); }
-.btn-primary:active { transform: translateY(0); }
-.btn-primary:disabled { opacity: .45; cursor: not-allowed; transform: none; }
-.btn-ghost {
-  background: transparent; color: var(--sub);
-  border: 1px solid var(--border); padding: .35rem .65rem; font-size: .72rem;
-}
-.btn-ghost:hover { color: var(--text); border-color: var(--muted); }
-.btn-icon {
-  background: transparent; color: var(--sub);
-  padding: .28rem .45rem; font-size: .75rem; border-radius: 4px;
-}
-.btn-icon:hover { background: var(--border); color: var(--text); }
-.btn-danger { color: var(--red); }
-.btn-danger:hover { background: rgba(255,71,87,.1); border-color: var(--red); color: var(--red); }
-.btn-scrape {
-  background: transparent; color: var(--accent2);
-  border: 1px solid rgba(255,140,0,.25); padding: .3rem .6rem; font-size: .7rem;
-}
-.btn-scrape:hover { background: rgba(255,140,0,.08); border-color: var(--accent2); }
+.btn { display:inline-flex; align-items:center; gap:.4rem; padding:.55rem 1rem; border:none; border-radius:var(--radius); font-family:var(--sans); font-size:.8rem; font-weight:700; cursor:pointer; transition:all var(--transition); letter-spacing:.02em; }
+.btn-primary { background:var(--accent); color:white; width:100%; justify-content:center; margin-top:.85rem; padding:.65rem; }
+.btn-primary:hover { background:#e64422; transform:translateY(-1px); }
+.btn-primary:active { transform:translateY(0); }
+.btn-primary:disabled { opacity:.45; cursor:not-allowed; transform:none; }
+.btn-ghost { background:transparent; color:var(--sub); border:1px solid var(--border); padding:.32rem .6rem; font-size:.7rem; }
+.btn-ghost:hover { color:var(--text); border-color:var(--muted); }
+.btn-sm { padding:.3rem .55rem; font-size:.7rem; border-radius:4px; background:transparent; color:var(--sub); border:none; cursor:pointer; transition:all var(--transition); }
+.btn-sm:hover { background:var(--border); color:var(--text); }
+.btn-danger { color:var(--red); }
+.btn-danger:hover { background:rgba(255,71,87,.1); color:var(--red); }
+.btn-scrape { background:transparent; color:var(--accent2); border:1px solid rgba(255,140,0,.25); padding:.28rem .55rem; font-size:.68rem; border-radius:4px; cursor:pointer; transition:all var(--transition); font-family:var(--sans); font-weight:700; }
+.btn-scrape:hover { background:rgba(255,140,0,.08); border-color:var(--accent2); }
 
-/* ── Tracker List ────────────────────────────────────── */
-.tracker-list { margin-top: 1.1rem; }
-.section-title {
-  font-size: .68rem; font-weight: 700; letter-spacing: .12em;
-  text-transform: uppercase; color: var(--sub);
-  margin-bottom: .9rem; display: flex; align-items: center; gap: .5rem;
-}
-.section-title::before {
-  content: ''; display: block; width: 3px; height: 13px;
-  background: var(--accent2); border-radius: 2px;
-}
-.tracker-item {
-  border: 1px solid var(--border); border-radius: var(--radius);
-  padding: .9rem; margin-bottom: .5rem; cursor: pointer;
-  transition: all var(--transition);
-}
-.tracker-item:hover { border-color: var(--muted); }
-.tracker-item.active-tracker { border-color: var(--accent); background: rgba(255,85,51,.04); }
-.tracker-header {
-  display: flex; align-items: center;
-  justify-content: space-between; margin-bottom: .4rem;
-}
-.tracker-route { font-size: .95rem; font-weight: 800; letter-spacing: .05em; font-family: var(--mono); }
-.tracker-price { font-family: var(--mono); font-size: .85rem; color: var(--green); font-weight: 700; }
-.tracker-price.stale { color: var(--sub); }
-.tracker-meta { font-size: .7rem; color: var(--sub); display: flex; gap: .6rem; flex-wrap: wrap; }
-.tracker-actions { display: flex; gap: .25rem; margin-top: .5rem; flex-wrap: wrap; }
+/* ── Tracker list ────────────────────────────────────── */
+.tracker-list { margin-top:1rem; }
+.tracker-item { border:1px solid var(--border); border-radius:var(--radius); padding:.85rem; margin-bottom:.45rem; cursor:pointer; transition:all var(--transition); }
+.tracker-item:hover { border-color:var(--muted); }
+.tracker-item.active-tracker { border-color:var(--accent); background:rgba(255,85,51,.04); }
+.tracker-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:.35rem; }
+.tracker-route { font-size:.92rem; font-weight:800; letter-spacing:.05em; font-family:var(--mono); }
+.tracker-price { font-family:var(--mono); font-size:.82rem; color:var(--green); font-weight:700; }
+.tracker-price.stale { color:var(--sub); }
+.tracker-meta { font-size:.68rem; color:var(--sub); display:flex; gap:.55rem; flex-wrap:wrap; }
+.tracker-actions { display:flex; gap:.22rem; margin-top:.45rem; flex-wrap:wrap; }
 
 /* Badges */
-.badge {
-  display: inline-block; padding: .12rem .38rem; border-radius: 3px;
-  font-size: .6rem; font-weight: 700; letter-spacing: .06em;
-  text-transform: uppercase; font-family: var(--mono);
-}
-.badge-ok { background: rgba(0,217,126,.12); color: var(--green); }
-.badge-blocked { background: rgba(255,71,87,.12); color: var(--red); }
-.badge-fallback { background: rgba(255,209,102,.12); color: var(--yellow); }
-.badge-paused { background: rgba(122,125,136,.12); color: var(--sub); }
+.badge { display:inline-block; padding:.1rem .35rem; border-radius:3px; font-size:.58rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; font-family:var(--mono); }
+.badge-ok { background:rgba(0,217,126,.12); color:var(--green); }
+.badge-blocked { background:rgba(255,71,87,.12); color:var(--red); }
+.badge-fallback { background:rgba(255,209,102,.12); color:var(--yellow); }
+.badge-paused { background:rgba(122,125,136,.12); color:var(--sub); }
 
-/* ── Chart Panel ─────────────────────────────────────── */
-.chart-empty {
-  height: 280px; display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  color: var(--muted); border: 1px dashed var(--border);
-  border-radius: var(--radius); gap: .65rem;
-}
-.chart-empty-icon { font-size: 2rem; opacity: .3; }
-.chart-wrap { position: relative; height: 260px; }
-.chart-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .65rem; margin-top: .9rem; }
-.stat {
-  background: var(--bg); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: .65rem .85rem;
-}
-.stat-label { font-size: .62rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--sub); margin-bottom: .25rem; }
-.stat-value { font-family: var(--mono); font-size: 1rem; font-weight: 700; }
-.stat-value.green { color: var(--green); }
-.stat-value.red { color: var(--red); }
+/* ── Chart ───────────────────────────────────────────── */
+.chart-empty { height:260px; display:flex; flex-direction:column; align-items:center; justify-content:center; color:var(--muted); border:1px dashed var(--border); border-radius:var(--radius); gap:.6rem; }
+.chart-empty-icon { font-size:1.8rem; opacity:.3; }
+.chart-wrap { position:relative; height:250px; }
+.chart-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:.6rem; margin-top:.85rem; }
+.stat { background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); padding:.6rem .8rem; }
+.stat-label { font-size:.6rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--sub); margin-bottom:.22rem; }
+.stat-value { font-family:var(--mono); font-size:.95rem; font-weight:700; }
+.stat-value.green { color:var(--green); }
+.stat-value.red { color:var(--red); }
 
-/* ── History Table ───────────────────────────────────── */
-.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-table { width: 100%; border-collapse: collapse; font-size: .75rem; min-width: 500px; }
-thead tr { border-bottom: 1px solid var(--border); }
-th {
-  text-align: left; padding: .45rem .7rem;
-  font-size: .62rem; font-weight: 700; letter-spacing: .1em;
-  text-transform: uppercase; color: var(--sub); white-space: nowrap;
+/* ── Table ───────────────────────────────────────────── */
+.table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+table { width:100%; border-collapse:collapse; font-size:.73rem; min-width:480px; }
+thead tr { border-bottom:1px solid var(--border); }
+th { text-align:left; padding:.42rem .68rem; font-size:.6rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--sub); white-space:nowrap; }
+td { padding:.48rem .68rem; border-bottom:1px solid rgba(42,43,48,.6); font-family:var(--mono); font-size:.73rem; }
+tr:last-child td { border-bottom:none; }
+tr:hover td { background:rgba(255,255,255,.02); }
+
+/* ── Placeholder module ──────────────────────────────── */
+.placeholder-card {
+  text-align:center; padding:3.5rem 2rem;
+  border:1px dashed var(--border); border-radius:var(--radius);
 }
-td {
-  padding: .5rem .7rem; border-bottom: 1px solid rgba(42,43,48,.6);
-  font-family: var(--mono); font-size: .75rem;
+.placeholder-icon { font-size:2.5rem; opacity:.3; margin-bottom:1rem; }
+.placeholder-title { font-size:1rem; font-weight:700; margin-bottom:.5rem; }
+.placeholder-desc { font-size:.82rem; color:var(--sub); max-width:360px; margin:0 auto; }
+.coming-soon-badge {
+  display:inline-block; margin-top:1rem;
+  background:rgba(255,209,102,.12); color:var(--yellow);
+  font-size:.65rem; font-weight:700; letter-spacing:.1em;
+  text-transform:uppercase; font-family:var(--mono);
+  padding:.2rem .55rem; border-radius:3px;
 }
-tr:last-child td { border-bottom: none; }
-tr:hover td { background: rgba(255,255,255,.02); }
+
+/* ── Discover module ─────────────────────────────────── */
+.discover-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.1rem; align-items:start; }
+.toggle-row { display:flex; align-items:center; justify-content:space-between; padding:.45rem 0; }
+.toggle-label { font-size:.82rem; }
+.toggle { position:relative; width:38px; height:21px; flex-shrink:0; }
+.toggle input { opacity:0; width:0; height:0; }
+.toggle-slider { position:absolute; inset:0; background:var(--muted); border-radius:21px; cursor:pointer; transition:.25s; }
+.toggle-slider::before { content:''; position:absolute; width:15px; height:15px; border-radius:50%; background:white; left:3px; top:3px; transition:.25s; }
+.toggle input:checked + .toggle-slider { background:var(--accent); }
+.toggle input:checked + .toggle-slider::before { transform:translateX(17px); }
+.ai-results {
+  background:var(--bg); border:1px solid var(--border); border-radius:var(--radius);
+  padding:1rem; min-height:180px; font-size:.82rem; color:var(--sub);
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--mono); text-align:center; margin-top:.75rem;
+}
+.notice-box { background:rgba(255,140,0,.07); border:1px solid rgba(255,140,0,.2); border-radius:var(--radius); padding:.6rem .85rem; font-size:.75rem; color:var(--yellow); margin-top:.75rem; }
+
+/* ── Budget module ───────────────────────────────────── */
+.progress-wrap { margin-top:.85rem; }
+.progress-bar-bg { background:var(--border); border-radius:4px; height:10px; overflow:hidden; margin:.4rem 0; }
+.progress-bar-fill { height:100%; background:var(--accent); border-radius:4px; transition:width .5s ease; }
+.progress-labels { display:flex; justify-content:space-between; font-size:.68rem; font-family:var(--mono); color:var(--sub); }
+.trip-list { margin-top:.75rem; }
+.trip-item { display:flex; align-items:center; justify-content:space-between; padding:.45rem .6rem; border:1px solid var(--border); border-radius:var(--radius); margin-bottom:.3rem; font-size:.78rem; }
+.trip-item-name { font-weight:600; }
+.trip-item-cost { font-family:var(--mono); color:var(--accent2); }
+.budget-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.1rem; align-items:start; }
 
 /* ── Toast ───────────────────────────────────────────── */
-.toast-container {
-  position: fixed; bottom: 1.25rem; right: 1.25rem;
-  z-index: 999; display: flex; flex-direction: column; gap: .4rem;
-}
-.toast {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: .65rem .9rem;
-  font-size: .78rem; display: flex; align-items: center; gap: .45rem;
-  min-width: 240px; max-width: calc(100vw - 2.5rem);
-  animation: slideIn .2s ease; box-shadow: 0 8px 24px rgba(0,0,0,.4);
-}
-.toast.success { border-color: var(--green); }
-.toast.error   { border-color: var(--red); }
-.toast.warning { border-color: var(--yellow); }
-@keyframes slideIn { from{transform:translateX(20px);opacity:0} to{transform:translateX(0);opacity:1} }
+.toast-container { position:fixed; bottom:1.1rem; right:1.1rem; z-index:999; display:flex; flex-direction:column; gap:.35rem; }
+.toast { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:.6rem .85rem; font-size:.76rem; display:flex; align-items:center; gap:.4rem; min-width:230px; max-width:calc(100vw - 2rem); animation:slideIn .2s ease; box-shadow:0 8px 24px rgba(0,0,0,.4); }
+.toast.success { border-color:var(--green); }
+.toast.error   { border-color:var(--red); }
+.toast.warning { border-color:var(--yellow); }
+@keyframes slideIn { from{transform:translateX(16px);opacity:0} to{transform:translateX(0);opacity:1} }
 
-/* ── Spinner / Overlay ───────────────────────────────── */
-.spinner {
-  display: inline-block; width: 13px; height: 13px;
-  border: 2px solid rgba(255,255,255,.2); border-top-color: var(--accent);
-  border-radius: 50%; animation: spin .7s linear infinite;
-}
+/* ── Spinner ─────────────────────────────────────────── */
+.spinner { display:inline-block; width:12px; height:12px; border:2px solid rgba(255,255,255,.2); border-top-color:var(--accent); border-radius:50%; animation:spin .7s linear infinite; }
 @keyframes spin { to{transform:rotate(360deg)} }
-.loading-overlay {
-  position: absolute; inset: 0; background: rgba(13,14,17,.75);
-  display: flex; align-items: center; justify-content: center;
-  border-radius: var(--radius); z-index: 10; gap: .65rem;
-  font-size: .82rem; color: var(--sub); backdrop-filter: blur(2px);
-}
-
-/* ── Footer ──────────────────────────────────────────── */
-.footer {
-  text-align: center; padding: 1.5rem 1.25rem;
-  font-size: .65rem; color: var(--sub);
-  border-top: 1px solid var(--border); margin-top: 2.5rem;
-  font-family: var(--mono); line-height: 1.8;
-}
-.footer a { color: var(--accent); text-decoration: none; }
-.footer a:hover { text-decoration: underline; }
-
-/* ══════════════════════════════════════════════════════
-   RESPONSIVE — Mobile First
-   ══════════════════════════════════════════════════════ */
-@media (max-width: 768px) {
-  /* Show hamburger, hide refresh text */
-  .hamburger { display: flex; }
-  .btn-refresh .btn-refresh-text { display: none; }
-
-  /* Stack to single column */
-  .grid-main { grid-template-columns: 1fr; }
-
-  /* Chart stats: 2 cols on mobile */
-  .chart-stats { grid-template-columns: repeat(2, 1fr); }
-
-  /* Form rows stay 2-col on mobile (compact enough) */
-  /* but collapse to 1-col on very small screens */
-}
-
-@media (max-width: 420px) {
-  .form-row { grid-template-columns: 1fr; }
-  .chart-stats { grid-template-columns: 1fr; }
-  .header { padding: 0 .85rem; }
-  .main-wrap { padding: 1rem .85rem; }
-  .logo-version { display: none; }
-}
-
-/* ── Settings Button ─────────────────────────────────── */
-.btn-settings {
-  width: 30px; height: 30px; border-radius: var(--radius);
-  background: transparent; border: 1px solid var(--border);
-  color: var(--sub); cursor: pointer; font-size: .9rem;
-  display: flex; align-items: center; justify-content: center;
-  transition: all var(--transition); flex-shrink: 0;
-}
-.btn-settings:hover { color: var(--text); border-color: var(--muted); transform: rotate(45deg); }
+.loading-overlay { position:absolute; inset:0; background:rgba(13,14,17,.75); display:flex; align-items:center; justify-content:center; border-radius:var(--radius); z-index:10; gap:.6rem; font-size:.8rem; color:var(--sub); backdrop-filter:blur(2px); }
 
 /* ── Settings Modal ──────────────────────────────────── */
-.modal-backdrop {
-  position: fixed; inset: 0; background: rgba(0,0,0,.6);
-  backdrop-filter: blur(4px); z-index: 500;
-  display: flex; align-items: center; justify-content: center;
-  padding: 1rem;
-  opacity: 0; pointer-events: none; transition: opacity .2s ease;
-}
-.modal-backdrop.open { opacity: 1; pointer-events: all; }
+.modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.6); backdrop-filter:blur(4px); z-index:500; display:flex; align-items:center; justify-content:center; padding:1rem; opacity:0; pointer-events:none; transition:opacity .2s ease; }
+.modal-backdrop.open { opacity:1; pointer-events:all; }
+.modal { background:var(--surface); border:1px solid var(--border); border-radius:10px; width:100%; max-width:460px; max-height:88vh; overflow-y:auto; transform:translateY(16px); transition:transform .2s ease; box-shadow:0 24px 64px rgba(0,0,0,.5); }
+.modal-backdrop.open .modal { transform:translateY(0); }
+.modal-header { display:flex; align-items:center; justify-content:space-between; padding:1rem 1.2rem; border-bottom:1px solid var(--border); }
+.modal-title { font-size:.92rem; font-weight:800; }
+.modal-close { width:26px; height:26px; border-radius:4px; background:transparent; border:none; color:var(--sub); cursor:pointer; font-size:.95rem; display:flex; align-items:center; justify-content:center; transition:all var(--transition); }
+.modal-close:hover { background:var(--border); color:var(--text); }
+.modal-tabs { display:flex; border-bottom:1px solid var(--border); padding:0 1.2rem; }
+.modal-tab { padding:.6rem .85rem; font-size:.72rem; font-weight:700; color:var(--sub); cursor:pointer; border-bottom:2px solid transparent; transition:all var(--transition); background:none; border-top:none; border-left:none; border-right:none; font-family:var(--sans); }
+.modal-tab:hover { color:var(--text); }
+.modal-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+.modal-body { padding:1.2rem; }
+.modal-section { margin-bottom:1rem; }
+.modal-section:last-child { margin-bottom:0; }
+.modal-section-label { font-size:.62rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--sub); margin-bottom:.45rem; }
+.settings-input { background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); font-family:var(--mono); font-size:.78rem; padding:.48rem .68rem; width:100%; outline:none; transition:border-color var(--transition); }
+.settings-input:focus { border-color:var(--accent); box-shadow:0 0 0 2px rgba(255,85,51,.1); }
+.settings-input::placeholder { color:var(--muted); }
+.settings-input + .settings-input { margin-top:.35rem; }
+.modal-footer { display:flex; gap:.5rem; justify-content:flex-end; padding:.9rem 1.2rem; border-top:1px solid var(--border); }
+.btn-save { background:var(--accent); color:white; border:none; padding:.5rem 1.1rem; border-radius:var(--radius); font-family:var(--sans); font-size:.8rem; font-weight:700; cursor:pointer; transition:all var(--transition); }
+.btn-save:hover { background:#e64422; }
+.btn-cancel { background:transparent; color:var(--sub); border:1px solid var(--border); padding:.5rem .95rem; border-radius:var(--radius); font-family:var(--sans); font-size:.8rem; font-weight:700; cursor:pointer; transition:all var(--transition); }
+.btn-cancel:hover { color:var(--text); border-color:var(--muted); }
 
-.modal {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 10px; width: 100%; max-width: 480px;
-  max-height: 90vh; overflow-y: auto;
-  transform: translateY(16px); transition: transform .2s ease;
-  box-shadow: 0 24px 64px rgba(0,0,0,.5);
-}
-.modal-backdrop.open .modal { transform: translateY(0); }
+/* ── Footer ──────────────────────────────────────────── */
+.footer { text-align:center; padding:1.25rem; font-size:.62rem; color:var(--sub); border-top:1px solid var(--border); margin-top:2rem; font-family:var(--mono); }
+.footer a { color:var(--accent); text-decoration:none; }
+.footer a:hover { text-decoration:underline; }
 
-.modal-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 1.1rem 1.25rem; border-bottom: 1px solid var(--border);
-}
-.modal-title { font-size: .95rem; font-weight: 800; }
-.modal-close {
-  width: 28px; height: 28px; border-radius: 4px;
-  background: transparent; border: none; color: var(--sub);
-  cursor: pointer; font-size: 1rem; display: flex;
-  align-items: center; justify-content: center;
-  transition: all var(--transition);
-}
-.modal-close:hover { background: var(--border); color: var(--text); }
+/* ── Light mode ──────────────────────────────────────── */
+body.light-mode { --bg:#f4f5f7; --surface:#ffffff; --surface2:#eef0f3; --border:#dddde0; --muted:#c0c2cc; --text:#1a1a1f; --sub:#6b6e7a; }
 
-/* Modal Tabs */
-.modal-tabs {
-  display: flex; border-bottom: 1px solid var(--border);
-  padding: 0 1.25rem; gap: 0;
+/* ══════════════════════════════════════════════════════
+   RESPONSIVE
+   ══════════════════════════════════════════════════════ */
+@media (max-width:900px) {
+  :root { --nav-w:0px; }
+  .sidebar { transform:translateX(-220px); width:220px; }
+  .sidebar.open { transform:translateX(0); }
+  .main-content { margin-left:0; }
+  .hamburger { display:flex; }
+  .grid-2 { grid-template-columns:1fr; }
+  .discover-grid { grid-template-columns:1fr; }
+  .budget-grid { grid-template-columns:1fr; }
+  .chart-stats { grid-template-columns:repeat(2,1fr); }
 }
-.modal-tab {
-  padding: .65rem .9rem; font-size: .75rem; font-weight: 700;
-  color: var(--sub); cursor: pointer; border-bottom: 2px solid transparent;
-  transition: all var(--transition); background: none; border-top: none;
-  border-left: none; border-right: none; font-family: var(--sans);
-  letter-spacing: .02em;
-}
-.modal-tab:hover { color: var(--text); }
-.modal-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
-
-.modal-body { padding: 1.25rem; }
-.modal-section { margin-bottom: 1.1rem; }
-.modal-section:last-child { margin-bottom: 0; }
-.modal-section-label {
-  font-size: .65rem; font-weight: 700; letter-spacing: .1em;
-  text-transform: uppercase; color: var(--sub); margin-bottom: .5rem;
-}
-
-/* Settings inputs */
-.settings-input {
-  background: var(--bg); border: 1px solid var(--border);
-  border-radius: var(--radius); color: var(--text);
-  font-family: var(--mono); font-size: .8rem;
-  padding: .5rem .7rem; width: 100%; outline: none;
-  transition: border-color var(--transition);
-}
-.settings-input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(255,85,51,.1); }
-.settings-input::placeholder { color: var(--muted); }
-
-/* Toggle switch */
-.toggle-row {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: .5rem 0;
-}
-.toggle-label { font-size: .82rem; }
-.toggle {
-  position: relative; width: 40px; height: 22px; flex-shrink: 0;
-}
-.toggle input { opacity: 0; width: 0; height: 0; }
-.toggle-slider {
-  position: absolute; inset: 0; background: var(--muted);
-  border-radius: 22px; cursor: pointer; transition: .25s;
-}
-.toggle-slider::before {
-  content: ''; position: absolute;
-  width: 16px; height: 16px; border-radius: 50%;
-  background: white; left: 3px; top: 3px; transition: .25s;
-}
-.toggle input:checked + .toggle-slider { background: var(--accent); }
-.toggle input:checked + .toggle-slider::before { transform: translateX(18px); }
-
-/* Modal footer */
-.modal-footer {
-  display: flex; gap: .6rem; justify-content: flex-end;
-  padding: 1rem 1.25rem; border-top: 1px solid var(--border);
-}
-.btn-save {
-  background: var(--accent); color: white; border: none;
-  padding: .55rem 1.2rem; border-radius: var(--radius);
-  font-family: var(--sans); font-size: .82rem; font-weight: 700;
-  cursor: pointer; transition: all var(--transition);
-}
-.btn-save:hover { background: #e64422; }
-.btn-cancel {
-  background: transparent; color: var(--sub);
-  border: 1px solid var(--border); padding: .55rem 1rem;
-  border-radius: var(--radius); font-family: var(--sans);
-  font-size: .82rem; font-weight: 700; cursor: pointer;
-  transition: all var(--transition);
-}
-.btn-cancel:hover { color: var(--text); border-color: var(--muted); }
-
-/* Light mode */
-body.light-mode {
-  --bg: #f5f5f7; --surface: #ffffff; --surface2: #f0f0f2;
-  --border: #dddde0; --muted: #c5c5cc;
-  --text: #1a1a1f; --sub: #6b6e7a;
+@media (max-width:480px) {
+  .form-row { grid-template-columns:1fr; }
+  .chart-stats { grid-template-columns:1fr; }
+  .main-content { padding:1rem .85rem; }
+  .logo-ver { display:none; }
 }
 </style>
 </head>
 <body>
 
-<!-- ── Header ────────────────────────────────────────── -->
+<!-- ── Header ─────────────────────────────────────────── -->
 <header class="header">
-  <div class="logo">
-    <div class="logo-icon">✈</div>
-    <span data-i18n="title">WanderSuite</span>
-    <span class="logo-version">v0.1</span>
+  <div style="display:flex;align-items:center;gap:.6rem">
+    <button class="hamburger" id="hamburger" onclick="toggleSidebar()" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
+    <a class="logo" href="#" onclick="navigate('ryanair');return false;">
+      <div class="logo-icon">✈</div>
+      <span>WanderSuite</span>
+      <span class="logo-ver">v0.1</span>
+    </a>
   </div>
-
   <div class="header-right">
     <div class="lang-switcher">
       <button class="lang-btn" onclick="setLang('de')">DE</button>
       <button class="lang-btn" onclick="setLang('it')">IT</button>
       <button class="lang-btn" onclick="setLang('en')">EN</button>
     </div>
-    <button class="btn-settings" onclick="openSettings()" title="Settings">⚙</button>
+    <button class="btn-icon-hdr btn-settings" onclick="openSettings()" title="Settings">⚙</button>
     <div class="status-dot" id="statusDot" title="API Status"></div>
-    <button class="btn-refresh" onclick="loadTrackers()">
-      ↺ <span class="btn-refresh-text" data-i18n="refresh">Aktualisieren</span>
-    </button>
-    <button class="hamburger" id="hamburger" onclick="toggleMenu()" aria-label="Menu">
-      <span></span><span></span><span></span>
-    </button>
   </div>
 </header>
 
-<!-- ── Mobile Nav Drawer ──────────────────────────────── -->
-<nav class="mobile-nav" id="mobileNav">
-  <div class="mobile-nav-item active">✈ <span data-i18n="ryanairTracker">Ryanair Tracker</span></div>
-</nav>
+<!-- ── App Shell ───────────────────────────────────────── -->
+<div class="app-shell">
 
-<!-- ── Main Content ──────────────────────────────────── -->
-<main class="main-wrap">
+  <!-- ── Sidebar ──────────────────────────────────────── -->
+  <nav class="sidebar" id="sidebar">
 
-  <!-- Backend URL Notice -->
-  <div class="api-notice">
-    <span>⚙</span>
-    <div>
-      <strong data-i18n="backendConfig">Backend-URL konfigurieren</strong>
-      — <span data-i18n="backendHint">trage die URL deines Railway-Deployments ein</span>:
-      <input class="api-url-input" id="apiUrlInput" type="text"
-             placeholder="https://tracker-an-te-production.up.railway.app"
-             oninput="saveApiUrl(this.value)">
-    </div>
-  </div>
-
-  <div class="grid-main">
-
-    <!-- ── Left: Form + Tracker List ─────────────────── -->
-    <div>
-      <div class="card">
-        <div class="card-title" data-i18n="newTracker">Neuen Tracker anlegen</div>
-
-        <div class="form-row">
-          <div class="form-group">
-            <label data-i18n="from">Von (IATA)</label>
-            <input class="iata-input" id="origin" placeholder="BGY" maxlength="3">
-          </div>
-          <div class="form-group">
-            <label data-i18n="to">Nach (IATA)</label>
-            <input class="iata-input" id="destination" placeholder="DUB" maxlength="3">
-          </div>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group">
-            <label data-i18n="outbound">Hinflug</label>
-            <input type="date" id="outboundDate">
-          </div>
-          <div class="form-group">
-            <label data-i18n="return">Rückflug (opt.)</label>
-            <input type="date" id="returnDate">
-          </div>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group">
-            <label data-i18n="adults">Erwachsene</label>
-            <select id="adults">
-              <option value="1" data-i18n-opt="adult1">1 Erwachsener</option>
-              <option value="2" selected data-i18n-opt="adult2">2 Erwachsene</option>
-              <option value="3" data-i18n-opt="adult3">3 Erwachsene</option>
-              <option value="4" data-i18n-opt="adult4">4 Erwachsene</option>
-              <option value="5" data-i18n-opt="adult5">5 Erwachsene</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label data-i18n="children">Kinder</label>
-            <select id="children">
-              <option value="0" data-i18n-opt="child0">Keine Kinder</option>
-              <option value="1" data-i18n-opt="child1">1 Kind</option>
-              <option value="2" data-i18n-opt="child2">2 Kinder</option>
-              <option value="3" data-i18n-opt="child3">3 Kinder</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- Baggage -->
-        <div class="baggage-section">
-          <div class="baggage-title" data-i18n="baggageTitle">🧳 Gepäck (pro Person)</div>
-          <div class="bag-option" id="bag-10kg" onclick="toggleBag('10kg')">
-            <div class="bag-checkbox" id="chk-10kg"></div>
-            <div class="bag-label" data-i18n="bag10">10 kg Check-in Koffer</div>
-            <div class="bag-note">+10kg</div>
-          </div>
-          <div class="bag-option" id="bag-20kg" onclick="toggleBag('20kg')">
-            <div class="bag-checkbox" id="chk-20kg"></div>
-            <div class="bag-label" data-i18n="bag20">20 kg Check-in Koffer</div>
-            <div class="bag-note">+20kg</div>
-          </div>
-          <div class="bag-option" id="bag-23kg" onclick="toggleBag('23kg')">
-            <div class="bag-checkbox" id="chk-23kg"></div>
-            <div class="bag-label" data-i18n="bag23">23 kg Koffer (Large)</div>
-            <div class="bag-note">+23kg</div>
-          </div>
-          <div style="font-size:.68rem;color:var(--sub);margin-top:.5rem" data-i18n="baggageNote">
-            ✓ Basic/Value-Tarif immer inklusive
-          </div>
-        </div>
-
-        <button class="btn btn-primary" id="addBtn" onclick="addTracker()">
-          + <span data-i18n="startTracker">Tracker starten</span>
-        </button>
-      </div>
-
-      <!-- Tracker List -->
-      <div class="tracker-list">
-        <div class="section-title" data-i18n="activeTrackers">Aktive Tracker</div>
-        <div id="trackerList">
-          <div style="color:var(--muted);font-size:.8rem;padding:.5rem 0" data-i18n="loading">Lade...</div>
-        </div>
-      </div>
+    <div class="nav-group">
+      <span class="nav-group-label" data-i18n="navFlights">Flüge</span>
+      <button class="nav-item sub active" id="nav-ryanair" onclick="navigate('ryanair')">
+        <span class="nav-icon">🟠</span>
+        <span data-i18n="navRyanair">Ryanair Tracker</span>
+      </button>
+      <button class="nav-item sub" id="nav-google" onclick="navigate('google')">
+        <span class="nav-icon">🔵</span>
+        <span data-i18n="navGoogleFlights">Google Flights</span>
+        <span class="nav-badge">soon</span>
+      </button>
     </div>
 
-    <!-- ── Right: Chart + Table ───────────────────────── -->
-    <div>
-      <div class="card" id="chartCard">
-        <div class="card-title" id="chartTitle" data-i18n="priceHistory">Preisverlauf</div>
+    <div class="nav-group">
+      <span class="nav-group-label" data-i18n="navAccommodations">Unterkünfte</span>
+      <button class="nav-item sub" id="nav-homair" onclick="navigate('homair')">
+        <span class="nav-icon">⛺</span>
+        <span data-i18n="navHomair">Homair</span>
+        <span class="nav-badge">soon</span>
+      </button>
+      <button class="nav-item sub" id="nav-booking" onclick="navigate('booking')">
+        <span class="nav-icon">🏨</span>
+        <span data-i18n="navBooking">Booking / Trivago</span>
+        <span class="nav-badge">soon</span>
+      </button>
+    </div>
 
-        <div id="chartEmpty" class="chart-empty">
-          <div class="chart-empty-icon">📈</div>
-          <div style="font-size:.82rem" data-i18n="selectTracker">Wähle einen Tracker aus</div>
-        </div>
+    <div class="nav-group">
+      <span class="nav-group-label" data-i18n="navDiscover">Entdecken</span>
+      <button class="nav-item sub" id="nav-discover" onclick="navigate('discover')">
+        <span class="nav-icon">🌍</span>
+        <span data-i18n="navDiscover">Entdecken</span>
+      </button>
+    </div>
 
-        <div id="chartContainer" style="display:none">
-          <div class="chart-stats" id="chartStats"></div>
-          <div class="chart-wrap" style="margin-top:.9rem">
-            <canvas id="priceChart"></canvas>
+    <div class="nav-group">
+      <span class="nav-group-label" data-i18n="navBudget">Budget</span>
+      <button class="nav-item sub" id="nav-budget" onclick="navigate('budget')">
+        <span class="nav-icon">💶</span>
+        <span data-i18n="navBudget">Reisebudget</span>
+      </button>
+    </div>
+
+  </nav>
+
+  <!-- ── Main Content ────────────────────────────────── -->
+  <main class="main-content">
+
+    <!-- ════ PAGE: Ryanair Tracker ═════════════════════ -->
+    <div class="page active" id="page-ryanair">
+
+      <div class="grid-2">
+        <div>
+          <div class="card">
+            <div class="card-title" data-i18n="newTracker">Neuen Tracker anlegen</div>
+            <div class="form-row">
+              <div class="form-group">
+                <label data-i18n="from">Von (IATA)</label>
+                <input class="iata-input" id="origin" placeholder="BGY" maxlength="3">
+              </div>
+              <div class="form-group">
+                <label data-i18n="to">Nach (IATA)</label>
+                <input class="iata-input" id="destination" placeholder="DUB" maxlength="3">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label data-i18n="outbound">Hinflug</label>
+                <input type="date" id="outboundDate">
+              </div>
+              <div class="form-group">
+                <label data-i18n="return">Rückflug (opt.)</label>
+                <input type="date" id="returnDate">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label data-i18n="adults">Erwachsene</label>
+                <select id="adults">
+                  <option value="1" data-i18n-opt="adult1">1 Erwachsener</option>
+                  <option value="2" selected data-i18n-opt="adult2">2 Erwachsene</option>
+                  <option value="3" data-i18n-opt="adult3">3 Erwachsene</option>
+                  <option value="4" data-i18n-opt="adult4">4 Erwachsene</option>
+                  <option value="5" data-i18n-opt="adult5">5 Erwachsene</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label data-i18n="children">Kinder</label>
+                <select id="children">
+                  <option value="0" data-i18n-opt="child0">Keine Kinder</option>
+                  <option value="1" data-i18n-opt="child1">1 Kind</option>
+                  <option value="2" data-i18n-opt="child2">2 Kinder</option>
+                  <option value="3" data-i18n-opt="child3">3 Kinder</option>
+                </select>
+              </div>
+            </div>
+            <div class="baggage-section">
+              <div class="baggage-title" data-i18n="baggageTitle">🧳 Gepäck (pro Person)</div>
+              <div class="bag-option" id="bag-10kg" onclick="toggleBag('10kg')">
+                <div class="bag-checkbox" id="chk-10kg"></div>
+                <div class="bag-label" data-i18n="bag10">10 kg Check-in Koffer</div>
+                <div class="bag-note">+10kg</div>
+              </div>
+              <div class="bag-option" id="bag-20kg" onclick="toggleBag('20kg')">
+                <div class="bag-checkbox" id="chk-20kg"></div>
+                <div class="bag-label" data-i18n="bag20">20 kg Check-in Koffer</div>
+                <div class="bag-note">+20kg</div>
+              </div>
+              <div class="bag-option" id="bag-23kg" onclick="toggleBag('23kg')">
+                <div class="bag-checkbox" id="chk-23kg"></div>
+                <div class="bag-label" data-i18n="bag23">23 kg Koffer (Large)</div>
+                <div class="bag-note">+23kg</div>
+              </div>
+              <div style="font-size:.66rem;color:var(--sub);margin-top:.45rem" data-i18n="baggageNote">✓ Basic/Value-Tarif immer inklusive</div>
+            </div>
+            <button class="btn btn-primary" id="addBtn" onclick="addTracker()">
+              + <span data-i18n="startTracker">Tracker starten</span>
+            </button>
+          </div>
+
+          <div class="tracker-list">
+            <div class="section-title" data-i18n="activeTrackers">Aktive Tracker</div>
+            <div id="trackerList">
+              <div style="color:var(--muted);font-size:.78rem;padding:.4rem 0" data-i18n="loading">Lade...</div>
+            </div>
           </div>
         </div>
-      </div>
 
-      <!-- History Table -->
-      <div class="card" id="tableCard" style="margin-top:1rem;display:none">
-        <div class="card-title" data-i18n="historyDetails">Verlaufsdetails</div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th data-i18n="date">Datum</th>
-                <th data-i18n="outboundFlight">Hinflug</th>
-                <th data-i18n="returnFlight">Rückflug</th>
-                <th data-i18n="tickets">Tickets</th>
-                <th data-i18n="baggage">Gepäck</th>
-                <th data-i18n="total">Gesamt</th>
-                <th data-i18n="status">Status</th>
-              </tr>
-            </thead>
-            <tbody id="snapshotTable"></tbody>
-          </table>
+        <div>
+          <div class="card" id="chartCard">
+            <div class="card-title" id="chartTitle" data-i18n="priceHistory">Preisverlauf</div>
+            <div id="chartEmpty" class="chart-empty">
+              <div class="chart-empty-icon">📈</div>
+              <div style="font-size:.8rem" data-i18n="selectTracker">Wähle einen Tracker aus</div>
+            </div>
+            <div id="chartContainer" style="display:none">
+              <div class="chart-stats" id="chartStats"></div>
+              <div class="chart-wrap" style="margin-top:.85rem">
+                <canvas id="priceChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" id="tableCard" style="margin-top:1rem;display:none">
+            <div class="card-title" data-i18n="historyDetails">Verlaufsdetails</div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr>
+                  <th data-i18n="date">Datum</th>
+                  <th data-i18n="outboundFlight">Hinflug</th>
+                  <th data-i18n="returnFlight">Rückflug</th>
+                  <th data-i18n="tickets">Tickets</th>
+                  <th data-i18n="baggage">Gepäck</th>
+                  <th data-i18n="total">Gesamt</th>
+                  <th data-i18n="status">Status</th>
+                </tr></thead>
+                <tbody id="snapshotTable"></tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
     </div>
 
-  </div><!-- /grid-main -->
-</main>
+    <!-- ════ PAGE: Google Flights (placeholder) ════════ -->
+    <div class="page" id="page-google">
+      <div class="placeholder-card">
+        <div class="placeholder-icon">🔵</div>
+        <div class="placeholder-title" data-i18n="navGoogleFlights">Google Flights</div>
+        <div class="placeholder-desc" data-i18n="googleFlightsDesc">Google Flights price monitoring — coming soon.</div>
+        <span class="coming-soon-badge" data-i18n="placeholderComingSoon">Coming Soon</span>
+      </div>
+    </div>
 
-<!-- ── Footer ─────────────────────────────────────────── -->
+    <!-- ════ PAGE: Homair (placeholder) ════════════════ -->
+    <div class="page" id="page-homair">
+      <div class="placeholder-card">
+        <div class="placeholder-icon">⛺</div>
+        <div class="placeholder-title" data-i18n="navHomair">Homair</div>
+        <div class="placeholder-desc" data-i18n="homairDesc">Homair campsite tracker — coming soon.</div>
+        <span class="coming-soon-badge" data-i18n="placeholderComingSoon">Coming Soon</span>
+      </div>
+    </div>
+
+    <!-- ════ PAGE: Booking (placeholder) ═══════════════ -->
+    <div class="page" id="page-booking">
+      <div class="placeholder-card">
+        <div class="placeholder-icon">🏨</div>
+        <div class="placeholder-title" data-i18n="navBooking">Booking / Trivago</div>
+        <div class="placeholder-desc" data-i18n="bookingDesc">Booking.com / Trivago tracker — coming soon.</div>
+        <span class="coming-soon-badge" data-i18n="placeholderComingSoon">Coming Soon</span>
+      </div>
+    </div>
+
+    <!-- ════ PAGE: Discover ═════════════════════════════ -->
+    <div class="page" id="page-discover">
+      <div class="discover-grid">
+        <div>
+          <div class="card">
+            <div class="card-title" data-i18n="discoverTitle">Entdecke etwas Neues</div>
+            <div class="form-group" style="margin-bottom:.75rem">
+              <label data-i18n="discoverWhat">Was suchst du?</label>
+              <textarea id="discoverQuery" data-i18n-placeholder="discoverWhatPlaceholder"
+                        placeholder="z.B. Strand, warmes Wetter, Städtereise..."></textarea>
+            </div>
+            <div class="toggle-row">
+              <span class="toggle-label" data-i18n="discoverDawarich">Dawarich-Verlauf nutzen</span>
+              <label class="toggle">
+                <input type="checkbox" id="discoverDawarich" onchange="checkDawarich(this.checked)">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div id="discoverDawarichNotice" class="notice-box" style="display:none" data-i18n="discoverNoDawarich">
+              Dawarich nicht konfiguriert.
+            </div>
+            <button class="btn btn-primary" onclick="generateIdeas()">
+              ✨ <span data-i18n="discoverGenerate">Ideen generieren</span>
+            </button>
+          </div>
+        </div>
+        <div>
+          <div class="card">
+            <div class="card-title">AI</div>
+            <div class="ai-results" id="discoverResults" data-i18n="discoverResultsPlaceholder">
+              KI-Empfehlungen erscheinen hier...
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════ PAGE: Budget ═══════════════════════════════ -->
+    <div class="page" id="page-budget">
+      <div class="budget-grid">
+        <div>
+          <div class="card">
+            <div class="card-title" data-i18n="budgetTitle">Reisebudget</div>
+            <div class="form-group" style="margin-bottom:.75rem">
+              <label data-i18n="budgetYearly">Jährliches Reisebudget (€)</label>
+              <input type="number" id="budgetTotal" placeholder="3000" oninput="updateBudget()">
+            </div>
+            <div class="toggle-row">
+              <span class="toggle-label" data-i18n="budgetSyncActual">Mit ActualBudget synchronisieren</span>
+              <label class="toggle">
+                <input type="checkbox" id="syncActual" onchange="toggleActualSync(this.checked)">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <!-- Manual entry -->
+            <div id="manualEntry" style="margin-top:.75rem">
+              <div class="form-row" style="margin-bottom:.4rem">
+                <div class="form-group">
+                  <label data-i18n="budgetTripName">Reisename</label>
+                  <input type="text" id="tripName" placeholder="Dublin Trip">
+                </div>
+                <div class="form-group">
+                  <label data-i18n="budgetTripCost">Kosten (€)</label>
+                  <input type="number" id="tripCost" placeholder="450">
+                </div>
+              </div>
+              <button class="btn btn-ghost" style="width:100%" onclick="addTrip()">
+                + <span data-i18n="budgetAddTrip">Reise hinzufügen</span>
+              </button>
+            </div>
+
+            <!-- ActualBudget sync -->
+            <div id="actualEntry" style="display:none;margin-top:.75rem">
+              <div id="actualNotice" class="notice-box" style="display:none" data-i18n="budgetNoActual">
+                ActualBudget nicht konfiguriert.
+              </div>
+              <button class="btn btn-ghost" style="width:100%" onclick="syncActualBudget()">
+                ↺ <span data-i18n="budgetSync">Synchronisieren</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card">
+            <div class="card-title" data-i18n="budgetTitle">Budget</div>
+            <div class="progress-wrap" id="budgetProgress">
+              <div style="display:flex;justify-content:space-between;font-size:.72rem;font-family:var(--mono);margin-bottom:.3rem">
+                <span id="budgetUsedLabel" style="color:var(--accent)">0 €</span>
+                <span id="budgetRemainingLabel" style="color:var(--green)">0 €</span>
+              </div>
+              <div class="progress-bar-bg">
+                <div class="progress-bar-fill" id="progressFill" style="width:0%"></div>
+              </div>
+              <div class="progress-labels">
+                <span data-i18n="budgetUsed">Verbraucht</span>
+                <span data-i18n="budgetRemaining">Verbleibend</span>
+              </div>
+            </div>
+            <div class="trip-list" id="tripList"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ── Footer ──────────────────────────────────────────── -->
 <footer class="footer">
   WanderSuite v0.1 &mdash;
-  Licensed under <a href="https://www.gnu.org/licenses/agpl-3.0" target="_blank">GNU AGPLv3</a>
+  <a href="https://www.gnu.org/licenses/agpl-3.0" target="_blank">GNU AGPLv3</a>
   &mdash; <a href="https://github.com/antonbier/tracker-an-te" target="_blank">GitHub</a>
 </footer>
 
-<!-- ── Toasts ─────────────────────────────────────────── -->
-
-<!-- ── Settings Modal ──────────────────────────────── -->
+<!-- ── Settings Modal ──────────────────────────────────── -->
 <div class="modal-backdrop" id="settingsBackdrop" onclick="backdropClick(event)">
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal" role="dialog" aria-modal="true">
     <div class="modal-header">
-      <div class="modal-title" id="modalTitle" data-i18n="settings">Einstellungen</div>
+      <div class="modal-title" data-i18n="settings">Einstellungen</div>
       <button class="modal-close" onclick="closeSettings()">✕</button>
     </div>
-
     <div class="modal-tabs">
-      <button class="modal-tab active" onclick="switchTab('basic')" id="tab-basic"
-              data-i18n="settingsBasic">Allgemein</button>
-      <button class="modal-tab" onclick="switchTab('integrations')" id="tab-integrations"
-              data-i18n="settingsIntegrations">Integrationen</button>
+      <button class="modal-tab active" onclick="switchTab('basic')" id="tab-basic" data-i18n="settingsBasic">Allgemein</button>
+      <button class="modal-tab" onclick="switchTab('integrations')" id="tab-integrations" data-i18n="settingsIntegrations">Integrationen</button>
     </div>
-
-    <!-- Basic Tab -->
     <div class="modal-body" id="panel-basic">
-
       <div class="modal-section">
         <div class="modal-section-label" data-i18n="backendUrl">Backend-URL</div>
-        <input class="settings-input" id="s-backendUrl" type="text"
-               placeholder="https://tracker-an-te-production.up.railway.app">
+        <input class="settings-input" id="s-backendUrl" type="text" placeholder="https://tracker-an-te-production.up.railway.app">
       </div>
-
       <div class="modal-section">
         <div class="modal-section-label" data-i18n="timezone">Zeitzone</div>
         <select class="settings-input" id="s-timezone"></select>
       </div>
-
       <div class="modal-section">
         <div class="modal-section-label" data-i18n="appearance">Darstellung</div>
         <div class="toggle-row">
@@ -737,47 +669,31 @@ body.light-mode {
           </label>
         </div>
       </div>
-
     </div>
-
-    <!-- Integrations Tab -->
     <div class="modal-body" id="panel-integrations" style="display:none">
-
       <div class="modal-section">
         <div class="modal-section-label">Dawarich</div>
-        <input class="settings-input" id="s-dawarichUrl" type="text"
-               placeholder="https://dawarich.example.com" style="margin-bottom:.4rem">
-        <input class="settings-input" id="s-dawarichToken" type="password"
-               data-i18n-placeholder="dawarichToken" placeholder="API Token">
+        <input class="settings-input" id="s-dawarichUrl" type="text" placeholder="https://dawarich.example.com">
+        <input class="settings-input" id="s-dawarichToken" type="password" placeholder="API Token">
       </div>
-
       <div class="modal-section">
         <div class="modal-section-label">ActualBudget</div>
-        <input class="settings-input" id="s-actualUrl" type="text"
-               placeholder="https://actualbudget.example.com" style="margin-bottom:.4rem">
-        <input class="settings-input" id="s-actualToken" type="password"
-               placeholder="Token">
+        <input class="settings-input" id="s-actualUrl" type="text" placeholder="https://actualbudget.example.com">
+        <input class="settings-input" id="s-actualToken" type="password" placeholder="Token">
       </div>
-
       <div class="modal-section">
         <div class="modal-section-label" data-i18n="llmProvider">KI-Anbieter</div>
-        <select class="settings-input" id="s-llmProvider" style="margin-bottom:.4rem">
+        <select class="settings-input" id="s-llmProvider">
           <option value="">— disabled —</option>
           <option value="gemini">Google Gemini</option>
           <option value="openai">OpenAI</option>
           <option value="anthropic">Anthropic Claude</option>
           <option value="ollama">Ollama (local)</option>
         </select>
-        <input class="settings-input" id="s-llmKey" type="password"
-               data-i18n-placeholder="llmApiKey" placeholder="API Key">
+        <input class="settings-input" id="s-llmKey" type="password" placeholder="API Key">
       </div>
-
-      <div style="font-size:.68rem;color:var(--sub);margin-top:.75rem" data-i18n="settingsHint">
-        Einstellungen werden lokal gespeichert
-      </div>
-
+      <div style="font-size:.66rem;color:var(--sub);margin-top:.65rem" data-i18n="settingsHint">Einstellungen werden lokal gespeichert</div>
     </div>
-
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeSettings()" data-i18n="cancel">Abbrechen</button>
       <button class="btn-save" onclick="saveSettings()" data-i18n="save">Speichern</button>
@@ -785,53 +701,45 @@ body.light-mode {
   </div>
 </div>
 
+<!-- ── Toasts ───────────────────────────────────────────── -->
 <div class="toast-container" id="toastContainer"></div>
 
 <script>
 /**
  * WanderSuite v0.1 — Main Application
- * i18n loaded from /locales/{lang}.json
+ * Navigation, i18n, Ryanair Tracker, Discover, Budget, Settings
  */
 
-// ── State ────────────────────────────────────────────
+// ── State ─────────────────────────────────────────────
 let TRANSLATIONS = {};
 let currentLang = localStorage.getItem('lang') || 'de';
 let API_URL = localStorage.getItem('apiUrl') || '';
 let selectedTrackerId = null;
 let priceChart = null;
 let selectedBags = new Set();
-let menuOpen = false;
+let currentPage = 'ryanair';
+let trips = JSON.parse(localStorage.getItem('ws-trips') || '[]');
 
-// ── i18n ─────────────────────────────────────────────
+// ── i18n ──────────────────────────────────────────────
 async function loadLocale(lang) {
-  if (TRANSLATIONS[lang]) return; // already loaded
+  if (TRANSLATIONS[lang]) return;
   try {
-    const resp = await fetch(`/locales/${lang}.json?v=0.1`);
-    if (!resp.ok) throw new Error(`${resp.status}`);
-    TRANSLATIONS[lang] = await resp.json();
-  } catch(e) {
-    console.warn(`Locale '${lang}' failed:`, e);
-  }
+    const r = await fetch(`/locales/${lang}.json?v=0.1`);
+    if (!r.ok) throw new Error(r.status);
+    TRANSLATIONS[lang] = await r.json();
+  } catch(e) { console.warn(`Locale '${lang}' failed:`, e); }
 }
 
 function t(key) {
-  return TRANSLATIONS[currentLang]?.[key]
-      || TRANSLATIONS['de']?.[key]
-      || key;
+  return TRANSLATIONS[currentLang]?.[key] || TRANSLATIONS['de']?.[key] || key;
 }
 
 function applyTranslations() {
   document.documentElement.lang = currentLang;
-  document.title = 'WanderSuite v0.1';
-  document.querySelectorAll('[data-i18n]').forEach(el => {
-    el.textContent = t(el.getAttribute('data-i18n'));
-  });
-  document.querySelectorAll('[data-i18n-opt]').forEach(el => {
-    el.textContent = t(el.getAttribute('data-i18n-opt'));
-  });
-  document.querySelectorAll('.lang-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.textContent === currentLang.toUpperCase());
-  });
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.getAttribute('data-i18n')); });
+  document.querySelectorAll('[data-i18n-opt]').forEach(el => { el.textContent = t(el.getAttribute('data-i18n-opt')); });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+  document.querySelectorAll('.lang-btn').forEach(btn => { btn.classList.toggle('active', btn.textContent === currentLang.toUpperCase()); });
 }
 
 async function setLang(lang) {
@@ -843,21 +751,41 @@ async function setLang(lang) {
   if (selectedTrackerId) selectTracker(selectedTrackerId);
 }
 
-// ── Mobile menu ──────────────────────────────────────
-function toggleMenu() {
-  menuOpen = !menuOpen;
-  document.getElementById('hamburger').classList.toggle('open', menuOpen);
-  document.getElementById('mobileNav').classList.toggle('open', menuOpen);
+// ── Navigation ─────────────────────────────────────────
+function navigate(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page)?.classList.add('active');
+  document.getElementById('nav-' + page)?.classList.add('active');
+  currentPage = page;
+  // Close sidebar on mobile
+  if (window.innerWidth < 900) closeSidebar();
+  // Lazy-init budget page
+  if (page === 'budget') renderBudget();
 }
 
-// ── Init ─────────────────────────────────────────────
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar');
+  const hb = document.getElementById('hamburger');
+  const isOpen = sb.classList.toggle('open');
+  hb.classList.toggle('open', isOpen);
+}
+
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('hamburger').classList.remove('open');
+}
+
+// ── Init ───────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
   const toLoad = currentLang === 'de' ? ['de'] : ['de', currentLang];
   await Promise.all(toLoad.map(loadLocale));
   applyTranslations();
 
+  // Apply saved theme
+  if (localStorage.getItem('theme') === 'light') document.body.classList.add('light-mode');
+
   const saved = localStorage.getItem('apiUrl') || '';
-  document.getElementById('apiUrlInput').value = saved;
   API_URL = saved;
 
   const today = new Date();
@@ -868,21 +796,32 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   checkApiStatus();
   loadTrackers();
+
+  // Restore budget
+  const savedBudget = localStorage.getItem('ws-budget');
+  if (savedBudget) document.getElementById('budgetTotal').value = savedBudget;
+
+  // Close sidebar on outside click
+  document.addEventListener('click', e => {
+    const sb = document.getElementById('sidebar');
+    const hb = document.getElementById('hamburger');
+    if (window.innerWidth < 900 && sb.classList.contains('open') &&
+        !sb.contains(e.target) && !hb.contains(e.target)) {
+      closeSidebar();
+    }
+  });
+
+  // ESC closes modal
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSettings(); });
 });
 
 function fmt(d) { return d.toISOString().slice(0,10); }
-function saveApiUrl(v) { API_URL = v.trim().replace(/\/$/, ''); localStorage.setItem('apiUrl', API_URL); }
 
-// ── API ───────────────────────────────────────────────
+// ── API ────────────────────────────────────────────────
 async function api(path, opts = {}) {
   if (!API_URL) throw new Error(t('missingUrl'));
-  const r = await fetch(API_URL + path, {
-    headers: { 'Content-Type': 'application/json' }, ...opts
-  });
-  if (!r.ok) {
-    const err = await r.json().catch(() => ({ detail: r.statusText }));
-    throw new Error(err.detail || `HTTP ${r.status}`);
-  }
+  const r = await fetch(API_URL + path, { headers: { 'Content-Type': 'application/json' }, ...opts });
+  if (!r.ok) { const err = await r.json().catch(() => ({ detail: r.statusText })); throw new Error(err.detail || `HTTP ${r.status}`); }
   return r.json();
 }
 
@@ -890,17 +829,13 @@ async function checkApiStatus() {
   const dot = document.getElementById('statusDot');
   try {
     await api('/health');
-    dot.style.background = 'var(--green)';
-    dot.style.boxShadow = '0 0 6px var(--green)';
-    dot.title = 'Backend online';
+    dot.style.background = 'var(--green)'; dot.style.boxShadow = '0 0 5px var(--green)'; dot.title = 'Backend online';
   } catch {
-    dot.style.background = 'var(--red)';
-    dot.style.boxShadow = '0 0 6px var(--red)';
-    dot.title = 'Backend offline';
+    dot.style.background = 'var(--red)'; dot.style.boxShadow = '0 0 5px var(--red)'; dot.title = 'Backend offline';
   }
 }
 
-// ── Baggage ───────────────────────────────────────────
+// ── Baggage ────────────────────────────────────────────
 function toggleBag(type) {
   if (selectedBags.has(type)) {
     selectedBags.delete(type);
@@ -913,29 +848,25 @@ function toggleBag(type) {
   }
 }
 
-// ── Add Tracker ───────────────────────────────────────
+// ── Add Tracker ────────────────────────────────────────
 async function addTracker() {
   const btn = document.getElementById('addBtn');
   const origin = document.getElementById('origin').value.trim().toUpperCase();
   const dest   = document.getElementById('destination').value.trim().toUpperCase();
   const outDate = document.getElementById('outboundDate').value;
   const retDate = document.getElementById('returnDate').value;
-
   if (!origin || origin.length !== 3) { toast(t('invalidOrigin'), 'error'); return; }
   if (!dest   || dest.length   !== 3) { toast(t('invalidDest'), 'error'); return; }
   if (!outDate)                        { toast(t('missingDate'), 'error'); return; }
   if (!API_URL)                        { toast(t('missingUrl'), 'warning'); return; }
-
   btn.disabled = true;
   btn.innerHTML = `<span class="spinner"></span> ${t('creatingTracker')}`;
-
   try {
     await api('/api/trackers', { method: 'POST', body: JSON.stringify({
-      origin, destination: dest, outbound_date: outDate,
-      return_date: retDate || null,
-      adults:   parseInt(document.getElementById('adults').value),
+      origin, destination: dest, outbound_date: outDate, return_date: retDate || null,
+      adults: parseInt(document.getElementById('adults').value),
       children: parseInt(document.getElementById('children').value),
-      baggage:  [...selectedBags].map(type => ({ type, per_person: true })),
+      baggage: [...selectedBags].map(type => ({ type, per_person: true })),
     })});
     toast(`${t('trackerAdded')} ✓ ${origin} → ${dest}`, 'success');
     document.getElementById('origin').value = '';
@@ -946,321 +877,246 @@ async function addTracker() {
       document.getElementById('chk-'+tp).textContent = '';
     });
     loadTrackers();
-  } catch(e) {
-    toast(`${t('error')}: ${e.message}`, 'error');
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = `+ ${t('startTracker')}`;
-  }
+  } catch(e) { toast(`${t('error')}: ${e.message}`, 'error'); }
+  finally { btn.disabled = false; btn.innerHTML = `+ ${t('startTracker')}`; }
 }
 
-// ── Tracker List ──────────────────────────────────────
+// ── Trackers ───────────────────────────────────────────
 async function loadTrackers() {
   const el = document.getElementById('trackerList');
-  try {
-    const trackers = await api('/api/trackers');
-    renderTrackers(trackers);
-  } catch(e) {
-    el.innerHTML = `<div style="color:var(--red);font-size:.78rem">⚠ ${e.message}</div>`;
-  }
+  try { renderTrackers(await api('/api/trackers')); }
+  catch(e) { el.innerHTML = `<div style="color:var(--red);font-size:.76rem">⚠ ${e.message}</div>`; }
 }
 
 function renderTrackers(trackers) {
   const el = document.getElementById('trackerList');
-  if (!trackers.length) {
-    el.innerHTML = `<div style="color:var(--muted);font-size:.8rem;padding:.5rem 0">${t('noTrackers')}</div>`;
-    return;
-  }
+  if (!trackers.length) { el.innerHTML = `<div style="color:var(--muted);font-size:.78rem;padding:.4rem 0">${t('noTrackers')}</div>`; return; }
   el.innerHTML = trackers.map(tr => {
     const snap = tr.latest_snapshot;
     const priceStr = snap?.total_price ? `${snap.total_price.toFixed(2)} €` : '–';
     const statusBadge = !tr.active
       ? `<span class="badge badge-paused">${t('paused')}</span>`
       : snap?.status === 'ok'
-        ? (snap.baggage_fallback
-            ? `<span class="badge badge-fallback">~${t('estimate')}</span>`
-            : '<span class="badge badge-ok">Live</span>')
-        : snap?.status === 'blocked'
-          ? `<span class="badge badge-blocked">${t('blocked')}</span>`
-          : '';
+        ? (snap.baggage_fallback ? `<span class="badge badge-fallback">~${t('estimate')}</span>` : '<span class="badge badge-ok">Live</span>')
+        : snap?.status === 'blocked' ? `<span class="badge badge-blocked">${t('blocked')}</span>` : '';
     const bagStr = (tr.baggage||[]).map(b => b.type).join(', ') || t('backpackOnly');
     const retStr = tr.return_date ? ` ⇄ ${tr.return_date}` : ` (${t('oneWay')})`;
-
-    return `
-      <div class="tracker-item ${tr.id===selectedTrackerId?'active-tracker':''}"
-           onclick="selectTracker(${tr.id})">
-        <div class="tracker-header">
-          <div class="tracker-route">${tr.origin} → ${tr.destination}</div>
-          <div class="tracker-price ${snap?'':'stale'}">${priceStr}</div>
-        </div>
-        <div class="tracker-meta">
-          <span>${tr.outbound_date}${retStr}</span>
-          <span>${tr.adults} ${t('adultShort')}</span>
-          <span>🧳 ${bagStr}</span>
-          ${statusBadge}
-        </div>
-        <div class="tracker-actions">
-          <button class="btn btn-icon btn-scrape"
-                  onclick="event.stopPropagation();scrapeNow(${tr.id})">
-            ⟳ ${t('current')}
-          </button>
-          <button class="btn btn-icon btn-ghost"
-                  onclick="event.stopPropagation();togglePause(${tr.id},${tr.active})">
-            ${tr.active ? '⏸' : '▶'}
-          </button>
-          <button class="btn btn-icon btn-ghost btn-danger"
-                  onclick="event.stopPropagation();deleteTracker(${tr.id})">
-            ✕
-          </button>
-        </div>
-      </div>`;
+    return `<div class="tracker-item ${tr.id===selectedTrackerId?'active-tracker':''}" onclick="selectTracker(${tr.id})">
+      <div class="tracker-header">
+        <div class="tracker-route">${tr.origin} → ${tr.destination}</div>
+        <div class="tracker-price ${snap?'':'stale'}">${priceStr}</div>
+      </div>
+      <div class="tracker-meta">
+        <span>${tr.outbound_date}${retStr}</span>
+        <span>${tr.adults} ${t('adultShort')}</span>
+        <span>🧳 ${bagStr}</span>
+        ${statusBadge}
+      </div>
+      <div class="tracker-actions">
+        <button class="btn-scrape" onclick="event.stopPropagation();scrapeNow(${tr.id})">⟳ ${t('current')}</button>
+        <button class="btn-sm" onclick="event.stopPropagation();togglePause(${tr.id},${tr.active})">${tr.active?'⏸':'▶'}</button>
+        <button class="btn-sm btn-danger" onclick="event.stopPropagation();deleteTracker(${tr.id})">✕</button>
+      </div></div>`;
   }).join('');
 }
 
-// ── Chart ─────────────────────────────────────────────
+// ── Chart ──────────────────────────────────────────────
 async function selectTracker(id) {
-  selectedTrackerId = id;
-  loadTrackers();
-
+  selectedTrackerId = id; loadTrackers();
   const container = document.getElementById('chartContainer');
-  const empty     = document.getElementById('chartEmpty');
+  const empty = document.getElementById('chartEmpty');
   const tableCard = document.getElementById('tableCard');
-  container.style.display = 'none';
-  empty.style.display = 'none';
-
+  container.style.display = 'none'; empty.style.display = 'none';
   const card = document.getElementById('chartCard');
   const overlay = document.createElement('div');
   overlay.className = 'loading-overlay';
   overlay.innerHTML = `<span class="spinner"></span> ${t('loadingChart')}`;
-  card.style.position = 'relative';
-  card.appendChild(overlay);
-
+  card.style.position = 'relative'; card.appendChild(overlay);
   try {
     const data = await api(`/api/prices/${id}?limit=90`);
     card.removeChild(overlay);
-
     if (!data.total_prices.length) {
       empty.style.display = 'flex';
-      document.getElementById('chartTitle').textContent =
-        `${t('priceHistory')} – ${t('noData')}`;
+      document.getElementById('chartTitle').textContent = `${t('priceHistory')} – ${t('noData')}`;
       return;
     }
-
     const tr = data.tracker;
-    document.getElementById('chartTitle').textContent =
-      `${tr.origin} → ${tr.destination}  ${tr.outbound_date}${tr.return_date?' ⇄ '+tr.return_date:''}`;
-
-    renderStats(data);
-    renderChart(data);
-    renderTable(data.snapshots);
-    container.style.display = 'block';
-    tableCard.style.display = 'block';
-
-    // Scroll chart into view on mobile
-    if (window.innerWidth < 768) {
-      card.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  } catch(e) {
-    card.removeChild(overlay);
-    empty.style.display = 'flex';
-    toast(`${t('error')}: ${e.message}`, 'error');
-  }
+    document.getElementById('chartTitle').textContent = `${tr.origin} → ${tr.destination}  ${tr.outbound_date}${tr.return_date?' ⇄ '+tr.return_date:''}`;
+    renderStats(data); renderChart(data); renderTable(data.snapshots);
+    container.style.display = 'block'; tableCard.style.display = 'block';
+    if (window.innerWidth < 900) card.scrollIntoView({ behavior:'smooth', block:'start' });
+  } catch(e) { card.removeChild(overlay); empty.style.display = 'flex'; toast(`${t('error')}: ${e.message}`, 'error'); }
 }
 
 function renderStats(data) {
   const prices = data.total_prices.filter(p => p !== null);
   if (!prices.length) return;
-  const min  = Math.min(...prices);
-  const cur  = prices[prices.length - 1];
-  const prev = prices.length > 1 ? prices[prices.length - 2] : cur;
-  const diff = cur - prev;
-  const diffStr = (diff >= 0 ? '+' : '') + diff.toFixed(2) + ' €';
-
+  const min = Math.min(...prices), cur = prices[prices.length-1], prev = prices.length>1?prices[prices.length-2]:cur;
+  const diff = cur-prev, ds = (diff>=0?'+':'')+diff.toFixed(2)+' €';
   document.getElementById('chartStats').innerHTML = `
-    <div class="stat">
-      <div class="stat-label">${t('current')}</div>
-      <div class="stat-value">${cur.toFixed(2)} €</div>
-      <div style="font-size:.62rem;color:var(--sub);margin-top:.2rem">
-        ${data.labels[data.labels.length - 1]}
-      </div>
-    </div>
-    <div class="stat">
-      <div class="stat-label">${t('lowestPrice')}</div>
-      <div class="stat-value green">${min.toFixed(2)} €</div>
-    </div>
-    <div class="stat">
-      <div class="stat-label">${t('change')}</div>
-      <div class="stat-value ${diff > 0 ? 'red' : diff < 0 ? 'green' : ''}">
-        ${diffStr}
-      </div>
-    </div>`;
+    <div class="stat"><div class="stat-label">${t('current')}</div><div class="stat-value">${cur.toFixed(2)} €</div><div style="font-size:.6rem;color:var(--sub);margin-top:.18rem">${data.labels[data.labels.length-1]}</div></div>
+    <div class="stat"><div class="stat-label">${t('lowestPrice')}</div><div class="stat-value green">${min.toFixed(2)} €</div></div>
+    <div class="stat"><div class="stat-label">${t('change')}</div><div class="stat-value ${diff>0?'red':diff<0?'green':''}">${ds}</div></div>`;
 }
 
 function renderChart(data) {
   if (priceChart) { priceChart.destroy(); priceChart = null; }
-  priceChart = new Chart(
-    document.getElementById('priceChart').getContext('2d'), {
-    type: 'line',
-    data: {
-      labels: data.labels,
-      datasets: [
-        { label: t('total'),   data: data.total_prices,
-          borderColor: '#ff5533', backgroundColor: 'rgba(255,85,51,.08)',
-          borderWidth: 2, pointRadius: 4, pointHoverRadius: 6,
-          pointBackgroundColor: '#ff5533', fill: true, tension: .3 },
-        { label: t('tickets'), data: data.flight_prices,
-          borderColor: '#ff8c00', backgroundColor: 'transparent',
-          borderWidth: 1.5, borderDash: [4,3], pointRadius: 3,
-          fill: false, tension: .3 },
-        { label: t('baggage'), data: data.baggage_prices,
-          borderColor: '#7a7d88', backgroundColor: 'transparent',
-          borderWidth: 1.5, borderDash: [2,4], pointRadius: 2,
-          fill: false, tension: .3 },
-      ]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
-      plugins: {
-        legend: {
-          position: 'top',
-          labels: {
-            color: '#7a7d88',
-            font: { family: "'Space Mono', monospace", size: 10 },
-            boxWidth: 12, boxHeight: 2, padding: 14,
-          }
-        },
-        tooltip: {
-          backgroundColor: '#141519', borderColor: '#2a2b30', borderWidth: 1,
-          titleColor: '#e8e9ec', bodyColor: '#7a7d88', padding: 10,
-          callbacks: {
-            label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y?.toFixed(2) ?? '–'} €`
-          }
-        }
+  priceChart = new Chart(document.getElementById('priceChart').getContext('2d'), {
+    type:'line',
+    data:{ labels:data.labels, datasets:[
+      { label:t('total'),   data:data.total_prices,   borderColor:'#ff5533', backgroundColor:'rgba(255,85,51,.08)', borderWidth:2, pointRadius:4, pointHoverRadius:6, pointBackgroundColor:'#ff5533', fill:true, tension:.3 },
+      { label:t('tickets'), data:data.flight_prices,  borderColor:'#ff8c00', backgroundColor:'transparent', borderWidth:1.5, borderDash:[4,3], pointRadius:3, fill:false, tension:.3 },
+      { label:t('baggage'), data:data.baggage_prices, borderColor:'#7a7d88', backgroundColor:'transparent', borderWidth:1.5, borderDash:[2,4], pointRadius:2, fill:false, tension:.3 },
+    ]},
+    options:{
+      responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{position:'top',labels:{color:'#7a7d88',font:{family:"'Space Mono',monospace",size:10},boxWidth:12,boxHeight:2,padding:12}},
+        tooltip:{backgroundColor:'#141519',borderColor:'#2a2b30',borderWidth:1,titleColor:'#e8e9ec',bodyColor:'#7a7d88',padding:10,callbacks:{label:ctx=>` ${ctx.dataset.label}: ${ctx.parsed.y?.toFixed(2)??'–'} €`}}
       },
-      scales: {
-        x: {
-          grid: { color: 'rgba(42,43,48,.5)' },
-          ticks: { color: '#7a7d88', font: { family: "'Space Mono'", size: 9 }, maxRotation: 45 }
-        },
-        y: {
-          grid: { color: 'rgba(42,43,48,.5)' },
-          ticks: {
-            color: '#7a7d88',
-            font: { family: "'Space Mono'", size: 9 },
-            callback: v => v + ' €'
-          }
-        }
+      scales:{
+        x:{grid:{color:'rgba(42,43,48,.5)'},ticks:{color:'#7a7d88',font:{family:"'Space Mono'",size:9},maxRotation:45}},
+        y:{grid:{color:'rgba(42,43,48,.5)'},ticks:{color:'#7a7d88',font:{family:"'Space Mono'",size:9},callback:v=>v+' €'}}
       }
     }
   });
 }
 
 function renderTable(snaps) {
-  document.getElementById('snapshotTable').innerHTML =
-    [...snaps].reverse().slice(0, 30).map(s => {
-      const statusHtml = s.status === 'ok'
-        ? (s.baggage_fallback
-            ? `<span class="badge badge-fallback">~${t('estimate')}</span>`
-            : '<span class="badge badge-ok">✓</span>')
-        : `<span class="badge badge-blocked">${s.status}</span>`;
-      return `<tr>
-        <td>${(s.fetched_at||'').slice(0,10)}</td>
-        <td>${s.outbound_flight||'–'}</td>
-        <td>${s.return_flight||'–'}</td>
-        <td>${s.flight_price  != null ? s.flight_price.toFixed(2)+' €'  : '–'}</td>
-        <td>${s.baggage_price != null ? s.baggage_price.toFixed(2)+' €' : '–'}</td>
-        <td style="color:var(--green);font-weight:700">
-          ${s.total_price != null ? s.total_price.toFixed(2)+' €' : '–'}
-        </td>
-        <td>${statusHtml}</td>
-      </tr>`;
-    }).join('');
+  document.getElementById('snapshotTable').innerHTML = [...snaps].reverse().slice(0,30).map(s => {
+    const st = s.status==='ok' ? (s.baggage_fallback?`<span class="badge badge-fallback">~${t('estimate')}</span>`:'<span class="badge badge-ok">✓</span>') : `<span class="badge badge-blocked">${s.status}</span>`;
+    return `<tr><td>${(s.fetched_at||'').slice(0,10)}</td><td>${s.outbound_flight||'–'}</td><td>${s.return_flight||'–'}</td><td>${s.flight_price!=null?s.flight_price.toFixed(2)+' €':'–'}</td><td>${s.baggage_price!=null?s.baggage_price.toFixed(2)+' €':'–'}</td><td style="color:var(--green);font-weight:700">${s.total_price!=null?s.total_price.toFixed(2)+' €':'–'}</td><td>${st}</td></tr>`;
+  }).join('');
 }
 
-// ── Actions ───────────────────────────────────────────
+// ── Tracker Actions ────────────────────────────────────
 async function scrapeNow(id) {
   toast(t('scrapeStarted'), 'warning');
   try {
-    const result = await api(`/api/trackers/${id}/scrape`, { method: 'POST' });
+    const result = await api(`/api/trackers/${id}/scrape`, { method:'POST' });
     const snap = result.snapshot;
-    if (snap?.total_price) {
-      toast(`${t('current')}: ${snap.total_price.toFixed(2)} €${snap.baggage_fallback ? ` (~${t('estimate')})` : ''}`, 'success');
-    } else {
-      toast(`${t('status')}: ${snap?.status || '?'}`, 'warning');
-    }
-    loadTrackers();
-    if (selectedTrackerId === id) selectTracker(id);
-  } catch(e) {
-    toast(`${t('scrapeError')}: ${e.message}`, 'error');
-  }
+    if (snap?.total_price) toast(`${t('current')}: ${snap.total_price.toFixed(2)} €${snap.baggage_fallback?` (~${t('estimate')})`:''}`,'success');
+    else toast(`${t('status')}: ${snap?.status||'?'}`, 'warning');
+    loadTrackers(); if (selectedTrackerId===id) selectTracker(id);
+  } catch(e) { toast(`${t('scrapeError')}: ${e.message}`, 'error'); }
 }
 
 async function deleteTracker(id) {
   if (!confirm(t('deleteConfirm'))) return;
   try {
-    await api(`/api/trackers/${id}`, { method: 'DELETE' });
+    await api(`/api/trackers/${id}`, { method:'DELETE' });
     toast(t('deleted'), 'success');
-    if (selectedTrackerId === id) {
-      selectedTrackerId = null;
-      document.getElementById('chartContainer').style.display = 'none';
-      document.getElementById('chartEmpty').style.display    = 'flex';
-      document.getElementById('tableCard').style.display     = 'none';
+    if (selectedTrackerId===id) {
+      selectedTrackerId=null;
+      document.getElementById('chartContainer').style.display='none';
+      document.getElementById('chartEmpty').style.display='flex';
+      document.getElementById('tableCard').style.display='none';
     }
     loadTrackers();
-  } catch(e) {
-    toast(`${t('error')}: ${e.message}`, 'error');
-  }
+  } catch(e) { toast(`${t('error')}: ${e.message}`, 'error'); }
 }
 
 async function togglePause(id, currentlyActive) {
-  try {
-    await api(`/api/trackers/${id}/toggle?active=${!currentlyActive}`, { method: 'PATCH' });
-    toast(currentlyActive ? t('paused') : t('activated'), 'success');
-    loadTrackers();
-  } catch(e) {
-    toast(`${t('error')}: ${e.message}`, 'error');
+  try { await api(`/api/trackers/${id}/toggle?active=${!currentlyActive}`, { method:'PATCH' }); toast(currentlyActive?t('paused'):t('activated'), 'success'); loadTrackers(); }
+  catch(e) { toast(`${t('error')}: ${e.message}`, 'error'); }
+}
+
+// ── Discover Module ─────────────────────────────────────
+function checkDawarich(on) {
+  const notice = document.getElementById('discoverDawarichNotice');
+  if (on && !localStorage.getItem('s-dawarichUrl')) {
+    notice.style.display = 'block';
+    document.getElementById('discoverDawarich').checked = false;
+  } else {
+    notice.style.display = 'none';
   }
 }
 
-// ── Toast ─────────────────────────────────────────────
-function toast(msg, type = 'success') {
-  const c = document.getElementById('toastContainer');
-  const icons = { success: '✓', error: '✕', warning: '⚠' };
-  const el = document.createElement('div');
-  el.className = `toast ${type}`;
-  el.innerHTML = `<span>${icons[type]||'•'}</span> ${msg}`;
-  c.appendChild(el);
-  setTimeout(() => el.remove(), 4000);
+function generateIdeas() {
+  const q = document.getElementById('discoverQuery').value.trim();
+  if (!q) { toast(t('discoverWhat'), 'warning'); return; }
+  const llm = localStorage.getItem('s-llmProvider');
+  const results = document.getElementById('discoverResults');
+  if (!llm) {
+    results.textContent = '⚙ ' + t('settingsHint') + ' — LLM provider needed.';
+    toast(t('settings') + ': LLM ' + t('llmProvider'), 'warning');
+    return;
+  }
+  results.innerHTML = '<span class="spinner"></span>';
+  // Placeholder — real LLM call in v0.2
+  setTimeout(() => {
+    results.textContent = '🚀 LLM integration coming in v0.2 — configure your API key in Settings.';
+  }, 1200);
 }
 
-// ── Settings Modal ────────────────────────────────────
+// ── Budget Module ───────────────────────────────────────
+function toggleActualSync(on) {
+  document.getElementById('manualEntry').style.display = on ? 'none' : 'block';
+  document.getElementById('actualEntry').style.display = on ? 'block' : 'none';
+  if (on && !localStorage.getItem('s-actualUrl')) {
+    document.getElementById('actualNotice').style.display = 'block';
+  } else {
+    document.getElementById('actualNotice').style.display = 'none';
+  }
+}
 
-const SETTINGS_KEYS = [
-  's-backendUrl','s-timezone','s-lightMode',
-  's-dawarichUrl','s-dawarichToken',
-  's-actualUrl','s-actualToken',
-  's-llmProvider','s-llmKey'
-];
+function addTrip() {
+  const name = document.getElementById('tripName').value.trim();
+  const cost = parseFloat(document.getElementById('tripCost').value);
+  if (!name || isNaN(cost) || cost <= 0) { toast(t('error') + ': ' + t('budgetTripName'), 'error'); return; }
+  trips.push({ name, cost, date: new Date().toISOString().slice(0,10) });
+  localStorage.setItem('ws-trips', JSON.stringify(trips));
+  document.getElementById('tripName').value = '';
+  document.getElementById('tripCost').value = '';
+  renderBudget();
+}
 
+function syncActualBudget() {
+  toast('ActualBudget sync — coming in v0.2', 'warning');
+}
+
+function updateBudget() {
+  const val = document.getElementById('budgetTotal').value;
+  localStorage.setItem('ws-budget', val);
+  renderBudget();
+}
+
+function renderBudget() {
+  const total = parseFloat(document.getElementById('budgetTotal').value) || 0;
+  const used  = trips.reduce((s, t) => s + t.cost, 0);
+  const remaining = Math.max(0, total - used);
+  const pct = total > 0 ? Math.min(100, (used / total) * 100) : 0;
+
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressFill').style.background = pct > 85 ? 'var(--red)' : pct > 60 ? 'var(--accent2)' : 'var(--accent)';
+  document.getElementById('budgetUsedLabel').textContent = used.toFixed(2) + ' €';
+  document.getElementById('budgetRemainingLabel').textContent = remaining.toFixed(2) + ' €';
+
+  const list = document.getElementById('tripList');
+  list.innerHTML = trips.length ? trips.slice().reverse().map((tr, i) => `
+    <div class="trip-item">
+      <div><div class="trip-item-name">${tr.name}</div><div style="font-size:.65rem;color:var(--sub)">${tr.date}</div></div>
+      <div style="display:flex;align-items:center;gap:.5rem">
+        <div class="trip-item-cost">${tr.cost.toFixed(2)} €</div>
+        <button class="btn-sm btn-danger" onclick="removeTrip(${trips.length-1-i})">✕</button>
+      </div>
+    </div>`).join('') : `<div style="font-size:.76rem;color:var(--muted);padding:.5rem 0">${t('noTrackers').replace('Tracker','Reisen')}</div>`;
+}
+
+function removeTrip(idx) {
+  trips.splice(idx, 1);
+  localStorage.setItem('ws-trips', JSON.stringify(trips));
+  renderBudget();
+}
+
+// ── Settings ────────────────────────────────────────────
 function openSettings() {
-  // Populate timezone dropdown
   const tzSel = document.getElementById('s-timezone');
   if (!tzSel.options.length) {
-    const zones = [
-      'Europe/Rome','Europe/Berlin','Europe/London','Europe/Paris',
-      'Europe/Madrid','Europe/Zurich','Europe/Vienna',
-      'America/New_York','America/Chicago','America/Los_Angeles',
-      'Asia/Tokyo','Asia/Shanghai','Australia/Sydney','UTC'
-    ];
-    zones.forEach(z => {
-      const opt = document.createElement('option');
-      opt.value = z; opt.textContent = z;
-      tzSel.appendChild(opt);
+    ['Europe/Rome','Europe/Berlin','Europe/London','Europe/Paris','Europe/Madrid','Europe/Zurich','Europe/Vienna','America/New_York','America/Chicago','America/Los_Angeles','Asia/Tokyo','Asia/Shanghai','Australia/Sydney','UTC'].forEach(z => {
+      const o = document.createElement('option'); o.value = o.textContent = z; tzSel.appendChild(o);
     });
   }
-
-  // Load saved values
   document.getElementById('s-backendUrl').value    = localStorage.getItem('apiUrl') || '';
   document.getElementById('s-timezone').value      = localStorage.getItem('s-timezone') || 'Europe/Rome';
   document.getElementById('s-lightMode').checked   = document.body.classList.contains('light-mode');
@@ -1270,7 +1126,6 @@ function openSettings() {
   document.getElementById('s-actualToken').value   = localStorage.getItem('s-actualToken') || '';
   document.getElementById('s-llmProvider').value   = localStorage.getItem('s-llmProvider') || '';
   document.getElementById('s-llmKey').value        = localStorage.getItem('s-llmKey') || '';
-
   switchTab('basic');
   document.getElementById('settingsBackdrop').classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -1287,8 +1142,8 @@ function backdropClick(e) {
 
 function switchTab(tab) {
   ['basic','integrations'].forEach(t => {
-    document.getElementById('panel-' + t).style.display = t === tab ? 'block' : 'none';
-    document.getElementById('tab-' + t).classList.toggle('active', t === tab);
+    document.getElementById('panel-'+t).style.display = t===tab?'block':'none';
+    document.getElementById('tab-'+t).classList.toggle('active', t===tab);
   });
 }
 
@@ -1298,36 +1153,27 @@ function toggleTheme(isLight) {
 }
 
 function saveSettings() {
-  // Backend URL
-  const newUrl = document.getElementById('s-backendUrl').value.trim().replace(/\/$/, '');
-  API_URL = newUrl;
-  localStorage.setItem('apiUrl', newUrl);
-  document.getElementById('apiUrlInput').value = newUrl;
-
-  // Other settings
-  ['s-timezone','s-dawarichUrl','s-dawarichToken',
-   's-actualUrl','s-actualToken','s-llmProvider','s-llmKey'].forEach(key => {
-    localStorage.setItem(key, document.getElementById(key).value);
+  API_URL = document.getElementById('s-backendUrl').value.trim().replace(/\/$/, '');
+  localStorage.setItem('apiUrl', API_URL);
+  ['s-timezone','s-dawarichUrl','s-dawarichToken','s-actualUrl','s-actualToken','s-llmProvider','s-llmKey'].forEach(k => {
+    localStorage.setItem(k, document.getElementById(k).value);
   });
-
   toast(t('saved') + ' ✓', 'success');
   closeSettings();
   checkApiStatus();
   loadTrackers();
 }
 
-// Apply saved theme on load
-(function() {
-  if (localStorage.getItem('theme') === 'light') {
-    document.body.classList.add('light-mode');
-  }
-})();
-
-// Close modal on Escape key
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeSettings();
-});
-
+// ── Toast ──────────────────────────────────────────────
+function toast(msg, type='success') {
+  const c = document.getElementById('toastContainer');
+  const icons = { success:'✓', error:'✕', warning:'⚠' };
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `<span>${icons[type]||'•'}</span> ${msg}`;
+  c.appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
 </script>
 </body>
 </html>
