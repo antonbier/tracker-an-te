@@ -223,5 +223,6 @@
   "tripEnd": "Al",
   "tripDuration": "Durata",
   "tripNights": "Notti",
-  "syncNow": "Sincronizza ora"
+  "syncNow": "Sincronizza ora",
+  "serpApiQuotaLabel": "Utilizzo mensile:"
 }
