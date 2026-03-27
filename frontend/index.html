@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Preistracker /* DE/IT/EN */</title>
+<title>WanderSuite v0.1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -113,7 +113,7 @@
 <header class="header">
   <div class="logo">
     <div class="logo-icon">✈</div>
-    <span data-i18n="title">Preistracker</span>
+    <span data-i18n="title">WanderSuite</span>
   </div>
   <div class="header-actions">
     <div class="lang-switcher">
@@ -217,7 +217,7 @@
 <script>
 const TRANSLATIONS = {
   de: {
-    title:'Preistracker',refresh:'Aktualisieren',backendConfig:'Backend-URL konfigurieren',
+    title:'WanderSuite',refresh:'Aktualisieren',backendConfig:'Backend-URL konfigurieren',
     backendHint:'trage die URL deines Railway-Deployments ein',newTracker:'Neuen Tracker anlegen',
     from:'Von (IATA)',to:'Nach (IATA)',outbound:'Hinflug',return:'Rückflug (opt.)',
     adults:'Erwachsene',children:'Kinder',
@@ -488,5 +488,7 @@ function toast(msg, type='success') {
   setTimeout(() => el.remove(), 4000);
 }
 </script>
+
+<footer style="text-align:center;padding:1.5rem 2rem;font-size:.68rem;color:var(--sub);border-top:1px solid var(--border);margin-top:2rem;font-family:var(--mono)">WanderSuite v0.1 — Licensed under <a href="https://www.gnu.org/licenses/agpl-3.0" target="_blank" style="color:var(--accent);text-decoration:none">GNU AGPLv3</a> — <a href="https://github.com/antonbier/tracker-an-te" target="_blank" style="color:var(--accent);text-decoration:none">GitHub</a></footer>
 </body>
 </html>
