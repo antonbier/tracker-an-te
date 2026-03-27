@@ -34,12 +34,17 @@ def sync(data: SyncRequest):
         raise HTTPException(400, "Dawarich URL und Token fehlen")
 
     try:
-        lat = data.home_lat or float(get_setting_value("home_lat") or 0)
-        lon = data.home_lon or float(get_setting_value("home_lon") or 0)
+        # Priorität: Request → Server-Settings → Fehler
+        lat = data.home_lat
+        lon = data.home_lon
+        if lat is None or lon is None or (isinstance(lat, float) and lat != lat):  # NaN check
+            lat = float(get_setting_value("home_lat") or 0)
+            lon = float(get_setting_value("home_lon") or 0)
     except (ValueError, TypeError):
         raise HTTPException(400, "Ungültige Home-Koordinaten")
 
-    if lat == 0 and lon == 0:
+    import math
+    if math.isnan(lat) or math.isnan(lon) or (lat == 0 and lon == 0):
         raise HTTPException(400, "Home-Koordinaten fehlen — in den Einstellungen eintragen")
 
     result = sync_trips(
@@ -52,6 +57,8 @@ def sync(data: SyncRequest):
     if "error" in result:
         raise HTTPException(400, result["error"])
 
+    # trips_saved immer zurückgeben (auch wenn 0)
+    result.setdefault("trips_saved", 0)
     return result
 
 
@@ -100,3 +107,4 @@ def delete_trip(trip_id: int):
     if not delete_detected_trip(trip_id):
         raise HTTPException(404, "Trip nicht gefunden")
     return {"message": "Trip gelöscht"}
+
