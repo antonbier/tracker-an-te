@@ -1,7 +1,18 @@
 """
 WanderSuite — Dawarich Integration
-Trip Detection via Haversine + Overnight Algorithm.
-Reverse Geocoding via Nominatim (OpenStreetMap, kostenlos).
+Automatic trip detection from location history.
+
+Algorithm:
+  1. Fetch location points from Dawarich API (paginated)
+  2. Calculate Haversine distance from home coordinates
+  3. Filter points > 50km from home
+  4. Group by date
+  5. Overnight condition: min. 2 consecutive days
+  6. Merge consecutive groups (max. 2-day gap)
+  7. Reverse geocode via Nominatim (OpenStreetMap, free)
+  8. Save to detected_trips table with upsert logic
+
+Debug: POST /api/dawarich/debug to inspect raw point format
 """
 
 import requests

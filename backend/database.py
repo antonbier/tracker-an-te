@@ -1,6 +1,11 @@
 """
-WanderSuite v1.0 — Datenbank-Layer
-SQLite — alle Tracker-Typen persistent, verschlüsselte Settings.
+WanderSuite — Database Layer
+SQLite via sqlite3 (no ORM). All tracker types persistent.
+Encrypted settings via AES-Fernet.
+
+Tables: trackers, price_snapshots, gf_trackers, gf_snapshots,
+        homair_trackers, homair_snapshots, booking_trackers,
+        booking_snapshots, detected_trips, settings
 """
 
 import sqlite3

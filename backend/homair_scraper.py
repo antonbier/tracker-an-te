@@ -1,7 +1,8 @@
 """
-WanderSuite v0.6 — Homair Scraper
-Scrapt Preise von homair.com direkt via requests.
-Homair hat keine aggressive Bot-Erkennung wie Ryanair.
+WanderSuite — Homair Camping Scraper
+Scrapes prices from homair.com directly via requests.
+Homair has less aggressive bot detection than Ryanair.
+Falls back to HTML price extraction if JSON API is unavailable.
 """
 
 import requests

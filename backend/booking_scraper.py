@@ -1,7 +1,8 @@
 """
-WanderSuite v0.6 — Booking.com / Trivago Scraper
-Nutzt SerpAPI Google Hotels-Endpunkt für Unterkunftspreise.
-Derselbe API Key wie Google Flights (SerpAPI).
+WanderSuite — Booking.com / Trivago Scraper
+Uses SerpAPI Google Hotels endpoint for accommodation prices.
+Same API key as Google Flights (SerpAPI).
+Free plan: 100 searches/month shared with Google Flights.
 """
 
 import requests

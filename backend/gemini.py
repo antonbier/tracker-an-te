@@ -1,7 +1,8 @@
 """
-WanderSuite v0.5 — Google Gemini Integration
-Für das Discover-Modul: KI-Reiseempfehlungen.
-Nutzt die Gemini 2.0 Flash API (kostenlos auf aistudio.google.com).
+WanderSuite — Google Gemini Integration
+AI travel recommendations for the Discover module.
+Uses Gemini 2.0 Flash API (free at aistudio.google.com).
+Returns structured JSON with 5 destination recommendations.
 """
 
 import requests

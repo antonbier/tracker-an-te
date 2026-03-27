@@ -1,6 +1,8 @@
 """
-WanderSuite v1.0 — Google Flights Scraper
-SerpAPI Google Flights — airline, departure/arrival times, duration.
+WanderSuite — Google Flights Scraper
+SerpAPI Google Flights endpoint — returns airline, flight number,
+departure/arrival times, and duration.
+Free plan: 100 searches/month (shared with Booking scraper).
 """
 
 import requests

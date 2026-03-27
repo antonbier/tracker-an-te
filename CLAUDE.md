@@ -1,89 +1,111 @@
-# WanderSuite — Kontext für Claude-Instanzen
+# WanderSuite — Context for AI Assistants
 
-Diese Datei gibt einer neuen Claude-Instanz den nötigen Kontext um direkt weiterzuarbeiten.
+This file gives a new Claude instance the context needed to continue development immediately.
 
-## Projekt-Überblick
+## Project Overview
 
-WanderSuite ist eine self-hosted Travel Management Suite. Das Repo ist:
-`https://github.com/antonbier/tracker-an-te`
+WanderSuite is a self-hosted travel management suite.
+Repository: `https://github.com/antonbier/tracker-an-te`
 
-## Aktueller Stand (März 2026)
+## Current State (March 2026)
 
-### ✅ Implementiert und live
-- Ryanair Tracker (Scraping, Gepäck, Sitzplatz, täglicher Scheduler)
+### Implemented and live
+- Ryanair Tracker (scraping, baggage, seat reservation, daily scheduler)
 - Google Flights Tracker (SerpAPI)
-- Homair Camping Tracker (HTML-Scraping)
+- Homair Camping Tracker (HTML scraping)
 - Booking/Trivago Tracker (SerpAPI Google Hotels)
-- KI-Reiseempfehlungen (Gemini 2.0 Flash + OpenAI gpt-4o-mini)
-- Travel Budget (manuell + ActualBudget Sync)
-- Reisetagebuch (Dawarich Trip-Erkennung via Haversine + Overnight-Algo)
-- Dashboard (Budget-Donut, Tracker-Übersicht, Upcoming/Completed Trips)
-- Field Guide (FAQ Modal)
-- Onboarding (3-Schritt Setup-Wizard)
-- Adventure Look (Terracotta/Playfair Display)
-- Mehrsprachig DE/IT/EN (externe JSON Locale-Files)
-- Docker/Unraid Deployment (Port 8765 Frontend, 8766 Backend)
-- Verschlüsselte Settings (AES-Fernet in SQLite)
+- AI travel recommendations (Gemini 2.0 Flash + OpenAI gpt-4o-mini)
+- Travel Budget (manual + ActualBudget sync)
+- Travel Journal (Dawarich trip detection via Haversine + overnight algorithm)
+- Dashboard (budget donut chart, tracker overview, upcoming/completed trips)
+- Field Guide (FAQ modal)
+- Onboarding (3-step setup wizard)
+- Adventure Look (terracotta palette, Playfair Display serif)
+- Multilingual DE/IT/EN (external JSON locale files)
+- Docker/Unraid deployment (port 8765 frontend, 8766 backend)
+- Encrypted settings (AES-Fernet in SQLite)
 
-### 🔧 Bekannte offene Punkte
-- Dawarich: `normalize_point()` in `dawarich.py` könnte je nach Dawarich-Version
-  das Timestamp-Format nicht korrekt parsen → Debug-Endpoint `/api/dawarich/debug`
-  hilft beim Prüfen des Roh-Formats
-- ActualBudget: API nutzt Server-Passwort als Bearer Token
-- Google Flights: SerpAPI Free Plan = 100 Suchen/Monat
+### Known open issues
+- Dawarich: `normalize_point()` in `dawarich.py` may not correctly parse the
+  timestamp format depending on the Dawarich version. Use the debug endpoint
+  `POST /api/dawarich/debug` with `{}` body to inspect the raw point format.
+- ActualBudget: uses the server password as Bearer token
+- Google Flights: SerpAPI free plan = 100 searches/month
 
-## Deployment
+## Deployment (Production — Unraid)
 
-**Unraid (Produktiv):**
 ```
 Frontend: http://192.168.1.51:8765
 Backend:  http://192.168.1.51:8766
 ```
 
-Backend-URL im WanderSuite Dashboard (Einstellungen → Allgemein) auf
-`http://192.168.1.51:8766` setzen — der Browser ruft die API direkt auf diesem Port auf.
+The backend URL must be set in the WanderSuite dashboard (Settings → General)
+to `http://192.168.1.51:8766`. The browser calls the API directly on this port —
+there is no nginx proxy between frontend and backend in the Unraid setup.
 
-**here.now (Frontend Preview):**
-Automatisch via GitHub Action bei jedem Push auf `frontend/**`.
-URL erscheint im Action-Log.
+## Key Design Decisions
 
-**Railway (Backend Preview):**
-Automatisch via GitHub bei Push auf `main`.
+1. **No npm/Webpack** — pure Vanilla JS, no build step required
+2. **SQLite** — simple, persistent via Docker volume at `/data/tracker.db`
+3. **No hardcoded URLs** — `localStorage.getItem('apiUrl')` used everywhere
+4. **External i18n** — JSON files in `frontend/locales/`, no framework
+5. **Encryption** — AES-Fernet key derived from `APP_SECRET` env variable
+6. **Port separation** — frontend on 8765, backend on 8766 (required for
+   reverse proxy setups like Zoraxy on Unraid where cross-port calls happen)
 
-## Wichtige Designentscheidungen
+## Common Tasks
 
-1. **Kein npm/Webpack** — reines Vanilla JS, kein Build-Step nötig
-2. **SQLite** — einfach, persistent via Docker Volume `/data/tracker.db`
-3. **Relative URLs** — `localStorage.getItem('apiUrl')` überall, kein hardcoded Host
-4. **i18n** — externe JSON-Files in `frontend/locales/`, kein Framework
-5. **Verschlüsselung** — AES-Fernet aus `APP_SECRET` Env-Variable abgeleitet
+### Add a new language
+1. Copy `frontend/locales/en.json` to `frontend/locales/xx.json`
+2. Translate all values
+3. Search for `lang-btn` in `index.html` and add a new button
 
-## Häufige Aufgaben
+### Add a new tracker type
+1. `backend/my_scraper.py` — scraping logic
+2. `backend/routes/my_route.py` — FastAPI router
+3. `backend/database.py` — add tables + CRUD functions
+4. `backend/main.py` — register the router
+5. `frontend/index.html` — add page HTML, CSS, JS
 
-### Neue Sprache hinzufügen
-1. `frontend/locales/xx.json` erstellen (Kopie von `en.json`)
-2. In `index.html` Suche nach `lang-btn` → Button hinzufügen
-3. In `setLang()` wird die Datei automatisch geladen
+### Debug Dawarich point format
+```bash
+curl -X POST http://192.168.1.51:8766/api/dawarich/debug \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+This returns the first 5 raw points and how they normalize — useful to fix
+timestamp parsing issues.
 
-### Neuen Tracker-Typ hinzufügen
-1. `backend/my_scraper.py` — Scraping-Logik
-2. `backend/routes/my_route.py` — FastAPI Router
-3. `backend/database.py` — Tabellen + CRUD Funktionen
-4. `backend/main.py` — Router registrieren
-5. `frontend/index.html` — Page HTML + JS
-
-### Debugging
-- Backend Logs: `docker compose logs backend -f`
-- Swagger UI: `http://192.168.1.51:8766/docs`
-- Dawarich Format prüfen: `POST /api/dawarich/debug`
+### Rebuild on Unraid after code changes
+```bash
+cd /mnt/user/appdata/wandersuite
+git pull
+docker compose up -d --build
+```
+For frontend-only changes (index.html, locales), no rebuild needed —
+just `git pull` since the frontend folder is mounted as a volume.
 
 ## Tech Stack
 
-| Komponente | Technologie |
+| Component | Technology |
 |---|---|
-| Frontend | Vanilla HTML/CSS/JS, Chart.js, Playfair Display + DM Sans |
+| Frontend | Vanilla HTML/CSS/JS, Chart.js, Playfair Display + DM Sans + JetBrains Mono |
 | Backend | Python 3.12, FastAPI, APScheduler, SQLite |
-| Scraping | requests, SerpAPI, Nominatim |
+| Scraping | requests, SerpAPI, Nominatim (OpenStreetMap) |
 | AI | Google Gemini 2.0 Flash, OpenAI gpt-4o-mini |
-| Crypto | cryptography (AES-Fernet) |
-| Hosting | Docker + Nginx, Unraid |
+| Encryption | cryptography library (AES-Fernet) |
+| Hosting | Docker + Nginx, Unraid (primary), Railway + here.now (preview) |
+
+## File Map (most important files)
+
+```
+backend/main.py            — FastAPI entry point, register all routers here
+backend/database.py        — ALL database tables and CRUD — add new tables here
+backend/settings_manager.py — encrypted settings read/write
+backend/dawarich.py        — trip detection algorithm (Haversine + overnight)
+backend/scraper.py         — Ryanair scraper (most complex, anti-bot logic)
+frontend/index.html        — entire frontend (1 file, ~2500 lines)
+frontend/locales/*.json    — all UI strings for DE/IT/EN
+docker-compose.yml         — port 8765 (frontend) + 8766 (backend)
+.env.example               — environment variable template
+```

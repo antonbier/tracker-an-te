@@ -1,6 +1,8 @@
 """
-APScheduler Job — läuft täglich 07:00 Uhr Europe/Rome.
-Holt Preise für alle aktiven Tracker und speichert Snapshots.
+WanderSuite — APScheduler Background Jobs
+Runs daily at 07:00 AM Europe/Rome timezone.
+Fetches prices for all active Ryanair trackers and saves snapshots.
+Also triggered manually via POST /api/trackers/{id}/scrape.
 """
 
 import logging

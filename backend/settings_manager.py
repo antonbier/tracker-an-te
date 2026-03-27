@@ -1,7 +1,10 @@
 """
-WanderSuite v1.0 — Settings Manager
-Verschlüsselte Speicherung von API Keys in SQLite via Fernet (AES-128).
-Der Encryption Key wird aus APP_SECRET (Umgebungsvariable) abgeleitet.
+WanderSuite — Settings Manager
+Encrypted storage of API keys in SQLite via Fernet (AES-128).
+Encryption key is derived from the APP_SECRET environment variable.
+
+If APP_SECRET is not set, a default key is used (development only).
+Always set APP_SECRET in production via .env or docker-compose environment.
 """
 
 import os

@@ -1,7 +1,10 @@
 """
-WanderSuite v0.6 — ActualBudget Integration
-Synchronisiert Reiseausgaben mit ActualBudget (self-hosted Budget-App).
+WanderSuite — ActualBudget Integration
+Syncs travel expenses with ActualBudget (self-hosted budgeting app).
 API Docs: https://actualbudget.org/docs/api/
+
+Authentication: ActualBudget uses its server password as Bearer token.
+Amounts are stored in cents in ActualBudget — we convert to euros.
 """
 
 import requests
