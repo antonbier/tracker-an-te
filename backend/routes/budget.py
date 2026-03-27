@@ -1,6 +1,6 @@
 """
-WanderSuite v0.6 — REST Routes: /api/budget
-ActualBudget Sync.
+WanderSuite — REST Routes: /api/budget
+ActualBudget Sync via actualpy.
 """
 
 from fastapi import APIRouter
@@ -8,55 +8,37 @@ from pydantic import BaseModel
 from typing import Optional
 import logging
 
-from actual_budget import get_accounts, get_budget_summary, add_transaction, get_categories
-
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
 class ActualConfig(BaseModel):
-    base_url: str
-    token:    str
-    month:    Optional[str] = None
+    base_url:    str
+    password:    str
+    budget_file: str
+    month:       Optional[str] = None
 
 
-class ActualTransaction(BaseModel):
-    base_url:   str
-    token:      str
-    account_id: str
-    amount:     float
-    payee:      str
-    notes:      str = ""
-    date:       Optional[str] = None
+class ExpensesRequest(BaseModel):
+    base_url:       str
+    password:       str
+    budget_file:    str
+    category_names: Optional[list[str]] = None
+    year:           Optional[int] = None
 
 
-@router.post("/actual/accounts")
-def sync_accounts(config: ActualConfig):
-    """Alle ActualBudget Konten abrufen."""
-    return get_accounts(config.base_url, config.token)
+@router.post("/actual/files")
+def list_files(config: ActualConfig):
+    """Verfügbare Budget-Dateien auflisten."""
+    from actual_budget import list_budget_files
+    return list_budget_files(config.base_url, config.password)
 
 
 @router.post("/actual/summary")
 def sync_summary(config: ActualConfig):
     """Budget-Zusammenfassung inkl. Reise-Kategorien abrufen."""
-    return get_budget_summary(config.base_url, config.token, config.month)
-
-
-@router.post("/actual/transaction")
-def create_transaction(data: ActualTransaction):
-    """Neue Transaktion in ActualBudget anlegen."""
-    return add_transaction(
-        base_url=data.base_url, token=data.token,
-        account_id=data.account_id, amount=data.amount,
-        payee=data.payee, notes=data.notes, date=data.date,
-    )
-
-
-class ExpensesRequest(BaseModel):
-    base_url:           str
-    token:              str
-    category_names:     Optional[list[str]] = None
-    year:               Optional[int] = None
+    from actual_budget import get_budget_summary
+    return get_budget_summary(config.base_url, config.password, config.budget_file, config.month)
 
 
 @router.post("/actual/expenses")
@@ -64,56 +46,55 @@ def get_expenses(data: ExpensesRequest):
     """Reise-Transaktionen nach Kategorie abrufen."""
     from actual_budget import get_travel_expenses
     cats = data.category_names or []
-    return get_travel_expenses(data.base_url, data.token, cats, data.year)
+    return get_travel_expenses(data.base_url, data.password, data.budget_file, cats, data.year)
 
 
 @router.post("/actual/debug")
 def debug_actual(config: ActualConfig):
     """
-    Debug-Endpoint: Zeigt Konten, Kategorien und erste 5 Transaktionen
-    damit Feldnamen und Kategorie-IDs geprüft werden können.
+    Debug: Liste Budget-Dateien und zeige erste Transaktionen + Kategorien.
     """
-    from actual_budget import get_accounts, get_categories, _headers
-    import requests as req
+    from actual_budget import list_budget_files, get_travel_expenses
 
-    base = config.base_url.rstrip('/')
-    hdrs = _headers(config.token)
     result = {}
 
-    # 1. Accounts
-    accounts_resp = get_accounts(config.base_url, config.token)
-    accounts = accounts_resp.get("accounts", [])
-    result["accounts"] = [{"id": a.get("id"), "name": a.get("name")} for a in accounts[:5]]
+    # Budget-Dateien
+    files = list_budget_files(config.base_url, config.password)
+    result["budget_files"] = files
 
-    # 2. Categories — zeige was /v1/categories zurückgibt
+    if "error" in files:
+        return result
+
+    # Erste Transaktionen aus der angegebenen Budget-Datei
     try:
-        r = req.get(f"{base}/v1/categories", headers=hdrs, timeout=10)
-        result["categories_status"] = r.status_code
-        raw_cats = r.json() if r.ok else r.text[:300]
-        cats_list = raw_cats if isinstance(raw_cats, list) else raw_cats.get("categories", raw_cats.get("data", raw_cats)) if isinstance(raw_cats, dict) else raw_cats
-        result["categories_raw_sample"] = cats_list[:5] if isinstance(cats_list, list) else cats_list
-        result["category_map"] = get_categories(config.base_url, config.token)
-    except Exception as e:
-        result["categories_error"] = str(e)
+        from actual import Actual
+        from actual.queries import get_transactions, get_accounts
+        import datetime as dt
 
-    # 3. Erste 5 Transaktionen aus erstem Account — zeige alle Felder
-    if accounts:
-        first_account = accounts[0]
-        try:
-            r = req.get(
-                f"{base}/v1/accounts/{first_account['id']}/transactions",
-                headers=hdrs,
-                params={"start_date": "2024-01-01", "end_date": "2025-12-31"},
-                timeout=15
+        with Actual(base_url=config.base_url, password=config.password, file=config.budget_file) as actual:
+            accounts = get_accounts(actual.session)
+            result["accounts"] = [{"id": str(a.id), "name": a.name} for a in accounts[:10]]
+
+            txs = get_transactions(
+                actual.session,
+                start_date=dt.date(dt.date.today().year, 1, 1),
+                end_date=dt.date.today(),
             )
-            result["transactions_status"] = r.status_code
-            txs = r.json() if r.ok else []
-            if isinstance(txs, dict):
-                txs = txs.get("data", txs.get("transactions", []))
-            result["transactions_sample"] = txs[:3]
-            result["transactions_total"] = len(txs)
-        except Exception as e:
-            result["transactions_error"] = str(e)
+            sample = []
+            for tx in list(txs)[:5]:
+                if tx.tombstone:
+                    continue
+                sample.append({
+                    "date":     str(tx.date),
+                    "payee":    tx.payee.name if tx.payee else None,
+                    "category": tx.category.name if tx.category else None,
+                    "amount":   (tx.amount or 0) / 100,
+                    "account":  tx.account.name if tx.account else None,
+                    "notes":    tx.notes,
+                })
+            result["transactions_sample"] = sample
+
+    except Exception as e:
+        result["debug_error"] = str(e)
 
     return result
-
