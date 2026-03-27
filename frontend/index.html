@@ -1593,11 +1593,13 @@ body.light-mode {
       <div class="modal-section">
         <div class="modal-section-label">ActualBudget</div>
         <input class="settings-input" id="s-actualUrl" type="text" placeholder="https://actualbudget.example.com">
-        <input class="settings-input" id="s-actualToken" type="password" placeholder="Token">
+        <input class="settings-input" id="s-actualPassword" type="password" placeholder="Server-Passwort" style="margin-top:.4rem">
+        <input class="settings-input" id="s-actualFile" type="text" placeholder="Budget-Name (z.B. Mein Budget)" style="margin-top:.4rem">
+        <div style="font-size:.64rem;color:var(--sub);margin-top:.3rem">Budget-Name wie er oben links in ActualBudget angezeigt wird</div>
         <div style="font-size:.64rem;color:var(--sub);margin-top:.4rem" data-i18n="travelCategoriesHint">Reise-Kategorien (kommagetrennt)</div>
         <input class="settings-input" id="s-travelCategories" type="text"
                data-i18n-placeholder="travelCategoriesPlaceholder"
-               placeholder="Holiday, Flights, Hotel" style="margin-top:.3rem">
+               placeholder="Urlaub, Flug/Übernachtung/allgemeine Kosten" style="margin-top:.3rem">
       </div>
       <div class="modal-section">
         <div class="modal-section-label" data-i18n="llmProvider">KI-Anbieter</div>
@@ -2160,7 +2162,7 @@ function renderRecommendations(recs) {
 function toggleActualSync(on) {
   document.getElementById('manualEntry').style.display = on ? 'none' : 'block';
   document.getElementById('actualEntry').style.display = on ? 'block' : 'none';
-  if (on && !localStorage.getItem('s-actualUrl')) {
+  if (on && (!localStorage.getItem('s-actualUrl') || !localStorage.getItem('s-actualFile'))) {
     document.getElementById('actualNotice').style.display = 'block';
   } else {
     document.getElementById('actualNotice').style.display = 'none';
@@ -2179,10 +2181,11 @@ function addTrip() {
 }
 
 async function syncActualBudget() {
-  const url   = localStorage.getItem('s-actualUrl')   || '';
-  const token = localStorage.getItem('s-actualToken') || '';
+  const url      = localStorage.getItem('s-actualUrl')      || '';
+  const password = localStorage.getItem('s-actualPassword')  || '';
+  const file     = localStorage.getItem('s-actualFile')       || '';
 
-  if (!url || !token) {
+  if (!url || !password || !file) {
     document.getElementById('actualNotice').style.display = 'block';
     toast(t('actualBudgetError') + ': ' + t('budgetNoActual'), 'warning');
     return;
@@ -2195,7 +2198,7 @@ async function syncActualBudget() {
     const resp = await fetch((localStorage.getItem('apiUrl')||API_URL) + '/api/budget/actual/summary', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ base_url: url, token }),
+      body: JSON.stringify({ base_url: url, password, budget_file: file }),
     });
     const data = await resp.json();
 
@@ -2287,8 +2290,9 @@ function openSettings() {
   document.getElementById('s-lightMode').checked   = document.body.classList.contains('light-mode');
   document.getElementById('s-dawarichUrl').value   = localStorage.getItem('s-dawarichUrl') || '';
   document.getElementById('s-dawarichToken').value = localStorage.getItem('s-dawarichToken') || '';
-  document.getElementById('s-actualUrl').value     = localStorage.getItem('s-actualUrl') || '';
-  document.getElementById('s-actualToken').value   = localStorage.getItem('s-actualToken') || '';
+  document.getElementById('s-actualUrl').value      = localStorage.getItem('s-actualUrl') || '';
+  document.getElementById('s-actualPassword').value = localStorage.getItem('s-actualPassword') || '';
+  document.getElementById('s-actualFile').value     = localStorage.getItem('s-actualFile') || '';
   document.getElementById('s-llmProvider').value   = localStorage.getItem('s-llmProvider') || '';
   document.getElementById('s-llmKey').value            = localStorage.getItem('s-llmKey') || '';
   document.getElementById('s-homeLat').value          = localStorage.getItem('s-homeLat') || '';
@@ -2351,7 +2355,7 @@ function toggleTheme(isLight) {
 async function saveSettings() {
   API_URL = document.getElementById('s-backendUrl').value.trim().replace(/\/$/, '');
   localStorage.setItem('apiUrl', API_URL);
-  ['s-timezone','s-dawarichUrl','s-dawarichToken','s-actualUrl','s-actualToken','s-llmProvider','s-llmKey','s-serpApiKey','s-geminiKey','s-openaiKey','s-homeLat','s-homeLon','s-travelCategories'].forEach(k => {
+  ['s-timezone','s-dawarichUrl','s-dawarichToken','s-actualUrl','s-actualPassword','s-actualFile','s-llmProvider','s-llmKey','s-serpApiKey','s-geminiKey','s-openaiKey','s-homeLat','s-homeLon','s-travelCategories'].forEach(k => {
     localStorage.setItem(k, document.getElementById(k).value);
   });
   // Sync keys to server (encrypted)
@@ -2365,8 +2369,9 @@ async function saveSettings() {
         openai_key:        document.getElementById('s-openaiKey').value  || null,
         dawarich_url:      document.getElementById('s-dawarichUrl').value   || null,
         dawarich_token:    document.getElementById('s-dawarichToken').value  || null,
-        actual_url:        document.getElementById('s-actualUrl').value   || null,
-        actual_token:      document.getElementById('s-actualToken').value  || null,
+        actual_url:        document.getElementById('s-actualUrl').value      || null,
+        actual_token:      document.getElementById('s-actualPassword').value || null,
+        actual_file:       document.getElementById('s-actualFile').value    || null,
         llm_provider:      document.getElementById('s-llmProvider').value  || null,
         timezone:          document.getElementById('s-timezone').value    || null,
         home_lat:          document.getElementById('s-homeLat').value      || null,
@@ -3039,13 +3044,14 @@ async function loadExpenses() {
   const filEl = document.getElementById('expense-filters');
   if (!API_URL) return;
 
-  const actualUrl   = localStorage.getItem('s-actualUrl')        || '';
-  const actualToken = localStorage.getItem('s-actualToken')      || '';
-  const categories  = localStorage.getItem('s-travelCategories') || '';
-  const yearSel     = document.getElementById('expense-year-filter');
-  const year        = yearSel?.value ? parseInt(yearSel.value) : null;
+  const actualUrl      = localStorage.getItem('s-actualUrl')      || '';
+  const actualPassword = localStorage.getItem('s-actualPassword')  || '';
+  const actualFile     = localStorage.getItem('s-actualFile')       || '';
+  const categories     = localStorage.getItem('s-travelCategories') || '';
+  const yearSel        = document.getElementById('expense-year-filter');
+  const year           = yearSel?.value ? parseInt(yearSel.value) : null;
 
-  if (!actualUrl || !actualToken) {
+  if (!actualUrl || !actualPassword || !actualFile) {
     wrap.innerHTML = `<div class="expense-loading">⚙ ActualBudget ${t('missingUrl')} — ${t('settings')} öffnen</div>`;
     return;
   }
@@ -3058,7 +3064,8 @@ async function loadExpenses() {
       method: 'POST',
       body: JSON.stringify({
         base_url:       actualUrl,
-        token:          actualToken,
+        password:       actualPassword,
+        budget_file:    actualFile,
         category_names: catList,
         year,
       }),
@@ -3142,5 +3149,6 @@ function renderExpenseTable(expenses) {
 </body>
 </html>
 <!-- v1.0 build 20260327094623 -->
+
 
 
