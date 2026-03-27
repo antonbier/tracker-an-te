@@ -333,6 +333,261 @@ tr:hover td { background:rgba(255,255,255,.02); }
 .btn-cancel { background:transparent; color:var(--sub); border:1px solid var(--border); padding:.5rem .95rem; border-radius:var(--radius); font-family:var(--sans); font-size:.8rem; font-weight:700; cursor:pointer; transition:all var(--transition); }
 .btn-cancel:hover { color:var(--text); border-color:var(--muted); }
 
+/* ── Dashboard ───────────────────────────────────────── */
+.dash-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.1rem;
+  margin-bottom: 1.1rem;
+}
+.dash-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.1rem;
+  margin-bottom: 1.1rem;
+}
+.dash-welcome {
+  margin-bottom: 1.5rem;
+}
+.dash-welcome-title {
+  font-family: var(--serif);
+  font-size: 1.8rem;
+  font-weight: 700;
+  font-style: italic;
+  color: var(--text);
+  line-height: 1.2;
+}
+.dash-welcome-sub {
+  font-size: .85rem;
+  color: var(--sub);
+  margin-top: .25rem;
+}
+.dash-stat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.1rem;
+  background-image: var(--grain);
+}
+.dash-stat-label {
+  font-size: .65rem;
+  font-weight: 600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--sub);
+  margin-bottom: .3rem;
+  font-family: var(--mono);
+}
+.dash-stat-value {
+  font-family: var(--serif);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
+}
+.dash-stat-value.accent  { color: var(--accent); }
+.dash-stat-value.gold    { color: var(--accent2); }
+.dash-stat-value.green   { color: var(--green); }
+.dash-stat-sub {
+  font-size: .7rem;
+  color: var(--sub);
+  margin-top: .25rem;
+  font-family: var(--mono);
+}
+
+/* Budget donut */
+.donut-wrap {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+.donut-svg { flex-shrink: 0; }
+.donut-labels { flex: 1; }
+.donut-label-row {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  margin-bottom: .4rem;
+  font-size: .78rem;
+}
+.donut-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%; flex-shrink: 0;
+}
+.donut-label-text { color: var(--sub); font-size: .72rem; }
+.donut-label-val  { font-family: var(--mono); font-weight: 700; font-size: .78rem; margin-left: auto; }
+
+/* Trip cards */
+.trip-card {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: .65rem .85rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: .4rem;
+  transition: all var(--transition);
+}
+.trip-card:hover { border-color: var(--muted); }
+.trip-card-icon { font-size: 1.1rem; flex-shrink: 0; }
+.trip-card-info { flex: 1; }
+.trip-card-name {
+  font-family: var(--serif);
+  font-size: .88rem;
+  font-weight: 600;
+  font-style: italic;
+  color: var(--text);
+}
+.trip-card-date { font-size: .7rem; color: var(--sub); font-family: var(--mono); }
+.trip-card-cost { font-family: var(--mono); font-size: .82rem; color: var(--accent2); font-weight: 700; }
+
+/* Dashboard tracker cards */
+.dash-tracker-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .75rem .9rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: .4rem;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.dash-tracker-card:hover { border-color: var(--accent); background: rgba(196,98,45,.05); }
+.dash-tracker-route {
+  font-family: var(--mono);
+  font-size: .88rem;
+  font-weight: 700;
+  letter-spacing: .05em;
+}
+.dash-tracker-price {
+  font-family: var(--mono);
+  font-size: .9rem;
+  font-weight: 700;
+  color: var(--green);
+}
+.dash-tracker-price.up   { color: var(--red); }
+.dash-tracker-price.down { color: var(--green); }
+.dash-tracker-meta { font-size: .68rem; color: var(--sub); margin-top: .18rem; }
+.trend-arrow { font-size: .8rem; margin-left: .3rem; }
+
+/* ── Field Guide Modal ────────────────────────────────── */
+.field-guide-modal .modal {
+  max-width: 560px;
+}
+.faq-item {
+  border-bottom: 1px solid var(--border);
+  padding: .85rem 0;
+}
+.faq-item:last-child { border-bottom: none; }
+.faq-question {
+  font-family: var(--serif);
+  font-size: .92rem;
+  font-weight: 600;
+  font-style: italic;
+  color: var(--accent2);
+  margin-bottom: .4rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.faq-answer {
+  font-size: .8rem;
+  color: var(--sub);
+  line-height: 1.65;
+}
+
+/* ── Tooltip ──────────────────────────────────────────── */
+.tooltip-wrap { position: relative; display: inline-flex; align-items: center; gap: .3rem; width: 100%; }
+.tooltip-icon {
+  width: 15px; height: 15px;
+  border-radius: 50%;
+  background: var(--muted);
+  color: var(--sub);
+  font-size: .6rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: help;
+  flex-shrink: 0;
+  transition: all var(--transition);
+  font-style: normal;
+  font-family: var(--mono);
+}
+.tooltip-icon:hover { background: var(--accent2); color: var(--bg); }
+.tooltip-popup {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: .6rem .8rem;
+  font-size: .72rem;
+  color: var(--text);
+  line-height: 1.5;
+  width: 240px;
+  z-index: 50;
+  box-shadow: 0 8px 24px rgba(0,0,0,.4);
+  display: none;
+  pointer-events: none;
+}
+.tooltip-wrap:hover .tooltip-popup { display: block; }
+
+/* ── Onboarding ───────────────────────────────────────── */
+.onboarding-steps {
+  display: flex;
+  gap: .5rem;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+.onboarding-step {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--muted);
+  color: var(--sub);
+  display: flex; align-items: center; justify-content: center;
+  font-size: .75rem; font-weight: 700;
+  font-family: var(--mono);
+  transition: all var(--transition);
+}
+.onboarding-step.active {
+  background: var(--accent);
+  color: white;
+  box-shadow: 0 0 12px rgba(196,98,45,.4);
+}
+.onboarding-step.done {
+  background: var(--green);
+  color: white;
+}
+.onboarding-content { text-align: center; padding: .5rem 0 1rem; }
+.onboarding-icon { font-size: 2.5rem; margin-bottom: .75rem; }
+.onboarding-title {
+  font-family: var(--serif);
+  font-size: 1.1rem;
+  font-weight: 700;
+  font-style: italic;
+  color: var(--text);
+  margin-bottom: .5rem;
+}
+.onboarding-desc { font-size: .82rem; color: var(--sub); line-height: 1.6; }
+
+/* ── API Notice (collapsible) ────────────────────────── */
+.api-notice.hidden { display: none; }
+
+/* ── Responsive Dashboard ────────────────────────────── */
+@media (max-width: 900px) {
+  .dash-grid   { grid-template-columns: 1fr; }
+  .dash-grid-3 { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 480px) {
+  .dash-grid-3 { grid-template-columns: 1fr; }
+  .dash-welcome-title { font-size: 1.4rem; }
+}
+
 /* ── Footer ──────────────────────────────────────────── */
 .footer {
   text-align:center; padding:1.5rem;
@@ -417,8 +672,15 @@ body.light-mode {
   <nav class="sidebar" id="sidebar">
 
     <div class="nav-group">
+      <button class="nav-item active" id="nav-home" onclick="navigate('home')" style="font-weight:700">
+        <span class="nav-icon">🧭</span>
+        <span data-i18n="navHome">Home</span>
+      </button>
+    </div>
+
+    <div class="nav-group">
       <span class="nav-group-label" data-i18n="navFlights">Flüge</span>
-      <button class="nav-item sub active" id="nav-ryanair" onclick="navigate('ryanair')">
+      <button class="nav-item sub" id="nav-ryanair" onclick="navigate('ryanair')">
         <span class="nav-icon">🟠</span>
         <span data-i18n="navRyanair">Ryanair Tracker</span>
       </button>
@@ -456,13 +718,113 @@ body.light-mode {
       </button>
     </div>
 
+    <div class="nav-group" style="margin-top:.5rem;border-top:1px solid var(--border);padding-top:.5rem">
+      <button class="nav-item sub" id="nav-fieldguide" onclick="openFieldGuide()">
+        <span class="nav-icon">📖</span>
+        <span data-i18n="fieldGuide">Feldführer</span>
+      </button>
+    </div>
+
   </nav>
 
   <!-- ── Main Content ────────────────────────────────── -->
   <main class="main-content">
 
+    <!-- ════ PAGE: Home / Dashboard ══════════════════════ -->
+    <div class="page active" id="page-home">
+
+      <div class="dash-welcome">
+        <div class="dash-welcome-title" data-i18n="dashboardTitle">Willkommen zurück</div>
+        <div class="dash-welcome-sub" data-i18n="dashboardSubtitle">Dein Reise-Überblick</div>
+      </div>
+
+      <!-- Stats Row -->
+      <div class="dash-grid-3" id="dash-stats">
+        <div class="dash-stat">
+          <div class="dash-stat-label" data-i18n="activeTrackers">Aktive Tracker</div>
+          <div class="dash-stat-value accent" id="dash-tracker-count">–</div>
+          <div class="dash-stat-sub" data-i18n="dashboardTrackerHint">Tracker aktiv</div>
+        </div>
+        <div class="dash-stat">
+          <div class="dash-stat-label" data-i18n="yearlyBudget">Jahresbudget</div>
+          <div class="dash-stat-value gold" id="dash-budget-total">–</div>
+          <div class="dash-stat-sub" id="dash-budget-pct">–</div>
+        </div>
+        <div class="dash-stat">
+          <div class="dash-stat-label" data-i18n="remaining">Verbleibend</div>
+          <div class="dash-stat-value green" id="dash-budget-remaining">–</div>
+          <div class="dash-stat-sub" id="dash-budget-spent-label">–</div>
+        </div>
+      </div>
+
+      <div class="dash-grid">
+
+        <!-- Budget Donut -->
+        <div class="card">
+          <div class="card-title" data-i18n="budgetOverview">Budget-Übersicht</div>
+          <div class="donut-wrap" id="dash-donut-wrap">
+            <svg class="donut-svg" width="100" height="100" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="38" fill="none" stroke="var(--border)" stroke-width="14"/>
+              <circle cx="50" cy="50" r="38" fill="none" stroke="var(--accent)" stroke-width="14"
+                      stroke-dasharray="0 239" stroke-dashoffset="60" stroke-linecap="round"
+                      id="dash-donut-fill" style="transition:stroke-dasharray .8s ease"/>
+            </svg>
+            <div class="donut-labels" id="dash-donut-labels">
+              <div class="donut-label-row">
+                <div class="donut-dot" style="background:var(--accent)"></div>
+                <span class="donut-label-text" data-i18n="spent">Ausgegeben</span>
+                <span class="donut-label-val" id="dash-spent">0 €</span>
+              </div>
+              <div class="donut-label-row">
+                <div class="donut-dot" style="background:var(--green)"></div>
+                <span class="donut-label-text" data-i18n="remaining">Verbleibend</span>
+                <span class="donut-label-val" id="dash-remaining">0 €</span>
+              </div>
+              <div class="donut-label-row">
+                <div class="donut-dot" style="background:var(--border)"></div>
+                <span class="donut-label-text" data-i18n="yearlyBudget">Jahresbudget</span>
+                <span class="donut-label-val" id="dash-total-budget">0 €</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Active Trackers -->
+        <div class="card">
+          <div class="card-title" data-i18n="activeTrackers">Aktive Tracker</div>
+          <div id="dash-tracker-list">
+            <div style="color:var(--sub);font-size:.8rem" data-i18n="noTrackersYet">Noch keine Tracker</div>
+          </div>
+          <button class="btn btn-primary" style="margin-top:.75rem" onclick="navigate('ryanair')">
+            + <span data-i18n="startTracker">Tracker starten</span>
+          </button>
+        </div>
+
+      </div>
+
+      <div class="dash-grid">
+
+        <!-- Upcoming Trips -->
+        <div class="card">
+          <div class="card-title" data-i18n="upcomingTrips">Geplante Reisen</div>
+          <div id="dash-upcoming-list">
+            <div style="color:var(--sub);font-size:.8rem" data-i18n="noUpcomingTrips">Noch keine geplanten Reisen</div>
+          </div>
+        </div>
+
+        <!-- Completed Trips -->
+        <div class="card">
+          <div class="card-title" data-i18n="completedTrips">Abgeschlossene Reisen</div>
+          <div id="dash-completed-list">
+            <div style="color:var(--sub);font-size:.8rem" data-i18n="noCompletedTrips">Noch keine abgeschlossenen Reisen</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
     <!-- ════ PAGE: Ryanair Tracker ═════════════════════ -->
-    <div class="page active" id="page-ryanair">
+    <div class="page" id="page-ryanair">
 
       <div class="grid-2">
         <div>
@@ -470,7 +832,12 @@ body.light-mode {
             <div class="card-title" data-i18n="newTracker">Neuen Tracker anlegen</div>
             <div class="form-row">
               <div class="form-group">
-                <label data-i18n="from">Von (IATA)</label>
+                <label>
+                  <div class="tooltip-wrap" style="width:auto">
+                    <span data-i18n="from">Von (IATA)</span>
+                    <span class="tooltip-icon">i<span class="tooltip-popup" data-i18n="faqIataAnswer">3-Buchstaben Flughafen-Code. z.B. BGY=Bergamo, DUB=Dublin</span></span>
+                  </div>
+                </label>
                 <input class="iata-input" id="origin" placeholder="BGY" maxlength="3">
               </div>
               <div class="form-group">
@@ -974,12 +1341,22 @@ body.light-mode {
         <input class="settings-input" id="s-llmKey" type="password" placeholder="API Key">
       </div>
       <div class="modal-section">
-        <div class="modal-section-label" data-i18n="serpApiKey">SerpAPI Key</div>
+        <div class="modal-section-label">
+        <div class="tooltip-wrap" style="width:auto">
+          <span data-i18n="serpApiKey">SerpAPI Key</span>
+          <span class="tooltip-icon">i<span class="tooltip-popup" data-i18n="faqSerpApiAnswer">Kostenlos auf serpapi.com</span></span>
+        </div>
+      </div>
         <input class="settings-input" id="s-serpApiKey" type="password" placeholder="xxxxxxxxxxxxxxxx">
         <div style="font-size:.64rem;color:var(--sub);margin-top:.3rem" data-i18n="serpApiHint">Für Google Flights — kostenlos bis 100 Suchen/Monat</div>
       </div>
       <div class="modal-section">
-        <div class="modal-section-label" data-i18n="geminiKey">Google Gemini API Key</div>
+        <div class="modal-section-label">
+        <div class="tooltip-wrap" style="width:auto">
+          <span data-i18n="geminiKey">Google Gemini API Key</span>
+          <span class="tooltip-icon">i<span class="tooltip-popup" data-i18n="faqGeminiAnswer">Auf aistudio.google.com</span></span>
+        </div>
+      </div>
         <input class="settings-input" id="s-geminiKey" type="password" placeholder="AIzaSy...">
         <div style="font-size:.64rem;color:var(--sub);margin-top:.3rem" data-i18n="geminiHint">Für KI-Empfehlungen — kostenlos auf aistudio.google.com</div>
       </div>
@@ -993,6 +1370,85 @@ body.light-mode {
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeSettings()" data-i18n="cancel">Abbrechen</button>
       <button class="btn-save" onclick="saveSettings()" data-i18n="save">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Field Guide Modal ──────────────────────────────────── -->
+<div class="modal-backdrop field-guide-modal" id="fieldGuideBackdrop" onclick="closeFieldGuide(event)">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header">
+      <div class="modal-title" style="font-family:var(--serif);font-style:italic;font-size:1.1rem" data-i18n="fieldGuideTitle">Der Feldführer</div>
+      <button class="modal-close" onclick="closeFieldGuide()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:.78rem;color:var(--sub);margin-bottom:1rem;font-style:italic" data-i18n="fieldGuideSubtitle">Alles was du wissen musst</div>
+
+      <div class="faq-item">
+        <div class="faq-question" data-i18n="faqScheduler">Wie funktioniert der tägliche Abruf?</div>
+        <div class="faq-answer" data-i18n="faqSchedulerAnswer">WanderSuite scrapt automatisch täglich um 07:00 Uhr.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-question" data-i18n="faqIata">Was sind IATA-Codes?</div>
+        <div class="faq-answer" data-i18n="faqIataAnswer">IATA-Codes sind 3-buchstabige Flughafen-Kürzel.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-question" data-i18n="faqSerpApi">Wo bekomme ich einen SerpAPI Key?</div>
+        <div class="faq-answer" data-i18n="faqSerpApiAnswer">Kostenlos auf serpapi.com registrieren.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-question" data-i18n="faqGemini">Wo bekomme ich einen Gemini API Key?</div>
+        <div class="faq-answer" data-i18n="faqGeminiAnswer">Auf aistudio.google.com kostenlos generieren.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-question" data-i18n="faqOpenAI">Wo bekomme ich einen OpenAI API Key?</div>
+        <div class="faq-answer" data-i18n="faqOpenAIAnswer">Auf platform.openai.com.</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-save" onclick="closeFieldGuide()" data-i18n="cancel">Schließen</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Onboarding Modal ────────────────────────────────────── -->
+<div class="modal-backdrop" id="onboardingBackdrop">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-header">
+      <div class="modal-title" style="font-family:var(--serif);font-style:italic">WanderSuite</div>
+      <button class="modal-close" onclick="closeOnboarding()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="onboarding-steps">
+        <div class="onboarding-step active" id="ob-step-1">1</div>
+        <div style="flex:1;height:2px;background:var(--border);margin-top:13px;border-radius:1px"></div>
+        <div class="onboarding-step" id="ob-step-2">2</div>
+        <div style="flex:1;height:2px;background:var(--border);margin-top:13px;border-radius:1px"></div>
+        <div class="onboarding-step" id="ob-step-3">3</div>
+      </div>
+      <div id="ob-panel-1" class="onboarding-content">
+        <div class="onboarding-icon">🧭</div>
+        <div class="onboarding-title">Willkommen bei WanderSuite</div>
+        <div class="onboarding-desc">Dein self-hosted Reise-Tracker. Lass uns in 3 Schritten loslegen.</div>
+        <div style="margin-top:1rem">
+          <label style="font-size:.7rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--sub);display:block;margin-bottom:.35rem">Backend-URL</label>
+          <input class="settings-input" id="ob-url" type="text" placeholder="https://tracker-an-te-production.up.railway.app">
+        </div>
+      </div>
+      <div id="ob-panel-2" class="onboarding-content" style="display:none">
+        <div class="onboarding-icon">✈</div>
+        <div class="onboarding-title">Ersten Tracker anlegen</div>
+        <div class="onboarding-desc">Geh zu Flüge → Ryanair Tracker und leg deinen ersten Preisalarm an.</div>
+      </div>
+      <div id="ob-panel-3" class="onboarding-content" style="display:none">
+        <div class="onboarding-icon">🎒</div>
+        <div class="onboarding-title">Bereit zum Erkunden!</div>
+        <div class="onboarding-desc">WanderSuite überwacht ab jetzt täglich um 07:00 Uhr alle deine Tracker automatisch.</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" id="ob-back" onclick="obBack()" style="display:none" data-i18n="cancel">Zurück</button>
+      <button class="btn-save" id="ob-next" onclick="obNext()">Weiter →</button>
     </div>
   </div>
 </div>
@@ -1057,9 +1513,10 @@ function navigate(page) {
   // Close sidebar on mobile
   if (window.innerWidth < 900) closeSidebar();
   // Lazy-init modules
-  if (page === 'budget') renderBudget();
-  if (page === 'google') loadGFTrackers();
-  if (page === 'homair') loadHomairTrackers();
+  if (page === 'home')    loadDashboard();
+  if (page === 'budget')  renderBudget();
+  if (page === 'google')  loadGFTrackers();
+  if (page === 'homair')  loadHomairTrackers();
   if (page === 'booking') loadBookingTrackers();
 }
 
@@ -1095,6 +1552,14 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   checkApiStatus();
   loadTrackers();
+  loadDashboard();
+  checkOnboarding();
+
+  // Hide api notice if URL already set
+  if (API_URL) {
+    const notice = document.querySelector('.api-notice');
+    if (notice) notice.classList.add('hidden');
+  }
 
   // Restore budget
   const savedBudget = localStorage.getItem('ws-budget');
@@ -1589,6 +2054,14 @@ async function saveSettings() {
   closeSettings();
   checkApiStatus();
   loadTrackers();
+  loadDashboard();
+  checkOnboarding();
+
+  // Hide api notice if URL already set
+  if (API_URL) {
+    const notice = document.querySelector('.api-notice');
+    if (notice) notice.classList.add('hidden');
+  }
 }
 
 // ── Google Flights Tracker ────────────────────────────
@@ -1888,6 +2361,198 @@ function toast(msg, type='success') {
   c.appendChild(el);
   setTimeout(() => el.remove(), 4000);
 }
+
+// ── Dashboard ─────────────────────────────────────────
+
+function loadDashboard() {
+  loadDashTrackers();
+  loadDashBudget();
+  loadDashTrips();
+}
+
+async function loadDashTrackers() {
+  const el = document.getElementById('dash-tracker-list');
+  const countEl = document.getElementById('dash-tracker-count');
+  if (!API_URL) {
+    if (countEl) countEl.textContent = '0';
+    return;
+  }
+  try {
+    const trackers = await api('/api/trackers');
+    const active = trackers.filter(t => t.active);
+    if (countEl) countEl.textContent = active.length;
+
+    if (!active.length) {
+      el.innerHTML = `<div style="color:var(--sub);font-size:.8rem">${t('noTrackersYet')}</div>`;
+      return;
+    }
+
+    el.innerHTML = active.map(tr => {
+      const snap = tr.latest_snapshot;
+      const price = snap?.total_price ? snap.total_price.toFixed(2) + ' €' : '–';
+      const date  = snap?.fetched_at ? snap.fetched_at.slice(0,10) : '';
+      return `<div class="dash-tracker-card" onclick="navigate('ryanair');setTimeout(()=>selectTracker(${tr.id}),200)">
+        <div>
+          <div class="dash-tracker-route">${tr.origin} → ${tr.destination}</div>
+          <div class="dash-tracker-meta">${tr.outbound_date}${tr.return_date?' ⇄ '+tr.return_date:''} · ${date?t('lastChecked')+': '+date:''}</div>
+        </div>
+        <div class="dash-tracker-price">${price}</div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    if (el) el.innerHTML = `<div style="color:var(--sub);font-size:.78rem">⚠ ${e.message}</div>`;
+  }
+}
+
+function loadDashBudget() {
+  const total     = parseFloat(localStorage.getItem('ws-budget') || '0');
+  const tripsList = JSON.parse(localStorage.getItem('ws-trips') || '[]');
+  const spent     = tripsList.reduce((s, tr) => s + tr.cost, 0);
+  const remaining = Math.max(0, total - spent);
+  const pct       = total > 0 ? Math.min(100, (spent / total) * 100) : 0;
+  const circumference = 2 * Math.PI * 38; // r=38
+
+  // Stats
+  const totalEl     = document.getElementById('dash-budget-total');
+  const remainingEl = document.getElementById('dash-budget-remaining');
+  const pctEl       = document.getElementById('dash-budget-pct');
+  const spentLabel  = document.getElementById('dash-budget-spent-label');
+
+  if (totalEl)     totalEl.textContent     = total > 0 ? total.toFixed(0) + ' €' : '–';
+  if (remainingEl) remainingEl.textContent = total > 0 ? remaining.toFixed(0) + ' €' : '–';
+  if (pctEl)       pctEl.textContent       = total > 0 ? Math.round(pct) + '% ' + t('spent').toLowerCase() : '–';
+  if (spentLabel)  spentLabel.textContent  = spent > 0 ? spent.toFixed(2) + ' € ' + t('spent').toLowerCase() : '–';
+
+  // Donut
+  const fill = document.getElementById('dash-donut-fill');
+  if (fill) {
+    const dashArray = (pct / 100) * circumference;
+    fill.setAttribute('stroke-dasharray', `${dashArray} ${circumference - dashArray}`);
+    fill.setAttribute('stroke', pct > 85 ? 'var(--red)' : pct > 60 ? 'var(--accent2)' : 'var(--accent)');
+  }
+
+  const spentEl     = document.getElementById('dash-spent');
+  const remainEl    = document.getElementById('dash-remaining');
+  const totalBudget = document.getElementById('dash-total-budget');
+  if (spentEl)     spentEl.textContent     = spent.toFixed(2) + ' €';
+  if (remainEl)    remainEl.textContent    = remaining.toFixed(2) + ' €';
+  if (totalBudget) totalBudget.textContent = total.toFixed(2) + ' €';
+}
+
+function loadDashTrips() {
+  const tripsList = JSON.parse(localStorage.getItem('ws-trips') || '[]');
+  const today = new Date().toISOString().slice(0,10);
+
+  const upcoming  = tripsList.filter(tr => tr.date >= today);
+  const completed = tripsList.filter(tr => tr.date <  today);
+
+  const upEl = document.getElementById('dash-upcoming-list');
+  const coEl = document.getElementById('dash-completed-list');
+
+  if (upEl) {
+    upEl.innerHTML = upcoming.length
+      ? upcoming.map(tr => `
+        <div class="trip-card">
+          <div class="trip-card-icon">✈️</div>
+          <div class="trip-card-info">
+            <div class="trip-card-name">${tr.name}</div>
+            <div class="trip-card-date">${tr.date}</div>
+          </div>
+          <div class="trip-card-cost">${tr.cost.toFixed(2)} €</div>
+        </div>`).join('')
+      : `<div style="color:var(--sub);font-size:.8rem">${t('noUpcomingTrips')}</div>`;
+  }
+
+  if (coEl) {
+    coEl.innerHTML = completed.length
+      ? completed.map(tr => `
+        <div class="trip-card" style="opacity:.7">
+          <div class="trip-card-icon">✅</div>
+          <div class="trip-card-info">
+            <div class="trip-card-name">${tr.name}</div>
+            <div class="trip-card-date">${tr.date}</div>
+          </div>
+          <div class="trip-card-cost">${tr.cost.toFixed(2)} €</div>
+        </div>`).join('')
+      : `<div style="color:var(--sub);font-size:.8rem">${t('noCompletedTrips')}</div>`;
+  }
+}
+
+// ── Field Guide ────────────────────────────────────────
+
+function openFieldGuide() {
+  // Apply translations to FAQ answers
+  document.querySelectorAll('.faq-answer[data-i18n]').forEach(el => {
+    el.textContent = t(el.getAttribute('data-i18n'));
+  });
+  document.querySelectorAll('.faq-question[data-i18n]').forEach(el => {
+    el.textContent = t(el.getAttribute('data-i18n'));
+  });
+  document.getElementById('fieldGuideBackdrop').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  if (window.innerWidth < 900) closeSidebar();
+}
+
+function closeFieldGuide(e) {
+  if (e && e.target !== document.getElementById('fieldGuideBackdrop')) return;
+  document.getElementById('fieldGuideBackdrop').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// ── Onboarding ─────────────────────────────────────────
+
+let obStep = 1;
+
+function checkOnboarding() {
+  const hasUrl = localStorage.getItem('apiUrl');
+  const seen   = localStorage.getItem('ws-onboarding-done');
+  if (!hasUrl && !seen) {
+    document.getElementById('onboardingBackdrop').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function closeOnboarding() {
+  localStorage.setItem('ws-onboarding-done', '1');
+  document.getElementById('onboardingBackdrop').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function obNext() {
+  if (obStep === 1) {
+    const url = document.getElementById('ob-url').value.trim().replace(/\/$/, '');
+    if (url) {
+      API_URL = url;
+      localStorage.setItem('apiUrl', url);
+      const apiInput = document.getElementById('apiUrlInput');
+      if (apiInput) apiInput.value = url;
+      checkApiStatus();
+    }
+  }
+  if (obStep >= 3) { closeOnboarding(); loadDashboard(); return; }
+  obStep++;
+  updateObStep();
+}
+
+function obBack() {
+  if (obStep <= 1) return;
+  obStep--;
+  updateObStep();
+}
+
+function updateObStep() {
+  [1,2,3].forEach(i => {
+    document.getElementById('ob-panel-'+i).style.display = i===obStep ? 'block' : 'none';
+    const stepEl = document.getElementById('ob-step-'+i);
+    stepEl.classList.remove('active','done');
+    if (i < obStep)  stepEl.classList.add('done');
+    if (i === obStep) stepEl.classList.add('active');
+  });
+  document.getElementById('ob-back').style.display = obStep > 1 ? 'inline-flex' : 'none';
+  document.getElementById('ob-next').textContent   = obStep >= 3 ? '🎒 ' + t('startTracker') : t('refresh') + ' →';
+}
+
+
 </script>
 </body>
 </html>
