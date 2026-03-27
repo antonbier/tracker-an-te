@@ -154,11 +154,26 @@ def init_db():
                 updated_at TEXT NOT NULL
             );
 
+            -- Dawarich detected trips
+            CREATE TABLE IF NOT EXISTS detected_trips (
+                id             INTEGER PRIMARY KEY AUTOINCREMENT,
+                start_date     TEXT    NOT NULL,
+                end_date       TEXT    NOT NULL,
+                location_name  TEXT,
+                country        TEXT,
+                lat            REAL,
+                lon            REAL,
+                nights         INTEGER NOT NULL DEFAULT 1,
+                source         TEXT    NOT NULL DEFAULT 'dawarich',
+                created_at     TEXT    NOT NULL
+            );
+
             -- Indexes
             CREATE INDEX IF NOT EXISTS idx_price_snaps   ON price_snapshots(tracker_id, fetched_at DESC);
             CREATE INDEX IF NOT EXISTS idx_gf_snaps      ON gf_snapshots(tracker_id, fetched_at DESC);
             CREATE INDEX IF NOT EXISTS idx_homair_snaps  ON homair_snapshots(tracker_id, fetched_at DESC);
             CREATE INDEX IF NOT EXISTS idx_booking_snaps ON booking_snapshots(tracker_id, fetched_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_detected_trips ON detected_trips(start_date DESC);
         """)
 
         # Migrations for existing Ryanair tables
@@ -475,3 +490,55 @@ def _get_latest(table: str, tracker_id: int) -> dict | None:
             (tracker_id,)
         ).fetchone()
         return dict(row) if row else None
+
+
+# ─── Detected Trips (Dawarich) ───────────────────────
+
+def save_detected_trip(trip: dict) -> int:
+    """Erkannten Trip speichern (Upsert by start_date+end_date)."""
+    with db() as conn:
+        # Check if trip already exists
+        existing = conn.execute(
+            "SELECT id FROM detected_trips WHERE start_date=? AND end_date=?",
+            (trip["start_date"], trip["end_date"])
+        ).fetchone()
+        if existing:
+            conn.execute("""
+                UPDATE detected_trips SET
+                  location_name=?, country=?, lat=?, lon=?, nights=?
+                WHERE id=?
+            """, (
+                trip.get("location_name"), trip.get("country"),
+                trip.get("lat"), trip.get("lon"),
+                trip.get("nights", 1), existing["id"]
+            ))
+            return existing["id"]
+        cur = conn.execute("""
+            INSERT INTO detected_trips
+              (start_date, end_date, location_name, country, lat, lon, nights, source, created_at)
+            VALUES (?,?,?,?,?,?,?,?,?)
+        """, (
+            trip["start_date"], trip["end_date"],
+            trip.get("location_name"), trip.get("country"),
+            trip.get("lat"), trip.get("lon"),
+            trip.get("nights", 1),
+            trip.get("source", "dawarich"),
+            datetime.utcnow().isoformat(),
+        ))
+        return cur.lastrowid
+
+
+def list_detected_trips(limit: int = 50) -> list[dict]:
+    """Alle erkannten Trips, neueste zuerst."""
+    with db() as conn:
+        return [dict(r) for r in conn.execute(
+            "SELECT * FROM detected_trips ORDER BY start_date DESC LIMIT ?",
+            (limit,)
+        ).fetchall()]
+
+
+def delete_detected_trip(trip_id: int) -> bool:
+    with db() as conn:
+        return conn.execute(
+            "DELETE FROM detected_trips WHERE id=?", (trip_id,)
+        ).rowcount > 0

@@ -716,6 +716,10 @@ body.light-mode {
         <span class="nav-icon">💶</span>
         <span data-i18n="navBudget">Reisebudget</span>
       </button>
+      <button class="nav-item sub" id="nav-journal" onclick="navigate('journal')">
+        <span class="nav-icon">📓</span>
+        <span data-i18n="travelJournal">Reisetagebuch</span>
+      </button>
     </div>
 
     <div class="nav-group" style="margin-top:.5rem;border-top:1px solid var(--border);padding-top:.5rem">
@@ -1323,11 +1327,21 @@ body.light-mode {
         <div class="modal-section-label">Dawarich</div>
         <input class="settings-input" id="s-dawarichUrl" type="text" placeholder="https://dawarich.example.com">
         <input class="settings-input" id="s-dawarichToken" type="password" placeholder="API Token">
+        <div style="font-size:.64rem;color:var(--sub);margin-top:.4rem" data-i18n="homeLocationHint">Lat, Lon deines Heimatorts</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.35rem;margin-top:.35rem">
+          <input class="settings-input" id="s-homeLat" type="text" placeholder="46.7987" style="margin-top:0">
+          <input class="settings-input" id="s-homeLon" type="text" placeholder="11.7188" style="margin-top:0">
+        </div>
+        <div style="font-size:.6rem;color:var(--sub);margin-top:.2rem">Latitude &nbsp;/&nbsp; Longitude</div>
       </div>
       <div class="modal-section">
         <div class="modal-section-label">ActualBudget</div>
         <input class="settings-input" id="s-actualUrl" type="text" placeholder="https://actualbudget.example.com">
         <input class="settings-input" id="s-actualToken" type="password" placeholder="Token">
+        <div style="font-size:.64rem;color:var(--sub);margin-top:.4rem" data-i18n="travelCategoriesHint">Reise-Kategorien (kommagetrennt)</div>
+        <input class="settings-input" id="s-travelCategories" type="text"
+               data-i18n-placeholder="travelCategoriesPlaceholder"
+               placeholder="Holiday, Flights, Hotel" style="margin-top:.3rem">
       </div>
       <div class="modal-section">
         <div class="modal-section-label" data-i18n="llmProvider">KI-Anbieter</div>
@@ -1995,7 +2009,10 @@ function openSettings() {
   document.getElementById('s-actualUrl').value     = localStorage.getItem('s-actualUrl') || '';
   document.getElementById('s-actualToken').value   = localStorage.getItem('s-actualToken') || '';
   document.getElementById('s-llmProvider').value   = localStorage.getItem('s-llmProvider') || '';
-  document.getElementById('s-llmKey').value        = localStorage.getItem('s-llmKey') || '';
+  document.getElementById('s-llmKey').value            = localStorage.getItem('s-llmKey') || '';
+  document.getElementById('s-homeLat').value          = localStorage.getItem('s-homeLat') || '';
+  document.getElementById('s-homeLon').value          = localStorage.getItem('s-homeLon') || '';
+  document.getElementById('s-travelCategories').value = localStorage.getItem('s-travelCategories') || '';
   document.getElementById('s-serpApiKey').value    = localStorage.getItem('s-serpApiKey') || '';
   document.getElementById('s-geminiKey').value     = localStorage.getItem('s-geminiKey') || '';
   document.getElementById('s-openaiKey').value     = localStorage.getItem('s-openaiKey') || '';
@@ -2028,7 +2045,7 @@ function toggleTheme(isLight) {
 async function saveSettings() {
   API_URL = document.getElementById('s-backendUrl').value.trim().replace(/\/$/, '');
   localStorage.setItem('apiUrl', API_URL);
-  ['s-timezone','s-dawarichUrl','s-dawarichToken','s-actualUrl','s-actualToken','s-llmProvider','s-llmKey','s-serpApiKey','s-geminiKey','s-openaiKey'].forEach(k => {
+  ['s-timezone','s-dawarichUrl','s-dawarichToken','s-actualUrl','s-actualToken','s-llmProvider','s-llmKey','s-serpApiKey','s-geminiKey','s-openaiKey','s-homeLat','s-homeLon','s-travelCategories'].forEach(k => {
     localStorage.setItem(k, document.getElementById(k).value);
   });
   // Sync keys to server (encrypted)
@@ -2037,15 +2054,18 @@ async function saveSettings() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        serpapi_key:    document.getElementById('s-serpApiKey').value || null,
-        gemini_key:     document.getElementById('s-geminiKey').value  || null,
-        openai_key:     document.getElementById('s-openaiKey').value  || null,
-        dawarich_url:   document.getElementById('s-dawarichUrl').value   || null,
-        dawarich_token: document.getElementById('s-dawarichToken').value  || null,
-        actual_url:     document.getElementById('s-actualUrl').value   || null,
-        actual_token:   document.getElementById('s-actualToken').value  || null,
-        llm_provider:   document.getElementById('s-llmProvider').value  || null,
-        timezone:       document.getElementById('s-timezone').value    || null,
+        serpapi_key:       document.getElementById('s-serpApiKey').value || null,
+        gemini_key:        document.getElementById('s-geminiKey').value  || null,
+        openai_key:        document.getElementById('s-openaiKey').value  || null,
+        dawarich_url:      document.getElementById('s-dawarichUrl').value   || null,
+        dawarich_token:    document.getElementById('s-dawarichToken').value  || null,
+        actual_url:        document.getElementById('s-actualUrl').value   || null,
+        actual_token:      document.getElementById('s-actualToken').value  || null,
+        llm_provider:      document.getElementById('s-llmProvider').value  || null,
+        timezone:          document.getElementById('s-timezone').value    || null,
+        home_lat:          document.getElementById('s-homeLat').value      || null,
+        home_lon:          document.getElementById('s-homeLon').value      || null,
+        travel_categories: document.getElementById('s-travelCategories').value || null,
       }),
     });
   } catch(e) { /* Server sync optional — localStorage als Fallback */ }

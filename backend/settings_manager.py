@@ -21,6 +21,9 @@ SETTING_KEYS = [
     "actual_token",
     "llm_provider",
     "timezone",
+    "home_lat",
+    "home_lon",
+    "travel_categories",   # comma-separated ActualBudget category names
 ]
 
 
