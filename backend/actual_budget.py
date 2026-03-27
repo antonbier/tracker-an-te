@@ -4,7 +4,7 @@ Syncs travel expenses with ActualBudget (self-hosted budgeting app).
 API Docs: https://actualbudget.org/docs/api/
 
 Authentication: ActualBudget uses its server password as Bearer token.
-Amounts are stored in cents in ActualBudget — we convert to euros.
+Amounts are stored in millicents (×1000) in ActualBudget — we divide by 1000 to get euros.
 """
 
 import requests
@@ -54,9 +54,9 @@ def get_budget_summary(base_url: str, token: str, month: str | None = None) -> d
                 if any(kw in name_lower for kw in travel_keywords):
                     travel_categories.append({
                         "name":      cat.get("name"),
-                        "budgeted":  cat.get("budgeted", 0) / 100,  # ActualBudget uses cents
-                        "spent":     abs(cat.get("spent", 0)) / 100,
-                        "balance":   cat.get("balance", 0) / 100,
+                        "budgeted":  cat.get("budgeted", 0) / 1000,  # ActualBudget uses millicents
+                        "spent":     abs(cat.get("spent", 0)) / 1000,  # ActualBudget uses millicents
+                        "balance":   cat.get("balance", 0) / 1000,  # ActualBudget uses millicents
                     })
 
         return {
@@ -90,7 +90,7 @@ def add_transaction(
     url = f"{base_url.rstrip('/')}/v1/accounts/{account_id}/transactions"
     payload = [{
         "date":    date,
-        "amount":  int(amount * 100),  # ActualBudget uses cents
+        "amount":  int(amount * 1000),  # ActualBudget uses millicents
         "payee":   payee,
         "notes":   notes,
         "cleared": False,
@@ -165,8 +165,8 @@ def get_travel_expenses(
                 cat_name = str(tx.get("category_name", tx.get("category", ""))).lower()
                 if not category_names_lower or any(c in cat_name for c in category_names_lower):
                     amount_raw = tx.get("amount", 0)
-                    # ActualBudget speichert Beträge in Cent
-                    amount = float(amount_raw) / 100 if abs(float(amount_raw)) > 100 else float(amount_raw)
+                    # ActualBudget speichert Beträge in Millicent (×1000)
+                    amount = float(amount_raw) / 1000
 
                     all_transactions.append({
                         "date":       tx.get("date", ""),
@@ -191,3 +191,4 @@ def get_travel_expenses(
         "year":         year,
         "categories":   category_names,
     }
+
