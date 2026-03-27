@@ -54,7 +54,7 @@ def debug_actual(config: ActualConfig):
     """
     Debug: Liste Budget-Dateien und zeige erste Transaktionen + Kategorien.
     """
-    from actual_budget import list_budget_files, get_travel_expenses
+    from actual_budget import list_budget_files, get_travel_expenses, _normalize_date
 
     result = {}
 
@@ -85,7 +85,7 @@ def debug_actual(config: ActualConfig):
                 if tx.tombstone:
                     continue
                 sample.append({
-                    "date":     str(tx.date),
+                    "date":     _normalize_date(tx.date),
                     "payee":    tx.payee.name if tx.payee else None,
                     "category": tx.category.name if tx.category else None,
                     "amount":   (tx.amount or 0) / 100,
@@ -98,3 +98,4 @@ def debug_actual(config: ActualConfig):
         result["debug_error"] = str(e)
 
     return result
+
