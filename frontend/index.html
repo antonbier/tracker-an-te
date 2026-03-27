@@ -1473,7 +1473,7 @@ function toggleTheme(isLight) {
   localStorage.setItem('theme', isLight ? 'light' : 'dark');
 }
 
-function saveSettings() {
+async function saveSettings() {
   API_URL = document.getElementById('s-backendUrl').value.trim().replace(/\/$/, '');
   localStorage.setItem('apiUrl', API_URL);
   ['s-timezone','s-dawarichUrl','s-dawarichToken','s-actualUrl','s-actualToken','s-llmProvider','s-llmKey','s-serpApiKey','s-geminiKey','s-openaiKey'].forEach(k => {
