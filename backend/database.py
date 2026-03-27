@@ -1,6 +1,7 @@
 """
-Datenbank-Layer — SQLite via sqlite3 (kein ORM, maximale Portabilität).
-Schema: trackers + price_snapshots
+WanderSuite v0.1 — Datenbank-Layer
+SQLite via sqlite3 (kein ORM, maximale Portabilität).
+Schema: trackers + price_snapshots (inkl. Sitzplatzreservierung)
 """
 
 import sqlite3
@@ -14,8 +15,8 @@ DB_PATH = os.environ.get("DB_PATH", "tracker.db")
 
 def get_connection() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
-    conn.row_factory = sqlite3.Row   # Ergebnisse als dict-ähnliche Objekte
-    conn.execute("PRAGMA journal_mode=WAL")  # Bessere Concurrent-Performance
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
     return conn
 
@@ -35,52 +36,66 @@ def db():
 
 
 def init_db():
-    """Tabellen anlegen falls nicht vorhanden."""
+    """Tabellen anlegen + Migrationen falls nötig."""
     with db() as conn:
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS trackers (
-                id            INTEGER PRIMARY KEY AUTOINCREMENT,
-                origin        TEXT    NOT NULL,
-                destination   TEXT    NOT NULL,
-                outbound_date TEXT    NOT NULL,
-                return_date   TEXT,
-                adults        INTEGER NOT NULL DEFAULT 1,
-                children      INTEGER NOT NULL DEFAULT 0,
-                baggage_json  TEXT    NOT NULL DEFAULT '[]',
-                active        INTEGER NOT NULL DEFAULT 1,
-                created_at    TEXT    NOT NULL
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                origin          TEXT    NOT NULL,
+                destination     TEXT    NOT NULL,
+                outbound_date   TEXT    NOT NULL,
+                return_date     TEXT,
+                adults          INTEGER NOT NULL DEFAULT 1,
+                children        INTEGER NOT NULL DEFAULT 0,
+                baggage_json    TEXT    NOT NULL DEFAULT '[]',
+                seat_cost       REAL    NOT NULL DEFAULT 0,
+                active          INTEGER NOT NULL DEFAULT 1,
+                created_at      TEXT    NOT NULL
             );
 
             CREATE TABLE IF NOT EXISTS price_snapshots (
-                id                INTEGER PRIMARY KEY AUTOINCREMENT,
-                tracker_id        INTEGER NOT NULL REFERENCES trackers(id) ON DELETE CASCADE,
-                fetched_at        TEXT    NOT NULL,
-                flight_price      REAL,
-                baggage_price     REAL,
-                total_price       REAL,
-                outbound_flight   TEXT,
-                return_flight     TEXT,
-                currency          TEXT    DEFAULT 'EUR',
-                baggage_fallback  INTEGER DEFAULT 0,
-                status            TEXT    NOT NULL DEFAULT 'ok',
-                error_message     TEXT,
-                raw_json          TEXT
+                id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                tracker_id       INTEGER NOT NULL REFERENCES trackers(id) ON DELETE CASCADE,
+                fetched_at       TEXT    NOT NULL,
+                flight_price     REAL,
+                baggage_price    REAL,
+                seat_price       REAL    DEFAULT 0,
+                total_price      REAL,
+                outbound_flight  TEXT,
+                return_flight    TEXT,
+                currency         TEXT    DEFAULT 'EUR',
+                baggage_fallback INTEGER DEFAULT 0,
+                status           TEXT    NOT NULL DEFAULT 'ok',
+                error_message    TEXT,
+                raw_json         TEXT
             );
 
             CREATE INDEX IF NOT EXISTS idx_snapshots_tracker
                 ON price_snapshots(tracker_id, fetched_at DESC);
         """)
 
+        # Migration: add seat_cost column if upgrading from older schema
+        try:
+            conn.execute("ALTER TABLE trackers ADD COLUMN seat_cost REAL NOT NULL DEFAULT 0")
+        except Exception:
+            pass  # Column already exists
 
-# ─── Tracker CRUD ────────────────────────────────────────────
+        # Migration: add seat_price column to snapshots
+        try:
+            conn.execute("ALTER TABLE price_snapshots ADD COLUMN seat_price REAL DEFAULT 0")
+        except Exception:
+            pass
+
+
+# ─── Tracker CRUD ─────────────────────────────────────
 
 def create_tracker(data: dict) -> int:
     with db() as conn:
         cur = conn.execute("""
             INSERT INTO trackers
               (origin, destination, outbound_date, return_date,
-               adults, children, baggage_json, active, created_at)
-            VALUES (?,?,?,?,?,?,?,1,?)
+               adults, children, baggage_json, seat_cost, active, created_at)
+            VALUES (?,?,?,?,?,?,?,?,1,?)
         """, (
             data["origin"].upper(),
             data["destination"].upper(),
@@ -89,6 +104,7 @@ def create_tracker(data: dict) -> int:
             data.get("adults", 1),
             data.get("children", 0),
             json.dumps(data.get("baggage", [])),
+            data.get("seat_cost", 0.0),
             datetime.utcnow().isoformat(),
         ))
         return cur.lastrowid
@@ -136,21 +152,22 @@ def toggle_tracker(tracker_id: int, active: bool) -> bool:
         return cur.rowcount > 0
 
 
-# ─── Snapshot CRUD ───────────────────────────────────────────
+# ─── Snapshot CRUD ────────────────────────────────────
 
 def save_snapshot(tracker_id: int, snap: dict) -> int:
     with db() as conn:
         cur = conn.execute("""
             INSERT INTO price_snapshots
-              (tracker_id, fetched_at, flight_price, baggage_price, total_price,
-               outbound_flight, return_flight, currency,
+              (tracker_id, fetched_at, flight_price, baggage_price, seat_price,
+               total_price, outbound_flight, return_flight, currency,
                baggage_fallback, status, error_message, raw_json)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (
             tracker_id,
             snap.get("fetched_at", datetime.utcnow().isoformat()),
             snap.get("flight_price"),
             snap.get("baggage_price"),
+            snap.get("seat_price", 0.0),
             snap.get("total_price"),
             snap.get("outbound_flight"),
             snap.get("return_flight"),

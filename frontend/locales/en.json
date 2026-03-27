@@ -109,5 +109,10 @@
   "budgetNoActual": "ActualBudget not configured — add it in Settings.",
   "googleFlightsDesc": "Google Flights price monitoring — coming soon.",
   "homairDesc": "Homair campsite tracker — coming soon.",
-  "bookingDesc": "Booking.com / Trivago accommodation tracker — coming soon."
+  "bookingDesc": "Booking.com / Trivago accommodation tracker — coming soon.",
+  "seatReservation": "Seat Reservation",
+  "seatPerPersonFlight": "Flat rate per person/flight (€)",
+  "seatNote": "Estimated cost — varies by seat selection",
+  "seat": "Seat",
+  "noSeat": "No seat"
 }

@@ -1,5 +1,6 @@
 """
-REST Routes: /api/trackers
+WanderSuite v0.1 — REST Routes: /api/trackers
+CRUD für Tracker + manuelles Scraping triggern.
 """
 
 from fastapi import APIRouter, HTTPException
@@ -39,6 +40,7 @@ class TrackerCreate(BaseModel):
     adults:        int = 1
     children:      int = 0
     baggage:       list[BaggageItem] = []
+    seat_cost:     float = 0.0          # Sitzplatz-Pauschale pro Person/Flug
 
     @field_validator("origin", "destination")
     @classmethod
@@ -63,6 +65,13 @@ class TrackerCreate(BaseModel):
         if v < 1:
             raise ValueError("Mindestens 1 Erwachsener erforderlich")
         return v
+
+    @field_validator("seat_cost")
+    @classmethod
+    def valid_seat_cost(cls, v):
+        if v < 0:
+            raise ValueError("Sitzplatzkosten können nicht negativ sein")
+        return round(v, 2)
 
 
 @router.get("")
@@ -115,4 +124,4 @@ def manual_scrape(tracker_id: int):
     except Exception as e:
         tb = traceback.format_exc()
         logger.error(f"Scraping Fehler Tracker #{tracker_id}:\n{tb}")
-        raise HTTPException(500, detail=f"{type(e).__name__}: {str(e)}\n\n{tb}")
+        raise HTTPException(500, detail=f"{type(e).__name__}: {str(e)}")

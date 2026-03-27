@@ -444,6 +444,17 @@ body.light-mode { --bg:#f4f5f7; --surface:#ffffff; --surface2:#eef0f3; --border:
               </div>
               <div style="font-size:.66rem;color:var(--sub);margin-top:.45rem" data-i18n="baggageNote">✓ Basic/Value-Tarif immer inklusive</div>
             </div>
+
+            <!-- Seat Reservation -->
+            <div class="baggage-section">
+              <div class="baggage-title" data-i18n="seatReservation">🪑 Sitzplatzreservierung</div>
+              <div class="form-group">
+                <label data-i18n="seatPerPersonFlight">Pauschale pro Person/Flug (€)</label>
+                <input type="number" id="seatCost" placeholder="0.00" min="0" step="0.01" value="0">
+              </div>
+              <div style="font-size:.66rem;color:var(--sub);margin-top:.4rem" data-i18n="seatNote">Geschätzte Kosten — variiert je nach Sitzplatz</div>
+            </div>
+
             <button class="btn btn-primary" id="addBtn" onclick="addTracker()">
               + <span data-i18n="startTracker">Tracker starten</span>
             </button>
@@ -482,6 +493,7 @@ body.light-mode { --bg:#f4f5f7; --surface:#ffffff; --surface2:#eef0f3; --border:
                   <th data-i18n="returnFlight">Rückflug</th>
                   <th data-i18n="tickets">Tickets</th>
                   <th data-i18n="baggage">Gepäck</th>
+                  <th data-i18n="seat">Sitzplatz</th>
                   <th data-i18n="total">Gesamt</th>
                   <th data-i18n="status">Status</th>
                 </tr></thead>
@@ -867,10 +879,12 @@ async function addTracker() {
       adults: parseInt(document.getElementById('adults').value),
       children: parseInt(document.getElementById('children').value),
       baggage: [...selectedBags].map(type => ({ type, per_person: true })),
+      seat_cost: parseFloat(document.getElementById('seatCost').value) || 0,
     })});
     toast(`${t('trackerAdded')} ✓ ${origin} → ${dest}`, 'success');
     document.getElementById('origin').value = '';
     document.getElementById('destination').value = '';
+    document.getElementById('seatCost').value = '0';
     selectedBags.clear();
     ['10kg','20kg','23kg'].forEach(tp => {
       document.getElementById('bag-'+tp).classList.remove('selected');
@@ -967,6 +981,7 @@ function renderChart(data) {
       { label:t('total'),   data:data.total_prices,   borderColor:'#ff5533', backgroundColor:'rgba(255,85,51,.08)', borderWidth:2, pointRadius:4, pointHoverRadius:6, pointBackgroundColor:'#ff5533', fill:true, tension:.3 },
       { label:t('tickets'), data:data.flight_prices,  borderColor:'#ff8c00', backgroundColor:'transparent', borderWidth:1.5, borderDash:[4,3], pointRadius:3, fill:false, tension:.3 },
       { label:t('baggage'), data:data.baggage_prices, borderColor:'#7a7d88', backgroundColor:'transparent', borderWidth:1.5, borderDash:[2,4], pointRadius:2, fill:false, tension:.3 },
+      { label:t('seat'),    data:data.seat_prices,   borderColor:'#8b5cf6', backgroundColor:'transparent', borderWidth:1.5, borderDash:[3,5], pointRadius:2, fill:false, tension:.3 },
     ]},
     options:{
       responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
@@ -985,7 +1000,8 @@ function renderChart(data) {
 function renderTable(snaps) {
   document.getElementById('snapshotTable').innerHTML = [...snaps].reverse().slice(0,30).map(s => {
     const st = s.status==='ok' ? (s.baggage_fallback?`<span class="badge badge-fallback">~${t('estimate')}</span>`:'<span class="badge badge-ok">✓</span>') : `<span class="badge badge-blocked">${s.status}</span>`;
-    return `<tr><td>${(s.fetched_at||'').slice(0,10)}</td><td>${s.outbound_flight||'–'}</td><td>${s.return_flight||'–'}</td><td>${s.flight_price!=null?s.flight_price.toFixed(2)+' €':'–'}</td><td>${s.baggage_price!=null?s.baggage_price.toFixed(2)+' €':'–'}</td><td style="color:var(--green);font-weight:700">${s.total_price!=null?s.total_price.toFixed(2)+' €':'–'}</td><td>${st}</td></tr>`;
+    const seatP = s.seat_price != null && s.seat_price > 0 ? s.seat_price.toFixed(2)+' €' : '–';
+    return `<tr><td>${(s.fetched_at||'').slice(0,10)}</td><td>${s.outbound_flight||'–'}</td><td>${s.return_flight||'–'}</td><td>${s.flight_price!=null?s.flight_price.toFixed(2)+' €':'–'}</td><td>${s.baggage_price!=null?s.baggage_price.toFixed(2)+' €':'–'}</td><td>${seatP}</td><td style="color:var(--green);font-weight:700">${s.total_price!=null?s.total_price.toFixed(2)+' €':'–'}</td><td>${st}</td></tr>`;
   }).join('');
 }
 

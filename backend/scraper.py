@@ -1,5 +1,8 @@
 """
-Ryanair API Scraper
+WanderSuite v0.1 — Ryanair API Scraper
+Anti-Bot: UA-Rotation, Cookie-Prefetch, Retry-Logik.
+Gepäck: Fallback-Preise (dynamische API in v0.2).
+Sitzplatz: Pauschale aus Tracker-Konfiguration.
 """
 
 import requests
@@ -16,6 +19,7 @@ USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
 ]
 
+# Fallback-Gepäckpreise (Europa, Hochsaison — dynamische Preise in v0.2)
 BAGGAGE_FALLBACK = {
     "10kg": 22.99,
     "20kg": 34.99,
@@ -24,12 +28,12 @@ BAGGAGE_FALLBACK = {
 
 
 def _make_session() -> requests.Session:
+    """Session mit zufälligem Browser-Fingerprint aufbauen."""
     s = requests.Session()
     s.headers.update({
         "User-Agent": random.choice(USER_AGENTS),
         "Accept": "application/json, text/plain, */*",
         "Accept-Language": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7",
-        # Kein Accept-Encoding — requests handled Dekompression automatisch
         "Origin": "https://www.ryanair.com",
         "Referer": "https://www.ryanair.com/de/de/buchen/fluge-finden",
         "Sec-Fetch-Dest": "empty",
@@ -41,6 +45,10 @@ def _make_session() -> requests.Session:
 
 
 def fetch_flights(tracker: dict) -> dict:
+    """
+    Hauptfunktion: Flugpreis + Gepäck + Sitzplatz abrufen.
+    Gibt dict mit {status, snapshot} zurück.
+    """
     session = _make_session()
     origin      = tracker["origin"]
     destination = tracker["destination"]
@@ -48,10 +56,11 @@ def fetch_flights(tracker: dict) -> dict:
     ret_date    = tracker.get("return_date")
     adults      = tracker.get("adults", 1)
     baggage     = tracker.get("baggage", [])
+    seat_cost   = float(tracker.get("seat_cost", 0.0))
 
-    logger.info(f"Fetching: {origin}→{destination} {out_date} | adults={adults}")
+    logger.info(f"Fetching: {origin}→{destination} {out_date} | adults={adults} | seat={seat_cost}€")
 
-    # Cookies holen
+    # Cookie-Prefetch (Anti-Bot)
     try:
         session.get("https://www.ryanair.com/de/de", timeout=10)
         time.sleep(random.uniform(1.5, 3.0))
@@ -77,25 +86,25 @@ def fetch_flights(tracker: dict) -> dict:
 
     try:
         resp = session.get(url, params=params, timeout=20)
-        logger.info(f"Status: {resp.status_code} | Encoding: {resp.encoding} | Content-Type: {resp.headers.get('content-type','?')}")
+        logger.info(f"Status: {resp.status_code} | Content-Type: {resp.headers.get('content-type','?')}")
     except requests.RequestException as e:
         return _error_snap(f"Request fehlgeschlagen: {str(e)}")
 
     if resp.status_code == 403:
-        return _error_snap(f"Ryanair blockiert (403)", "blocked")
+        return _error_snap("Ryanair blockiert (403)", "blocked")
 
     if not resp.ok:
-        return _error_snap(f"API Fehler {resp.status_code}: {resp.text[:300]}")
+        return _error_snap(f"API Fehler {resp.status_code}: {resp.text[:200]}")
 
+    # JSON parsen (mit UTF-8 Fallback)
     try:
         data = resp.json()
-    except Exception as e:
-        # Fallback: manuell dekodieren
+    except Exception:
         try:
             import json
             data = json.loads(resp.content.decode("utf-8"))
         except Exception as e2:
-            return _error_snap(f"JSON Parse Fehler: {str(e2)} | encoding={resp.encoding} | content-type={resp.headers.get('content-type')}")
+            return _error_snap(f"JSON Parse Fehler: {str(e2)}")
 
     currency = data.get("currency", "EUR")
     outbound = _cheapest_flight(data, origin, destination)
@@ -104,22 +113,29 @@ def fetch_flights(tracker: dict) -> dict:
     if not outbound:
         return _error_snap(f"Keine Flüge: {origin}→{destination} am {out_date}")
 
+    # Ticketpreis (alle Passagiere)
     ticket_total = outbound["price"] * adults
     if inbound:
         ticket_total += inbound["price"] * adults
 
+    # Gepäckkosten (Fallback-Preise)
     baggage_cost = sum(
         BAGGAGE_FALLBACK.get(b["type"], 0) * (adults if b.get("per_person") else 1)
         for b in baggage
     )
 
-    total = round(ticket_total + baggage_cost, 2)
-    logger.info(f"✅ Preis: {total} {currency}")
+    # Sitzplatzkosten: Pauschale × Passagiere × Flüge
+    num_flights = 2 if ret_date else 1
+    seat_total = seat_cost * adults * num_flights
+
+    total = round(ticket_total + baggage_cost + seat_total, 2)
+    logger.info(f"✅ Tickets:{ticket_total:.2f} + Gepäck:{baggage_cost:.2f} + Sitz:{seat_total:.2f} = {total} {currency}")
 
     return {"status": "ok", "snapshot": {
         "fetched_at":       datetime.utcnow().isoformat(),
         "flight_price":     round(ticket_total, 2),
         "baggage_price":    round(baggage_cost, 2),
+        "seat_price":       round(seat_total, 2),
         "total_price":      total,
         "outbound_flight":  outbound["flight_number"],
         "return_flight":    inbound["flight_number"] if inbound else None,
@@ -139,6 +155,7 @@ def _error_snap(msg: str, status: str = "error") -> dict:
 
 
 def _cheapest_flight(data: dict, orig: str, dest: str) -> dict | None:
+    """Günstigsten verfügbaren Flug in gegebener Richtung extrahieren."""
     best = None
     best_price = float("inf")
     for trip in data.get("trips", []):
