@@ -97,7 +97,7 @@ def get_travel_expenses(
 
             all_transactions = []
             for tx in txs:
-                if tx.transfer_id or tx.tombstone:
+                if tx.transferred_id or tx.tombstone:
                     continue
 
                 date_str = _normalize_date(tx.date)
