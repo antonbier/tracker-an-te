@@ -19,7 +19,7 @@ import requests
 import logging
 import math
 import time
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from collections import defaultdict
 from typing import Optional
 
@@ -119,6 +119,10 @@ def fetch_points(
 def normalize_point(point: dict) -> Optional[dict]:
     """
     Verschiedene Dawarich-Punkt-Formate normalisieren.
+    Unterstützt:
+      - ISO-8601: "2024-10-12T14:30:00Z", "2024-10-12T14:30:00+02:00", "2024-10-12 14:30:00"
+      - Datum-only: "2024-10-12"
+      - Unix-Timestamp (int/float/string): 1728734400
     Gibt {lat, lon, date_str} zurück oder None wenn ungültig.
     """
     # Koordinaten
@@ -140,14 +144,61 @@ def normalize_point(point: dict) -> Optional[dict]:
     if not ts:
         return None
 
-    try:
-        # ISO-Format: 2024-10-12T14:30:00Z oder 2024-10-12 14:30:00
-        date_str = str(ts)[:10]
-        datetime.strptime(date_str, "%Y-%m-%d")
-    except ValueError:
+    date_str = _parse_timestamp(ts)
+    if not date_str:
+        logger.debug(f"[Dawarich] Unbekanntes Timestamp-Format: {repr(ts)}")
         return None
 
     return {"lat": lat, "lon": lon, "date": date_str}
+
+
+def _parse_timestamp(ts) -> Optional[str]:
+    """
+    Timestamp in 'YYYY-MM-DD' umwandeln.
+    Unterstützt ISO-Strings, Unix-Integer und Unix-Strings.
+    """
+    # Unix-Timestamp (Integer oder Float)
+    if isinstance(ts, (int, float)):
+        try:
+            return datetime.fromtimestamp(float(ts), tz=timezone.utc).strftime("%Y-%m-%d")
+        except (OSError, OverflowError, ValueError):
+            return None
+
+    ts_str = str(ts).strip()
+
+    # Datum-only: "2024-10-12"
+    if len(ts_str) == 10:
+        try:
+            datetime.strptime(ts_str, "%Y-%m-%d")
+            return ts_str
+        except ValueError:
+            pass
+
+    # Unix-Timestamp als String: "1728734400" oder "1728734400.0"
+    try:
+        unix = float(ts_str)
+        # Plausibilitätsprüfung: 2000-01-01 bis 2100-01-01
+        if 946_684_800 <= unix <= 4_102_444_800:
+            return datetime.fromtimestamp(unix, tz=timezone.utc).strftime("%Y-%m-%d")
+    except ValueError:
+        pass
+
+    # ISO-Format mit Zeitzone: "2024-10-12T14:30:00Z", "+02:00", etc.
+    # Erst die ersten 19 Zeichen nehmen (YYYY-MM-DDTHH:MM:SS)
+    ts_clean = ts_str[:19].replace("T", " ").replace("/", "-")
+    for fmt, length in [("%Y-%m-%d %H:%M:%S", 19), ("%Y-%m-%d %H:%M", 16), ("%Y-%m-%d", 10)]:
+        try:
+            return datetime.strptime(ts_clean[:length], fmt).strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+
+    # Letzter Versuch: direkt die ersten 10 Zeichen
+    try:
+        candidate = ts_str[:10]
+        datetime.strptime(candidate, "%Y-%m-%d")
+        return candidate
+    except ValueError:
+        return None
 
 
 # ─── Trip Detection Algorithm ────────────────────────
