@@ -215,110 +215,92 @@
 <div class="toast-container" id="toastContainer"></div>
 
 <script>
-const TRANSLATIONS = {
-  de: {
-    title:'WanderSuite',refresh:'Aktualisieren',backendConfig:'Backend-URL konfigurieren',
-    backendHint:'trage die URL deines Railway-Deployments ein',newTracker:'Neuen Tracker anlegen',
-    from:'Von (IATA)',to:'Nach (IATA)',outbound:'Hinflug',return:'Rückflug (opt.)',
-    adults:'Erwachsene',children:'Kinder',
-    adult1:'1 Erwachsener',adult2:'2 Erwachsene',adult3:'3 Erwachsene',adult4:'4 Erwachsene',adult5:'5 Erwachsene',
-    child0:'Keine Kinder',child1:'1 Kind',child2:'2 Kinder',child3:'3 Kinder',
-    baggageTitle:'🧳 Gepäck (pro Person)',bag10:'10 kg Check-in Koffer',bag20:'20 kg Check-in Koffer',bag23:'23 kg Koffer (Large)',
-    baggageNote:'✓ Basic/Value-Tarif (kleiner Rucksack) immer inklusive',
-    startTracker:'Tracker starten',activeTrackers:'Aktive Tracker',loading:'Lade...',
-    noTrackers:'Noch keine Tracker — leg einen an!',priceHistory:'Preisverlauf',
-    selectTracker:'Wähle einen Tracker aus um den Verlauf zu sehen',historyDetails:'Verlaufsdetails',
-    date:'Datum',outboundFlight:'Hinflug',returnFlight:'Rückflug',tickets:'Tickets',baggage:'Gepäck',total:'Gesamt',status:'Status',
-    current:'Aktuell',lowestPrice:'Tiefstpreis',change:'Änderung',
-    scrapeStarted:'Abruf gestartet...',scrapeError:'Scraping fehlgeschlagen',
-    deleteConfirm:'Tracker und alle gespeicherten Preise löschen?',deleted:'Tracker gelöscht',
-    error:'Fehler',paused:'Pausiert',activated:'Aktiviert',trackerAdded:'Tracker angelegt',
-    estimate:'Schätzung',oneWay:'Einweg',adultShort:'Erw.',backpackOnly:'Nur Rucksack',
-    loadingChart:'Lade Preisverlauf...',noData:'Noch keine Daten',blocked:'Geblockt',
-    invalidOrigin:'Gültigen Abflug-IATA eingeben (z.B. BGY)',invalidDest:'Gültigen Ziel-IATA eingeben (z.B. DUB)',
-    missingDate:'Hinflugdatum wählen',missingUrl:'Bitte zuerst Backend-URL eintragen',creatingTracker:'Anlegen...',
-  },
-  it: {
-    title:'Tracciatore Prezzi',refresh:'Aggiorna',backendConfig:'Configura URL Backend',
-    backendHint:"inserisci l'URL del tuo deployment Railway",newTracker:'Nuovo Tracker',
-    from:'Da (IATA)',to:'A (IATA)',outbound:'Andata',return:'Ritorno (opt.)',
-    adults:'Adulti',children:'Bambini',
-    adult1:'1 Adulto',adult2:'2 Adulti',adult3:'3 Adulti',adult4:'4 Adulti',adult5:'5 Adulti',
-    child0:'Nessun bambino',child1:'1 Bambino',child2:'2 Bambini',child3:'3 Bambini',
-    baggageTitle:'🧳 Bagaglio (per persona)',bag10:'Valigia 10 kg da stiva',bag20:'Valigia 20 kg da stiva',bag23:'Valigia 23 kg (Large)',
-    baggageNote:'✓ Tariffa Basic/Value (zaino piccolo) sempre inclusa',
-    startTracker:'Avvia Tracker',activeTrackers:'Tracker Attivi',loading:'Caricamento...',
-    noTrackers:'Nessun tracker — creane uno!',priceHistory:'Storico Prezzi',
-    selectTracker:'Seleziona un tracker per vedere lo storico',historyDetails:'Dettagli Storico',
-    date:'Data',outboundFlight:'Andata',returnFlight:'Ritorno',tickets:'Biglietti',baggage:'Bagaglio',total:'Totale',status:'Stato',
-    current:'Attuale',lowestPrice:'Prezzo minimo',change:'Variazione',
-    scrapeStarted:'Richiesta avviata...',scrapeError:'Errore scraping',
-    deleteConfirm:'Eliminare il tracker e tutti i prezzi salvati?',deleted:'Tracker eliminato',
-    error:'Errore',paused:'In pausa',activated:'Riattivato',trackerAdded:'Tracker creato',
-    estimate:'Stima',oneWay:'Solo andata',adultShort:'Ad.',backpackOnly:'Solo zaino',
-    loadingChart:'Caricamento storico...',noData:'Ancora nessun dato',blocked:'Bloccato',
-    invalidOrigin:'Inserisci un codice IATA valido per la partenza (es. BGY)',invalidDest:'Inserisci un codice IATA valido per la destinazione (es. DUB)',
-    missingDate:'Seleziona la data di andata',missingUrl:"Inserisci prima l'URL del Backend",creatingTracker:'Creazione...',
-  },
-  en: {
-    title:'Price Tracker',refresh:'Refresh',backendConfig:'Configure Backend URL',
-    backendHint:'enter your Railway deployment URL',newTracker:'New Tracker',
-    from:'From (IATA)',to:'To (IATA)',outbound:'Outbound',return:'Return (opt.)',
-    adults:'Adults',children:'Children',
-    adult1:'1 Adult',adult2:'2 Adults',adult3:'3 Adults',adult4:'4 Adults',adult5:'5 Adults',
-    child0:'No children',child1:'1 Child',child2:'2 Children',child3:'3 Children',
-    baggageTitle:'🧳 Baggage (per person)',bag10:'10 kg Check-in Bag',bag20:'20 kg Check-in Bag',bag23:'23 kg Bag (Large)',
-    baggageNote:'✓ Basic/Value fare (small backpack) always included',
-    startTracker:'Start Tracker',activeTrackers:'Active Trackers',loading:'Loading...',
-    noTrackers:'No trackers yet — create one!',priceHistory:'Price History',
-    selectTracker:'Select a tracker to view its history',historyDetails:'History Details',
-    date:'Date',outboundFlight:'Outbound',returnFlight:'Return',tickets:'Tickets',baggage:'Baggage',total:'Total',status:'Status',
-    current:'Current',lowestPrice:'Lowest Price',change:'Change',
-    scrapeStarted:'Fetch started...',scrapeError:'Scraping failed',
-    deleteConfirm:'Delete tracker and all saved prices?',deleted:'Tracker deleted',
-    error:'Error',paused:'Paused',activated:'Activated',trackerAdded:'Tracker created',
-    estimate:'Estimate',oneWay:'One-way',adultShort:'Ad.',backpackOnly:'Backpack only',
-    loadingChart:'Loading history...',noData:'No data yet',blocked:'Blocked',
-    invalidOrigin:'Enter a valid origin IATA code (e.g. BGY)',invalidDest:'Enter a valid destination IATA code (e.g. DUB)',
-    missingDate:'Select outbound date',missingUrl:'Please enter the Backend URL first',creatingTracker:'Creating...',
-  }
-};
+/**
+ * WanderSuite v0.1 — i18n Engine
+ * Loads translations from /locales/{lang}.json
+ * Falls back to 'de' if a key is missing.
+ */
 
+let TRANSLATIONS = {};
 let currentLang = localStorage.getItem('lang') || 'de';
 let API_URL = localStorage.getItem('apiUrl') || '';
 let selectedTrackerId = null;
 let priceChart = null;
 let selectedBags = new Set();
 
-function t(key) { return TRANSLATIONS[currentLang]?.[key] || TRANSLATIONS.de[key] || key; }
+// ── i18n: Load locale JSON from server ──────────────
+async function loadLocale(lang) {
+  try {
+    const resp = await fetch(`/locales/${lang}.json?v=0.1`);
+    if (!resp.ok) throw new Error(`Locale ${lang} not found`);
+    TRANSLATIONS[lang] = await resp.json();
+  } catch(e) {
+    console.warn(`Could not load locale '${lang}':`, e);
+    // Fallback: try 'de'
+    if (lang !== 'de' && !TRANSLATIONS['de']) {
+      await loadLocale('de');
+    }
+  }
+}
 
-function setLang(lang) {
+// ── i18n: Translate a key ────────────────────────────
+function t(key) {
+  return TRANSLATIONS[currentLang]?.[key]
+      || TRANSLATIONS['de']?.[key]
+      || key;
+}
+
+// ── i18n: Apply translations to DOM ─────────────────
+function applyTranslations() {
+  document.documentElement.lang = currentLang;
+  document.title = t('title') + ' v0.1';
+
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    el.textContent = t(el.getAttribute('data-i18n'));
+  });
+  document.querySelectorAll('[data-i18n-opt]').forEach(el => {
+    el.textContent = t(el.getAttribute('data-i18n-opt'));
+  });
+  document.querySelectorAll('.lang-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.textContent === currentLang.toUpperCase());
+  });
+}
+
+// ── Language switch ──────────────────────────────────
+async function setLang(lang) {
+  if (!TRANSLATIONS[lang]) await loadLocale(lang);
   currentLang = lang;
   localStorage.setItem('lang', lang);
-  document.documentElement.lang = lang;
-  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.getAttribute('data-i18n')); });
-  document.querySelectorAll('[data-i18n-opt]').forEach(el => { el.textContent = t(el.getAttribute('data-i18n-opt')); });
-  document.querySelectorAll('.lang-btn').forEach(btn => { btn.classList.toggle('active', btn.textContent === lang.toUpperCase()); });
+  applyTranslations();
   loadTrackers();
   if (selectedTrackerId) selectTracker(selectedTrackerId);
 }
 
-window.addEventListener('DOMContentLoaded', () => {
+// ── Init ─────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', async () => {
+  // Load default + current locale in parallel
+  const toLoad = currentLang === 'de' ? ['de'] : ['de', currentLang];
+  await Promise.all(toLoad.map(loadLocale));
+  applyTranslations();
+
   const saved = localStorage.getItem('apiUrl') || '';
   document.getElementById('apiUrlInput').value = saved;
   API_URL = saved;
+
   const today = new Date();
   const out = new Date(today); out.setDate(out.getDate() + 30);
   const ret = new Date(today); ret.setDate(ret.getDate() + 37);
   document.getElementById('outboundDate').value = fmt(out);
   document.getElementById('returnDate').value = fmt(ret);
-  setLang(currentLang);
+
   checkApiStatus();
+  loadTrackers();
 });
 
 function fmt(d) { return d.toISOString().slice(0,10); }
 function saveApiUrl(val) { API_URL = val.trim().replace(/\/$/, ''); localStorage.setItem('apiUrl', API_URL); }
 
+// ── API ───────────────────────────────────────────────
 async function api(path, opts = {}) {
   if (!API_URL) throw new Error(t('missingUrl'));
   const r = await fetch(API_URL + path, { headers: { 'Content-Type': 'application/json' }, ...opts });
@@ -332,11 +314,20 @@ async function checkApiStatus() {
   catch { dot.style.background = 'var(--red)'; dot.style.boxShadow = '0 0 6px var(--red)'; }
 }
 
+// ── Baggage ───────────────────────────────────────────
 function toggleBag(type) {
-  if (selectedBags.has(type)) { selectedBags.delete(type); document.getElementById('bag-'+type).classList.remove('selected'); document.getElementById('chk-'+type).textContent = ''; }
-  else { selectedBags.add(type); document.getElementById('bag-'+type).classList.add('selected'); document.getElementById('chk-'+type).textContent = '✓'; }
+  if (selectedBags.has(type)) {
+    selectedBags.delete(type);
+    document.getElementById('bag-'+type).classList.remove('selected');
+    document.getElementById('chk-'+type).textContent = '';
+  } else {
+    selectedBags.add(type);
+    document.getElementById('bag-'+type).classList.add('selected');
+    document.getElementById('chk-'+type).textContent = '✓';
+  }
 }
 
+// ── Add Tracker ───────────────────────────────────────
 async function addTracker() {
   const btn = document.getElementById('addBtn');
   const origin = document.getElementById('origin').value.trim().toUpperCase();
@@ -350,17 +341,27 @@ async function addTracker() {
   btn.disabled = true;
   btn.innerHTML = `<span class="spinner"></span> ${t('creatingTracker')}`;
   try {
-    await api('/api/trackers', { method: 'POST', body: JSON.stringify({ origin, destination: dest, outbound_date: outDate, return_date: retDate || null, adults: parseInt(document.getElementById('adults').value), children: parseInt(document.getElementById('children').value), baggage: [...selectedBags].map(type => ({ type, per_person: true })) }) });
+    await api('/api/trackers', { method: 'POST', body: JSON.stringify({
+      origin, destination: dest, outbound_date: outDate,
+      return_date: retDate || null,
+      adults: parseInt(document.getElementById('adults').value),
+      children: parseInt(document.getElementById('children').value),
+      baggage: [...selectedBags].map(type => ({ type, per_person: true })),
+    })});
     toast(`${t('trackerAdded')} ✓ ${origin} → ${dest}`, 'success');
     document.getElementById('origin').value = '';
     document.getElementById('destination').value = '';
     selectedBags.clear();
-    ['10kg','20kg','23kg'].forEach(tp => { document.getElementById('bag-'+tp).classList.remove('selected'); document.getElementById('chk-'+tp).textContent = ''; });
+    ['10kg','20kg','23kg'].forEach(tp => {
+      document.getElementById('bag-'+tp).classList.remove('selected');
+      document.getElementById('chk-'+tp).textContent = '';
+    });
     loadTrackers();
   } catch(e) { toast(`${t('error')}: ${e.message}`, 'error'); }
   finally { btn.disabled = false; btn.innerHTML = `+ ${t('startTracker')}`; }
 }
 
+// ── Load Trackers ─────────────────────────────────────
 async function loadTrackers() {
   const el = document.getElementById('trackerList');
   try { const trackers = await api('/api/trackers'); renderTrackers(trackers); }
@@ -373,9 +374,11 @@ function renderTrackers(trackers) {
   el.innerHTML = trackers.map(tr => {
     const snap = tr.latest_snapshot;
     const priceStr = snap?.total_price ? `${snap.total_price.toFixed(2)} €` : '–';
-    const statusBadge = !tr.active ? `<span class="badge badge-paused">${t('paused')}</span>`
-      : snap?.status === 'ok' ? (snap.baggage_fallback ? `<span class="badge badge-fallback">~${t('estimate')}</span>` : '<span class="badge badge-ok">Live</span>')
-      : snap?.status === 'blocked' ? `<span class="badge badge-blocked">${t('blocked')}</span>` : '';
+    const statusBadge = !tr.active
+      ? `<span class="badge badge-paused">${t('paused')}</span>`
+      : snap?.status === 'ok'
+        ? (snap.baggage_fallback ? `<span class="badge badge-fallback">~${t('estimate')}</span>` : '<span class="badge badge-ok">Live</span>')
+        : snap?.status === 'blocked' ? `<span class="badge badge-blocked">${t('blocked')}</span>` : '';
     const bagStr = (tr.baggage||[]).map(b => b.type).join(', ') || t('backpackOnly');
     const retStr = tr.return_date ? ` ⇄ ${tr.return_date}` : ` (${t('oneWay')})`;
     return `<div class="tracker-item ${tr.id===selectedTrackerId?'active-tracker':''}" onclick="selectTracker(${tr.id})">
@@ -389,6 +392,7 @@ function renderTrackers(trackers) {
   }).join('');
 }
 
+// ── Chart ─────────────────────────────────────────────
 async function selectTracker(id) {
   selectedTrackerId = id; loadTrackers();
   const container = document.getElementById('chartContainer');
@@ -403,7 +407,11 @@ async function selectTracker(id) {
   try {
     const data = await api(`/api/prices/${id}?limit=90`);
     card.removeChild(overlay);
-    if (!data.total_prices.length) { empty.style.display = 'flex'; document.getElementById('chartTitle').textContent = `${t('priceHistory')} – ${t('noData')}`; return; }
+    if (!data.total_prices.length) {
+      empty.style.display = 'flex';
+      document.getElementById('chartTitle').textContent = `${t('priceHistory')} – ${t('noData')}`;
+      return;
+    }
     const tr = data.tracker;
     document.getElementById('chartTitle').textContent = `${tr.origin} → ${tr.destination}  ${tr.outbound_date}${tr.return_date?' ⇄ '+tr.return_date:''}`;
     renderStats(data); renderChart(data); renderTable(data.snapshots);
@@ -415,7 +423,7 @@ function renderStats(data) {
   const prices = data.total_prices.filter(p => p !== null);
   if (!prices.length) return;
   const min = Math.min(...prices), cur = prices[prices.length-1], prev = prices.length>1?prices[prices.length-2]:cur;
-  const diff = cur - prev, diffStr = (diff>=0?'+':'')+diff.toFixed(2)+' €';
+  const diff = cur-prev, diffStr = (diff>=0?'+':'')+diff.toFixed(2)+' €';
   document.getElementById('chartStats').innerHTML = `
     <div class="stat"><div class="stat-label">${t('current')}</div><div class="stat-value">${cur.toFixed(2)} €</div><div style="font-size:.68rem;color:var(--sub);margin-top:.2rem">${data.labels[data.labels.length-1]}</div></div>
     <div class="stat"><div class="stat-label">${t('lowestPrice')}</div><div class="stat-value green">${min.toFixed(2)} €</div></div>
@@ -447,11 +455,19 @@ function renderChart(data) {
 
 function renderTable(snaps) {
   document.getElementById('snapshotTable').innerHTML = [...snaps].reverse().slice(0,30).map(s => {
-    const statusHtml = s.status==='ok' ? (s.baggage_fallback?`<span class="badge badge-fallback">~${t('estimate')}</span>`:'<span class="badge badge-ok">✓</span>') : `<span class="badge badge-blocked">${s.status}</span>`;
-    return `<tr><td>${(s.fetched_at||'').slice(0,10)}</td><td>${s.outbound_flight||'–'}</td><td>${s.return_flight||'–'}</td><td>${s.flight_price!=null?s.flight_price.toFixed(2)+' €':'–'}</td><td>${s.baggage_price!=null?s.baggage_price.toFixed(2)+' €':'–'}</td><td style="color:var(--green);font-weight:700">${s.total_price!=null?s.total_price.toFixed(2)+' €':'–'}</td><td>${statusHtml}</td></tr>`;
+    const statusHtml = s.status==='ok'
+      ? (s.baggage_fallback?`<span class="badge badge-fallback">~${t('estimate')}</span>`:'<span class="badge badge-ok">✓</span>')
+      : `<span class="badge badge-blocked">${s.status}</span>`;
+    return `<tr>
+      <td>${(s.fetched_at||'').slice(0,10)}</td><td>${s.outbound_flight||'–'}</td><td>${s.return_flight||'–'}</td>
+      <td>${s.flight_price!=null?s.flight_price.toFixed(2)+' €':'–'}</td>
+      <td>${s.baggage_price!=null?s.baggage_price.toFixed(2)+' €':'–'}</td>
+      <td style="color:var(--green);font-weight:700">${s.total_price!=null?s.total_price.toFixed(2)+' €':'–'}</td>
+      <td>${statusHtml}</td></tr>`;
   }).join('');
 }
 
+// ── Actions ───────────────────────────────────────────
 async function scrapeNow(id) {
   toast(t('scrapeStarted'), 'warning');
   try {
@@ -468,7 +484,12 @@ async function deleteTracker(id) {
   try {
     await api(`/api/trackers/${id}`, { method: 'DELETE' });
     toast(t('deleted'), 'success');
-    if (selectedTrackerId===id) { selectedTrackerId=null; document.getElementById('chartContainer').style.display='none'; document.getElementById('chartEmpty').style.display='flex'; document.getElementById('tableCard').style.display='none'; }
+    if (selectedTrackerId===id) {
+      selectedTrackerId=null;
+      document.getElementById('chartContainer').style.display='none';
+      document.getElementById('chartEmpty').style.display='flex';
+      document.getElementById('tableCard').style.display='none';
+    }
     loadTrackers();
   } catch(e) { toast(`${t('error')}: ${e.message}`, 'error'); }
 }
@@ -478,6 +499,7 @@ async function togglePause(id, currentlyActive) {
   catch(e) { toast(`${t('error')}: ${e.message}`, 'error'); }
 }
 
+// ── Toast ─────────────────────────────────────────────
 function toast(msg, type='success') {
   const c = document.getElementById('toastContainer');
   const icons = { success:'✓', error:'✕', warning:'⚠' };
@@ -488,7 +510,5 @@ function toast(msg, type='success') {
   setTimeout(() => el.remove(), 4000);
 }
 </script>
-
-<footer style="text-align:center;padding:1.5rem 2rem;font-size:.68rem;color:var(--sub);border-top:1px solid var(--border);margin-top:2rem;font-family:var(--mono)">WanderSuite v0.1 — Licensed under <a href="https://www.gnu.org/licenses/agpl-3.0" target="_blank" style="color:var(--accent);text-decoration:none">GNU AGPLv3</a> — <a href="https://github.com/antonbier/tracker-an-te" target="_blank" style="color:var(--accent);text-decoration:none">GitHub</a></footer>
 </body>
 </html>
