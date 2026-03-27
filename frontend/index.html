@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="WanderSuite — Self-hosted travel management suite">
-<title>WanderSuite v0.1</title>
+<title>WanderSuite v0.4</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -309,7 +309,7 @@ body.light-mode { --bg:#f4f5f7; --surface:#ffffff; --surface2:#eef0f3; --border:
     <a class="logo" href="#" onclick="navigate('ryanair');return false;">
       <div class="logo-icon">✈</div>
       <span>WanderSuite</span>
-      <span class="logo-ver">v0.1</span>
+      <span class="logo-ver">v0.4</span>
     </a>
   </div>
   <div class="header-right">
@@ -505,33 +505,177 @@ body.light-mode { --bg:#f4f5f7; --surface:#ffffff; --surface2:#eef0f3; --border:
       </div>
     </div>
 
-    <!-- ════ PAGE: Google Flights (placeholder) ════════ -->
+    <!-- ════ PAGE: Google Flights UI Shell ════════════ -->
     <div class="page" id="page-google">
-      <div class="placeholder-card">
-        <div class="placeholder-icon">🔵</div>
-        <div class="placeholder-title" data-i18n="navGoogleFlights">Google Flights</div>
-        <div class="placeholder-desc" data-i18n="googleFlightsDesc">Google Flights price monitoring — coming soon.</div>
-        <span class="coming-soon-badge" data-i18n="placeholderComingSoon">Coming Soon</span>
+      <div class="grid-2">
+        <div>
+          <div class="card">
+            <div class="card-title" data-i18n="googleFlightsTitle">Google Flights Tracker</div>
+            <div style="font-size:.78rem;color:var(--sub);margin-bottom:1rem;line-height:1.6" data-i18n="googleFlightsDesc">
+              Monitor flight prices via Google Flights
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label data-i18n="gfOrigin">Abflugort</label>
+                <input class="iata-input" id="gf-origin" placeholder="MUC" maxlength="3" disabled>
+              </div>
+              <div class="form-group">
+                <label data-i18n="gfDest">Zielort</label>
+                <input class="iata-input" id="gf-dest" placeholder="JFK" maxlength="3" disabled>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label data-i18n="gfDate">Datum</label>
+                <input type="date" id="gf-date" disabled>
+              </div>
+              <div class="form-group">
+                <label data-i18n="gfPassengers">Passagiere</label>
+                <select id="gf-pax" disabled>
+                  <option value="1">1</option>
+                  <option value="2" selected>2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group" style="margin-bottom:.65rem">
+              <label data-i18n="gfClass">Klasse</label>
+              <select id="gf-class" disabled>
+                <option value="economy" data-i18n-opt="gfEconomy">Economy</option>
+                <option value="business" data-i18n-opt="gfBusiness">Business</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" disabled style="opacity:.4;cursor:not-allowed">
+              🔍 <span data-i18n="gfSearch">Suchen</span>
+            </button>
+            <div class="notice-box" style="margin-top:.85rem" data-i18n="gfComingSoon">
+              Google Flights Integration wird in v0.5 implementiert.
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="placeholder-card" style="height:100%;min-height:200px">
+            <div class="placeholder-icon">📊</div>
+            <div class="placeholder-title" data-i18n="priceHistory">Preisverlauf</div>
+            <div class="placeholder-desc" data-i18n="gfComingSoon">Coming in v0.5</div>
+            <span class="coming-soon-badge">v0.5</span>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- ════ PAGE: Homair (placeholder) ════════════════ -->
+    <!-- ════ PAGE: Homair UI Shell ═════════════════════ -->
     <div class="page" id="page-homair">
-      <div class="placeholder-card">
-        <div class="placeholder-icon">⛺</div>
-        <div class="placeholder-title" data-i18n="navHomair">Homair</div>
-        <div class="placeholder-desc" data-i18n="homairDesc">Homair campsite tracker — coming soon.</div>
-        <span class="coming-soon-badge" data-i18n="placeholderComingSoon">Coming Soon</span>
+      <div class="grid-2">
+        <div>
+          <div class="card">
+            <div class="card-title" data-i18n="homairTitle">Homair Camping-Tracker</div>
+            <div style="font-size:.78rem;color:var(--sub);margin-bottom:1rem;line-height:1.6" data-i18n="homairDesc">
+              Verfolge Preise für Homair-Campingplätze in Europa.
+            </div>
+            <div class="form-group" style="margin-bottom:.55rem">
+              <label>Region</label>
+              <select disabled>
+                <option>Côte d'Azur</option>
+                <option>Kroatien</option>
+                <option>Toskana</option>
+                <option>Katalonien</option>
+                <option>Languedoc</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label data-i18n="outbound">Anreise</label>
+                <input type="date" disabled>
+              </div>
+              <div class="form-group">
+                <label data-i18n="return">Abreise</label>
+                <input type="date" disabled>
+              </div>
+            </div>
+            <div class="form-group" style="margin-bottom:.65rem">
+              <label>Unterkunftstyp</label>
+              <select disabled>
+                <option>Mobilheim Standard</option>
+                <option>Mobilheim Premium</option>
+                <option>Chalet</option>
+                <option>Zeltstellplatz</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" disabled style="opacity:.4;cursor:not-allowed">
+              + Tracker starten
+            </button>
+            <div class="notice-box" style="margin-top:.85rem">
+              🚧 Homair Scraper — coming in v0.6
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="placeholder-card" style="min-height:200px">
+            <div class="placeholder-icon">⛺</div>
+            <div class="placeholder-title" data-i18n="navHomair">Homair</div>
+            <span class="coming-soon-badge">v0.6</span>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- ════ PAGE: Booking (placeholder) ═══════════════ -->
+    <!-- ════ PAGE: Booking / Trivago UI Shell ══════════ -->
     <div class="page" id="page-booking">
-      <div class="placeholder-card">
-        <div class="placeholder-icon">🏨</div>
-        <div class="placeholder-title" data-i18n="navBooking">Booking / Trivago</div>
-        <div class="placeholder-desc" data-i18n="bookingDesc">Booking.com / Trivago tracker — coming soon.</div>
-        <span class="coming-soon-badge" data-i18n="placeholderComingSoon">Coming Soon</span>
+      <div class="grid-2">
+        <div>
+          <div class="card">
+            <div class="card-title" data-i18n="bookingTitle">Booking / Trivago Tracker</div>
+            <div style="font-size:.78rem;color:var(--sub);margin-bottom:1rem;line-height:1.6" data-i18n="bookingDesc">
+              Unterkunftspreise von Booking.com und Trivago im Blick behalten.
+            </div>
+            <div class="form-group" style="margin-bottom:.55rem">
+              <label>Quelle</label>
+              <select disabled>
+                <option>Booking.com</option>
+                <option>Trivago</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom:.55rem">
+              <label>Zielort / Hotel</label>
+              <input type="text" placeholder="z.B. Dublin, Irland" disabled>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Check-in</label>
+                <input type="date" disabled>
+              </div>
+              <div class="form-group">
+                <label>Check-out</label>
+                <input type="date" disabled>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Erwachsene</label>
+                <select disabled><option>2</option></select>
+              </div>
+              <div class="form-group">
+                <label>Zimmer</label>
+                <select disabled><option>1</option></select>
+              </div>
+            </div>
+            <button class="btn btn-primary" disabled style="opacity:.4;cursor:not-allowed">
+              + Tracker starten
+            </button>
+            <div class="notice-box" style="margin-top:.85rem">
+              🚧 Booking / Trivago Scraper — coming in v0.6
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="placeholder-card" style="min-height:200px">
+            <div class="placeholder-icon">🏨</div>
+            <div class="placeholder-title" data-i18n="navBooking">Booking / Trivago</div>
+            <span class="coming-soon-badge">v0.6</span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -646,7 +790,7 @@ body.light-mode { --bg:#f4f5f7; --surface:#ffffff; --surface2:#eef0f3; --border:
 
 <!-- ── Footer ──────────────────────────────────────────── -->
 <footer class="footer">
-  WanderSuite v0.1 &mdash;
+  WanderSuite v0.4 &mdash;
   <a href="https://www.gnu.org/licenses/agpl-3.0" target="_blank">GNU AGPLv3</a>
   &mdash; <a href="https://github.com/antonbier/tracker-an-te" target="_blank">GitHub</a>
 </footer>
@@ -718,7 +862,7 @@ body.light-mode { --bg:#f4f5f7; --surface:#ffffff; --surface2:#eef0f3; --border:
 
 <script>
 /**
- * WanderSuite v0.1 — Main Application
+ * WanderSuite v0.4 — Main Application
  * Navigation, i18n, Ryanair Tracker, Discover, Budget, Settings
  */
 
