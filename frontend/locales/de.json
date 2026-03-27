@@ -223,5 +223,6 @@
   "tripEnd": "Bis",
   "tripDuration": "Dauer",
   "tripNights": "Nächte",
-  "syncNow": "Jetzt synchronisieren"
+  "syncNow": "Jetzt synchronisieren",
+  "serpApiQuotaLabel": "Monatliche Nutzung:"
 }
