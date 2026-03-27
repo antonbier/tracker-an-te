@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="WanderSuite — Self-hosted travel management suite">
-<title>WanderSuite v0.5</title>
+<title>WanderSuite v0.6</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -309,7 +309,7 @@ body.light-mode { --bg:#f4f5f7; --surface:#ffffff; --surface2:#eef0f3; --border:
     <a class="logo" href="#" onclick="navigate('ryanair');return false;">
       <div class="logo-icon">✈</div>
       <span>WanderSuite</span>
-      <span class="logo-ver">v0.5</span>
+      <span class="logo-ver">v0.6</span>
     </a>
   </div>
   <div class="header-right">
@@ -570,47 +570,64 @@ body.light-mode { --bg:#f4f5f7; --surface:#ffffff; --surface2:#eef0f3; --border:
               Verfolge Preise für Homair-Campingplätze in Europa.
             </div>
             <div class="form-group" style="margin-bottom:.55rem">
-              <label>Region</label>
-              <select disabled>
-                <option>Côte d'Azur</option>
-                <option>Kroatien</option>
-                <option>Toskana</option>
-                <option>Katalonien</option>
-                <option>Languedoc</option>
+              <label data-i18n="region">Region</label>
+              <select id="hm-region">
+                <option value="cote-d-azur">Côte d'Azur</option>
+                <option value="kroatien">Kroatien</option>
+                <option value="toskana">Toskana</option>
+                <option value="katalonien">Katalonien</option>
+                <option value="languedoc">Languedoc</option>
+                <option value="provence">Provence</option>
+                <option value="venetien">Venetien</option>
               </select>
             </div>
             <div class="form-row">
               <div class="form-group">
-                <label data-i18n="outbound">Anreise</label>
-                <input type="date" disabled>
+                <label data-i18n="checkIn">Anreise</label>
+                <input type="date" id="hm-checkin">
               </div>
               <div class="form-group">
-                <label data-i18n="return">Abreise</label>
-                <input type="date" disabled>
+                <label data-i18n="checkOut">Abreise</label>
+                <input type="date" id="hm-checkout">
               </div>
             </div>
-            <div class="form-group" style="margin-bottom:.65rem">
-              <label>Unterkunftstyp</label>
-              <select disabled>
-                <option>Mobilheim Standard</option>
-                <option>Mobilheim Premium</option>
-                <option>Chalet</option>
-                <option>Zeltstellplatz</option>
+            <div class="form-group" style="margin-bottom:.55rem">
+              <label data-i18n="accommodationType">Unterkunftstyp</label>
+              <select id="hm-type">
+                <option value="mobilheim-standard">Mobilheim Standard</option>
+                <option value="mobilheim-premium">Mobilheim Premium</option>
+                <option value="chalet">Chalet</option>
+                <option value="stellplatz">Zeltstellplatz</option>
               </select>
             </div>
-            <button class="btn btn-primary" disabled style="opacity:.4;cursor:not-allowed">
-              + Tracker starten
-            </button>
-            <div class="notice-box" style="margin-top:.85rem">
-              🚧 Homair Scraper — coming in v0.6
+            <div class="form-row">
+              <div class="form-group">
+                <label data-i18n="adults">Erwachsene</label>
+                <select id="hm-adults">
+                  <option value="1">1</option>
+                  <option value="2" selected>2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label data-i18n="children">Kinder</label>
+                <select id="hm-children">
+                  <option value="0" selected>0</option>
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                </select>
+              </div>
             </div>
+            <button class="btn btn-primary" id="hm-addBtn" onclick="addHomairTracker()">
+              + <span data-i18n="startTracker">Tracker starten</span>
+            </button>
           </div>
         </div>
         <div>
-          <div class="placeholder-card" style="min-height:200px">
-            <div class="placeholder-icon">⛺</div>
-            <div class="placeholder-title" data-i18n="navHomair">Homair</div>
-            <span class="coming-soon-badge">v0.6</span>
+          <div class="section-title" data-i18n="homairActiveTrackers">Homair Tracker</div>
+          <div id="hm-trackerList">
+            <div style="color:var(--muted);font-size:.78rem;padding:.4rem 0" data-i18n="homairNoTrackers">Noch keine Homair Tracker</div>
           </div>
         </div>
       </div>
@@ -625,50 +642,58 @@ body.light-mode { --bg:#f4f5f7; --surface:#ffffff; --surface2:#eef0f3; --border:
             <div style="font-size:.78rem;color:var(--sub);margin-bottom:1rem;line-height:1.6" data-i18n="bookingDesc">
               Unterkunftspreise von Booking.com und Trivago im Blick behalten.
             </div>
+            <div id="bk-serpapi-notice" class="notice-box" style="display:none;margin-bottom:.75rem" data-i18n="serpApiMissingBooking">
+              SerpAPI Key fehlt.
+            </div>
             <div class="form-group" style="margin-bottom:.55rem">
               <label>Quelle</label>
-              <select disabled>
-                <option>Booking.com</option>
-                <option>Trivago</option>
+              <select id="bk-source">
+                <option value="booking">Booking.com</option>
+                <option value="trivago">Trivago</option>
               </select>
             </div>
             <div class="form-group" style="margin-bottom:.55rem">
-              <label>Zielort / Hotel</label>
-              <input type="text" placeholder="z.B. Dublin, Irland" disabled>
+              <label data-i18n="destination">Zielort / Hotel</label>
+              <input type="text" id="bk-dest" placeholder="z.B. Dublin, Irland">
             </div>
             <div class="form-row">
               <div class="form-group">
-                <label>Check-in</label>
-                <input type="date" disabled>
+                <label data-i18n="checkIn">Check-in</label>
+                <input type="date" id="bk-checkin">
               </div>
               <div class="form-group">
-                <label>Check-out</label>
-                <input type="date" disabled>
+                <label data-i18n="checkOut">Check-out</label>
+                <input type="date" id="bk-checkout">
               </div>
             </div>
             <div class="form-row">
               <div class="form-group">
-                <label>Erwachsene</label>
-                <select disabled><option>2</option></select>
+                <label data-i18n="adults">Erwachsene</label>
+                <select id="bk-adults">
+                  <option value="1">1</option>
+                  <option value="2" selected>2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                </select>
               </div>
               <div class="form-group">
-                <label>Zimmer</label>
-                <select disabled><option>1</option></select>
+                <label data-i18n="rooms">Zimmer</label>
+                <select id="bk-rooms">
+                  <option value="1" selected>1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                </select>
               </div>
             </div>
-            <button class="btn btn-primary" disabled style="opacity:.4;cursor:not-allowed">
-              + Tracker starten
+            <button class="btn btn-primary" id="bk-addBtn" onclick="addBookingTracker()">
+              + <span data-i18n="startTracker">Tracker starten</span>
             </button>
-            <div class="notice-box" style="margin-top:.85rem">
-              🚧 Booking / Trivago Scraper — coming in v0.6
-            </div>
           </div>
         </div>
         <div>
-          <div class="placeholder-card" style="min-height:200px">
-            <div class="placeholder-icon">🏨</div>
-            <div class="placeholder-title" data-i18n="navBooking">Booking / Trivago</div>
-            <span class="coming-soon-badge">v0.6</span>
+          <div class="section-title" data-i18n="bookingActiveTrackers">Booking / Trivago Tracker</div>
+          <div id="bk-trackerList">
+            <div style="color:var(--muted);font-size:.78rem;padding:.4rem 0" data-i18n="bookingNoTrackers">Noch keine Booking Tracker</div>
           </div>
         </div>
       </div>
@@ -751,7 +776,8 @@ body.light-mode { --bg:#f4f5f7; --surface:#ffffff; --surface2:#eef0f3; --border:
               <div id="actualNotice" class="notice-box" style="display:none" data-i18n="budgetNoActual">
                 ActualBudget nicht konfiguriert.
               </div>
-              <button class="btn btn-ghost" style="width:100%" onclick="syncActualBudget()">
+              <div id="actualSyncResult" style="display:none;margin-top:.65rem"></div>
+              <button class="btn btn-ghost" style="width:100%;margin-top:.5rem" onclick="syncActualBudget()">
                 ↺ <span data-i18n="budgetSync">Synchronisieren</span>
               </button>
             </div>
@@ -785,7 +811,7 @@ body.light-mode { --bg:#f4f5f7; --surface:#ffffff; --surface2:#eef0f3; --border:
 
 <!-- ── Footer ──────────────────────────────────────────── -->
 <footer class="footer">
-  WanderSuite v0.5 &mdash;
+  WanderSuite v0.6 &mdash;
   <a href="https://www.gnu.org/licenses/agpl-3.0" target="_blank">GNU AGPLv3</a>
   &mdash; <a href="https://github.com/antonbier/tracker-an-te" target="_blank">GitHub</a>
 </footer>
@@ -867,7 +893,7 @@ body.light-mode { --bg:#f4f5f7; --surface:#ffffff; --surface2:#eef0f3; --border:
 
 <script>
 /**
- * WanderSuite v0.5 — Main Application
+ * WanderSuite v0.6 — Main Application
  * Navigation, i18n, Ryanair Tracker, Discover, Budget, Settings
  */
 
@@ -924,6 +950,8 @@ function navigate(page) {
   // Lazy-init modules
   if (page === 'budget') renderBudget();
   if (page === 'google') loadGFTrackers();
+  if (page === 'homair') loadHomairTrackers();
+  if (page === 'booking') loadBookingTrackers();
 }
 
 function toggleSidebar() {
@@ -1282,8 +1310,66 @@ function addTrip() {
   renderBudget();
 }
 
-function syncActualBudget() {
-  toast('ActualBudget sync — coming in v0.2', 'warning');
+async function syncActualBudget() {
+  const url   = localStorage.getItem('s-actualUrl')   || '';
+  const token = localStorage.getItem('s-actualToken') || '';
+
+  if (!url || !token) {
+    document.getElementById('actualNotice').style.display = 'block';
+    toast(t('actualBudgetError') + ': ' + t('budgetNoActual'), 'warning');
+    return;
+  }
+
+  toast(t('actualBudgetSyncing'), 'warning');
+  const resultEl = document.getElementById('actualSyncResult');
+
+  try {
+    const resp = await fetch(API_URL + '/api/budget/actual/summary', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ base_url: url, token }),
+    });
+    const data = await resp.json();
+
+    if (data.error) {
+      toast(t('actualBudgetError') + ': ' + data.error, 'error');
+      return;
+    }
+
+    // Update budget UI with ActualBudget data
+    const totalSpent = data.total_spent || 0;
+    const totalBudgeted = data.total_budgeted || 0;
+
+    // Sync trips from ActualBudget categories
+    if (data.travel_categories && data.travel_categories.length) {
+      trips = data.travel_categories.map(cat => ({
+        name: cat.name,
+        cost: cat.spent,
+        date: data.month,
+        source: 'actualbudget',
+      }));
+      localStorage.setItem('ws-trips', JSON.stringify(trips));
+    }
+
+    // Show sync result
+    resultEl.style.display = 'block';
+    resultEl.innerHTML = `<div style="font-size:.72rem;color:var(--green)">
+      ✓ ${t('actualBudgetSynced')} — ${data.month}<br>
+      ${data.travel_categories?.length || 0} Reise-Kategorien | ${totalSpent.toFixed(2)} € ausgegeben
+    </div>`;
+
+    // Update budget total if available
+    if (totalBudgeted > 0) {
+      document.getElementById('budgetTotal').value = totalBudgeted.toFixed(2);
+      localStorage.setItem('ws-budget', totalBudgeted.toFixed(2));
+    }
+
+    renderBudget();
+    toast(t('actualBudgetSynced'), 'success');
+
+  } catch(e) {
+    toast(t('actualBudgetError') + ': ' + e.message, 'error');
+  }
 }
 
 function updateBudget() {
@@ -1478,6 +1564,182 @@ async function deleteGFTracker(id) {
     await fetch(`${API_URL}/api/google-flights/${id}`, { method: 'DELETE' });
     toast(t('deleted'), 'success');
     loadGFTrackers();
+  } catch(e) { toast(`${t('error')}: ${e.message}`, 'error'); }
+}
+
+// ── Homair Tracker ────────────────────────────────────
+async function addHomairTracker() {
+  const btn      = document.getElementById('hm-addBtn');
+  const region   = document.getElementById('hm-region').value;
+  const accType  = document.getElementById('hm-type').value;
+  const checkin  = document.getElementById('hm-checkin').value;
+  const checkout = document.getElementById('hm-checkout').value;
+  const adults   = parseInt(document.getElementById('hm-adults').value);
+  const children = parseInt(document.getElementById('hm-children').value);
+
+  if (!checkin || !checkout) { toast(t('missingDate'), 'error'); return; }
+  if (!API_URL) { toast(t('missingUrl'), 'warning'); return; }
+
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span> ${t('creatingTracker')}`;
+  try {
+    const r = await fetch(API_URL + '/api/accommodations/homair', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ region, accommodation_type: accType, checkin_date: checkin, checkout_date: checkout, adults, children }),
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    toast(t('homairTrackerAdded'), 'success');
+    loadHomairTrackers();
+  } catch(e) { toast(`${t('error')}: ${e.message}`, 'error'); }
+  finally { btn.disabled = false; btn.innerHTML = `+ ${t('startTracker')}`; }
+}
+
+async function loadHomairTrackers() {
+  if (!API_URL) return;
+  try {
+    const r = await fetch(API_URL + '/api/accommodations/homair');
+    const trackers = await r.json();
+    renderHomairTrackers(trackers);
+  } catch(e) {}
+}
+
+function renderHomairTrackers(trackers) {
+  const el = document.getElementById('hm-trackerList');
+  if (!el) return;
+  if (!trackers.length) { el.innerHTML = `<div style="color:var(--muted);font-size:.78rem;padding:.4rem 0">${t('homairNoTrackers')}</div>`; return; }
+  el.innerHTML = trackers.map(tr => {
+    const snap = tr.latest_snapshot;
+    const priceStr = snap?.total_price ? `${snap.total_price.toFixed(2)} €` : '–';
+    return `<div class="tracker-item">
+      <div class="tracker-header">
+        <div class="tracker-route">⛺ ${tr.region}</div>
+        <div class="tracker-price ${snap?'':'stale'}">${priceStr}</div>
+      </div>
+      <div class="tracker-meta">
+        <span>${tr.checkin_date} → ${tr.checkout_date}</span>
+        <span>${tr.accommodation_type}</span>
+        <span>${tr.adults} ${t('adultShort')}</span>
+      </div>
+      <div class="tracker-actions">
+        <button class="btn-scrape" onclick="scrapeHomairTracker(${tr.id})">⟳ ${t('current')}</button>
+        <button class="btn-sm btn-danger" onclick="deleteHomairTracker(${tr.id})">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function scrapeHomairTracker(id) {
+  toast(t('homairSearching'), 'warning');
+  try {
+    const r = await fetch(`${API_URL}/api/accommodations/homair/${id}/scrape`, { method: 'POST' });
+    const data = await r.json();
+    const snap = data.snapshot;
+    if (snap?.total_price) toast(`${t('current')}: ${snap.total_price.toFixed(2)} €/Nacht`, 'success');
+    else toast(`Status: ${snap?.status} — ${snap?.error_message || ''}`, 'warning');
+    loadHomairTrackers();
+  } catch(e) { toast(`${t('error')}: ${e.message}`, 'error'); }
+}
+
+async function deleteHomairTracker(id) {
+  if (!confirm(t('deleteConfirm'))) return;
+  try {
+    await fetch(`${API_URL}/api/accommodations/homair/${id}`, { method: 'DELETE' });
+    toast(t('deleted'), 'success'); loadHomairTrackers();
+  } catch(e) { toast(`${t('error')}: ${e.message}`, 'error'); }
+}
+
+// ── Booking Tracker ────────────────────────────────────
+async function addBookingTracker() {
+  const btn     = document.getElementById('bk-addBtn');
+  const dest    = document.getElementById('bk-dest').value.trim();
+  const checkin = document.getElementById('bk-checkin').value;
+  const checkout= document.getElementById('bk-checkout').value;
+  const adults  = parseInt(document.getElementById('bk-adults').value);
+  const rooms   = parseInt(document.getElementById('bk-rooms').value);
+  const source  = document.getElementById('bk-source').value;
+
+  if (!dest)              { toast(t('invalidDest'), 'error'); return; }
+  if (!checkin||!checkout){ toast(t('missingDate'), 'error'); return; }
+  if (!API_URL)           { toast(t('missingUrl'), 'warning'); return; }
+
+  const serpKey = localStorage.getItem('s-serpApiKey') || '';
+  if (!serpKey) {
+    document.getElementById('bk-serpapi-notice').style.display = 'block';
+    toast(t('serpApiMissingBooking'), 'warning'); return;
+  }
+  document.getElementById('bk-serpapi-notice').style.display = 'none';
+
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span> ${t('creatingTracker')}`;
+  try {
+    const r = await fetch(API_URL + '/api/accommodations/booking', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ destination: dest, checkin_date: checkin, checkout_date: checkout, adults, rooms, source }),
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    toast(t('bookingTrackerAdded'), 'success');
+    document.getElementById('bk-dest').value = '';
+    loadBookingTrackers();
+  } catch(e) { toast(`${t('error')}: ${e.message}`, 'error'); }
+  finally { btn.disabled = false; btn.innerHTML = `+ ${t('startTracker')}`; }
+}
+
+async function loadBookingTrackers() {
+  if (!API_URL) return;
+  try {
+    const r = await fetch(API_URL + '/api/accommodations/booking');
+    const trackers = await r.json();
+    renderBookingTrackers(trackers);
+  } catch(e) {}
+}
+
+function renderBookingTrackers(trackers) {
+  const el = document.getElementById('bk-trackerList');
+  if (!el) return;
+  if (!trackers.length) { el.innerHTML = `<div style="color:var(--muted);font-size:.78rem;padding:.4rem 0">${t('bookingNoTrackers')}</div>`; return; }
+  el.innerHTML = trackers.map(tr => {
+    const snap = tr.latest_snapshot;
+    const priceStr = snap?.total_price ? `${snap.total_price.toFixed(2)} €/Nacht` : '–';
+    const hotel = snap?.hotel_name ? ` — ${snap.hotel_name}` : '';
+    return `<div class="tracker-item">
+      <div class="tracker-header">
+        <div class="tracker-route">🏨 ${tr.destination}</div>
+        <div class="tracker-price ${snap?'':'stale'}">${priceStr}</div>
+      </div>
+      <div class="tracker-meta">
+        <span>${tr.checkin_date} → ${tr.checkout_date}</span>
+        <span>${tr.adults} ${t('adultShort')}, ${tr.rooms} Zi.</span>
+        <span class="badge badge-ok">${tr.source}</span>
+        ${hotel ? `<span style="font-style:italic">${hotel}</span>` : ''}
+      </div>
+      <div class="tracker-actions">
+        <button class="btn-scrape" onclick="scrapeBookingTracker(${tr.id})">⟳ ${t('current')}</button>
+        <button class="btn-sm btn-danger" onclick="deleteBookingTracker(${tr.id})">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function scrapeBookingTracker(id) {
+  const serpKey = localStorage.getItem('s-serpApiKey') || '';
+  toast(t('bookingSearching'), 'warning');
+  try {
+    const r = await fetch(`${API_URL}/api/accommodations/booking/${id}/scrape?api_key=${encodeURIComponent(serpKey)}`, { method: 'POST' });
+    const data = await r.json();
+    const snap = data.snapshot;
+    if (snap?.total_price) toast(`${t('current')}: ${snap.total_price.toFixed(2)} €/Nacht${snap.hotel_name?' — '+snap.hotel_name:''}`, 'success');
+    else toast(`Status: ${snap?.status} — ${snap?.error_message || ''}`, 'warning');
+    loadBookingTrackers();
+  } catch(e) { toast(`${t('error')}: ${e.message}`, 'error'); }
+}
+
+async function deleteBookingTracker(id) {
+  if (!confirm(t('deleteConfirm'))) return;
+  try {
+    await fetch(`${API_URL}/api/accommodations/booking/${id}`, { method: 'DELETE' });
+    toast(t('deleted'), 'success'); loadBookingTrackers();
   } catch(e) { toast(`${t('error')}: ${e.message}`, 'error'); }
 }
 

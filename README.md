@@ -1,13 +1,13 @@
-# WanderSuite v0.5
+# WanderSuite v0.6
 
 > A comprehensive, self-hosted travel management suite. Track flight prices, discover new destinations, and manage your travel budget — all in one place.
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
-[![Version](https://img.shields.io/badge/version-0.5-orange.svg)](https://github.com/antonbier/tracker-an-te/releases/tag/v0.5)
+[![Version](https://img.shields.io/badge/version-0.6-orange.svg)](https://github.com/antonbier/tracker-an-te/releases/tag/v0.6)
 
 ---
 
-## Features (v0.5)
+## Features (v0.6)
 
 - ✈️ **Ryanair Price Tracker** — Automatic daily scraping with anti-bot measures
 - 🧳 **Baggage Cost Tracking** — Per-type baggage costs per tracker
@@ -18,8 +18,8 @@
 - ⚙️ **Settings Modal** — Backend URL, Timezone, Light/Dark mode, Integrations
 - 🗺️ **Navigation** — Flights, Accommodations, Discover, Budget modules
 - 🔵 **Google Flights Tracker** — Live via SerpAPI (100 free searches/month)
-- ⛺ **Homair UI** — Interface ready, scraper coming in v0.6
-- 🏨 **Booking/Trivago UI** — Interface ready, scraper coming in v0.6
+- ⛺ **Homair Tracker** — Live via HTML scraping
+- 🏨 **Booking/Trivago Tracker** — Live via SerpAPI Google Hotels
 - 💶 **Travel Budget** — Manual trip tracking, yearly budget, progress bar
 - 🌟 **Discover** — AI travel recommendations via Google Gemini 2.0 Flash
 - 🐳 **Self-hosted** — Docker + docker-compose, SQLite, Unraid-ready
@@ -34,7 +34,7 @@
 - [x] v0.3 — Main navigation (Flights, Accommodations, Discover, Budget)
 - [x] v0.4 — Google Flights / Homair / Booking UI shells + Seat Reservation
 - [x] v0.5 — Google Flights scraper (SerpAPI) + AI recommendations (Gemini 2.0 Flash)
-- [ ] v0.6 — Homair + Booking scrapers + ActualBudget sync
+- [x] v0.6 — Homair + Booking scrapers + ActualBudget sync
 - [ ] v1.0 — Stable release, full test coverage
 
 ---
