@@ -22,7 +22,9 @@ class SettingsPayload(BaseModel):
     dawarich_url:       Optional[str] = None
     dawarich_token:     Optional[str] = None
     actual_url:         Optional[str] = None
-    actual_token:       Optional[str] = None
+    actual_token:       Optional[str] = None  # stores the server password
+    actual_file:        Optional[str] = None  # stores the password
+    actual_file:        Optional[str] = None
     llm_provider:       Optional[str] = None
     timezone:           Optional[str] = None
     home_lat:           Optional[str] = None
@@ -80,3 +82,4 @@ def get_serpapi_quota():
     except requests.RequestException as e:
         logger.warning(f"[SerpAPI] Quota-Abfrage fehlgeschlagen: {e}")
         return {"error": f"SerpAPI nicht erreichbar: {str(e)}"}
+
