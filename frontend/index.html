@@ -578,6 +578,188 @@ tr:hover td { background:rgba(255,255,255,.02); }
 /* ── API Notice (collapsible) ────────────────────────── */
 .api-notice.hidden { display: none; }
 
+/* ── Travel Journal ──────────────────────────────────── */
+.journal-trip-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.1rem;
+  margin-bottom: .6rem;
+  background: var(--surface);
+  background-image: var(--grain);
+  transition: all var(--transition);
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+.journal-trip-card:hover { border-color: var(--accent); }
+.journal-trip-pin {
+  flex-shrink: 0;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), #a8501f);
+  display: flex; align-items: center; justify-content: center;
+  font-size: .9rem;
+  box-shadow: 0 2px 8px rgba(196,98,45,.3);
+  margin-top: .1rem;
+}
+.journal-trip-body { flex: 1; }
+.journal-trip-name {
+  font-family: var(--serif);
+  font-size: 1rem;
+  font-weight: 700;
+  font-style: italic;
+  color: var(--text);
+  margin-bottom: .2rem;
+}
+.journal-trip-dates {
+  font-family: var(--mono);
+  font-size: .7rem;
+  color: var(--sub);
+  margin-bottom: .3rem;
+}
+.journal-trip-nights {
+  display: inline-block;
+  background: rgba(196,98,45,.12);
+  color: var(--accent);
+  font-size: .62rem;
+  font-family: var(--mono);
+  font-weight: 700;
+  padding: .1rem .4rem;
+  border-radius: 3px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.journal-trip-actions {
+  display: flex;
+  gap: .3rem;
+  align-items: center;
+  margin-top: .5rem;
+}
+.journal-empty {
+  text-align: center;
+  padding: 2.5rem 1rem;
+  color: var(--sub);
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+}
+.journal-empty-icon { font-size: 2rem; margin-bottom: .5rem; opacity: .4; }
+.journal-empty-text {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: .9rem;
+}
+.journal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.1rem;
+}
+.journal-sync-bar {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: .75rem 1rem;
+  margin-bottom: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.journal-sync-info {
+  font-size: .78rem;
+  color: var(--sub);
+}
+.journal-sync-info strong { color: var(--text); }
+
+/* ── Expense Table ────────────────────────────────────── */
+.expense-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: .75rem;
+  margin-bottom: 1.1rem;
+}
+.expense-stat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: .75rem 1rem;
+  background-image: var(--grain);
+}
+.expense-stat-label {
+  font-size: .62rem;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--sub);
+  font-family: var(--mono);
+  margin-bottom: .25rem;
+}
+.expense-stat-value {
+  font-family: var(--serif);
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+.expense-stat-value.accent { color: var(--accent); }
+.expense-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.expense-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .78rem;
+  min-width: 420px;
+}
+.expense-table thead tr {
+  background: var(--surface2);
+  border-bottom: 2px solid var(--border);
+}
+.expense-table th {
+  text-align: left;
+  padding: .6rem .85rem;
+  font-size: .62rem;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--sub);
+  font-family: var(--mono);
+  white-space: nowrap;
+}
+.expense-table td {
+  padding: .55rem .85rem;
+  border-bottom: 1px solid rgba(58,46,36,.6);
+  font-family: var(--mono);
+  font-size: .76rem;
+}
+.expense-table tr:last-child td { border-bottom: none; }
+.expense-table tr:hover td { background: rgba(196,98,45,.04); }
+.expense-amount-neg { color: var(--accent); font-weight: 700; }
+.expense-amount-pos { color: var(--green); font-weight: 700; }
+.expense-filter-bar {
+  display: flex;
+  gap: .65rem;
+  margin-bottom: .85rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.expense-filter-bar select,
+.expense-filter-bar input {
+  font-size: .78rem;
+  padding: .4rem .65rem;
+  flex: 1;
+  min-width: 120px;
+}
+.expense-loading {
+  text-align: center;
+  padding: 2rem;
+  color: var(--sub);
+  font-style: italic;
+  font-family: var(--serif);
+}
+
 /* ── Responsive Dashboard ────────────────────────────── */
 @media (max-width: 900px) {
   .dash-grid   { grid-template-columns: 1fr; }
@@ -1211,6 +1393,34 @@ body.light-mode {
       </div>
     </div>
 
+    <!-- ════ PAGE: Travel Journal ══════════════════════════ -->
+    <div class="page" id="page-journal">
+
+      <div class="journal-header">
+        <div>
+          <div style="font-family:var(--serif);font-size:1.5rem;font-weight:700;font-style:italic" data-i18n="travelJournalTitle">Reisetagebuch</div>
+          <div style="font-size:.8rem;color:var(--sub);margin-top:.2rem" id="journal-subtitle"></div>
+        </div>
+        <button class="btn btn-ghost" onclick="syncJournal()" id="journal-sync-btn">
+          🧭 <span data-i18n="syncNow">Jetzt synchronisieren</span>
+        </button>
+      </div>
+
+      <!-- Sync info bar -->
+      <div class="journal-sync-bar" id="journal-sync-bar" style="display:none">
+        <div class="journal-sync-info" id="journal-sync-info"></div>
+        <button class="btn-scrape" onclick="syncJournal()">⟳ Sync</button>
+      </div>
+
+      <!-- Trip list -->
+      <div id="journal-trip-list">
+        <div class="journal-empty">
+          <div class="journal-empty-icon">🗺️</div>
+          <div class="journal-empty-text" data-i18n="noJournalTrips">Noch keine Reisen erkannt</div>
+        </div>
+      </div>
+    </div>
+
     <!-- ════ PAGE: Budget ═══════════════════════════════ -->
     <div class="page" id="page-budget">
       <div class="budget-grid">
@@ -1279,6 +1489,52 @@ body.light-mode {
           </div>
         </div>
       </div>
+
+      <!-- Expense Table -->
+      <div style="margin-top:1.25rem">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.85rem">
+          <div style="font-family:var(--serif);font-size:1rem;font-weight:600;font-style:italic;color:var(--accent2)" data-i18n="expenseTable">Ausgaben-Übersicht</div>
+          <button class="btn-scrape" onclick="loadExpenses()" id="expense-load-btn">
+            ⟳ <span data-i18n="syncNow">Laden</span>
+          </button>
+        </div>
+
+        <!-- Summary stats -->
+        <div class="expense-summary" id="expense-summary" style="display:none">
+          <div class="expense-stat">
+            <div class="expense-stat-label" data-i18n="expenseTotalSpent">Gesamtausgaben</div>
+            <div class="expense-stat-value accent" id="expense-total">0 €</div>
+          </div>
+          <div class="expense-stat">
+            <div class="expense-stat-label" data-i18n="expenseDate">Zeitraum</div>
+            <div class="expense-stat-value" id="expense-year" style="font-size:.95rem"></div>
+          </div>
+          <div class="expense-stat">
+            <div class="expense-stat-label">Transaktionen</div>
+            <div class="expense-stat-value" id="expense-count">0</div>
+          </div>
+        </div>
+
+        <!-- Filter bar -->
+        <div class="expense-filter-bar" id="expense-filters" style="display:none">
+          <input type="text" id="expense-search" placeholder="🔍 Suche Payee..."
+                 oninput="filterExpenses()" style="max-width:200px">
+          <select id="expense-cat-filter" onchange="filterExpenses()">
+            <option value="">Alle Kategorien</option>
+          </select>
+          <select id="expense-year-filter" onchange="loadExpenses()">
+            <option value="">Dieses Jahr</option>
+          </select>
+        </div>
+
+        <!-- Table -->
+        <div id="expense-table-wrap">
+          <div class="expense-loading" data-i18n="expenseNoData">
+            Keine Ausgaben — ActualBudget konfigurieren und laden
+          </div>
+        </div>
+      </div>
+
     </div>
 
   </main>
@@ -1529,6 +1785,7 @@ function navigate(page) {
   // Lazy-init modules
   if (page === 'home')    loadDashboard();
   if (page === 'budget')  renderBudget();
+  if (page === 'journal') loadJournalTrips();
   if (page === 'google')  loadGFTrackers();
   if (page === 'homair')  loadHomairTrackers();
   if (page === 'booking') loadBookingTrackers();
@@ -2484,17 +2741,39 @@ function loadDashTrips() {
   }
 
   if (coEl) {
-    coEl.innerHTML = completed.length
-      ? completed.map(tr => `
-        <div class="trip-card" style="opacity:.7">
-          <div class="trip-card-icon">✅</div>
-          <div class="trip-card-info">
-            <div class="trip-card-name">${tr.name}</div>
-            <div class="trip-card-date">${tr.date}</div>
-          </div>
-          <div class="trip-card-cost">${tr.cost.toFixed(2)} €</div>
-        </div>`).join('')
-      : `<div style="color:var(--sub);font-size:.8rem">${t('noCompletedTrips')}</div>`;
+    // Load from Dawarich detected trips if available
+    if (API_URL) {
+      api('/api/dawarich/trips?limit=5').then(trips => {
+        if (trips && trips.length) {
+          coEl.innerHTML = trips.map(tr => {
+            const loc = [tr.location_name, tr.country].filter(Boolean).join(', ') || `${tr.lat},${tr.lon}`;
+            return `<div class="trip-card" style="cursor:pointer" onclick="navigate('journal')">
+              <div class="trip-card-icon">✅</div>
+              <div class="trip-card-info">
+                <div class="trip-card-name">${loc}</div>
+                <div class="trip-card-date">${tr.start_date} · ${tr.nights} ${t('tripNights')}</div>
+              </div>
+            </div>`;
+          }).join('');
+        } else if (completed.length) {
+          coEl.innerHTML = completed.map(tr => `
+            <div class="trip-card" style="opacity:.7">
+              <div class="trip-card-icon">✅</div>
+              <div class="trip-card-info">
+                <div class="trip-card-name">${tr.name}</div>
+                <div class="trip-card-date">${tr.date}</div>
+              </div>
+              <div class="trip-card-cost">${tr.cost.toFixed(2)} €</div>
+            </div>`).join('');
+        } else {
+          coEl.innerHTML = `<div style="color:var(--sub);font-size:.8rem">${t('noCompletedTrips')}</div>`;
+        }
+      }).catch(() => {
+        coEl.innerHTML = `<div style="color:var(--sub);font-size:.8rem">${t('noCompletedTrips')}</div>`;
+      });
+    } else {
+      coEl.innerHTML = `<div style="color:var(--sub);font-size:.8rem">${t('noCompletedTrips')}</div>`;
+    }
   }
 }
 
@@ -2570,6 +2849,228 @@ function updateObStep() {
   });
   document.getElementById('ob-back').style.display = obStep > 1 ? 'inline-flex' : 'none';
   document.getElementById('ob-next').textContent   = obStep >= 3 ? '🎒 ' + t('startTracker') : t('refresh') + ' →';
+}
+
+
+
+// ── Travel Journal ────────────────────────────────────
+
+let allExpenses = [];
+
+async function loadJournalTrips() {
+  const el = document.getElementById('journal-trip-list');
+  if (!API_URL) {
+    el.innerHTML = `<div class="journal-empty"><div class="journal-empty-icon">⚙️</div><div class="journal-empty-text">${t('missingUrl')}</div></div>`;
+    return;
+  }
+  try {
+    const trips = await api('/api/dawarich/trips?limit=100');
+    renderJournalTrips(trips);
+    const subtitle = document.getElementById('journal-subtitle');
+    if (subtitle) subtitle.textContent = trips.length > 0
+      ? `${trips.length} ${trips.length === 1 ? 'Reise' : 'Reisen'} erkannt`
+      : '';
+  } catch(e) {
+    el.innerHTML = `<div class="journal-empty"><div class="journal-empty-icon">⚠️</div><div class="journal-empty-text">${e.message}</div></div>`;
+  }
+}
+
+function renderJournalTrips(trips) {
+  const el = document.getElementById('journal-trip-list');
+  if (!trips.length) {
+    el.innerHTML = `<div class="journal-empty">
+      <div class="journal-empty-icon">🗺️</div>
+      <div class="journal-empty-text">${t('noJournalTrips')}</div>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML = trips.map(trip => {
+    const loc = [trip.location_name, trip.country].filter(Boolean).join(', ') || `${trip.lat},${trip.lon}`;
+    const nights = trip.nights;
+    const nightsStr = `${nights} ${nights === 1 ? t('tripNights').slice(0,-1) : t('tripNights')}`;
+    const mapsUrl = `https://www.google.com/maps?q=${trip.lat},${trip.lon}`;
+
+    return `<div class="journal-trip-card">
+      <div class="journal-trip-pin">📍</div>
+      <div class="journal-trip-body">
+        <div class="journal-trip-name">${loc || '?'}</div>
+        <div class="journal-trip-dates">
+          ${trip.start_date} → ${trip.end_date}
+        </div>
+        <span class="journal-trip-nights">${nightsStr}</span>
+        <div class="journal-trip-actions">
+          <a href="${mapsUrl}" target="_blank" class="btn-scrape" style="text-decoration:none;font-size:.68rem">
+            🗺 Maps
+          </a>
+          <button class="btn-sm btn-danger" onclick="deleteJournalTrip(${trip.id})">✕</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function syncJournal() {
+  const btn = document.getElementById('journal-sync-btn');
+  if (!API_URL) { toast(t('missingUrl'), 'warning'); return; }
+
+  const dawarichUrl   = localStorage.getItem('s-dawarichUrl')   || '';
+  const dawarichToken = localStorage.getItem('s-dawarichToken') || '';
+  const homeLat       = parseFloat(localStorage.getItem('s-homeLat') || '0');
+  const homeLon       = parseFloat(localStorage.getItem('s-homeLon') || '0');
+
+  if (!dawarichUrl || !dawarichToken) {
+    toast(t('dawarichError') + ': URL/Token fehlen — Einstellungen öffnen', 'warning');
+    openSettings(); return;
+  }
+  if (!homeLat && !homeLon) {
+    toast(t('dawarichError') + ': Home-Koordinaten fehlen — Einstellungen öffnen', 'warning');
+    openSettings(); return;
+  }
+
+  if (btn) { btn.disabled = true; btn.innerHTML = `<span class="spinner"></span> ${t('dawarichSyncing')}`; }
+  toast(t('dawarichSyncing'), 'warning');
+
+  try {
+    const result = await api('/api/dawarich/sync', {
+      method: 'POST',
+      body: JSON.stringify({
+        dawarich_url:   dawarichUrl,
+        dawarich_token: dawarichToken,
+        home_lat:       homeLat,
+        home_lon:       homeLon,
+      }),
+    });
+
+    const bar  = document.getElementById('journal-sync-bar');
+    const info = document.getElementById('journal-sync-info');
+    if (bar)  bar.style.display = 'flex';
+    if (info) info.innerHTML = `<strong>${result.points_loaded}</strong> Punkte geladen · <strong>${result.trips_detected}</strong> Reisen erkannt · <strong>${result.trips_saved}</strong> gespeichert`;
+
+    toast(`${t('dawarichSynced')}: ${result.trips_detected} Reisen`, 'success');
+    loadJournalTrips();
+    loadDashboard(); // Refresh dashboard completed trips
+
+  } catch(e) {
+    toast(`${t('dawarichError')}: ${e.message}`, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = `🧭 ${t('syncNow')}`; }
+  }
+}
+
+async function deleteJournalTrip(id) {
+  if (!confirm(t('deleteConfirm'))) return;
+  try {
+    await api(`/api/dawarich/trips/${id}`, { method: 'DELETE' });
+    toast(t('deleted'), 'success');
+    loadJournalTrips();
+  } catch(e) { toast(`${t('error')}: ${e.message}`, 'error'); }
+}
+
+// ── Expense Table ─────────────────────────────────────
+
+async function loadExpenses() {
+  const wrap  = document.getElementById('expense-table-wrap');
+  const sumEl = document.getElementById('expense-summary');
+  const filEl = document.getElementById('expense-filters');
+  if (!API_URL) return;
+
+  const actualUrl   = localStorage.getItem('s-actualUrl')        || '';
+  const actualToken = localStorage.getItem('s-actualToken')      || '';
+  const categories  = localStorage.getItem('s-travelCategories') || '';
+  const yearSel     = document.getElementById('expense-year-filter');
+  const year        = yearSel?.value ? parseInt(yearSel.value) : null;
+
+  if (!actualUrl || !actualToken) {
+    wrap.innerHTML = `<div class="expense-loading">⚙ ActualBudget ${t('missingUrl')} — ${t('settings')} öffnen</div>`;
+    return;
+  }
+
+  wrap.innerHTML = `<div class="expense-loading"><span class="spinner"></span> ${t('expenseSyncing')}</div>`;
+
+  try {
+    const catList = categories.split(',').map(c => c.trim()).filter(Boolean);
+    const result = await api('/api/budget/actual/expenses', {
+      method: 'POST',
+      body: JSON.stringify({
+        base_url:       actualUrl,
+        token:          actualToken,
+        category_names: catList,
+        year,
+      }),
+    });
+
+    allExpenses = result.transactions || [];
+
+    // Summary
+    document.getElementById('expense-total').textContent = (result.total_spent||0).toFixed(2) + ' €';
+    document.getElementById('expense-year').textContent  = result.year || new Date().getFullYear();
+    document.getElementById('expense-count').textContent = allExpenses.length;
+    if (sumEl) sumEl.style.display = 'grid';
+
+    // Populate category filter
+    const catFilter = document.getElementById('expense-cat-filter');
+    const cats = [...new Set(allExpenses.map(tx => tx.category).filter(Boolean))].sort();
+    catFilter.innerHTML = `<option value="">${t('expenseCategory')} (${t('total')})</option>` +
+      cats.map(c => `<option value="${c}">${c}</option>`).join('');
+    if (filEl) filEl.style.display = 'flex';
+
+    // Year filter options
+    const years = [...new Set(allExpenses.map(tx => tx.date?.slice(0,4)).filter(Boolean))].sort().reverse();
+    if (yearSel) {
+      yearSel.innerHTML = `<option value="">Dieses Jahr</option>` +
+        years.map(y => `<option value="${y}"${year==y?'selected':''}>${y}</option>`).join('');
+    }
+
+    renderExpenseTable(allExpenses);
+
+  } catch(e) {
+    wrap.innerHTML = `<div class="expense-loading">❌ ${e.message}</div>`;
+    if (sumEl) sumEl.style.display = 'none';
+  }
+}
+
+function filterExpenses() {
+  const search  = document.getElementById('expense-search')?.value.toLowerCase() || '';
+  const cat     = document.getElementById('expense-cat-filter')?.value || '';
+  const filtered = allExpenses.filter(tx => {
+    const matchSearch = !search || (tx.payee||'').toLowerCase().includes(search) || (tx.notes||'').toLowerCase().includes(search);
+    const matchCat    = !cat    || tx.category === cat;
+    return matchSearch && matchCat;
+  });
+  renderExpenseTable(filtered);
+}
+
+function renderExpenseTable(expenses) {
+  const wrap = document.getElementById('expense-table-wrap');
+  if (!expenses.length) {
+    wrap.innerHTML = `<div class="expense-loading" data-i18n="expenseNoData">${t('expenseNoData')}</div>`;
+    return;
+  }
+
+  wrap.innerHTML = `<div class="expense-table-wrap">
+    <table class="expense-table">
+      <thead><tr>
+        <th data-i18n="expenseDate">${t('expenseDate')}</th>
+        <th data-i18n="expensePayee">${t('expensePayee')}</th>
+        <th data-i18n="expenseCategory">${t('expenseCategory')}</th>
+        <th data-i18n="expenseAmount" style="text-align:right">${t('expenseAmount')}</th>
+      </tr></thead>
+      <tbody>
+        ${expenses.map(tx => {
+          const amtClass = tx.amount < 0 ? 'expense-amount-neg' : 'expense-amount-pos';
+          const amt = Math.abs(tx.amount).toFixed(2);
+          const sign = tx.amount < 0 ? '−' : '+';
+          return `<tr>
+            <td>${tx.date||'–'}</td>
+            <td>${tx.payee||'–'}<br><span style="font-size:.65rem;color:var(--sub)">${tx.notes||''}</span></td>
+            <td><span class="badge badge-fallback" style="font-size:.6rem">${tx.category||'–'}</span></td>
+            <td style="text-align:right"><span class="${amtClass}">${sign} ${amt} €</span></td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  </div>`;
 }
 
 
