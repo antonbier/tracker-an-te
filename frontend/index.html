@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="WanderSuite — Self-hosted travel management suite">
-<title>WanderSuite v0.4</title>
+<title>WanderSuite v0.5</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -309,7 +309,7 @@ body.light-mode { --bg:#f4f5f7; --surface:#ffffff; --surface2:#eef0f3; --border:
     <a class="logo" href="#" onclick="navigate('ryanair');return false;">
       <div class="logo-icon">✈</div>
       <span>WanderSuite</span>
-      <span class="logo-ver">v0.4</span>
+      <span class="logo-ver">v0.5</span>
     </a>
   </div>
   <div class="header-right">
@@ -514,24 +514,27 @@ body.light-mode { --bg:#f4f5f7; --surface:#ffffff; --surface2:#eef0f3; --border:
             <div style="font-size:.78rem;color:var(--sub);margin-bottom:1rem;line-height:1.6" data-i18n="googleFlightsDesc">
               Monitor flight prices via Google Flights
             </div>
+            <div id="gf-serpapi-notice" class="notice-box" style="display:none;margin-bottom:.75rem" data-i18n="serpApiMissing">
+              SerpAPI Key fehlt — in den Einstellungen eintragen.
+            </div>
             <div class="form-row">
               <div class="form-group">
                 <label data-i18n="gfOrigin">Abflugort</label>
-                <input class="iata-input" id="gf-origin" placeholder="MUC" maxlength="3" disabled>
+                <input class="iata-input" id="gf-origin" placeholder="MUC" maxlength="3">
               </div>
               <div class="form-group">
                 <label data-i18n="gfDest">Zielort</label>
-                <input class="iata-input" id="gf-dest" placeholder="JFK" maxlength="3" disabled>
+                <input class="iata-input" id="gf-dest" placeholder="JFK" maxlength="3">
               </div>
             </div>
             <div class="form-row">
               <div class="form-group">
                 <label data-i18n="gfDate">Datum</label>
-                <input type="date" id="gf-date" disabled>
+                <input type="date" id="gf-date">
               </div>
               <div class="form-group">
                 <label data-i18n="gfPassengers">Passagiere</label>
-                <select id="gf-pax" disabled>
+                <select id="gf-pax">
                   <option value="1">1</option>
                   <option value="2" selected>2</option>
                   <option value="3">3</option>
@@ -540,26 +543,18 @@ body.light-mode { --bg:#f4f5f7; --surface:#ffffff; --surface2:#eef0f3; --border:
               </div>
             </div>
             <div class="form-group" style="margin-bottom:.65rem">
-              <label data-i18n="gfClass">Klasse</label>
-              <select id="gf-class" disabled>
-                <option value="economy" data-i18n-opt="gfEconomy">Economy</option>
-                <option value="business" data-i18n-opt="gfBusiness">Business</option>
-              </select>
+              <label data-i18n="gfReturn">Rückflug (opt.)</label>
+              <input type="date" id="gf-return">
             </div>
-            <button class="btn btn-primary" disabled style="opacity:.4;cursor:not-allowed">
-              🔍 <span data-i18n="gfSearch">Suchen</span>
+            <button class="btn btn-primary" id="gf-addBtn" onclick="addGFTracker()">
+              + <span data-i18n="startTracker">Tracker starten</span>
             </button>
-            <div class="notice-box" style="margin-top:.85rem" data-i18n="gfComingSoon">
-              Google Flights Integration wird in v0.5 implementiert.
-            </div>
           </div>
         </div>
         <div>
-          <div class="placeholder-card" style="height:100%;min-height:200px">
-            <div class="placeholder-icon">📊</div>
-            <div class="placeholder-title" data-i18n="priceHistory">Preisverlauf</div>
-            <div class="placeholder-desc" data-i18n="gfComingSoon">Coming in v0.5</div>
-            <span class="coming-soon-badge">v0.5</span>
+          <div class="section-title" data-i18n="gfActiveTrackers">Google Flights Tracker</div>
+          <div id="gf-trackerList">
+            <div style="color:var(--muted);font-size:.78rem;padding:.4rem 0" data-i18n="gfNoTrackers">Noch keine Google Flights Tracker</div>
           </div>
         </div>
       </div>
@@ -790,7 +785,7 @@ body.light-mode { --bg:#f4f5f7; --surface:#ffffff; --surface2:#eef0f3; --border:
 
 <!-- ── Footer ──────────────────────────────────────────── -->
 <footer class="footer">
-  WanderSuite v0.4 &mdash;
+  WanderSuite v0.5 &mdash;
   <a href="https://www.gnu.org/licenses/agpl-3.0" target="_blank">GNU AGPLv3</a>
   &mdash; <a href="https://github.com/antonbier/tracker-an-te" target="_blank">GitHub</a>
 </footer>
@@ -848,6 +843,16 @@ body.light-mode { --bg:#f4f5f7; --surface:#ffffff; --surface2:#eef0f3; --border:
         </select>
         <input class="settings-input" id="s-llmKey" type="password" placeholder="API Key">
       </div>
+      <div class="modal-section">
+        <div class="modal-section-label" data-i18n="serpApiKey">SerpAPI Key</div>
+        <input class="settings-input" id="s-serpApiKey" type="password" placeholder="xxxxxxxxxxxxxxxx">
+        <div style="font-size:.64rem;color:var(--sub);margin-top:.3rem" data-i18n="serpApiHint">Für Google Flights — kostenlos bis 100 Suchen/Monat</div>
+      </div>
+      <div class="modal-section">
+        <div class="modal-section-label" data-i18n="geminiKey">Google Gemini API Key</div>
+        <input class="settings-input" id="s-geminiKey" type="password" placeholder="AIzaSy...">
+        <div style="font-size:.64rem;color:var(--sub);margin-top:.3rem" data-i18n="geminiHint">Für KI-Empfehlungen — kostenlos auf aistudio.google.com</div>
+      </div>
       <div style="font-size:.66rem;color:var(--sub);margin-top:.65rem" data-i18n="settingsHint">Einstellungen werden lokal gespeichert</div>
     </div>
     <div class="modal-footer">
@@ -862,7 +867,7 @@ body.light-mode { --bg:#f4f5f7; --surface:#ffffff; --surface2:#eef0f3; --border:
 
 <script>
 /**
- * WanderSuite v0.4 — Main Application
+ * WanderSuite v0.5 — Main Application
  * Navigation, i18n, Ryanair Tracker, Discover, Budget, Settings
  */
 
@@ -916,8 +921,9 @@ function navigate(page) {
   currentPage = page;
   // Close sidebar on mobile
   if (window.innerWidth < 900) closeSidebar();
-  // Lazy-init budget page
+  // Lazy-init modules
   if (page === 'budget') renderBudget();
+  if (page === 'google') loadGFTrackers();
 }
 
 function toggleSidebar() {
@@ -1192,21 +1198,66 @@ function checkDawarich(on) {
   }
 }
 
-function generateIdeas() {
+async function generateIdeas() {
   const q = document.getElementById('discoverQuery').value.trim();
-  if (!q) { toast(t('discoverWhat'), 'warning'); return; }
-  const llm = localStorage.getItem('s-llmProvider');
-  const results = document.getElementById('discoverResults');
-  if (!llm) {
-    results.textContent = '⚙ ' + t('settingsHint') + ' — LLM provider needed.';
-    toast(t('settings') + ': LLM ' + t('llmProvider'), 'warning');
+  if (!q) { toast(t('discoverNoQuery'), 'warning'); return; }
+
+  const geminiKey = localStorage.getItem('s-geminiKey') || '';
+  if (!geminiKey) {
+    toast(t('discoverNoKey'), 'warning');
+    document.getElementById('discoverResults').textContent = '⚙ ' + t('discoverNoKey');
     return;
   }
-  results.innerHTML = '<span class="spinner"></span>';
-  // Placeholder — real LLM call in v0.2
-  setTimeout(() => {
-    results.textContent = '🚀 LLM integration coming in v0.2 — configure your API key in Settings.';
-  }, 1200);
+
+  const results = document.getElementById('discoverResults');
+  results.innerHTML = '<span class="spinner"></span> ' + t('discoverGenerating');
+
+  const useDawarich = document.getElementById('discoverDawarich').checked;
+
+  try {
+    const payload = {
+      query: q,
+      api_key: geminiKey,
+      lang: currentLang,
+      exclude_places: useDawarich ? [] : [],
+    };
+
+    const resp = await fetch(API_URL + '/api/discover', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await resp.json();
+
+    if (data.error) {
+      results.textContent = '❌ ' + data.error;
+      return;
+    }
+
+    if (data.recommendations && Array.isArray(data.recommendations)) {
+      results.innerHTML = renderRecommendations(data.recommendations);
+    } else if (data.raw) {
+      results.innerHTML = `<pre style="white-space:pre-wrap;font-size:.75rem;text-align:left">${data.raw}</pre>`;
+    } else {
+      results.textContent = '⚠ Unerwartetes Antwortformat';
+    }
+  } catch(e) {
+    results.textContent = '❌ ' + e.message;
+    toast(t('error') + ': ' + e.message, 'error');
+  }
+}
+
+function renderRecommendations(recs) {
+  return recs.map(r => `
+    <div style="border:1px solid var(--border);border-radius:var(--radius);padding:.85rem;margin-bottom:.6rem;text-align:left">
+      <div style="font-weight:800;font-size:.95rem;margin-bottom:.3rem">🌍 ${r.destination}</div>
+      <div style="font-size:.78rem;color:var(--sub);margin-bottom:.4rem;line-height:1.5">${r.why}</div>
+      <div style="display:flex;gap:.75rem;flex-wrap:wrap;font-size:.7rem;font-family:var(--mono)">
+        <span style="color:var(--accent2)">📅 ${r.best_time}</span>
+        <span style="color:var(--green)">💶 ${r.estimated_budget}</span>
+        <span style="color:var(--text)">⭐ ${r.highlight}</span>
+      </div>
+    </div>`).join('');
 }
 
 // ── Budget Module ───────────────────────────────────────
@@ -1286,6 +1337,8 @@ function openSettings() {
   document.getElementById('s-actualToken').value   = localStorage.getItem('s-actualToken') || '';
   document.getElementById('s-llmProvider').value   = localStorage.getItem('s-llmProvider') || '';
   document.getElementById('s-llmKey').value        = localStorage.getItem('s-llmKey') || '';
+  document.getElementById('s-serpApiKey').value    = localStorage.getItem('s-serpApiKey') || '';
+  document.getElementById('s-geminiKey').value     = localStorage.getItem('s-geminiKey') || '';
   switchTab('basic');
   document.getElementById('settingsBackdrop').classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -1315,13 +1368,117 @@ function toggleTheme(isLight) {
 function saveSettings() {
   API_URL = document.getElementById('s-backendUrl').value.trim().replace(/\/$/, '');
   localStorage.setItem('apiUrl', API_URL);
-  ['s-timezone','s-dawarichUrl','s-dawarichToken','s-actualUrl','s-actualToken','s-llmProvider','s-llmKey'].forEach(k => {
+  ['s-timezone','s-dawarichUrl','s-dawarichToken','s-actualUrl','s-actualToken','s-llmProvider','s-llmKey','s-serpApiKey','s-geminiKey'].forEach(k => {
     localStorage.setItem(k, document.getElementById(k).value);
   });
   toast(t('saved') + ' ✓', 'success');
   closeSettings();
   checkApiStatus();
   loadTrackers();
+}
+
+// ── Google Flights Tracker ────────────────────────────
+async function addGFTracker() {
+  const btn = document.getElementById('gf-addBtn');
+  const origin  = document.getElementById('gf-origin').value.trim().toUpperCase();
+  const dest    = document.getElementById('gf-dest').value.trim().toUpperCase();
+  const outDate = document.getElementById('gf-date').value;
+  const retDate = document.getElementById('gf-return')?.value || '';
+  const pax     = parseInt(document.getElementById('gf-pax').value);
+
+  if (!origin || origin.length !== 3) { toast(t('invalidOrigin'), 'error'); return; }
+  if (!dest   || dest.length   !== 3) { toast(t('invalidDest'), 'error'); return; }
+  if (!outDate)                        { toast(t('missingDate'), 'error'); return; }
+  if (!API_URL)                        { toast(t('missingUrl'), 'warning'); return; }
+
+  const serpKey = localStorage.getItem('s-serpApiKey') || '';
+  if (!serpKey) {
+    document.getElementById('gf-serpapi-notice').style.display = 'block';
+    toast(t('serpApiMissing'), 'warning');
+    return;
+  }
+  document.getElementById('gf-serpapi-notice').style.display = 'none';
+
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span> ${t('creatingTracker')}`;
+
+  try {
+    const r = await fetch(API_URL + '/api/google-flights', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ origin, destination: dest, outbound_date: outDate, return_date: retDate || null, adults: pax, children: 0 }),
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    toast(`${t('gfTrackerAdded')} ✓ ${origin} → ${dest}`, 'success');
+    document.getElementById('gf-origin').value = '';
+    document.getElementById('gf-dest').value = '';
+    loadGFTrackers();
+  } catch(e) {
+    toast(`${t('error')}: ${e.message}`, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `+ ${t('startTracker')}`;
+  }
+}
+
+async function loadGFTrackers() {
+  if (!API_URL) return;
+  try {
+    const r = await fetch(API_URL + '/api/google-flights');
+    const trackers = await r.json();
+    renderGFTrackers(trackers);
+  } catch(e) { /* silent fail if backend not yet updated */ }
+}
+
+function renderGFTrackers(trackers) {
+  const el = document.getElementById('gf-trackerList');
+  if (!el) return;
+  if (!trackers.length) {
+    el.innerHTML = `<div style="color:var(--muted);font-size:.78rem;padding:.4rem 0">${t('gfNoTrackers')}</div>`;
+    return;
+  }
+  el.innerHTML = trackers.map(tr => {
+    const snap = tr.latest_snapshot;
+    const priceStr = snap?.total_price ? `${snap.total_price.toFixed(2)} €` : '–';
+    return `<div class="tracker-item">
+      <div class="tracker-header">
+        <div class="tracker-route">${tr.origin} → ${tr.destination}</div>
+        <div class="tracker-price ${snap?'':'stale'}">${priceStr}</div>
+      </div>
+      <div class="tracker-meta">
+        <span>${tr.outbound_date}${tr.return_date?' ⇄ '+tr.return_date:' ('+t('oneWay')+')'}</span>
+        <span>${tr.adults} ${t('adultShort')}</span>
+        <span class="badge badge-ok">Google Flights</span>
+      </div>
+      <div class="tracker-actions">
+        <button class="btn-scrape" onclick="scrapeGFTracker(${tr.id})">⟳ ${t('current')}</button>
+        <button class="btn-sm btn-danger" onclick="deleteGFTracker(${tr.id})">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function scrapeGFTracker(id) {
+  const serpKey = localStorage.getItem('s-serpApiKey') || '';
+  toast(t('gfSearching'), 'warning');
+  try {
+    const r = await fetch(`${API_URL}/api/google-flights/${id}/scrape?api_key=${encodeURIComponent(serpKey)}`, { method: 'POST' });
+    const data = await r.json();
+    const snap = data.snapshot;
+    if (snap?.total_price) toast(`${t('current')}: ${snap.total_price.toFixed(2)} €`, 'success');
+    else toast(`Status: ${snap?.status}`, 'warning');
+    loadGFTrackers();
+  } catch(e) { toast(`${t('error')}: ${e.message}`, 'error'); }
+}
+
+async function deleteGFTracker(id) {
+  if (!confirm(t('deleteConfirm'))) return;
+  try {
+    await fetch(`${API_URL}/api/google-flights/${id}`, { method: 'DELETE' });
+    toast(t('deleted'), 'success');
+    loadGFTrackers();
+  } catch(e) { toast(`${t('error')}: ${e.message}`, 'error'); }
 }
 
 // ── Toast ──────────────────────────────────────────────

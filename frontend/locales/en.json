@@ -126,5 +126,17 @@
   "gfSearch": "Search",
   "gfComingSoon": "Google Flights integration will be implemented in v0.5. The UI is already ready.",
   "homairTitle": "Homair Camping Tracker",
-  "bookingTitle": "Booking / Trivago Tracker"
+  "bookingTitle": "Booking / Trivago Tracker",
+  "serpApiKey": "SerpAPI Key",
+  "serpApiHint": "For Google Flights — free up to 100 searches/month at serpapi.com",
+  "geminiKey": "Google Gemini API Key",
+  "geminiHint": "For AI recommendations — free at aistudio.google.com",
+  "gfTrackerAdded": "Google Flights tracker created",
+  "gfSearching": "Searching flights...",
+  "discoverGenerating": "AI is generating recommendations...",
+  "discoverNoKey": "Gemini API key missing — please add it in Settings.",
+  "discoverNoQuery": "Please describe what you are looking for.",
+  "serpApiMissing": "SerpAPI key missing — add it in Settings.",
+  "gfActiveTrackers": "Google Flights Trackers",
+  "gfNoTrackers": "No Google Flights trackers yet"
 }

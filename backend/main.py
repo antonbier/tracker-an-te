@@ -1,5 +1,6 @@
 """
-Ryanair Preistracker — FastAPI Backend
+WanderSuite v0.5 — FastAPI Backend
+Routes: /api/trackers, /api/prices, /api/google-flights, /api/discover
 """
 
 from fastapi import FastAPI
@@ -10,7 +11,7 @@ import logging
 
 from database import init_db
 from scheduler import run_all_trackers
-from routes import trackers, prices
+from routes import trackers, prices, google_flights, discover
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -36,9 +37,14 @@ async def lifespan(app: FastAPI):
     yield
 
     scheduler.shutdown(wait=False)
+    logger.info("Scheduler gestoppt")
 
 
-app = FastAPI(title="Ryanair Preistracker API", version="1.0.0", lifespan=lifespan)
+app = FastAPI(
+    title="WanderSuite API",
+    version="0.5.0",
+    lifespan=lifespan,
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -49,15 +55,17 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
-app.include_router(trackers.router, prefix="/api/trackers", tags=["Trackers"])
-app.include_router(prices.router, prefix="/api/prices", tags=["Prices"])
+app.include_router(trackers.router,       prefix="/api/trackers",       tags=["Ryanair Tracker"])
+app.include_router(prices.router,         prefix="/api/prices",          tags=["Prices"])
+app.include_router(google_flights.router, prefix="/api/google-flights",  tags=["Google Flights"])
+app.include_router(discover.router,       prefix="/api/discover",         tags=["Discover"])
 
 
 @app.get("/")
 def root():
-    return {"status": "ok", "service": "Ryanair Preistracker"}
+    return {"status": "ok", "service": "WanderSuite API", "version": "0.5.0"}
 
 
 @app.get("/health")
 def health():
-    return {"status": "healthy"}
+    return {"status": "healthy", "version": "0.5.0"}
