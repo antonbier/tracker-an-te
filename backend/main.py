@@ -1,5 +1,25 @@
 """
-WanderSuite v1.0 — FastAPI Backend
+WanderSuite v1.0 — FastAPI Backend Entry Point
+===============================================
+Startet die FastAPI-App mit APScheduler für tägliches Scraping.
+
+Ports (docker-compose):
+  - Backend: 8766 (nach außen exposed, direkt vom Browser erreichbar)
+  - Frontend: 8765 (Nginx, serviert index.html + locales/)
+
+Umgebungsvariablen:
+  - DB_PATH: Pfad zur SQLite-Datenbank (default: tracker.db)
+  - APP_SECRET: Encryption Key für API Keys (AES-Fernet)
+
+Routes:
+  /api/trackers        — Ryanair Tracker CRUD
+  /api/prices          — Preisverlauf für Charts
+  /api/google-flights  — Google Flights via SerpAPI
+  /api/accommodations  — Homair + Booking/Trivago
+  /api/discover        — KI-Empfehlungen (Gemini/OpenAI)
+  /api/budget          — ActualBudget Sync
+  /api/dawarich        — Trip-Erkennung via Dawarich
+  /api/settings        — Verschlüsselte API Key Verwaltung
 """
 
 from fastapi import FastAPI
