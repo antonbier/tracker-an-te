@@ -65,7 +65,12 @@ def scrape_homair(tid: int):
     tracker = get_homair_tracker(tid)
     if not tracker:
         raise HTTPException(404, "Tracker nicht gefunden")
-    result = fetch_homair(tracker)
+    key = get_setting_value("serpapi_key") or ""
+    if not key:
+        raise HTTPException(400, "SerpAPI Key fehlt — in den Einstellungen eintragen")
+    result = fetch_homair(tracker, key)
+    if result.get("status") == "error":
+        raise HTTPException(400, result["snapshot"].get("error_message", "Scraping fehlgeschlagen"))
     snap = result["snapshot"]
     save_homair_snapshot(tid, snap)
     return {"message": "Scraping abgeschlossen", "snapshot": snap}
@@ -103,3 +108,4 @@ def scrape_booking(tid: int, api_key: str = ""):
     snap = result["snapshot"]
     save_booking_snapshot(tid, snap)
     return {"message": "Scraping abgeschlossen", "snapshot": snap}
+
