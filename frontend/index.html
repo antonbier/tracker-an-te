@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="WanderSuite — Self-hosted travel management suite">
-<title>WanderSuite v0.6</title>
+<title>WanderSuite v1.0</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -309,7 +309,7 @@ body.light-mode { --bg:#f4f5f7; --surface:#ffffff; --surface2:#eef0f3; --border:
     <a class="logo" href="#" onclick="navigate('ryanair');return false;">
       <div class="logo-icon">✈</div>
       <span>WanderSuite</span>
-      <span class="logo-ver">v0.6</span>
+      <span class="logo-ver">v1.0</span>
     </a>
   </div>
   <div class="header-right">
@@ -338,7 +338,6 @@ body.light-mode { --bg:#f4f5f7; --surface:#ffffff; --surface2:#eef0f3; --border:
       <button class="nav-item sub" id="nav-google" onclick="navigate('google')">
         <span class="nav-icon">🔵</span>
         <span data-i18n="navGoogleFlights">Google Flights</span>
-        <span class="nav-badge">soon</span>
       </button>
     </div>
 
@@ -347,13 +346,11 @@ body.light-mode { --bg:#f4f5f7; --surface:#ffffff; --surface2:#eef0f3; --border:
       <button class="nav-item sub" id="nav-homair" onclick="navigate('homair')">
         <span class="nav-icon">⛺</span>
         <span data-i18n="navHomair">Homair</span>
-        <span class="nav-badge">soon</span>
-      </button>
+        </button>
       <button class="nav-item sub" id="nav-booking" onclick="navigate('booking')">
         <span class="nav-icon">🏨</span>
         <span data-i18n="navBooking">Booking / Trivago</span>
-        <span class="nav-badge">soon</span>
-      </button>
+        </button>
     </div>
 
     <div class="nav-group">
@@ -533,12 +530,23 @@ body.light-mode { --bg:#f4f5f7; --surface:#ffffff; --surface2:#eef0f3; --border:
                 <input type="date" id="gf-date">
               </div>
               <div class="form-group">
-                <label data-i18n="gfPassengers">Passagiere</label>
+                <label data-i18n="adults">Erwachsene</label>
                 <select id="gf-pax">
                   <option value="1">1</option>
                   <option value="2" selected>2</option>
                   <option value="3">3</option>
                   <option value="4">4</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label data-i18n="children">Kinder</label>
+                <select id="gf-children">
+                  <option value="0" selected>0</option>
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
                 </select>
               </div>
             </div>
@@ -705,6 +713,15 @@ body.light-mode { --bg:#f4f5f7; --surface:#ffffff; --surface2:#eef0f3; --border:
         <div>
           <div class="card">
             <div class="card-title" data-i18n="discoverTitle">Entdecke etwas Neues</div>
+            <div class="form-row" style="margin-bottom:.6rem">
+              <div class="form-group">
+                <label data-i18n="discoverProvider">KI-Anbieter</label>
+                <select id="discoverProvider">
+                  <option value="gemini" data-i18n-opt="providerGemini">Google Gemini</option>
+                  <option value="openai" data-i18n-opt="providerOpenAI">OpenAI</option>
+                </select>
+              </div>
+            </div>
             <div class="form-group" style="margin-bottom:.75rem">
               <label data-i18n="discoverWhat">Was suchst du?</label>
               <textarea id="discoverQuery" data-i18n-placeholder="discoverWhatPlaceholder"
@@ -811,7 +828,7 @@ body.light-mode { --bg:#f4f5f7; --surface:#ffffff; --surface2:#eef0f3; --border:
 
 <!-- ── Footer ──────────────────────────────────────────── -->
 <footer class="footer">
-  WanderSuite v0.6 &mdash;
+  WanderSuite v1.0 &mdash;
   <a href="https://www.gnu.org/licenses/agpl-3.0" target="_blank">GNU AGPLv3</a>
   &mdash; <a href="https://github.com/antonbier/tracker-an-te" target="_blank">GitHub</a>
 </footer>
@@ -879,6 +896,11 @@ body.light-mode { --bg:#f4f5f7; --surface:#ffffff; --surface2:#eef0f3; --border:
         <input class="settings-input" id="s-geminiKey" type="password" placeholder="AIzaSy...">
         <div style="font-size:.64rem;color:var(--sub);margin-top:.3rem" data-i18n="geminiHint">Für KI-Empfehlungen — kostenlos auf aistudio.google.com</div>
       </div>
+      <div class="modal-section">
+        <div class="modal-section-label" data-i18n="openaiKey">OpenAI API Key</div>
+        <input class="settings-input" id="s-openaiKey" type="password" placeholder="sk-...">
+        <div style="font-size:.64rem;color:var(--sub);margin-top:.3rem" data-i18n="openaiHint">gpt-4o-mini — günstig und schnell</div>
+      </div>
       <div style="font-size:.66rem;color:var(--sub);margin-top:.65rem" data-i18n="settingsHint">Einstellungen werden lokal gespeichert</div>
     </div>
     <div class="modal-footer">
@@ -893,7 +915,7 @@ body.light-mode { --bg:#f4f5f7; --surface:#ffffff; --surface2:#eef0f3; --border:
 
 <script>
 /**
- * WanderSuite v0.6 — Main Application
+ * WanderSuite v1.0 — Main Application
  * Navigation, i18n, Ryanair Tracker, Discover, Budget, Settings
  */
 
@@ -1230,12 +1252,10 @@ async function generateIdeas() {
   const q = document.getElementById('discoverQuery').value.trim();
   if (!q) { toast(t('discoverNoQuery'), 'warning'); return; }
 
-  const geminiKey = localStorage.getItem('s-geminiKey') || '';
-  if (!geminiKey) {
-    toast(t('discoverNoKey'), 'warning');
-    document.getElementById('discoverResults').textContent = '⚙ ' + t('discoverNoKey');
-    return;
-  }
+  const provider = document.getElementById('discoverProvider')?.value || 'gemini';
+  const localKey = provider === 'openai'
+    ? (localStorage.getItem('s-openaiKey') || '')
+    : (localStorage.getItem('s-geminiKey') || '');
 
   const results = document.getElementById('discoverResults');
   results.innerHTML = '<span class="spinner"></span> ' + t('discoverGenerating');
@@ -1245,7 +1265,8 @@ async function generateIdeas() {
   try {
     const payload = {
       query: q,
-      api_key: geminiKey,
+      provider,
+      api_key: localKey || undefined,
       lang: currentLang,
       exclude_places: useDawarich ? [] : [],
     };
@@ -1425,6 +1446,7 @@ function openSettings() {
   document.getElementById('s-llmKey').value        = localStorage.getItem('s-llmKey') || '';
   document.getElementById('s-serpApiKey').value    = localStorage.getItem('s-serpApiKey') || '';
   document.getElementById('s-geminiKey').value     = localStorage.getItem('s-geminiKey') || '';
+  document.getElementById('s-openaiKey').value     = localStorage.getItem('s-openaiKey') || '';
   switchTab('basic');
   document.getElementById('settingsBackdrop').classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -1454,9 +1476,28 @@ function toggleTheme(isLight) {
 function saveSettings() {
   API_URL = document.getElementById('s-backendUrl').value.trim().replace(/\/$/, '');
   localStorage.setItem('apiUrl', API_URL);
-  ['s-timezone','s-dawarichUrl','s-dawarichToken','s-actualUrl','s-actualToken','s-llmProvider','s-llmKey','s-serpApiKey','s-geminiKey'].forEach(k => {
+  ['s-timezone','s-dawarichUrl','s-dawarichToken','s-actualUrl','s-actualToken','s-llmProvider','s-llmKey','s-serpApiKey','s-geminiKey','s-openaiKey'].forEach(k => {
     localStorage.setItem(k, document.getElementById(k).value);
   });
+  // Sync keys to server (encrypted)
+  try {
+    await fetch(API_URL + '/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        serpapi_key:    document.getElementById('s-serpApiKey').value || null,
+        gemini_key:     document.getElementById('s-geminiKey').value  || null,
+        openai_key:     document.getElementById('s-openaiKey').value  || null,
+        dawarich_url:   document.getElementById('s-dawarichUrl').value   || null,
+        dawarich_token: document.getElementById('s-dawarichToken').value  || null,
+        actual_url:     document.getElementById('s-actualUrl').value   || null,
+        actual_token:   document.getElementById('s-actualToken').value  || null,
+        llm_provider:   document.getElementById('s-llmProvider').value  || null,
+        timezone:       document.getElementById('s-timezone').value    || null,
+      }),
+    });
+  } catch(e) { /* Server sync optional — localStorage als Fallback */ }
+
   toast(t('saved') + ' ✓', 'success');
   closeSettings();
   checkApiStatus();
@@ -1492,7 +1533,7 @@ async function addGFTracker() {
     const r = await fetch(API_URL + '/api/google-flights', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ origin, destination: dest, outbound_date: outDate, return_date: retDate || null, adults: pax, children: 0 }),
+      body: JSON.stringify({ origin, destination: dest, outbound_date: outDate, return_date: retDate || null, adults: pax, children: parseInt(document.getElementById('gf-children')?.value||0) }),
     });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const data = await r.json();
@@ -1527,6 +1568,11 @@ function renderGFTrackers(trackers) {
   el.innerHTML = trackers.map(tr => {
     const snap = tr.latest_snapshot;
     const priceStr = snap?.total_price ? `${snap.total_price.toFixed(2)} €` : '–';
+    const airlineStr = snap?.airline ? `✈ ${snap.airline}` : '';
+    const flightNo   = snap?.outbound_flight ? snap.outbound_flight : '';
+    const times      = snap?.departure_time && snap?.arrival_time
+      ? `${snap.departure_time} → ${snap.arrival_time}` : '';
+    const durMin     = snap?.duration_min ? `${Math.floor(snap.duration_min/60)}h ${snap.duration_min%60}m` : '';
     return `<div class="tracker-item">
       <div class="tracker-header">
         <div class="tracker-route">${tr.origin} → ${tr.destination}</div>
@@ -1534,7 +1580,9 @@ function renderGFTrackers(trackers) {
       </div>
       <div class="tracker-meta">
         <span>${tr.outbound_date}${tr.return_date?' ⇄ '+tr.return_date:' ('+t('oneWay')+')'}</span>
-        <span>${tr.adults} ${t('adultShort')}</span>
+        <span>${tr.adults} ${t('adultShort')}${tr.children>0?' · '+tr.children+' Kind':''}</span>
+        ${airlineStr?`<span>${airlineStr}${flightNo?' '+flightNo:''}</span>`:''}
+        ${times?`<span>🕐 ${times}${durMin?' ('+durMin+')':''}</span>`:''}
         <span class="badge badge-ok">Google Flights</span>
       </div>
       <div class="tracker-actions">

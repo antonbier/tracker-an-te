@@ -1,24 +1,22 @@
 """
-WanderSuite v0.5 — REST Routes: /api/google-flights
-Google Flights Tracker via SerpAPI.
+WanderSuite v1.0 — REST Routes: /api/google-flights
+SQLite-persistente Google Flights Tracker.
 """
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, field_validator
 from typing import Optional
-import re
-import logging
-import os
+import re, logging
 
+from database import (
+    create_gf_tracker, list_gf_trackers, get_gf_tracker,
+    delete_gf_tracker, save_gf_snapshot, get_gf_snapshots, get_gf_latest_snapshot
+)
 from google_scraper import fetch_google_flights
+from settings_manager import get_setting_value
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-
-# In-memory store für Google Flights Tracker (einfach, kein extra DB-Schema)
-# In v0.6 wird das in die SQLite DB überführt
-_gf_trackers: list[dict] = []
-_gf_id_counter = 1
 
 
 class GFTrackerCreate(BaseModel):
@@ -40,64 +38,45 @@ class GFTrackerCreate(BaseModel):
     @field_validator("outbound_date", "return_date")
     @classmethod
     def valid_date(cls, v):
-        if v is None:
-            return v
+        if v is None: return v
         if not re.match(r"^\d{4}-\d{2}-\d{2}$", v):
-            raise ValueError("Datum muss im Format YYYY-MM-DD sein")
+            raise ValueError("Format: YYYY-MM-DD")
         return v
 
 
 @router.get("")
-def list_gf_trackers():
-    return _gf_trackers
+def list_trackers():
+    return list_gf_trackers()
 
 
 @router.post("", status_code=201)
-def add_gf_tracker(data: GFTrackerCreate):
-    global _gf_id_counter
-    tracker = {
-        "id":            _gf_id_counter,
-        "origin":        data.origin,
-        "destination":   data.destination,
-        "outbound_date": data.outbound_date,
-        "return_date":   data.return_date,
-        "adults":        data.adults,
-        "children":      data.children,
-        "latest_snapshot": None,
-    }
-    _gf_trackers.append(tracker)
-    _gf_id_counter += 1
-    return {"id": tracker["id"], "message": "Google Flights Tracker angelegt"}
+def add_tracker(data: GFTrackerCreate):
+    tid = create_gf_tracker(data.model_dump())
+    return {"id": tid, "message": "Google Flights Tracker angelegt"}
 
 
 @router.delete("/{tracker_id}")
-def delete_gf_tracker(tracker_id: int):
-    global _gf_trackers
-    before = len(_gf_trackers)
-    _gf_trackers = [t for t in _gf_trackers if t["id"] != tracker_id]
-    if len(_gf_trackers) == before:
-        raise HTTPException(404, f"Tracker #{tracker_id} nicht gefunden")
+def del_tracker(tracker_id: int):
+    if not delete_gf_tracker(tracker_id):
+        raise HTTPException(404, "Tracker nicht gefunden")
     return {"message": "Tracker gelöscht"}
 
 
 @router.post("/{tracker_id}/scrape")
-def scrape_gf_tracker(tracker_id: int, api_key: str = ""):
-    tracker = next((t for t in _gf_trackers if t["id"] == tracker_id), None)
+def scrape_tracker(tracker_id: int, api_key: str = ""):
+    tracker = get_gf_tracker(tracker_id)
     if not tracker:
-        raise HTTPException(404, f"Tracker #{tracker_id} nicht gefunden")
-
-    # API Key aus Env oder Query-Param
-    key = api_key or os.environ.get("SERPAPI_KEY", "")
+        raise HTTPException(404, "Tracker nicht gefunden")
+    key = api_key or get_setting_value("serpapi_key") or ""
     if not key:
-        raise HTTPException(400, "SerpAPI Key fehlt — in den Einstellungen eintragen")
-
+        raise HTTPException(400, "SerpAPI Key fehlt")
     result = fetch_google_flights(tracker, key)
     snap = result["snapshot"]
-
-    # Snapshot im Tracker speichern
-    tracker["latest_snapshot"] = snap
-    if not tracker.get("history"):
-        tracker["history"] = []
-    tracker["history"].append(snap)
-
+    snap_id = save_gf_snapshot(tracker_id, snap)
+    snap["id"] = snap_id
     return {"message": "Scraping abgeschlossen", "snapshot": snap}
+
+
+@router.get("/{tracker_id}/history")
+def get_history(tracker_id: int, limit: int = 90):
+    return get_gf_snapshots(tracker_id, limit)

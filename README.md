@@ -1,13 +1,13 @@
-# WanderSuite v0.6
+# WanderSuite v1.0
 
 > A comprehensive, self-hosted travel management suite. Track flight prices, discover new destinations, and manage your travel budget — all in one place.
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
-[![Version](https://img.shields.io/badge/version-0.6-orange.svg)](https://github.com/antonbier/tracker-an-te/releases/tag/v0.6)
+[![Version](https://img.shields.io/badge/version-1.0-green.svg)](https://github.com/antonbier/tracker-an-te/releases/tag/v1.0)
 
 ---
 
-## Features (v0.6)
+## Features (v1.0)
 
 - ✈️ **Ryanair Price Tracker** — Automatic daily scraping with anti-bot measures
 - 🧳 **Baggage Cost Tracking** — Per-type baggage costs per tracker
@@ -35,7 +35,7 @@
 - [x] v0.4 — Google Flights / Homair / Booking UI shells + Seat Reservation
 - [x] v0.5 — Google Flights scraper (SerpAPI) + AI recommendations (Gemini 2.0 Flash)
 - [x] v0.6 — Homair + Booking scrapers + ActualBudget sync
-- [ ] v1.0 — Stable release, full test coverage
+- [x] v1.0 — SQLite persistence, encrypted settings, OpenAI, stable release
 
 ---
 

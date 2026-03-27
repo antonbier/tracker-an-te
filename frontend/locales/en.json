@@ -156,5 +156,16 @@
   "destination": "Destination",
   "accommodationType": "Accommodation type",
   "region": "Region",
-  "serpApiMissingBooking": "SerpAPI key missing — required for Booking/Trivago search"
+  "serpApiMissingBooking": "SerpAPI key missing — required for Booking/Trivago search",
+  "airline": "Airline",
+  "departureTime": "Departure",
+  "arrivalTime": "Arrival",
+  "duration": "Duration",
+  "openaiKey": "OpenAI API Key",
+  "openaiHint": "gpt-4o-mini — cheap and fast. Key at platform.openai.com",
+  "discoverProvider": "AI Provider",
+  "providerGemini": "Google Gemini",
+  "providerOpenAI": "OpenAI",
+  "settingsSaved": "Settings saved",
+  "encryptedOnServer": "Keys are stored encrypted on the server"
 }
