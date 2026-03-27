@@ -3,149 +3,462 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="WanderSuite — Self-hosted travel management suite">
 <title>WanderSuite v0.1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --bg: #0d0e11; --surface: #141519; --border: #2a2b30; --muted: #3a3c44;
-    --text: #e8e9ec; --sub: #7a7d88; --accent: #ff5533; --accent2: #ff8c00;
-    --green: #00d97e; --yellow: #ffd166; --red: #ff4757;
-    --mono: 'Space Mono', monospace; --sans: 'Syne', sans-serif;
-    --radius: 6px; --transition: 180ms ease;
-  }
-  html { font-size: 15px; scroll-behavior: smooth; }
-  body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; line-height: 1.5; }
-  .header { display: flex; align-items: center; justify-content: space-between; padding: 1.25rem 2rem; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: rgba(13,14,17,.92); backdrop-filter: blur(12px); z-index: 100; }
-  .logo { display: flex; align-items: center; gap: .6rem; font-size: 1.1rem; font-weight: 800; letter-spacing: -.02em; }
-  .logo-icon { width: 28px; height: 28px; background: var(--accent); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: .85rem; }
-  .header-actions { display: flex; gap: .75rem; align-items: center; }
-  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse 2.5s ease-in-out infinite; }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
-  .lang-switcher { display: flex; gap: 2px; background: var(--border); border-radius: 5px; padding: 2px; }
-  .lang-btn { padding: .25rem .5rem; border: none; border-radius: 3px; cursor: pointer; font-family: var(--mono); font-size: .7rem; font-weight: 700; letter-spacing: .05em; background: transparent; color: var(--sub); transition: all var(--transition); }
-  .lang-btn:hover { color: var(--text); }
-  .lang-btn.active { background: var(--surface); color: var(--accent); }
-  .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
-  .grid-2 { display: grid; grid-template-columns: 400px 1fr; gap: 1.5rem; align-items: start; }
-  @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } .container { padding: 1rem; } }
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; }
-  .card-title { font-size: .7rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--sub); margin-bottom: 1.25rem; display: flex; align-items: center; gap: .5rem; }
-  .card-title::before { content: ''; display: block; width: 3px; height: 14px; background: var(--accent); border-radius: 2px; }
-  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; margin-bottom: .75rem; }
-  .form-group { display: flex; flex-direction: column; gap: .35rem; }
-  label { font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--sub); }
-  input, select { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-family: var(--mono); font-size: .85rem; padding: .6rem .75rem; outline: none; transition: border-color var(--transition); width: 100%; }
-  input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(255,85,51,.12); }
-  input::placeholder { color: var(--muted); }
-  .iata-input { text-transform: uppercase; letter-spacing: .1em; }
-  .baggage-section { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); }
-  .baggage-title { font-size: .68rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--sub); margin-bottom: .75rem; }
-  .bag-option { display: flex; align-items: center; gap: .75rem; padding: .55rem .75rem; border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: .4rem; cursor: pointer; transition: border-color var(--transition), background var(--transition); user-select: none; }
-  .bag-option:hover { border-color: var(--muted); }
-  .bag-option.selected { border-color: var(--accent); background: rgba(255,85,51,.06); }
-  .bag-checkbox { width: 16px; height: 16px; border: 1.5px solid var(--muted); border-radius: 3px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: .6rem; transition: all var(--transition); }
-  .bag-option.selected .bag-checkbox { background: var(--accent); border-color: var(--accent); color: white; }
-  .bag-label { font-size: .82rem; flex: 1; }
-  .bag-note { font-size: .7rem; color: var(--sub); font-family: var(--mono); }
-  .btn { display: inline-flex; align-items: center; gap: .5rem; padding: .65rem 1.25rem; border: none; border-radius: var(--radius); font-family: var(--sans); font-size: .82rem; font-weight: 700; cursor: pointer; transition: all var(--transition); letter-spacing: .02em; }
-  .btn-primary { background: var(--accent); color: white; width: 100%; justify-content: center; margin-top: 1rem; padding: .75rem; font-size: .88rem; }
-  .btn-primary:hover { background: #e64422; transform: translateY(-1px); }
-  .btn-primary:active { transform: translateY(0); }
-  .btn-primary:disabled { opacity: .45; cursor: not-allowed; transform: none; }
-  .btn-ghost { background: transparent; color: var(--sub); border: 1px solid var(--border); padding: .4rem .7rem; font-size: .75rem; }
-  .btn-ghost:hover { color: var(--text); border-color: var(--muted); }
-  .btn-icon { background: transparent; color: var(--sub); padding: .3rem .5rem; font-size: .8rem; border-radius: 4px; }
-  .btn-icon:hover { background: var(--border); color: var(--text); }
-  .btn-danger { color: var(--red); }
-  .btn-danger:hover { background: rgba(255,71,87,.1); border-color: var(--red); color: var(--red); }
-  .btn-scrape { background: transparent; color: var(--accent2); border: 1px solid rgba(255,140,0,.25); padding: .35rem .65rem; font-size: .72rem; }
-  .btn-scrape:hover { background: rgba(255,140,0,.08); border-color: var(--accent2); }
-  .tracker-list { margin-top: 1.5rem; }
-  .tracker-list-title { font-size: .7rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--sub); margin-bottom: 1rem; display: flex; align-items: center; gap: .5rem; }
-  .tracker-list-title::before { content: ''; display: block; width: 3px; height: 14px; background: var(--accent2); border-radius: 2px; }
-  .tracker-item { border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; margin-bottom: .6rem; cursor: pointer; transition: border-color var(--transition), background var(--transition); }
-  .tracker-item:hover { border-color: var(--muted); }
-  .tracker-item.active-tracker { border-color: var(--accent); background: rgba(255,85,51,.04); }
-  .tracker-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: .5rem; }
-  .tracker-route { font-size: 1rem; font-weight: 800; letter-spacing: .05em; font-family: var(--mono); }
-  .tracker-meta { font-size: .72rem; color: var(--sub); display: flex; gap: .75rem; flex-wrap: wrap; }
-  .tracker-price { font-family: var(--mono); font-size: .88rem; color: var(--green); font-weight: 700; }
-  .tracker-price.stale { color: var(--sub); }
-  .tracker-actions { display: flex; gap: .3rem; }
-  .badge { display: inline-block; padding: .15rem .4rem; border-radius: 3px; font-size: .62rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; font-family: var(--mono); }
-  .badge-ok { background: rgba(0,217,126,.12); color: var(--green); }
-  .badge-blocked { background: rgba(255,71,87,.12); color: var(--red); }
-  .badge-fallback { background: rgba(255,209,102,.12); color: var(--yellow); }
-  .badge-paused { background: rgba(122,125,136,.12); color: var(--sub); }
-  .chart-empty { height: 320px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--muted); border: 1px dashed var(--border); border-radius: var(--radius); gap: .75rem; }
-  .chart-empty-icon { font-size: 2.5rem; opacity: .35; }
-  .chart-wrap { position: relative; height: 280px; }
-  .chart-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .75rem; margin-top: 1rem; }
-  .stat { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: .75rem 1rem; }
-  .stat-label { font-size: .65rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--sub); margin-bottom: .3rem; }
-  .stat-value { font-family: var(--mono); font-size: 1.1rem; font-weight: 700; }
-  .stat-value.green { color: var(--green); } .stat-value.red { color: var(--red); }
-  .table-wrap { margin-top: 1.5rem; overflow-x: auto; }
-  table { width: 100%; border-collapse: collapse; font-size: .78rem; }
-  thead tr { border-bottom: 1px solid var(--border); }
-  th { text-align: left; padding: .5rem .75rem; font-size: .65rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--sub); }
-  td { padding: .55rem .75rem; border-bottom: 1px solid rgba(42,43,48,.6); font-family: var(--mono); font-size: .78rem; }
-  tr:last-child td { border-bottom: none; }
-  tr:hover td { background: rgba(255,255,255,.02); }
-  .toast-container { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 999; display: flex; flex-direction: column; gap: .5rem; }
-  .toast { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: .75rem 1rem; font-size: .8rem; display: flex; align-items: center; gap: .5rem; min-width: 260px; animation: slideIn .2s ease; box-shadow: 0 8px 24px rgba(0,0,0,.4); }
-  .toast.success { border-color: var(--green); } .toast.error { border-color: var(--red); } .toast.warning { border-color: var(--yellow); }
-  @keyframes slideIn { from{transform:translateX(20px);opacity:0} to{transform:translateX(0);opacity:1} }
-  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.2); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
-  @keyframes spin { to{transform:rotate(360deg)} }
-  .loading-overlay { position: absolute; inset: 0; background: rgba(13,14,17,.7); display: flex; align-items: center; justify-content: center; border-radius: var(--radius); z-index: 10; gap: .75rem; font-size: .85rem; color: var(--sub); backdrop-filter: blur(2px); }
-  .api-notice { background: rgba(255,140,0,.07); border: 1px solid rgba(255,140,0,.2); border-radius: var(--radius); padding: .75rem 1rem; font-size: .78rem; color: var(--yellow); margin-bottom: 1.5rem; display: flex; gap: .5rem; align-items: flex-start; line-height: 1.5; }
-  .api-url-input { font-family: var(--mono); font-size: .78rem; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--text); padding: .4rem .6rem; width: 100%; margin-top: .4rem; }
-  .api-url-input:focus { outline: none; border-color: var(--accent2); }
+/* ── Reset & Variables ──────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0d0e11; --surface: #141519; --surface2: #1a1b20;
+  --border: #2a2b30; --muted: #3a3c44;
+  --text: #e8e9ec; --sub: #7a7d88;
+  --accent: #ff5533; --accent2: #ff8c00;
+  --green: #00d97e; --yellow: #ffd166; --red: #ff4757;
+  --mono: 'Space Mono', monospace; --sans: 'Syne', sans-serif;
+  --radius: 6px; --transition: 180ms ease;
+  --header-h: 56px;
+  --sidebar-w: 0px; /* no sidebar in v0.1 */
+}
+html { font-size: 15px; scroll-behavior: smooth; }
+body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; line-height: 1.5; }
+
+/* ── Header ──────────────────────────────────────────── */
+.header {
+  position: sticky; top: 0; z-index: 200;
+  height: var(--header-h);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 1.25rem;
+  background: rgba(13,14,17,.95);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+.logo {
+  display: flex; align-items: center; gap: .5rem;
+  font-size: 1rem; font-weight: 800; letter-spacing: -.02em;
+  white-space: nowrap;
+}
+.logo-icon {
+  width: 26px; height: 26px; background: var(--accent);
+  border-radius: 4px; display: flex; align-items: center;
+  justify-content: center; font-size: .8rem; flex-shrink: 0;
+}
+.logo-version {
+  font-size: .6rem; font-family: var(--mono);
+  color: var(--sub); font-weight: 400;
+  background: var(--border); padding: .1rem .35rem;
+  border-radius: 3px; margin-left: .15rem;
+}
+.header-right { display: flex; align-items: center; gap: .6rem; }
+
+/* Language Switcher */
+.lang-switcher { display: flex; gap: 2px; background: var(--border); border-radius: 5px; padding: 2px; }
+.lang-btn {
+  padding: .2rem .45rem; border: none; border-radius: 3px;
+  cursor: pointer; font-family: var(--mono); font-size: .65rem;
+  font-weight: 700; background: transparent; color: var(--sub);
+  transition: all var(--transition);
+}
+.lang-btn:hover { color: var(--text); }
+.lang-btn.active { background: var(--surface); color: var(--accent); }
+
+/* Status dot */
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--green); box-shadow: 0 0 6px var(--green);
+  animation: pulse 2.5s ease-in-out infinite; flex-shrink: 0;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+/* Hamburger (mobile) */
+.hamburger {
+  display: none; flex-direction: column; justify-content: center;
+  gap: 5px; width: 36px; height: 36px; cursor: pointer;
+  background: transparent; border: none; padding: 4px;
+}
+.hamburger span {
+  display: block; height: 2px; background: var(--text);
+  border-radius: 2px; transition: all .25s ease;
+}
+.hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.hamburger.open span:nth-child(2) { opacity: 0; }
+.hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+/* ── Mobile Nav Drawer ───────────────────────────────── */
+.mobile-nav {
+  display: none;
+  position: fixed; top: var(--header-h); left: 0; right: 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  z-index: 190;
+  padding: 1rem;
+  flex-direction: column; gap: .5rem;
+}
+.mobile-nav.open { display: flex; }
+.mobile-nav-item {
+  padding: .65rem .75rem; border-radius: var(--radius);
+  color: var(--sub); font-size: .85rem; font-weight: 600;
+  cursor: pointer; transition: all var(--transition);
+  display: flex; align-items: center; gap: .5rem;
+}
+.mobile-nav-item:hover, .mobile-nav-item.active { background: var(--muted); color: var(--text); }
+
+/* Refresh btn */
+.btn-refresh {
+  display: flex; align-items: center; gap: .35rem;
+  background: transparent; border: 1px solid var(--border);
+  color: var(--sub); padding: .3rem .6rem;
+  border-radius: var(--radius); cursor: pointer;
+  font-family: var(--sans); font-size: .72rem; font-weight: 700;
+  transition: all var(--transition); white-space: nowrap;
+}
+.btn-refresh:hover { color: var(--text); border-color: var(--muted); }
+
+/* ── Layout ──────────────────────────────────────────── */
+.main-wrap { max-width: 1200px; margin: 0 auto; padding: 1.5rem 1.25rem; }
+
+/* Two-column on desktop, single on mobile */
+.grid-main {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+/* ── Cards ───────────────────────────────────────────── */
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 1.25rem;
+}
+.card-title {
+  font-size: .68rem; font-weight: 700; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--sub);
+  margin-bottom: 1.1rem; display: flex; align-items: center; gap: .5rem;
+}
+.card-title::before {
+  content: ''; display: block; width: 3px; height: 13px;
+  background: var(--accent); border-radius: 2px;
+}
+
+/* ── API Notice ──────────────────────────────────────── */
+.api-notice {
+  background: rgba(255,140,0,.07); border: 1px solid rgba(255,140,0,.2);
+  border-radius: var(--radius); padding: .75rem 1rem;
+  font-size: .78rem; color: var(--yellow);
+  margin-bottom: 1.25rem; display: flex; gap: .5rem;
+  align-items: flex-start; line-height: 1.5;
+}
+.api-notice > span { flex-shrink: 0; margin-top: .1rem; }
+.api-url-input {
+  font-family: var(--mono); font-size: .75rem;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 4px; color: var(--text);
+  padding: .35rem .6rem; width: 100%; margin-top: .35rem;
+}
+.api-url-input:focus { outline: none; border-color: var(--accent2); }
+
+/* ── Form ────────────────────────────────────────────── */
+.form-row {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: .6rem; margin-bottom: .6rem;
+}
+.form-group { display: flex; flex-direction: column; gap: .3rem; }
+label {
+  font-size: .67rem; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--sub);
+}
+input, select {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text);
+  font-family: var(--mono); font-size: .82rem;
+  padding: .55rem .7rem; outline: none;
+  transition: border-color var(--transition); width: 100%;
+}
+input:focus, select:focus {
+  border-color: var(--accent); box-shadow: 0 0 0 2px rgba(255,85,51,.1);
+}
+input::placeholder { color: var(--muted); }
+.iata-input { text-transform: uppercase; letter-spacing: .1em; }
+
+/* ── Baggage ─────────────────────────────────────────── */
+.baggage-section {
+  margin-top: .9rem; padding-top: .9rem; border-top: 1px solid var(--border);
+}
+.baggage-title {
+  font-size: .67rem; font-weight: 700; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--sub); margin-bottom: .6rem;
+}
+.bag-option {
+  display: flex; align-items: center; gap: .65rem;
+  padding: .5rem .65rem; border: 1px solid var(--border);
+  border-radius: var(--radius); margin-bottom: .35rem;
+  cursor: pointer; transition: all var(--transition); user-select: none;
+}
+.bag-option:hover { border-color: var(--muted); }
+.bag-option.selected { border-color: var(--accent); background: rgba(255,85,51,.06); }
+.bag-checkbox {
+  width: 15px; height: 15px; border: 1.5px solid var(--muted);
+  border-radius: 3px; display: flex; align-items: center;
+  justify-content: center; flex-shrink: 0; font-size: .6rem;
+  transition: all var(--transition);
+}
+.bag-option.selected .bag-checkbox { background: var(--accent); border-color: var(--accent); color: white; }
+.bag-label { font-size: .8rem; flex: 1; }
+.bag-note { font-size: .68rem; color: var(--sub); font-family: var(--mono); }
+
+/* ── Buttons ─────────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; gap: .45rem;
+  padding: .6rem 1.1rem; border: none; border-radius: var(--radius);
+  font-family: var(--sans); font-size: .82rem; font-weight: 700;
+  cursor: pointer; transition: all var(--transition); letter-spacing: .02em;
+}
+.btn-primary {
+  background: var(--accent); color: white; width: 100%;
+  justify-content: center; margin-top: .9rem;
+  padding: .7rem; font-size: .85rem;
+}
+.btn-primary:hover { background: #e64422; transform: translateY(-1px); }
+.btn-primary:active { transform: translateY(0); }
+.btn-primary:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+.btn-ghost {
+  background: transparent; color: var(--sub);
+  border: 1px solid var(--border); padding: .35rem .65rem; font-size: .72rem;
+}
+.btn-ghost:hover { color: var(--text); border-color: var(--muted); }
+.btn-icon {
+  background: transparent; color: var(--sub);
+  padding: .28rem .45rem; font-size: .75rem; border-radius: 4px;
+}
+.btn-icon:hover { background: var(--border); color: var(--text); }
+.btn-danger { color: var(--red); }
+.btn-danger:hover { background: rgba(255,71,87,.1); border-color: var(--red); color: var(--red); }
+.btn-scrape {
+  background: transparent; color: var(--accent2);
+  border: 1px solid rgba(255,140,0,.25); padding: .3rem .6rem; font-size: .7rem;
+}
+.btn-scrape:hover { background: rgba(255,140,0,.08); border-color: var(--accent2); }
+
+/* ── Tracker List ────────────────────────────────────── */
+.tracker-list { margin-top: 1.1rem; }
+.section-title {
+  font-size: .68rem; font-weight: 700; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--sub);
+  margin-bottom: .9rem; display: flex; align-items: center; gap: .5rem;
+}
+.section-title::before {
+  content: ''; display: block; width: 3px; height: 13px;
+  background: var(--accent2); border-radius: 2px;
+}
+.tracker-item {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: .9rem; margin-bottom: .5rem; cursor: pointer;
+  transition: all var(--transition);
+}
+.tracker-item:hover { border-color: var(--muted); }
+.tracker-item.active-tracker { border-color: var(--accent); background: rgba(255,85,51,.04); }
+.tracker-header {
+  display: flex; align-items: center;
+  justify-content: space-between; margin-bottom: .4rem;
+}
+.tracker-route { font-size: .95rem; font-weight: 800; letter-spacing: .05em; font-family: var(--mono); }
+.tracker-price { font-family: var(--mono); font-size: .85rem; color: var(--green); font-weight: 700; }
+.tracker-price.stale { color: var(--sub); }
+.tracker-meta { font-size: .7rem; color: var(--sub); display: flex; gap: .6rem; flex-wrap: wrap; }
+.tracker-actions { display: flex; gap: .25rem; margin-top: .5rem; flex-wrap: wrap; }
+
+/* Badges */
+.badge {
+  display: inline-block; padding: .12rem .38rem; border-radius: 3px;
+  font-size: .6rem; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; font-family: var(--mono);
+}
+.badge-ok { background: rgba(0,217,126,.12); color: var(--green); }
+.badge-blocked { background: rgba(255,71,87,.12); color: var(--red); }
+.badge-fallback { background: rgba(255,209,102,.12); color: var(--yellow); }
+.badge-paused { background: rgba(122,125,136,.12); color: var(--sub); }
+
+/* ── Chart Panel ─────────────────────────────────────── */
+.chart-empty {
+  height: 280px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  color: var(--muted); border: 1px dashed var(--border);
+  border-radius: var(--radius); gap: .65rem;
+}
+.chart-empty-icon { font-size: 2rem; opacity: .3; }
+.chart-wrap { position: relative; height: 260px; }
+.chart-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .65rem; margin-top: .9rem; }
+.stat {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: .65rem .85rem;
+}
+.stat-label { font-size: .62rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--sub); margin-bottom: .25rem; }
+.stat-value { font-family: var(--mono); font-size: 1rem; font-weight: 700; }
+.stat-value.green { color: var(--green); }
+.stat-value.red { color: var(--red); }
+
+/* ── History Table ───────────────────────────────────── */
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+table { width: 100%; border-collapse: collapse; font-size: .75rem; min-width: 500px; }
+thead tr { border-bottom: 1px solid var(--border); }
+th {
+  text-align: left; padding: .45rem .7rem;
+  font-size: .62rem; font-weight: 700; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--sub); white-space: nowrap;
+}
+td {
+  padding: .5rem .7rem; border-bottom: 1px solid rgba(42,43,48,.6);
+  font-family: var(--mono); font-size: .75rem;
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(255,255,255,.02); }
+
+/* ── Toast ───────────────────────────────────────────── */
+.toast-container {
+  position: fixed; bottom: 1.25rem; right: 1.25rem;
+  z-index: 999; display: flex; flex-direction: column; gap: .4rem;
+}
+.toast {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: .65rem .9rem;
+  font-size: .78rem; display: flex; align-items: center; gap: .45rem;
+  min-width: 240px; max-width: calc(100vw - 2.5rem);
+  animation: slideIn .2s ease; box-shadow: 0 8px 24px rgba(0,0,0,.4);
+}
+.toast.success { border-color: var(--green); }
+.toast.error   { border-color: var(--red); }
+.toast.warning { border-color: var(--yellow); }
+@keyframes slideIn { from{transform:translateX(20px);opacity:0} to{transform:translateX(0);opacity:1} }
+
+/* ── Spinner / Overlay ───────────────────────────────── */
+.spinner {
+  display: inline-block; width: 13px; height: 13px;
+  border: 2px solid rgba(255,255,255,.2); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin .7s linear infinite;
+}
+@keyframes spin { to{transform:rotate(360deg)} }
+.loading-overlay {
+  position: absolute; inset: 0; background: rgba(13,14,17,.75);
+  display: flex; align-items: center; justify-content: center;
+  border-radius: var(--radius); z-index: 10; gap: .65rem;
+  font-size: .82rem; color: var(--sub); backdrop-filter: blur(2px);
+}
+
+/* ── Footer ──────────────────────────────────────────── */
+.footer {
+  text-align: center; padding: 1.5rem 1.25rem;
+  font-size: .65rem; color: var(--sub);
+  border-top: 1px solid var(--border); margin-top: 2.5rem;
+  font-family: var(--mono); line-height: 1.8;
+}
+.footer a { color: var(--accent); text-decoration: none; }
+.footer a:hover { text-decoration: underline; }
+
+/* ══════════════════════════════════════════════════════
+   RESPONSIVE — Mobile First
+   ══════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  /* Show hamburger, hide refresh text */
+  .hamburger { display: flex; }
+  .btn-refresh .btn-refresh-text { display: none; }
+
+  /* Stack to single column */
+  .grid-main { grid-template-columns: 1fr; }
+
+  /* Chart stats: 2 cols on mobile */
+  .chart-stats { grid-template-columns: repeat(2, 1fr); }
+
+  /* Form rows stay 2-col on mobile (compact enough) */
+  /* but collapse to 1-col on very small screens */
+}
+
+@media (max-width: 420px) {
+  .form-row { grid-template-columns: 1fr; }
+  .chart-stats { grid-template-columns: 1fr; }
+  .header { padding: 0 .85rem; }
+  .main-wrap { padding: 1rem .85rem; }
+  .logo-version { display: none; }
+}
 </style>
 </head>
 <body>
 
+<!-- ── Header ────────────────────────────────────────── -->
 <header class="header">
   <div class="logo">
     <div class="logo-icon">✈</div>
     <span data-i18n="title">WanderSuite</span>
+    <span class="logo-version">v0.1</span>
   </div>
-  <div class="header-actions">
+
+  <div class="header-right">
     <div class="lang-switcher">
       <button class="lang-btn" onclick="setLang('de')">DE</button>
       <button class="lang-btn" onclick="setLang('it')">IT</button>
       <button class="lang-btn" onclick="setLang('en')">EN</button>
     </div>
-    <div class="status-dot" id="statusDot"></div>
-    <button class="btn btn-ghost" onclick="loadTrackers()">↺ <span data-i18n="refresh">Aktualisieren</span></button>
+    <div class="status-dot" id="statusDot" title="API Status"></div>
+    <button class="btn-refresh" onclick="loadTrackers()">
+      ↺ <span class="btn-refresh-text" data-i18n="refresh">Aktualisieren</span>
+    </button>
+    <button class="hamburger" id="hamburger" onclick="toggleMenu()" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
   </div>
 </header>
 
-<div class="container">
+<!-- ── Mobile Nav Drawer ──────────────────────────────── -->
+<nav class="mobile-nav" id="mobileNav">
+  <div class="mobile-nav-item active">✈ <span data-i18n="ryanairTracker">Ryanair Tracker</span></div>
+</nav>
+
+<!-- ── Main Content ──────────────────────────────────── -->
+<main class="main-wrap">
+
+  <!-- Backend URL Notice -->
   <div class="api-notice">
-    ⚙ <div>
-      <strong data-i18n="backendConfig">Backend-URL konfigurieren</strong> — <span data-i18n="backendHint">trage die URL deines Railway-Deployments ein</span>:
-      <input class="api-url-input" id="apiUrlInput" type="text" placeholder="https://tracker-an-te-production.up.railway.app" oninput="saveApiUrl(this.value)">
+    <span>⚙</span>
+    <div>
+      <strong data-i18n="backendConfig">Backend-URL konfigurieren</strong>
+      — <span data-i18n="backendHint">trage die URL deines Railway-Deployments ein</span>:
+      <input class="api-url-input" id="apiUrlInput" type="text"
+             placeholder="https://tracker-an-te-production.up.railway.app"
+             oninput="saveApiUrl(this.value)">
     </div>
   </div>
 
-  <div class="grid-2">
+  <div class="grid-main">
+
+    <!-- ── Left: Form + Tracker List ─────────────────── -->
     <div>
       <div class="card">
         <div class="card-title" data-i18n="newTracker">Neuen Tracker anlegen</div>
+
         <div class="form-row">
-          <div class="form-group"><label data-i18n="from">Von (IATA)</label><input class="iata-input" id="origin" placeholder="BGY" maxlength="3"></div>
-          <div class="form-group"><label data-i18n="to">Nach (IATA)</label><input class="iata-input" id="destination" placeholder="DUB" maxlength="3"></div>
+          <div class="form-group">
+            <label data-i18n="from">Von (IATA)</label>
+            <input class="iata-input" id="origin" placeholder="BGY" maxlength="3">
+          </div>
+          <div class="form-group">
+            <label data-i18n="to">Nach (IATA)</label>
+            <input class="iata-input" id="destination" placeholder="DUB" maxlength="3">
+          </div>
         </div>
+
         <div class="form-row">
-          <div class="form-group"><label data-i18n="outbound">Hinflug</label><input type="date" id="outboundDate"></div>
-          <div class="form-group"><label data-i18n="return">Rückflug (opt.)</label><input type="date" id="returnDate"></div>
+          <div class="form-group">
+            <label data-i18n="outbound">Hinflug</label>
+            <input type="date" id="outboundDate">
+          </div>
+          <div class="form-group">
+            <label data-i18n="return">Rückflug (opt.)</label>
+            <input type="date" id="returnDate">
+          </div>
         </div>
+
         <div class="form-row">
           <div class="form-group">
             <label data-i18n="adults">Erwachsene</label>
@@ -167,94 +480,133 @@
             </select>
           </div>
         </div>
+
+        <!-- Baggage -->
         <div class="baggage-section">
           <div class="baggage-title" data-i18n="baggageTitle">🧳 Gepäck (pro Person)</div>
-          <div class="bag-option" id="bag-10kg" onclick="toggleBag('10kg')"><div class="bag-checkbox" id="chk-10kg"></div><div class="bag-label" data-i18n="bag10">10 kg Check-in Koffer</div><div class="bag-note">+10kg</div></div>
-          <div class="bag-option" id="bag-20kg" onclick="toggleBag('20kg')"><div class="bag-checkbox" id="chk-20kg"></div><div class="bag-label" data-i18n="bag20">20 kg Check-in Koffer</div><div class="bag-note">+20kg</div></div>
-          <div class="bag-option" id="bag-23kg" onclick="toggleBag('23kg')"><div class="bag-checkbox" id="chk-23kg"></div><div class="bag-label" data-i18n="bag23">23 kg Koffer (Large)</div><div class="bag-note">+23kg</div></div>
-          <div style="font-size:.7rem;color:var(--sub);margin-top:.6rem" data-i18n="baggageNote">✓ Basic/Value-Tarif (kleiner Rucksack) immer inklusive</div>
+          <div class="bag-option" id="bag-10kg" onclick="toggleBag('10kg')">
+            <div class="bag-checkbox" id="chk-10kg"></div>
+            <div class="bag-label" data-i18n="bag10">10 kg Check-in Koffer</div>
+            <div class="bag-note">+10kg</div>
+          </div>
+          <div class="bag-option" id="bag-20kg" onclick="toggleBag('20kg')">
+            <div class="bag-checkbox" id="chk-20kg"></div>
+            <div class="bag-label" data-i18n="bag20">20 kg Check-in Koffer</div>
+            <div class="bag-note">+20kg</div>
+          </div>
+          <div class="bag-option" id="bag-23kg" onclick="toggleBag('23kg')">
+            <div class="bag-checkbox" id="chk-23kg"></div>
+            <div class="bag-label" data-i18n="bag23">23 kg Koffer (Large)</div>
+            <div class="bag-note">+23kg</div>
+          </div>
+          <div style="font-size:.68rem;color:var(--sub);margin-top:.5rem" data-i18n="baggageNote">
+            ✓ Basic/Value-Tarif immer inklusive
+          </div>
         </div>
-        <button class="btn btn-primary" id="addBtn" onclick="addTracker()">+ <span data-i18n="startTracker">Tracker starten</span></button>
+
+        <button class="btn btn-primary" id="addBtn" onclick="addTracker()">
+          + <span data-i18n="startTracker">Tracker starten</span>
+        </button>
       </div>
 
+      <!-- Tracker List -->
       <div class="tracker-list">
-        <div class="tracker-list-title" data-i18n="activeTrackers">Aktive Tracker</div>
-        <div id="trackerList"><div style="color:var(--muted);font-size:.82rem;padding:.5rem 0" data-i18n="loading">Lade...</div></div>
+        <div class="section-title" data-i18n="activeTrackers">Aktive Tracker</div>
+        <div id="trackerList">
+          <div style="color:var(--muted);font-size:.8rem;padding:.5rem 0" data-i18n="loading">Lade...</div>
+        </div>
       </div>
     </div>
 
-    <div class="chart-panel">
+    <!-- ── Right: Chart + Table ───────────────────────── -->
+    <div>
       <div class="card" id="chartCard">
         <div class="card-title" id="chartTitle" data-i18n="priceHistory">Preisverlauf</div>
+
         <div id="chartEmpty" class="chart-empty">
           <div class="chart-empty-icon">📈</div>
-          <div style="font-size:.85rem" data-i18n="selectTracker">Wähle einen Tracker aus</div>
+          <div style="font-size:.82rem" data-i18n="selectTracker">Wähle einen Tracker aus</div>
         </div>
+
         <div id="chartContainer" style="display:none">
           <div class="chart-stats" id="chartStats"></div>
-          <div class="chart-wrap" style="margin-top:1rem"><canvas id="priceChart"></canvas></div>
+          <div class="chart-wrap" style="margin-top:.9rem">
+            <canvas id="priceChart"></canvas>
+          </div>
         </div>
       </div>
-      <div class="card" id="tableCard" style="margin-top:1.25rem;display:none">
+
+      <!-- History Table -->
+      <div class="card" id="tableCard" style="margin-top:1rem;display:none">
         <div class="card-title" data-i18n="historyDetails">Verlaufsdetails</div>
         <div class="table-wrap">
           <table>
-            <thead><tr>
-              <th data-i18n="date">Datum</th><th data-i18n="outboundFlight">Hinflug</th>
-              <th data-i18n="returnFlight">Rückflug</th><th data-i18n="tickets">Tickets</th>
-              <th data-i18n="baggage">Gepäck</th><th data-i18n="total">Gesamt</th><th data-i18n="status">Status</th>
-            </tr></thead>
+            <thead>
+              <tr>
+                <th data-i18n="date">Datum</th>
+                <th data-i18n="outboundFlight">Hinflug</th>
+                <th data-i18n="returnFlight">Rückflug</th>
+                <th data-i18n="tickets">Tickets</th>
+                <th data-i18n="baggage">Gepäck</th>
+                <th data-i18n="total">Gesamt</th>
+                <th data-i18n="status">Status</th>
+              </tr>
+            </thead>
             <tbody id="snapshotTable"></tbody>
           </table>
         </div>
       </div>
     </div>
-  </div>
-</div>
 
+  </div><!-- /grid-main -->
+</main>
+
+<!-- ── Footer ─────────────────────────────────────────── -->
+<footer class="footer">
+  WanderSuite v0.1 &mdash;
+  Licensed under <a href="https://www.gnu.org/licenses/agpl-3.0" target="_blank">GNU AGPLv3</a>
+  &mdash; <a href="https://github.com/antonbier/tracker-an-te" target="_blank">GitHub</a>
+</footer>
+
+<!-- ── Toasts ─────────────────────────────────────────── -->
 <div class="toast-container" id="toastContainer"></div>
 
 <script>
 /**
- * WanderSuite v0.1 — i18n Engine
- * Loads translations from /locales/{lang}.json
- * Falls back to 'de' if a key is missing.
+ * WanderSuite v0.1 — Main Application
+ * i18n loaded from /locales/{lang}.json
  */
 
+// ── State ────────────────────────────────────────────
 let TRANSLATIONS = {};
 let currentLang = localStorage.getItem('lang') || 'de';
 let API_URL = localStorage.getItem('apiUrl') || '';
 let selectedTrackerId = null;
 let priceChart = null;
 let selectedBags = new Set();
+let menuOpen = false;
 
-// ── i18n: Load locale JSON from server ──────────────
+// ── i18n ─────────────────────────────────────────────
 async function loadLocale(lang) {
+  if (TRANSLATIONS[lang]) return; // already loaded
   try {
     const resp = await fetch(`/locales/${lang}.json?v=0.1`);
-    if (!resp.ok) throw new Error(`Locale ${lang} not found`);
+    if (!resp.ok) throw new Error(`${resp.status}`);
     TRANSLATIONS[lang] = await resp.json();
   } catch(e) {
-    console.warn(`Could not load locale '${lang}':`, e);
-    // Fallback: try 'de'
-    if (lang !== 'de' && !TRANSLATIONS['de']) {
-      await loadLocale('de');
-    }
+    console.warn(`Locale '${lang}' failed:`, e);
   }
 }
 
-// ── i18n: Translate a key ────────────────────────────
 function t(key) {
   return TRANSLATIONS[currentLang]?.[key]
       || TRANSLATIONS['de']?.[key]
       || key;
 }
 
-// ── i18n: Apply translations to DOM ─────────────────
 function applyTranslations() {
   document.documentElement.lang = currentLang;
-  document.title = t('title') + ' v0.1';
-
+  document.title = 'WanderSuite v0.1';
   document.querySelectorAll('[data-i18n]').forEach(el => {
     el.textContent = t(el.getAttribute('data-i18n'));
   });
@@ -266,9 +618,8 @@ function applyTranslations() {
   });
 }
 
-// ── Language switch ──────────────────────────────────
 async function setLang(lang) {
-  if (!TRANSLATIONS[lang]) await loadLocale(lang);
+  await loadLocale(lang);
   currentLang = lang;
   localStorage.setItem('lang', lang);
   applyTranslations();
@@ -276,9 +627,15 @@ async function setLang(lang) {
   if (selectedTrackerId) selectTracker(selectedTrackerId);
 }
 
+// ── Mobile menu ──────────────────────────────────────
+function toggleMenu() {
+  menuOpen = !menuOpen;
+  document.getElementById('hamburger').classList.toggle('open', menuOpen);
+  document.getElementById('mobileNav').classList.toggle('open', menuOpen);
+}
+
 // ── Init ─────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
-  // Load default + current locale in parallel
   const toLoad = currentLang === 'de' ? ['de'] : ['de', currentLang];
   await Promise.all(toLoad.map(loadLocale));
   applyTranslations();
@@ -298,20 +655,33 @@ window.addEventListener('DOMContentLoaded', async () => {
 });
 
 function fmt(d) { return d.toISOString().slice(0,10); }
-function saveApiUrl(val) { API_URL = val.trim().replace(/\/$/, ''); localStorage.setItem('apiUrl', API_URL); }
+function saveApiUrl(v) { API_URL = v.trim().replace(/\/$/, ''); localStorage.setItem('apiUrl', API_URL); }
 
 // ── API ───────────────────────────────────────────────
 async function api(path, opts = {}) {
   if (!API_URL) throw new Error(t('missingUrl'));
-  const r = await fetch(API_URL + path, { headers: { 'Content-Type': 'application/json' }, ...opts });
-  if (!r.ok) { const err = await r.json().catch(() => ({ detail: r.statusText })); throw new Error(err.detail || `HTTP ${r.status}`); }
+  const r = await fetch(API_URL + path, {
+    headers: { 'Content-Type': 'application/json' }, ...opts
+  });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({ detail: r.statusText }));
+    throw new Error(err.detail || `HTTP ${r.status}`);
+  }
   return r.json();
 }
 
 async function checkApiStatus() {
   const dot = document.getElementById('statusDot');
-  try { await api('/health'); dot.style.background = 'var(--green)'; dot.style.boxShadow = '0 0 6px var(--green)'; }
-  catch { dot.style.background = 'var(--red)'; dot.style.boxShadow = '0 0 6px var(--red)'; }
+  try {
+    await api('/health');
+    dot.style.background = 'var(--green)';
+    dot.style.boxShadow = '0 0 6px var(--green)';
+    dot.title = 'Backend online';
+  } catch {
+    dot.style.background = 'var(--red)';
+    dot.style.boxShadow = '0 0 6px var(--red)';
+    dot.title = 'Backend offline';
+  }
 }
 
 // ── Baggage ───────────────────────────────────────────
@@ -331,22 +701,25 @@ function toggleBag(type) {
 async function addTracker() {
   const btn = document.getElementById('addBtn');
   const origin = document.getElementById('origin').value.trim().toUpperCase();
-  const dest = document.getElementById('destination').value.trim().toUpperCase();
+  const dest   = document.getElementById('destination').value.trim().toUpperCase();
   const outDate = document.getElementById('outboundDate').value;
   const retDate = document.getElementById('returnDate').value;
+
   if (!origin || origin.length !== 3) { toast(t('invalidOrigin'), 'error'); return; }
-  if (!dest || dest.length !== 3) { toast(t('invalidDest'), 'error'); return; }
-  if (!outDate) { toast(t('missingDate'), 'error'); return; }
-  if (!API_URL) { toast(t('missingUrl'), 'warning'); return; }
+  if (!dest   || dest.length   !== 3) { toast(t('invalidDest'), 'error'); return; }
+  if (!outDate)                        { toast(t('missingDate'), 'error'); return; }
+  if (!API_URL)                        { toast(t('missingUrl'), 'warning'); return; }
+
   btn.disabled = true;
   btn.innerHTML = `<span class="spinner"></span> ${t('creatingTracker')}`;
+
   try {
     await api('/api/trackers', { method: 'POST', body: JSON.stringify({
       origin, destination: dest, outbound_date: outDate,
       return_date: retDate || null,
-      adults: parseInt(document.getElementById('adults').value),
+      adults:   parseInt(document.getElementById('adults').value),
       children: parseInt(document.getElementById('children').value),
-      baggage: [...selectedBags].map(type => ({ type, per_person: true })),
+      baggage:  [...selectedBags].map(type => ({ type, per_person: true })),
     })});
     toast(`${t('trackerAdded')} ✓ ${origin} → ${dest}`, 'success');
     document.getElementById('origin').value = '';
@@ -357,114 +730,236 @@ async function addTracker() {
       document.getElementById('chk-'+tp).textContent = '';
     });
     loadTrackers();
-  } catch(e) { toast(`${t('error')}: ${e.message}`, 'error'); }
-  finally { btn.disabled = false; btn.innerHTML = `+ ${t('startTracker')}`; }
+  } catch(e) {
+    toast(`${t('error')}: ${e.message}`, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `+ ${t('startTracker')}`;
+  }
 }
 
-// ── Load Trackers ─────────────────────────────────────
+// ── Tracker List ──────────────────────────────────────
 async function loadTrackers() {
   const el = document.getElementById('trackerList');
-  try { const trackers = await api('/api/trackers'); renderTrackers(trackers); }
-  catch(e) { el.innerHTML = `<div style="color:var(--red);font-size:.8rem">⚠ ${e.message}</div>`; }
+  try {
+    const trackers = await api('/api/trackers');
+    renderTrackers(trackers);
+  } catch(e) {
+    el.innerHTML = `<div style="color:var(--red);font-size:.78rem">⚠ ${e.message}</div>`;
+  }
 }
 
 function renderTrackers(trackers) {
   const el = document.getElementById('trackerList');
-  if (!trackers.length) { el.innerHTML = `<div style="color:var(--muted);font-size:.82rem;padding:.5rem 0">${t('noTrackers')}</div>`; return; }
+  if (!trackers.length) {
+    el.innerHTML = `<div style="color:var(--muted);font-size:.8rem;padding:.5rem 0">${t('noTrackers')}</div>`;
+    return;
+  }
   el.innerHTML = trackers.map(tr => {
     const snap = tr.latest_snapshot;
     const priceStr = snap?.total_price ? `${snap.total_price.toFixed(2)} €` : '–';
     const statusBadge = !tr.active
       ? `<span class="badge badge-paused">${t('paused')}</span>`
       : snap?.status === 'ok'
-        ? (snap.baggage_fallback ? `<span class="badge badge-fallback">~${t('estimate')}</span>` : '<span class="badge badge-ok">Live</span>')
-        : snap?.status === 'blocked' ? `<span class="badge badge-blocked">${t('blocked')}</span>` : '';
+        ? (snap.baggage_fallback
+            ? `<span class="badge badge-fallback">~${t('estimate')}</span>`
+            : '<span class="badge badge-ok">Live</span>')
+        : snap?.status === 'blocked'
+          ? `<span class="badge badge-blocked">${t('blocked')}</span>`
+          : '';
     const bagStr = (tr.baggage||[]).map(b => b.type).join(', ') || t('backpackOnly');
     const retStr = tr.return_date ? ` ⇄ ${tr.return_date}` : ` (${t('oneWay')})`;
-    return `<div class="tracker-item ${tr.id===selectedTrackerId?'active-tracker':''}" onclick="selectTracker(${tr.id})">
-      <div class="tracker-header"><div class="tracker-route">${tr.origin} → ${tr.destination}</div><div class="tracker-price ${snap?'':'stale'}">${priceStr}</div></div>
-      <div class="tracker-meta"><span>${tr.outbound_date}${retStr}</span><span>${tr.adults} ${t('adultShort')}</span><span>🧳 ${bagStr}</span>${statusBadge}</div>
-      <div class="tracker-actions" style="margin-top:.6rem">
-        <button class="btn btn-icon btn-scrape" onclick="event.stopPropagation();scrapeNow(${tr.id})">⟳ ${t('current')}</button>
-        <button class="btn btn-icon btn-ghost" onclick="event.stopPropagation();togglePause(${tr.id},${tr.active})">${tr.active?'⏸':'▶'}</button>
-        <button class="btn btn-icon btn-ghost btn-danger" onclick="event.stopPropagation();deleteTracker(${tr.id})">✕</button>
-      </div></div>`;
+
+    return `
+      <div class="tracker-item ${tr.id===selectedTrackerId?'active-tracker':''}"
+           onclick="selectTracker(${tr.id})">
+        <div class="tracker-header">
+          <div class="tracker-route">${tr.origin} → ${tr.destination}</div>
+          <div class="tracker-price ${snap?'':'stale'}">${priceStr}</div>
+        </div>
+        <div class="tracker-meta">
+          <span>${tr.outbound_date}${retStr}</span>
+          <span>${tr.adults} ${t('adultShort')}</span>
+          <span>🧳 ${bagStr}</span>
+          ${statusBadge}
+        </div>
+        <div class="tracker-actions">
+          <button class="btn btn-icon btn-scrape"
+                  onclick="event.stopPropagation();scrapeNow(${tr.id})">
+            ⟳ ${t('current')}
+          </button>
+          <button class="btn btn-icon btn-ghost"
+                  onclick="event.stopPropagation();togglePause(${tr.id},${tr.active})">
+            ${tr.active ? '⏸' : '▶'}
+          </button>
+          <button class="btn btn-icon btn-ghost btn-danger"
+                  onclick="event.stopPropagation();deleteTracker(${tr.id})">
+            ✕
+          </button>
+        </div>
+      </div>`;
   }).join('');
 }
 
 // ── Chart ─────────────────────────────────────────────
 async function selectTracker(id) {
-  selectedTrackerId = id; loadTrackers();
+  selectedTrackerId = id;
+  loadTrackers();
+
   const container = document.getElementById('chartContainer');
-  const empty = document.getElementById('chartEmpty');
+  const empty     = document.getElementById('chartEmpty');
   const tableCard = document.getElementById('tableCard');
-  container.style.display = 'none'; empty.style.display = 'none';
+  container.style.display = 'none';
+  empty.style.display = 'none';
+
   const card = document.getElementById('chartCard');
   const overlay = document.createElement('div');
   overlay.className = 'loading-overlay';
   overlay.innerHTML = `<span class="spinner"></span> ${t('loadingChart')}`;
-  card.style.position = 'relative'; card.appendChild(overlay);
+  card.style.position = 'relative';
+  card.appendChild(overlay);
+
   try {
     const data = await api(`/api/prices/${id}?limit=90`);
     card.removeChild(overlay);
+
     if (!data.total_prices.length) {
       empty.style.display = 'flex';
-      document.getElementById('chartTitle').textContent = `${t('priceHistory')} – ${t('noData')}`;
+      document.getElementById('chartTitle').textContent =
+        `${t('priceHistory')} – ${t('noData')}`;
       return;
     }
+
     const tr = data.tracker;
-    document.getElementById('chartTitle').textContent = `${tr.origin} → ${tr.destination}  ${tr.outbound_date}${tr.return_date?' ⇄ '+tr.return_date:''}`;
-    renderStats(data); renderChart(data); renderTable(data.snapshots);
-    container.style.display = 'block'; tableCard.style.display = 'block';
-  } catch(e) { card.removeChild(overlay); empty.style.display = 'flex'; toast(`${t('error')}: ${e.message}`, 'error'); }
+    document.getElementById('chartTitle').textContent =
+      `${tr.origin} → ${tr.destination}  ${tr.outbound_date}${tr.return_date?' ⇄ '+tr.return_date:''}`;
+
+    renderStats(data);
+    renderChart(data);
+    renderTable(data.snapshots);
+    container.style.display = 'block';
+    tableCard.style.display = 'block';
+
+    // Scroll chart into view on mobile
+    if (window.innerWidth < 768) {
+      card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  } catch(e) {
+    card.removeChild(overlay);
+    empty.style.display = 'flex';
+    toast(`${t('error')}: ${e.message}`, 'error');
+  }
 }
 
 function renderStats(data) {
   const prices = data.total_prices.filter(p => p !== null);
   if (!prices.length) return;
-  const min = Math.min(...prices), cur = prices[prices.length-1], prev = prices.length>1?prices[prices.length-2]:cur;
-  const diff = cur-prev, diffStr = (diff>=0?'+':'')+diff.toFixed(2)+' €';
+  const min  = Math.min(...prices);
+  const cur  = prices[prices.length - 1];
+  const prev = prices.length > 1 ? prices[prices.length - 2] : cur;
+  const diff = cur - prev;
+  const diffStr = (diff >= 0 ? '+' : '') + diff.toFixed(2) + ' €';
+
   document.getElementById('chartStats').innerHTML = `
-    <div class="stat"><div class="stat-label">${t('current')}</div><div class="stat-value">${cur.toFixed(2)} €</div><div style="font-size:.68rem;color:var(--sub);margin-top:.2rem">${data.labels[data.labels.length-1]}</div></div>
-    <div class="stat"><div class="stat-label">${t('lowestPrice')}</div><div class="stat-value green">${min.toFixed(2)} €</div></div>
-    <div class="stat"><div class="stat-label">${t('change')}</div><div class="stat-value ${diff>0?'red':diff<0?'green':''}">${diffStr}</div></div>`;
+    <div class="stat">
+      <div class="stat-label">${t('current')}</div>
+      <div class="stat-value">${cur.toFixed(2)} €</div>
+      <div style="font-size:.62rem;color:var(--sub);margin-top:.2rem">
+        ${data.labels[data.labels.length - 1]}
+      </div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">${t('lowestPrice')}</div>
+      <div class="stat-value green">${min.toFixed(2)} €</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">${t('change')}</div>
+      <div class="stat-value ${diff > 0 ? 'red' : diff < 0 ? 'green' : ''}">
+        ${diffStr}
+      </div>
+    </div>`;
 }
 
 function renderChart(data) {
   if (priceChart) { priceChart.destroy(); priceChart = null; }
-  priceChart = new Chart(document.getElementById('priceChart').getContext('2d'), {
+  priceChart = new Chart(
+    document.getElementById('priceChart').getContext('2d'), {
     type: 'line',
-    data: { labels: data.labels, datasets: [
-      { label: t('total'),   data: data.total_prices,   borderColor: '#ff5533', backgroundColor: 'rgba(255,85,51,.08)', borderWidth: 2, pointRadius: 4, pointHoverRadius: 6, pointBackgroundColor: '#ff5533', fill: true, tension: .3 },
-      { label: t('tickets'), data: data.flight_prices,  borderColor: '#ff8c00', backgroundColor: 'transparent', borderWidth: 1.5, borderDash: [4,3], pointRadius: 3, fill: false, tension: .3 },
-      { label: t('baggage'), data: data.baggage_prices, borderColor: '#7a7d88', backgroundColor: 'transparent', borderWidth: 1.5, borderDash: [2,4], pointRadius: 2, fill: false, tension: .3 },
-    ]},
+    data: {
+      labels: data.labels,
+      datasets: [
+        { label: t('total'),   data: data.total_prices,
+          borderColor: '#ff5533', backgroundColor: 'rgba(255,85,51,.08)',
+          borderWidth: 2, pointRadius: 4, pointHoverRadius: 6,
+          pointBackgroundColor: '#ff5533', fill: true, tension: .3 },
+        { label: t('tickets'), data: data.flight_prices,
+          borderColor: '#ff8c00', backgroundColor: 'transparent',
+          borderWidth: 1.5, borderDash: [4,3], pointRadius: 3,
+          fill: false, tension: .3 },
+        { label: t('baggage'), data: data.baggage_prices,
+          borderColor: '#7a7d88', backgroundColor: 'transparent',
+          borderWidth: 1.5, borderDash: [2,4], pointRadius: 2,
+          fill: false, tension: .3 },
+      ]
+    },
     options: {
-      responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: { position: 'top', labels: { color: '#7a7d88', font: { family: "'Space Mono', monospace", size: 11 }, boxWidth: 12, boxHeight: 2, padding: 16 } },
-        tooltip: { backgroundColor: '#141519', borderColor: '#2a2b30', borderWidth: 1, titleColor: '#e8e9ec', bodyColor: '#7a7d88', padding: 12, callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y?.toFixed(2)??'–'} €` } }
+        legend: {
+          position: 'top',
+          labels: {
+            color: '#7a7d88',
+            font: { family: "'Space Mono', monospace", size: 10 },
+            boxWidth: 12, boxHeight: 2, padding: 14,
+          }
+        },
+        tooltip: {
+          backgroundColor: '#141519', borderColor: '#2a2b30', borderWidth: 1,
+          titleColor: '#e8e9ec', bodyColor: '#7a7d88', padding: 10,
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y?.toFixed(2) ?? '–'} €`
+          }
+        }
       },
       scales: {
-        x: { grid: { color: 'rgba(42,43,48,.5)' }, ticks: { color: '#7a7d88', font: { family: "'Space Mono'", size: 10 }, maxRotation: 45 } },
-        y: { grid: { color: 'rgba(42,43,48,.5)' }, ticks: { color: '#7a7d88', font: { family: "'Space Mono'", size: 10 }, callback: v => v+' €' } }
+        x: {
+          grid: { color: 'rgba(42,43,48,.5)' },
+          ticks: { color: '#7a7d88', font: { family: "'Space Mono'", size: 9 }, maxRotation: 45 }
+        },
+        y: {
+          grid: { color: 'rgba(42,43,48,.5)' },
+          ticks: {
+            color: '#7a7d88',
+            font: { family: "'Space Mono'", size: 9 },
+            callback: v => v + ' €'
+          }
+        }
       }
     }
   });
 }
 
 function renderTable(snaps) {
-  document.getElementById('snapshotTable').innerHTML = [...snaps].reverse().slice(0,30).map(s => {
-    const statusHtml = s.status==='ok'
-      ? (s.baggage_fallback?`<span class="badge badge-fallback">~${t('estimate')}</span>`:'<span class="badge badge-ok">✓</span>')
-      : `<span class="badge badge-blocked">${s.status}</span>`;
-    return `<tr>
-      <td>${(s.fetched_at||'').slice(0,10)}</td><td>${s.outbound_flight||'–'}</td><td>${s.return_flight||'–'}</td>
-      <td>${s.flight_price!=null?s.flight_price.toFixed(2)+' €':'–'}</td>
-      <td>${s.baggage_price!=null?s.baggage_price.toFixed(2)+' €':'–'}</td>
-      <td style="color:var(--green);font-weight:700">${s.total_price!=null?s.total_price.toFixed(2)+' €':'–'}</td>
-      <td>${statusHtml}</td></tr>`;
-  }).join('');
+  document.getElementById('snapshotTable').innerHTML =
+    [...snaps].reverse().slice(0, 30).map(s => {
+      const statusHtml = s.status === 'ok'
+        ? (s.baggage_fallback
+            ? `<span class="badge badge-fallback">~${t('estimate')}</span>`
+            : '<span class="badge badge-ok">✓</span>')
+        : `<span class="badge badge-blocked">${s.status}</span>`;
+      return `<tr>
+        <td>${(s.fetched_at||'').slice(0,10)}</td>
+        <td>${s.outbound_flight||'–'}</td>
+        <td>${s.return_flight||'–'}</td>
+        <td>${s.flight_price  != null ? s.flight_price.toFixed(2)+' €'  : '–'}</td>
+        <td>${s.baggage_price != null ? s.baggage_price.toFixed(2)+' €' : '–'}</td>
+        <td style="color:var(--green);font-weight:700">
+          ${s.total_price != null ? s.total_price.toFixed(2)+' €' : '–'}
+        </td>
+        <td>${statusHtml}</td>
+      </tr>`;
+    }).join('');
 }
 
 // ── Actions ───────────────────────────────────────────
@@ -473,10 +968,16 @@ async function scrapeNow(id) {
   try {
     const result = await api(`/api/trackers/${id}/scrape`, { method: 'POST' });
     const snap = result.snapshot;
-    if (snap?.total_price) toast(`${t('current')}: ${snap.total_price.toFixed(2)} €${snap.baggage_fallback?` (~${t('estimate')})`:''}`,'success');
-    else toast(`${t('status')}: ${snap?.status||'?'}`, 'warning');
-    loadTrackers(); if (selectedTrackerId===id) selectTracker(id);
-  } catch(e) { toast(`${t('scrapeError')}: ${e.message}`, 'error'); }
+    if (snap?.total_price) {
+      toast(`${t('current')}: ${snap.total_price.toFixed(2)} €${snap.baggage_fallback ? ` (~${t('estimate')})` : ''}`, 'success');
+    } else {
+      toast(`${t('status')}: ${snap?.status || '?'}`, 'warning');
+    }
+    loadTrackers();
+    if (selectedTrackerId === id) selectTracker(id);
+  } catch(e) {
+    toast(`${t('scrapeError')}: ${e.message}`, 'error');
+  }
 }
 
 async function deleteTracker(id) {
@@ -484,25 +985,32 @@ async function deleteTracker(id) {
   try {
     await api(`/api/trackers/${id}`, { method: 'DELETE' });
     toast(t('deleted'), 'success');
-    if (selectedTrackerId===id) {
-      selectedTrackerId=null;
-      document.getElementById('chartContainer').style.display='none';
-      document.getElementById('chartEmpty').style.display='flex';
-      document.getElementById('tableCard').style.display='none';
+    if (selectedTrackerId === id) {
+      selectedTrackerId = null;
+      document.getElementById('chartContainer').style.display = 'none';
+      document.getElementById('chartEmpty').style.display    = 'flex';
+      document.getElementById('tableCard').style.display     = 'none';
     }
     loadTrackers();
-  } catch(e) { toast(`${t('error')}: ${e.message}`, 'error'); }
+  } catch(e) {
+    toast(`${t('error')}: ${e.message}`, 'error');
+  }
 }
 
 async function togglePause(id, currentlyActive) {
-  try { await api(`/api/trackers/${id}/toggle?active=${!currentlyActive}`, { method: 'PATCH' }); toast(currentlyActive?t('paused'):t('activated'), 'success'); loadTrackers(); }
-  catch(e) { toast(`${t('error')}: ${e.message}`, 'error'); }
+  try {
+    await api(`/api/trackers/${id}/toggle?active=${!currentlyActive}`, { method: 'PATCH' });
+    toast(currentlyActive ? t('paused') : t('activated'), 'success');
+    loadTrackers();
+  } catch(e) {
+    toast(`${t('error')}: ${e.message}`, 'error');
+  }
 }
 
 // ── Toast ─────────────────────────────────────────────
-function toast(msg, type='success') {
+function toast(msg, type = 'success') {
   const c = document.getElementById('toastContainer');
-  const icons = { success:'✓', error:'✕', warning:'⚠' };
+  const icons = { success: '✓', error: '✕', warning: '⚠' };
   const el = document.createElement('div');
   el.className = `toast ${type}`;
   el.innerHTML = `<span>${icons[type]||'•'}</span> ${msg}`;

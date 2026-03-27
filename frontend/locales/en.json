@@ -60,5 +60,6 @@
   "invalidDest": "Enter a valid destination IATA code (e.g. DUB)",
   "missingDate": "Select outbound date",
   "missingUrl": "Please enter the Backend URL first",
-  "creatingTracker": "Creating..."
+  "creatingTracker": "Creating...",
+  "ryanairTracker": "Ryanair Tracker"
 }

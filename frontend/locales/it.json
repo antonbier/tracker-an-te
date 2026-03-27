@@ -60,5 +60,6 @@
   "invalidDest": "Inserisci un codice IATA valido per la destinazione (es. DUB)",
   "missingDate": "Seleziona la data di andata",
   "missingUrl": "Inserisci prima l'URL del Backend",
-  "creatingTracker": "Creazione..."
+  "creatingTracker": "Creazione...",
+  "ryanairTracker": "Ryanair Tracker"
 }

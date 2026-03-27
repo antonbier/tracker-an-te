@@ -60,5 +60,6 @@
   "invalidDest": "Gültigen Ziel-IATA eingeben (z.B. DUB)",
   "missingDate": "Hinflugdatum wählen",
   "missingUrl": "Bitte zuerst Backend-URL eintragen",
-  "creatingTracker": "Anlegen..."
+  "creatingTracker": "Anlegen...",
+  "ryanairTracker": "Ryanair Tracker"
 }
