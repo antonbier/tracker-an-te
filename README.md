@@ -39,6 +39,31 @@
 
 ---
 
+## Future Roadmap / Post-v1.0
+
+### 🎨 UX Polish
+- Toast notifications (success/error) mit Animation und Auto-dismiss
+- Skeleton loaders für Datenabruf (statt leerer Felder)
+- Loading spinners bei allen API-Calls
+
+### ⚙️ Quality of Life
+- **API Quota Tracking** — SerpAPI Anfragen-Zähler (100/Monat Free Plan sichtbar machen)
+- **Währungs-Toggle** — EUR / USD / GBP umschalten
+- **CSV Export** — Preisverläufe als CSV herunterladen
+
+### 🔔 Notifications
+- **Telegram** — Push-Alerts wenn Preis unter definierten Schwellenwert fällt
+- **Discord Webhooks** — Preisalarme in Discord-Channel
+- **Gotify** — Self-hosted Push-Benachrichtigungen (Unraid-friendly)
+
+### 🧭 Adventure UX (in progress)
+- "Adventure Look" — Terracotta/Earth-Tone Palette, Playfair Display Serif-Headers
+- Home Dashboard — Budget-Übersicht, Upcoming & Completed Trips
+- Field Guide — Integriertes Hilfe-System mit FAQ und Tooltips
+- Onboarding — 3-Schritt Setup-Wizard für neue Installationen
+
+---
+
 ## Getting Started
 
 ### Quick Start (Docker)
