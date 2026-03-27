@@ -50,3 +50,18 @@ def create_transaction(data: ActualTransaction):
         account_id=data.account_id, amount=data.amount,
         payee=data.payee, notes=data.notes, date=data.date,
     )
+
+
+class ExpensesRequest(BaseModel):
+    base_url:           str
+    token:              str
+    category_names:     Optional[list[str]] = None
+    year:               Optional[int] = None
+
+
+@router.post("/actual/expenses")
+def get_expenses(data: ExpensesRequest):
+    """Reise-Transaktionen nach Kategorie abrufen."""
+    from actual_budget import get_travel_expenses
+    cats = data.category_names or []
+    return get_travel_expenses(data.base_url, data.token, cats, data.year)
