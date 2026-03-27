@@ -4,6 +4,8 @@ services:
       context: .
       dockerfile: docker/Dockerfile
     restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-8766}:8000"
     environment:
       - DB_PATH=/data/tracker.db
       - APP_SECRET=${APP_SECRET:-wandersuite-change-me}
