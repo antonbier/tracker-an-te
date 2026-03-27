@@ -34,11 +34,16 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="WanderSuite API", version="1.0.0", lifespan=lifespan)
 
+# Allow all origins — needed for Unraid/local network setups
+# where frontend (port 8765) calls backend (port 8766)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], allow_credentials=False,
-    allow_methods=["GET","POST","PUT","PATCH","DELETE","OPTIONS"],
-    allow_headers=["*"], expose_headers=["*"],
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["*"],
+    max_age=3600,
 )
 
 app.include_router(trackers.router,        prefix="/api/trackers",       tags=["Ryanair"])

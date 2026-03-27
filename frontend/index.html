@@ -1863,10 +1863,17 @@ async function api(path, opts = {}) {
 async function checkApiStatus() {
   const dot = document.getElementById('statusDot');
   try {
-    const r2 = await fetch(getApiBase() + '/health'); if(!r2.ok) throw new Error();
-    dot.style.background = 'var(--green)'; dot.style.boxShadow = '0 0 5px var(--green)'; dot.title = 'Backend online';
-  } catch {
-    dot.style.background = 'var(--red)'; dot.style.boxShadow = '0 0 5px var(--red)'; dot.title = 'Backend offline';
+    const base = getApiBase();
+    if (!base) { dot.style.background='var(--red)'; dot.style.boxShadow='0 0 5px var(--red)'; return; }
+    const r2 = await fetch(base + '/health', { signal: AbortSignal.timeout(5000) });
+    if (!r2.ok) throw new Error('not ok');
+    dot.style.background = 'var(--green)';
+    dot.style.boxShadow  = '0 0 6px var(--green)';
+    dot.title = 'Backend online';
+  } catch(e) {
+    dot.style.background = 'var(--red)';
+    dot.style.boxShadow  = '0 0 6px var(--red)';
+    dot.title = 'Backend offline: ' + e.message;
   }
 }
 
