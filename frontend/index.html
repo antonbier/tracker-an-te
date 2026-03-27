@@ -1854,8 +1854,9 @@ function fmt(d) { return d.toISOString().slice(0,10); }
 
 // ── API ────────────────────────────────────────────────
 async function api(path, opts = {}) {
-  if (!API_URL) throw new Error(t('missingUrl'));
-  const r = await fetch(getApiBase() + path, { headers: { 'Content-Type': 'application/json' }, ...opts });
+  const base = localStorage.getItem('apiUrl') || API_URL || '';
+  if (!base) throw new Error(t('missingUrl'));
+  const r = await fetch(base + path, { headers: { 'Content-Type': 'application/json' }, ...opts });
   if (!r.ok) { const err = await r.json().catch(() => ({ detail: r.statusText })); throw new Error(err.detail || `HTTP ${r.status}`); }
   return r.json();
 }
@@ -2107,7 +2108,7 @@ async function generateIdeas() {
       exclude_places: useDawarich ? [] : [],
     };
 
-    const resp = await fetch(getApiBase() + '/api/discover', {
+    const resp = await fetch((localStorage.getItem('apiUrl')||API_URL) + '/api/discover', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -2181,7 +2182,7 @@ async function syncActualBudget() {
   const resultEl = document.getElementById('actualSyncResult');
 
   try {
-    const resp = await fetch(getApiBase() + '/api/budget/actual/summary', {
+    const resp = await fetch((localStorage.getItem('apiUrl')||API_URL) + '/api/budget/actual/summary', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ base_url: url, token }),
@@ -2320,7 +2321,7 @@ async function saveSettings() {
   });
   // Sync keys to server (encrypted)
   try {
-    await fetch(getApiBase() + '/api/settings', {
+    await fetch((localStorage.getItem('apiUrl')||API_URL) + '/api/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -2382,7 +2383,7 @@ async function addGFTracker() {
   btn.innerHTML = `<span class="spinner"></span> ${t('creatingTracker')}`;
 
   try {
-    const r = await fetch(getApiBase() + '/api/google-flights', {
+    const r = await fetch((localStorage.getItem('apiUrl')||API_URL) + '/api/google-flights', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ origin, destination: dest, outbound_date: outDate, return_date: retDate || null, adults: pax, children: parseInt(document.getElementById('gf-children')?.value||0) }),
@@ -2404,7 +2405,7 @@ async function addGFTracker() {
 async function loadGFTrackers() {
   if (!API_URL) return;
   try {
-    const r = await fetch(getApiBase() + '/api/google-flights');
+    const r = await fetch((localStorage.getItem('apiUrl')||API_URL) + '/api/google-flights');
     const trackers = await r.json();
     renderGFTrackers(trackers);
   } catch(e) { /* silent fail if backend not yet updated */ }
@@ -2449,7 +2450,7 @@ async function scrapeGFTracker(id) {
   const serpKey = localStorage.getItem('s-serpApiKey') || '';
   toast(t('gfSearching'), 'warning');
   try {
-    const r = await fetch(`${getApiBase()}/api/google-flights/${id}/scrape?api_key=${encodeURIComponent(serpKey)}`, { method: 'POST' });
+    const r = await fetch(`${localStorage.getItem('apiUrl')||API_URL}/api/google-flights/${id}/scrape?api_key=${encodeURIComponent(serpKey)}`, { method: 'POST' });
     const data = await r.json();
     const snap = data.snapshot;
     if (snap?.total_price) toast(`${t('current')}: ${snap.total_price.toFixed(2)} €`, 'success');
@@ -2461,7 +2462,7 @@ async function scrapeGFTracker(id) {
 async function deleteGFTracker(id) {
   if (!confirm(t('deleteConfirm'))) return;
   try {
-    await fetch(`${getApiBase()}/api/google-flights/${id}`, { method: 'DELETE' });
+    await fetch(`${localStorage.getItem('apiUrl')||API_URL}/api/google-flights/${id}`, { method: 'DELETE' });
     toast(t('deleted'), 'success');
     loadGFTrackers();
   } catch(e) { toast(`${t('error')}: ${e.message}`, 'error'); }
@@ -2483,7 +2484,7 @@ async function addHomairTracker() {
   btn.disabled = true;
   btn.innerHTML = `<span class="spinner"></span> ${t('creatingTracker')}`;
   try {
-    const r = await fetch(getApiBase() + '/api/accommodations/homair', {
+    const r = await fetch((localStorage.getItem('apiUrl')||API_URL) + '/api/accommodations/homair', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ region, accommodation_type: accType, checkin_date: checkin, checkout_date: checkout, adults, children }),
@@ -2498,7 +2499,7 @@ async function addHomairTracker() {
 async function loadHomairTrackers() {
   if (!API_URL) return;
   try {
-    const r = await fetch(getApiBase() + '/api/accommodations/homair');
+    const r = await fetch((localStorage.getItem('apiUrl')||API_URL) + '/api/accommodations/homair');
     const trackers = await r.json();
     renderHomairTrackers(trackers);
   } catch(e) {}
@@ -2532,7 +2533,7 @@ function renderHomairTrackers(trackers) {
 async function scrapeHomairTracker(id) {
   toast(t('homairSearching'), 'warning');
   try {
-    const r = await fetch(`${getApiBase()}/api/accommodations/homair/${id}/scrape`, { method: 'POST' });
+    const r = await fetch(`${localStorage.getItem('apiUrl')||API_URL}/api/accommodations/homair/${id}/scrape`, { method: 'POST' });
     const data = await r.json();
     const snap = data.snapshot;
     if (snap?.total_price) toast(`${t('current')}: ${snap.total_price.toFixed(2)} €/Nacht`, 'success');
@@ -2544,7 +2545,7 @@ async function scrapeHomairTracker(id) {
 async function deleteHomairTracker(id) {
   if (!confirm(t('deleteConfirm'))) return;
   try {
-    await fetch(`${getApiBase()}/api/accommodations/homair/${id}`, { method: 'DELETE' });
+    await fetch(`${localStorage.getItem('apiUrl')||API_URL}/api/accommodations/homair/${id}`, { method: 'DELETE' });
     toast(t('deleted'), 'success'); loadHomairTrackers();
   } catch(e) { toast(`${t('error')}: ${e.message}`, 'error'); }
 }
@@ -2573,7 +2574,7 @@ async function addBookingTracker() {
   btn.disabled = true;
   btn.innerHTML = `<span class="spinner"></span> ${t('creatingTracker')}`;
   try {
-    const r = await fetch(getApiBase() + '/api/accommodations/booking', {
+    const r = await fetch((localStorage.getItem('apiUrl')||API_URL) + '/api/accommodations/booking', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ destination: dest, checkin_date: checkin, checkout_date: checkout, adults, rooms, source }),
@@ -2589,7 +2590,7 @@ async function addBookingTracker() {
 async function loadBookingTrackers() {
   if (!API_URL) return;
   try {
-    const r = await fetch(getApiBase() + '/api/accommodations/booking');
+    const r = await fetch((localStorage.getItem('apiUrl')||API_URL) + '/api/accommodations/booking');
     const trackers = await r.json();
     renderBookingTrackers(trackers);
   } catch(e) {}
@@ -2626,7 +2627,7 @@ async function scrapeBookingTracker(id) {
   const serpKey = localStorage.getItem('s-serpApiKey') || '';
   toast(t('bookingSearching'), 'warning');
   try {
-    const r = await fetch(`${getApiBase()}/api/accommodations/booking/${id}/scrape?api_key=${encodeURIComponent(serpKey)}`, { method: 'POST' });
+    const r = await fetch(`${localStorage.getItem('apiUrl')||API_URL}/api/accommodations/booking/${id}/scrape?api_key=${encodeURIComponent(serpKey)}`, { method: 'POST' });
     const data = await r.json();
     const snap = data.snapshot;
     if (snap?.total_price) toast(`${t('current')}: ${snap.total_price.toFixed(2)} €/Nacht${snap.hotel_name?' — '+snap.hotel_name:''}`, 'success');
@@ -2638,7 +2639,7 @@ async function scrapeBookingTracker(id) {
 async function deleteBookingTracker(id) {
   if (!confirm(t('deleteConfirm'))) return;
   try {
-    await fetch(`${getApiBase()}/api/accommodations/booking/${id}`, { method: 'DELETE' });
+    await fetch(`${localStorage.getItem('apiUrl')||API_URL}/api/accommodations/booking/${id}`, { method: 'DELETE' });
     toast(t('deleted'), 'success'); loadBookingTrackers();
   } catch(e) { toast(`${t('error')}: ${e.message}`, 'error'); }
 }
