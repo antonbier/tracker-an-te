@@ -1862,18 +1862,24 @@ async function api(path, opts = {}) {
 
 async function checkApiStatus() {
   const dot = document.getElementById('statusDot');
+  // Always read from localStorage directly — most up to date
+  const base = localStorage.getItem('apiUrl') || '';
+  if (!base) {
+    dot.style.background = 'var(--red)';
+    dot.style.boxShadow  = '0 0 6px var(--red)';
+    dot.title = 'Backend URL nicht konfiguriert';
+    return;
+  }
   try {
-    const base = getApiBase();
-    if (!base) { dot.style.background='var(--red)'; dot.style.boxShadow='0 0 5px var(--red)'; return; }
     const r2 = await fetch(base + '/health', { signal: AbortSignal.timeout(5000) });
-    if (!r2.ok) throw new Error('not ok');
+    if (!r2.ok) throw new Error(`HTTP ${r2.status}`);
     dot.style.background = 'var(--green)';
     dot.style.boxShadow  = '0 0 6px var(--green)';
     dot.title = 'Backend online';
   } catch(e) {
     dot.style.background = 'var(--red)';
     dot.style.boxShadow  = '0 0 6px var(--red)';
-    dot.title = 'Backend offline: ' + e.message;
+    dot.title = 'Backend nicht erreichbar: ' + e.message;
   }
 }
 
@@ -2334,10 +2340,12 @@ async function saveSettings() {
     });
   } catch(e) { /* Server sync optional — localStorage als Fallback */ }
 
+  // Update global API_URL from saved value
+  API_URL = localStorage.getItem('apiUrl') || '';
   toast(t('saved') + ' ✓', 'success');
   closeSettings();
-  checkApiStatus();
-  loadTrackers();
+  setTimeout(checkApiStatus, 300);
+  setTimeout(loadTrackers, 600);
   loadDashboard();
   checkOnboarding();
 
