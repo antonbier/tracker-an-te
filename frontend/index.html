@@ -382,6 +382,133 @@ tr:hover td { background: rgba(255,255,255,.02); }
   .main-wrap { padding: 1rem .85rem; }
   .logo-version { display: none; }
 }
+
+/* ── Settings Button ─────────────────────────────────── */
+.btn-settings {
+  width: 30px; height: 30px; border-radius: var(--radius);
+  background: transparent; border: 1px solid var(--border);
+  color: var(--sub); cursor: pointer; font-size: .9rem;
+  display: flex; align-items: center; justify-content: center;
+  transition: all var(--transition); flex-shrink: 0;
+}
+.btn-settings:hover { color: var(--text); border-color: var(--muted); transform: rotate(45deg); }
+
+/* ── Settings Modal ──────────────────────────────────── */
+.modal-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,.6);
+  backdrop-filter: blur(4px); z-index: 500;
+  display: flex; align-items: center; justify-content: center;
+  padding: 1rem;
+  opacity: 0; pointer-events: none; transition: opacity .2s ease;
+}
+.modal-backdrop.open { opacity: 1; pointer-events: all; }
+
+.modal {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; width: 100%; max-width: 480px;
+  max-height: 90vh; overflow-y: auto;
+  transform: translateY(16px); transition: transform .2s ease;
+  box-shadow: 0 24px 64px rgba(0,0,0,.5);
+}
+.modal-backdrop.open .modal { transform: translateY(0); }
+
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1.1rem 1.25rem; border-bottom: 1px solid var(--border);
+}
+.modal-title { font-size: .95rem; font-weight: 800; }
+.modal-close {
+  width: 28px; height: 28px; border-radius: 4px;
+  background: transparent; border: none; color: var(--sub);
+  cursor: pointer; font-size: 1rem; display: flex;
+  align-items: center; justify-content: center;
+  transition: all var(--transition);
+}
+.modal-close:hover { background: var(--border); color: var(--text); }
+
+/* Modal Tabs */
+.modal-tabs {
+  display: flex; border-bottom: 1px solid var(--border);
+  padding: 0 1.25rem; gap: 0;
+}
+.modal-tab {
+  padding: .65rem .9rem; font-size: .75rem; font-weight: 700;
+  color: var(--sub); cursor: pointer; border-bottom: 2px solid transparent;
+  transition: all var(--transition); background: none; border-top: none;
+  border-left: none; border-right: none; font-family: var(--sans);
+  letter-spacing: .02em;
+}
+.modal-tab:hover { color: var(--text); }
+.modal-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.modal-body { padding: 1.25rem; }
+.modal-section { margin-bottom: 1.1rem; }
+.modal-section:last-child { margin-bottom: 0; }
+.modal-section-label {
+  font-size: .65rem; font-weight: 700; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--sub); margin-bottom: .5rem;
+}
+
+/* Settings inputs */
+.settings-input {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text);
+  font-family: var(--mono); font-size: .8rem;
+  padding: .5rem .7rem; width: 100%; outline: none;
+  transition: border-color var(--transition);
+}
+.settings-input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(255,85,51,.1); }
+.settings-input::placeholder { color: var(--muted); }
+
+/* Toggle switch */
+.toggle-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: .5rem 0;
+}
+.toggle-label { font-size: .82rem; }
+.toggle {
+  position: relative; width: 40px; height: 22px; flex-shrink: 0;
+}
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-slider {
+  position: absolute; inset: 0; background: var(--muted);
+  border-radius: 22px; cursor: pointer; transition: .25s;
+}
+.toggle-slider::before {
+  content: ''; position: absolute;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: white; left: 3px; top: 3px; transition: .25s;
+}
+.toggle input:checked + .toggle-slider { background: var(--accent); }
+.toggle input:checked + .toggle-slider::before { transform: translateX(18px); }
+
+/* Modal footer */
+.modal-footer {
+  display: flex; gap: .6rem; justify-content: flex-end;
+  padding: 1rem 1.25rem; border-top: 1px solid var(--border);
+}
+.btn-save {
+  background: var(--accent); color: white; border: none;
+  padding: .55rem 1.2rem; border-radius: var(--radius);
+  font-family: var(--sans); font-size: .82rem; font-weight: 700;
+  cursor: pointer; transition: all var(--transition);
+}
+.btn-save:hover { background: #e64422; }
+.btn-cancel {
+  background: transparent; color: var(--sub);
+  border: 1px solid var(--border); padding: .55rem 1rem;
+  border-radius: var(--radius); font-family: var(--sans);
+  font-size: .82rem; font-weight: 700; cursor: pointer;
+  transition: all var(--transition);
+}
+.btn-cancel:hover { color: var(--text); border-color: var(--muted); }
+
+/* Light mode */
+body.light-mode {
+  --bg: #f5f5f7; --surface: #ffffff; --surface2: #f0f0f2;
+  --border: #dddde0; --muted: #c5c5cc;
+  --text: #1a1a1f; --sub: #6b6e7a;
+}
 </style>
 </head>
 <body>
@@ -400,6 +527,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
       <button class="lang-btn" onclick="setLang('it')">IT</button>
       <button class="lang-btn" onclick="setLang('en')">EN</button>
     </div>
+    <button class="btn-settings" onclick="openSettings()" title="Settings">⚙</button>
     <div class="status-dot" id="statusDot" title="API Status"></div>
     <button class="btn-refresh" onclick="loadTrackers()">
       ↺ <span class="btn-refresh-text" data-i18n="refresh">Aktualisieren</span>
@@ -569,6 +697,94 @@ tr:hover td { background: rgba(255,255,255,.02); }
 </footer>
 
 <!-- ── Toasts ─────────────────────────────────────────── -->
+
+<!-- ── Settings Modal ──────────────────────────────── -->
+<div class="modal-backdrop" id="settingsBackdrop" onclick="backdropClick(event)">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle" data-i18n="settings">Einstellungen</div>
+      <button class="modal-close" onclick="closeSettings()">✕</button>
+    </div>
+
+    <div class="modal-tabs">
+      <button class="modal-tab active" onclick="switchTab('basic')" id="tab-basic"
+              data-i18n="settingsBasic">Allgemein</button>
+      <button class="modal-tab" onclick="switchTab('integrations')" id="tab-integrations"
+              data-i18n="settingsIntegrations">Integrationen</button>
+    </div>
+
+    <!-- Basic Tab -->
+    <div class="modal-body" id="panel-basic">
+
+      <div class="modal-section">
+        <div class="modal-section-label" data-i18n="backendUrl">Backend-URL</div>
+        <input class="settings-input" id="s-backendUrl" type="text"
+               placeholder="https://tracker-an-te-production.up.railway.app">
+      </div>
+
+      <div class="modal-section">
+        <div class="modal-section-label" data-i18n="timezone">Zeitzone</div>
+        <select class="settings-input" id="s-timezone"></select>
+      </div>
+
+      <div class="modal-section">
+        <div class="modal-section-label" data-i18n="appearance">Darstellung</div>
+        <div class="toggle-row">
+          <span class="toggle-label" data-i18n="lightMode">Light Mode</span>
+          <label class="toggle">
+            <input type="checkbox" id="s-lightMode" onchange="toggleTheme(this.checked)">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Integrations Tab -->
+    <div class="modal-body" id="panel-integrations" style="display:none">
+
+      <div class="modal-section">
+        <div class="modal-section-label">Dawarich</div>
+        <input class="settings-input" id="s-dawarichUrl" type="text"
+               placeholder="https://dawarich.example.com" style="margin-bottom:.4rem">
+        <input class="settings-input" id="s-dawarichToken" type="password"
+               data-i18n-placeholder="dawarichToken" placeholder="API Token">
+      </div>
+
+      <div class="modal-section">
+        <div class="modal-section-label">ActualBudget</div>
+        <input class="settings-input" id="s-actualUrl" type="text"
+               placeholder="https://actualbudget.example.com" style="margin-bottom:.4rem">
+        <input class="settings-input" id="s-actualToken" type="password"
+               placeholder="Token">
+      </div>
+
+      <div class="modal-section">
+        <div class="modal-section-label" data-i18n="llmProvider">KI-Anbieter</div>
+        <select class="settings-input" id="s-llmProvider" style="margin-bottom:.4rem">
+          <option value="">— disabled —</option>
+          <option value="gemini">Google Gemini</option>
+          <option value="openai">OpenAI</option>
+          <option value="anthropic">Anthropic Claude</option>
+          <option value="ollama">Ollama (local)</option>
+        </select>
+        <input class="settings-input" id="s-llmKey" type="password"
+               data-i18n-placeholder="llmApiKey" placeholder="API Key">
+      </div>
+
+      <div style="font-size:.68rem;color:var(--sub);margin-top:.75rem" data-i18n="settingsHint">
+        Einstellungen werden lokal gespeichert
+      </div>
+
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeSettings()" data-i18n="cancel">Abbrechen</button>
+      <button class="btn-save" onclick="saveSettings()" data-i18n="save">Speichern</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast-container" id="toastContainer"></div>
 
 <script>
@@ -1017,6 +1233,101 @@ function toast(msg, type = 'success') {
   c.appendChild(el);
   setTimeout(() => el.remove(), 4000);
 }
+
+// ── Settings Modal ────────────────────────────────────
+
+const SETTINGS_KEYS = [
+  's-backendUrl','s-timezone','s-lightMode',
+  's-dawarichUrl','s-dawarichToken',
+  's-actualUrl','s-actualToken',
+  's-llmProvider','s-llmKey'
+];
+
+function openSettings() {
+  // Populate timezone dropdown
+  const tzSel = document.getElementById('s-timezone');
+  if (!tzSel.options.length) {
+    const zones = [
+      'Europe/Rome','Europe/Berlin','Europe/London','Europe/Paris',
+      'Europe/Madrid','Europe/Zurich','Europe/Vienna',
+      'America/New_York','America/Chicago','America/Los_Angeles',
+      'Asia/Tokyo','Asia/Shanghai','Australia/Sydney','UTC'
+    ];
+    zones.forEach(z => {
+      const opt = document.createElement('option');
+      opt.value = z; opt.textContent = z;
+      tzSel.appendChild(opt);
+    });
+  }
+
+  // Load saved values
+  document.getElementById('s-backendUrl').value    = localStorage.getItem('apiUrl') || '';
+  document.getElementById('s-timezone').value      = localStorage.getItem('s-timezone') || 'Europe/Rome';
+  document.getElementById('s-lightMode').checked   = document.body.classList.contains('light-mode');
+  document.getElementById('s-dawarichUrl').value   = localStorage.getItem('s-dawarichUrl') || '';
+  document.getElementById('s-dawarichToken').value = localStorage.getItem('s-dawarichToken') || '';
+  document.getElementById('s-actualUrl').value     = localStorage.getItem('s-actualUrl') || '';
+  document.getElementById('s-actualToken').value   = localStorage.getItem('s-actualToken') || '';
+  document.getElementById('s-llmProvider').value   = localStorage.getItem('s-llmProvider') || '';
+  document.getElementById('s-llmKey').value        = localStorage.getItem('s-llmKey') || '';
+
+  switchTab('basic');
+  document.getElementById('settingsBackdrop').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeSettings() {
+  document.getElementById('settingsBackdrop').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function backdropClick(e) {
+  if (e.target === document.getElementById('settingsBackdrop')) closeSettings();
+}
+
+function switchTab(tab) {
+  ['basic','integrations'].forEach(t => {
+    document.getElementById('panel-' + t).style.display = t === tab ? 'block' : 'none';
+    document.getElementById('tab-' + t).classList.toggle('active', t === tab);
+  });
+}
+
+function toggleTheme(isLight) {
+  document.body.classList.toggle('light-mode', isLight);
+  localStorage.setItem('theme', isLight ? 'light' : 'dark');
+}
+
+function saveSettings() {
+  // Backend URL
+  const newUrl = document.getElementById('s-backendUrl').value.trim().replace(/\/$/, '');
+  API_URL = newUrl;
+  localStorage.setItem('apiUrl', newUrl);
+  document.getElementById('apiUrlInput').value = newUrl;
+
+  // Other settings
+  ['s-timezone','s-dawarichUrl','s-dawarichToken',
+   's-actualUrl','s-actualToken','s-llmProvider','s-llmKey'].forEach(key => {
+    localStorage.setItem(key, document.getElementById(key).value);
+  });
+
+  toast(t('saved') + ' ✓', 'success');
+  closeSettings();
+  checkApiStatus();
+  loadTrackers();
+}
+
+// Apply saved theme on load
+(function() {
+  if (localStorage.getItem('theme') === 'light') {
+    document.body.classList.add('light-mode');
+  }
+})();
+
+// Close modal on Escape key
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeSettings();
+});
+
 </script>
 </body>
 </html>
