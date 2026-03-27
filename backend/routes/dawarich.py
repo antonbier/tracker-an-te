@@ -1,6 +1,6 @@
 """
 WanderSuite — REST Routes: /api/dawarich
-Trip Sync + Reisetagebuch.
+Trip Sync + Reisetagebuch + Debug.
 """
 
 from fastapi import APIRouter, HTTPException
@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from typing import Optional
 import logging
 
-from dawarich import sync_trips
+from dawarich import sync_trips, fetch_points, normalize_point
 from database import list_detected_trips, delete_detected_trip
 from settings_manager import get_setting_value
 
@@ -21,28 +21,23 @@ class SyncRequest(BaseModel):
     dawarich_token: Optional[str] = None
     home_lat:       Optional[float] = None
     home_lon:       Optional[float] = None
-    start_date:     Optional[str] = None  # YYYY-MM-DD
+    start_date:     Optional[str] = None
     end_date:       Optional[str] = None
 
 
 @router.post("/sync")
 def sync(data: SyncRequest):
-    """
-    Dawarich Sync ausführen.
-    Verwendet Server-Settings falls keine Parameter angegeben.
-    """
     url   = data.dawarich_url   or get_setting_value("dawarich_url")   or ""
     token = data.dawarich_token or get_setting_value("dawarich_token") or ""
 
     if not url or not token:
-        raise HTTPException(400, "Dawarich URL und Token fehlen — in den Einstellungen eintragen")
+        raise HTTPException(400, "Dawarich URL und Token fehlen")
 
-    # Home-Koordinaten
     try:
         lat = data.home_lat or float(get_setting_value("home_lat") or 0)
         lon = data.home_lon or float(get_setting_value("home_lon") or 0)
     except (ValueError, TypeError):
-        raise HTTPException(400, "Ungültige Home-Koordinaten — Format: 46.7987,11.7188")
+        raise HTTPException(400, "Ungültige Home-Koordinaten")
 
     if lat == 0 and lon == 0:
         raise HTTPException(400, "Home-Koordinaten fehlen — in den Einstellungen eintragen")
@@ -60,9 +55,43 @@ def sync(data: SyncRequest):
     return result
 
 
+@router.post("/debug")
+def debug_points(data: SyncRequest):
+    """
+    Debug-Endpoint: Zeigt die ersten 5 Roh-Punkte von Dawarich
+    und wie sie normalisiert werden — hilft bei Format-Problemen.
+    """
+    url   = data.dawarich_url   or get_setting_value("dawarich_url")   or ""
+    token = data.dawarich_token or get_setting_value("dawarich_token") or ""
+
+    if not url or not token:
+        raise HTTPException(400, "Dawarich URL und Token fehlen")
+
+    try:
+        # Nur erste Seite laden (schnell)
+        raw = fetch_points(url, token, page_size=10)
+    except Exception as e:
+        raise HTTPException(400, str(e))
+
+    # Zeige Rohformat + Normalisierung
+    samples = raw[:5]
+    normalized = []
+    for p in samples:
+        n = normalize_point(p)
+        normalized.append({
+            "raw_keys":   list(p.keys()),
+            "raw_sample": {k: p[k] for k in list(p.keys())[:8]},
+            "normalized": n,
+        })
+
+    return {
+        "total_points": len(raw),
+        "samples": normalized,
+    }
+
+
 @router.get("/trips")
 def get_trips(limit: int = 50):
-    """Alle erkannten Trips aus der DB abrufen."""
     return list_detected_trips(limit=limit)
 
 
