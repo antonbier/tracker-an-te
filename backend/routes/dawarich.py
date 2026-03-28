@@ -11,6 +11,7 @@ import logging
 from dawarich import sync_trips, fetch_points, normalize_point
 from database import list_detected_trips, delete_detected_trip
 from settings_manager import get_setting_value
+from countries import get_visited_country_codes
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -100,6 +101,21 @@ def debug_points(data: SyncRequest):
 @router.get("/trips")
 def get_trips(limit: int = 50):
     return list_detected_trips(limit=limit)
+
+
+@router.get("/countries")
+def get_countries():
+    """
+    Returns ISO-2 country codes of visited countries derived from
+    detected_trips in the local DB. Used by the Scratch Map frontend.
+
+    Response:
+        configured:    bool   — whether Dawarich is set up
+        country_codes: list   — e.g. ["DE", "IT", "FR"]
+        countries:     list   — full country names for display
+        trip_count:    int    — total number of detected trips
+    """
+    return get_visited_country_codes()
 
 
 @router.delete("/trips/{trip_id}")
