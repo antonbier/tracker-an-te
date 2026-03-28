@@ -1,3 +1,20 @@
+/**
+ * main.js — Application entry point
+ *
+ * This file is the ONLY file referenced in index.html:
+ *   <script type="module" src="js/main.js">
+ *
+ * It does three things and nothing else:
+ *   1. Imports all ES modules
+ *   2. Binds all functions that are called from onclick="..." in HTML to window.*
+ *      (ES modules don't share scope with inline handlers automatically)
+ *   3. Runs the DOMContentLoaded initialization (locale load, theme, API check, etc.)
+ *
+ * To add a new function callable from HTML:
+ *   1. Export it from its module
+ *   2. Import it here
+ *   3. Add window.myFunction = myFunction
+ */
 // frontend/js/main.js
 // Entry Point – nur Imports und window.*-Bindungen.
 // Kein Logik-Code mehr hier.
