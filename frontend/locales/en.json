@@ -234,5 +234,17 @@
   "radarCarRental": "Car Rental",
   "radarOverviewDesc": "Select a category above to see your active trackers.",
   "radarCarRentalDesc": "Compare car rental prices automatically — coming soon.",
-  "comingSoon": "Coming Soon"
+  "comingSoon": "Coming Soon",
+  "mytripsSubtitle": "Your Travel Treasure Chest",
+  "mytripsWishlist": "Bucket List",
+  "mytripsSchatzkammer": "Your Travel Treasure Chest",
+  "mytripsHeroDesc": "Manage your budget, capture memories and dream of new destinations.",
+  "mytripsVisitedPlaces": "Visited Places",
+  "mytripsSavedBudget": "Remaining Budget",
+  "mytripsNextWish": "Bucket List",
+  "mytripsDestination": "Destination",
+  "mytripsDestinationPlaceholder": "e.g. Kyoto, Japan",
+  "mytripsWhen": "When?",
+  "mytripsWhenPlaceholder": "e.g. Summer 2027",
+  "mytripsAddWish": "Add to Bucket List"
 }
