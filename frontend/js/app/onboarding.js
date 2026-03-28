@@ -1,3 +1,20 @@
+/**
+ * app/onboarding.js — First-run onboarding wizard + Field Guide modal
+ *
+ * Onboarding:
+ *   - Shows a 3-step wizard on first load if no backend URL is set
+ *   - Step 1: Enter backend URL
+ *   - Step 2: Create first tracker (guided)
+ *   - Step 3: Ready confirmation
+ *   - Completion state stored in localStorage (ws-onboarding-done)
+ *
+ * Field Guide:
+ *   - FAQ modal accessible from the header (📖 button)
+ *   - Content is translated via data-i18n attributes
+ *
+ * Functions: checkOnboarding, closeOnboarding, obNext, obBack, updateObStep,
+ *             openFieldGuide, closeFieldGuide
+ */
 // frontend/js/app/onboarding.js
 import { t } from '../ui/i18n.js';
 import { API_URL, obStep, setObStep, setApiUrl } from '../core/state.js';
