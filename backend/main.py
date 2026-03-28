@@ -31,6 +31,7 @@ import logging
 from database import init_db
 from scheduler import run_all_trackers
 from routes import trackers, prices, google_flights, discover, accommodations, budget, dawarich as dawarich_route
+from routes import dashboard as dashboard_route
 from routes import settings as settings_route
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -74,6 +75,7 @@ app.include_router(budget.router,          prefix="/api/budget",           tags=
 app.include_router(discover.router,        prefix="/api/discover",         tags=["Discover"])
 app.include_router(settings_route.router,  prefix="/api/settings",         tags=["Settings"])
 app.include_router(dawarich_route.router,   prefix="/api/dawarich",          tags=["Dawarich"])
+app.include_router(dashboard_route.router, prefix="/api/dashboard",         tags=["Dashboard"])
 
 
 @app.get("/")
