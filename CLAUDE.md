@@ -33,7 +33,8 @@ wandersuite/
 │       ├── main.js        ← Entry point (imports + window.* + DOMContentLoaded)
 │       ├── core/
 │       │   ├── state.js   ← Global state + setters
-│       │   └── api.js     ← HTTP client + health check
+│       │   ├── api.js     ← HTTP client + health check
+│       │   └── persist.js ← localStorage ↔ backend sync (ws-trips, ws-budget, ws-bucketlist)
 │       ├── ui/
 │       │   ├── i18n.js    ← Translations
 │       │   ├── nav.js     ← navigate() + bottom bar + View Transitions
@@ -299,27 +300,53 @@ Content is inline HTML (not i18n keys) — rich formatting with `.fg-infobox`, `
 
 ## localStorage Keys
 
-| Key | Type | Description |
-|-----|------|-------------|
-| `apiUrl` | string | Backend URL |
-| `lang` | string | `'de'` · `'en'` · `'it'` |
-| `theme` | string | `'dark'` (absent = light) |
-| `ws-budget` | string | Budget total in EUR |
-| `ws-trips` | JSON | `[{name, cost, date, source?}]` |
-| `ws-bucketlist` | JSON | `[{id, dest, when, emoji, added}]` |
-| `ws-onboarding-done` | string | `'1'` when completed |
-| `s-timezone` | string | e.g. `'Europe/Rome'` |
-| `s-dawarichUrl` | string | Dawarich server URL |
-| `s-dawarichToken` | string | Dawarich API token |
-| `s-homeLat` / `s-homeLon` | string | Home coordinates |
-| `s-actualUrl` | string | ActualBudget URL |
-| `s-actualPassword` | string | ActualBudget password |
-| `s-actualFile` | string | Budget display name |
-| `s-travelCategories` | string | Comma-separated category names |
-| `s-serpApiKey` | string | SerpAPI key |
-| `s-geminiKey` | string | Gemini API key |
-| `s-openaiKey` | string | OpenAI API key |
-| `s-llmProvider` | string | `'gemini'` · `'openai'` · `'anthropic'` · `'ollama'` |
+| Key | Type | Backed up to backend? | Description |
+|-----|------|-----------------------|-------------|
+| `apiUrl` | string | ✗ | Backend URL |
+| `lang` | string | ✗ | `'de'` · `'en'` · `'it'` |
+| `theme` | string | ✗ | `'dark'` (absent = light) |
+| `ws-budget` | string | ✅ `/api/userdata/ws-budget` | Budget total in EUR |
+| `ws-trips` | JSON | ✅ `/api/userdata/ws-trips` | `[{name, cost, date, source?}]` |
+| `ws-bucketlist` | JSON | ✅ `/api/userdata/ws-bucketlist` | `[{id, dest, when, emoji, added}]` |
+| `ws-onboarding-done` | string | ✗ | `'1'` when completed |
+| `s-timezone` | string | ✅ encrypted in DB | e.g. `'Europe/Rome'` |
+| `s-dawarichUrl` | string | ✅ encrypted in DB | Dawarich server URL |
+| `s-dawarichToken` | string | ✅ encrypted in DB → **cleared from localStorage after sync** | Dawarich API token |
+| `s-homeLat` / `s-homeLon` | string | ✅ encrypted in DB | Home coordinates |
+| `s-actualUrl` | string | ✅ encrypted in DB | ActualBudget URL |
+| `s-actualPassword` | string | ✅ encrypted in DB → **cleared from localStorage after sync** | ActualBudget password |
+| `s-actualFile` | string | ✅ encrypted in DB | Budget display name |
+| `s-travelCategories` | string | ✅ encrypted in DB | Comma-separated category names |
+| `s-serpApiKey` | string | ✅ encrypted in DB → **cleared from localStorage after sync** | SerpAPI key |
+| `s-geminiKey` | string | ✅ encrypted in DB → **cleared from localStorage after sync** | Gemini API key |
+| `s-openaiKey` | string | ✅ encrypted in DB → **cleared from localStorage after sync** | OpenAI API key |
+| `s-llmProvider` | string | ✅ encrypted in DB | `'gemini'` · `'openai'` · `'anthropic'` · `'ollama'` |
+
+### Data Persistence Architecture
+
+```
+Browser localStorage  ←→  core/persist.js  ←→  /api/userdata/*  →  SQLite user_data table
+    (runtime cache)        (sync layer)           (REST)              (durable store)
+
+Settings s-* keys:
+Browser input  →  settings.js saveSettings()  →  /api/settings  →  SQLite settings table (AES-Fernet)
+               →  localStorage (temp cache)   →  cleared after successful backend sync
+```
+
+**`core/persist.js`** — three functions:
+- `syncToBackend(key)` — fire-and-forget PUT after every mutation of ws-* keys
+- `syncAllToBackend()` — push all three keys in parallel
+- `restoreFromBackend()` — cold-start: fetches GET /api/userdata, fills localStorage only for missing keys
+
+**Trigger points:**
+- `setTrips()` in `state.js` → `syncToBackend('ws-trips')` (dynamic import)
+- `updateBudget()` in `budget.js` → `syncToBackend('ws-budget')`
+- `save()` in `bucketlist.js` → `syncToBackend('ws-bucketlist')`
+- `DOMContentLoaded` in `main.js` → `restoreFromBackend()` (cold start)
+
+**Security: sensitive keys cleared from localStorage after backend sync**  
+`s-serpApiKey`, `s-geminiKey`, `s-openaiKey`, `s-dawarichToken`, `s-actualPassword`  
+→ stored encrypted in SQLite, not needed in browser storage after successful sync
 
 ---
 
