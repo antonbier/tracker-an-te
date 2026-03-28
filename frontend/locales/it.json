@@ -188,7 +188,7 @@
   "spent": "Speso",
   "remaining": "Rimanente",
   "fieldGuide": "Guida",
-  "fieldGuideTitle": "La Guida",
+  "fieldGuideTitle": "La Guida sul Campo",
   "fieldGuideSubtitle": "Tutto quello che devi sapere",
   "faqScheduler": "Come funziona il recupero giornaliero?",
   "faqSchedulerAnswer": "WanderSuite scarica automaticamente i prezzi ogni giorno alle 07:00 (Europe/Rome). Puoi anche aggiornare manualmente ogni tracker con il pulsante ⟳.",
@@ -246,5 +246,9 @@
   "mytripsDestinationPlaceholder": "es. Kyoto, Giappone",
   "mytripsWhen": "Quando?",
   "mytripsWhenPlaceholder": "es. Estate 2027",
-  "mytripsAddWish": "Aggiungi alla Lista"
+  "mytripsAddWish": "Aggiungi alla Lista",
+  "fgTabStart": "Inizio & API",
+  "fgTabRadar": "Radar Prezzi",
+  "fgTabMyTrips": "I Miei Viaggi",
+  "fgTabDiscover": "Scopri"
 }
