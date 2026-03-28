@@ -274,5 +274,10 @@
   "obCheckKeys": "API keys saved securely",
   "obNextStep": "Continue →",
   "obFinish": "🧳 Let the Adventure Begin",
-  "obSkip": "Skip and set up later"
+  "obSkip": "Skip and set up later",
+  "statNotConnected": "Backend not connected",
+  "statDawarichNotSet": "Dawarich not linked",
+  "statActualNotSet": "ActualBudget not linked",
+  "statSetupLink": "Set up →",
+  "mytripsCountries": "countries"
 }
