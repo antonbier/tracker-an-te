@@ -186,9 +186,29 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   // ── PWA: Register Service Worker ──────────────────────────────────────────
   if ('serviceWorker' in navigator) {
+    // Verify sw.js is reachable with correct MIME type before registering
+    fetch('/sw.js', { method: 'HEAD' })
+      .then(r => {
+        const ct = r.headers.get('content-type') || '';
+        console.log('[PWA] sw.js status:', r.status, 'content-type:', ct);
+        if (!r.ok) throw new Error('sw.js not found: ' + r.status);
+        if (!ct.includes('javascript') && !ct.includes('application/')) {
+          console.warn('[PWA] sw.js wrong MIME type:', ct, '— SW may be blocked by browser');
+        }
+      })
+      .catch(e => console.warn('[PWA] sw.js HEAD check failed:', e));
+
     navigator.serviceWorker.register('/sw.js', { scope: '/' })
-      .then(reg => { console.log('[SW] Registered:', reg.scope); reg.update(); })
-      .catch(err => console.warn('[SW] Registration failed:', err));
+      .then(reg => {
+        console.log('[SW] Registered successfully, scope:', reg.scope);
+        reg.update();
+      })
+      .catch(err => {
+        console.error('[SW] Registration FAILED:', err.message);
+        console.error('[SW] This usually means: wrong MIME type, wrong path, or not HTTPS');
+      });
+  } else {
+    console.warn('[PWA] Service Workers not supported in this browser');
   }
 
   // ── PWA: Install prompt ────────────────────────────────────────────────────
