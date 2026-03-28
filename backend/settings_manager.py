@@ -21,12 +21,13 @@ SETTING_KEYS = [
     "dawarich_url",
     "dawarich_token",
     "actual_url",
-    "actual_token",
+    "actual_token",    # ActualBudget server password
+    "actual_file",     # ActualBudget budget display name (e.g. "Mein Budget")
     "llm_provider",
     "timezone",
     "home_lat",
     "home_lon",
-    "travel_categories",   # comma-separated ActualBudget category names
+    "travel_categories",  # comma-separated ActualBudget category names
 ]
 
 
