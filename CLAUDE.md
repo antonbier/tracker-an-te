@@ -376,6 +376,82 @@ For multiline content use `json=` not curl. Always work on `main` branch directl
 
 ---
 
+## Deployment
+
+### Quickstart (Unraid / jeder Docker-Host)
+
+```bash
+# 1. Repository klonen
+git clone https://github.com/antonbier/tracker-an-te.git wandersuite
+cd wandersuite
+
+# 2. Konfiguration anlegen
+cp .env.example .env
+nano .env   # Mindestens APP_SECRET ändern, HOST_PORT und TZ anpassen
+
+# 3. Starten
+docker compose up -d --build
+
+# 4. Im Browser öffnen
+# Frontend: http://DEINE-IP:8765  (oder ${HOST_PORT})
+# Backend:  http://DEINE-IP:8766  (direkt für API, Settings → Backend URL)
+```
+
+### .env Variablen
+
+| Variable | Default | Beschreibung |
+|----------|---------|--------------|
+| `HOST_PORT` | `8765` | Frontend-Port (Nginx, im Browser) |
+| `BACKEND_PORT` | `8766` | Backend-Port (FastAPI, direkt vom Browser) |
+| `TZ` | `Europe/Rome` | Zeitzone für Scraping-Cronjob (07:00 Uhr) |
+| `DATA_DIR` | `./data` | Host-Pfad für SQLite-DB und persistente Daten |
+| `APP_SECRET` | *(kein Default)* | AES-Fernet Key — **vor dem ersten Start setzen!** |
+
+**Unraid-Tipp:** `DATA_DIR=/mnt/user/appdata/wandersuite/data`
+
+### Datenpersistenz
+
+Die SQLite-Datenbank liegt im Container unter `/app/data/tracker.db`.  
+Auf dem Host wird sie unter `${DATA_DIR:-./data}/tracker.db` gespeichert.  
+Das Volume-Mapping `${DATA_DIR}:/app/data` stellt sicher, dass alle Daten  
+(Tracker, Preishistorie, erkannte Reisen, Settings) Container-Neustarts überleben.
+
+### Updating
+
+```bash
+cd wandersuite
+git pull
+docker compose up -d --build
+# Datenbank und .env bleiben unberührt
+```
+
+### Umgebungsvariablen im Backend
+
+Das Backend (`backend/main.py`) liest beim Start:
+- `DB_PATH` → Datenbankpfad (Default: `/app/data/tracker.db`)
+- `TZ` → Zeitzone für APScheduler (Default: `Europe/Rome`)
+- `APP_SECRET` → Encryption Key
+
+Das Backend stellt sicher, dass der Daten-Ordner existiert (`os.makedirs`),  
+auch wenn das Volume nicht gemountet ist (z. B. bei lokalem Entwickeln).
+
+### Lokale Entwicklung (ohne Docker)
+
+```bash
+# Backend
+cd backend
+pip install -r requirements.txt
+DB_PATH=./tracker.db APP_SECRET=dev uvicorn main:app --reload --port 8000
+
+# Frontend (statisch servieren)
+cd frontend
+python3 -m http.server 8765
+# Im Browser: http://localhost:8765
+# Settings → Backend URL: http://localhost:8000
+```
+
+---
+
 ## Refactoring History
 
 | Date | What |
