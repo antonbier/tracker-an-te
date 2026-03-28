@@ -984,6 +984,118 @@ input:focus, select:focus, textarea:focus {
   box-shadow: 0 0 0 3px rgba(217,93,57,.1);
 }
 input::placeholder, textarea::placeholder { color: var(--muted); }
+
+/* ══════════════════════════════════════════════════════
+   PREIS-RADAR
+   ══════════════════════════════════════════════════════ */
+
+/* Header */
+.radar-header { margin-bottom: 1.5rem; }
+.radar-title {
+  font-family: var(--serif); font-style: italic;
+  font-size: 1.8rem; font-weight: 700;
+  color: var(--accent2); line-height: 1.2;
+}
+.radar-subtitle { font-size: .82rem; color: var(--sub); margin-top: .3rem; }
+
+/* Main Pill Navigation */
+.radar-pills {
+  display: flex; gap: .4rem; flex-wrap: wrap;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 50px;
+  padding: .3rem;
+  margin-bottom: 1.6rem;
+  width: fit-content;
+}
+.radar-pill {
+  display: flex; align-items: center; gap: .4rem;
+  padding: .48rem 1rem; border: none; border-radius: 50px;
+  background: transparent; color: var(--sub);
+  font-family: var(--sans); font-size: .78rem; font-weight: 600;
+  cursor: pointer; transition: all .2s ease; white-space: nowrap;
+}
+.radar-pill:hover { color: var(--text); background: rgba(0,0,0,.04); }
+.radar-pill.active {
+  background: var(--surface);
+  color: var(--accent);
+  box-shadow: var(--shadow-sm);
+  font-weight: 700;
+}
+@media (max-width: 600px) {
+  .radar-pills { width: 100%; border-radius: var(--radius-lg); padding: .25rem; }
+  .radar-pill  { flex: 1; justify-content: center; font-size: .72rem; padding: .45rem .5rem; }
+}
+
+/* Sub-Navigation */
+.radar-subnav {
+  display: flex; gap: 0;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 1.2rem;
+}
+.radar-subtab {
+  display: flex; align-items: center; gap: .35rem;
+  padding: .55rem 1.1rem; border: none; background: none;
+  font-family: var(--sans); font-size: .78rem; font-weight: 600;
+  color: var(--muted); cursor: pointer;
+  border-bottom: 2px solid transparent; margin-bottom: -2px;
+  transition: all var(--transition);
+}
+.radar-subtab:hover { color: var(--text); }
+.radar-subtab.active { color: var(--accent2); border-bottom-color: var(--accent2); font-weight: 700; }
+
+/* Overview Hero */
+.radar-overview-hero {
+  text-align: center; padding: 2.5rem 1rem 2rem;
+}
+.radar-overview-icon { font-size: 3rem; margin-bottom: .75rem; }
+.radar-overview-heading {
+  font-family: var(--serif); font-style: italic;
+  font-size: 1.5rem; font-weight: 700; color: var(--accent2);
+  margin-bottom: .5rem;
+}
+.radar-overview-desc { font-size: .84rem; color: var(--sub); max-width: 380px; margin: 0 auto; }
+
+/* Overview Grid */
+.radar-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem; max-width: 600px; margin: 0 auto 2rem;
+}
+.radar-overview-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 1.4rem 1rem;
+  text-align: center; cursor: pointer;
+  transition: all .2s ease; box-shadow: var(--shadow-sm);
+}
+.radar-overview-card:hover {
+  border-color: var(--accent2); box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+.radar-overview-card--soon { cursor: default; opacity: .7; }
+.radar-overview-card--soon:hover { transform: none; border-color: var(--border); box-shadow: var(--shadow-sm); }
+.radar-overview-card-icon { font-size: 2rem; margin-bottom: .6rem; }
+.radar-overview-card-label { font-size: .88rem; font-weight: 700; color: var(--text); margin-bottom: .25rem; }
+.radar-overview-card-sub { font-size: .7rem; color: var(--muted); }
+
+/* Placeholder Card */
+.placeholder-card {
+  text-align: center; padding: 3rem 2rem;
+  background: var(--surface); border: 2px dashed var(--border);
+  border-radius: var(--radius-lg); margin-top: .5rem;
+}
+.placeholder-icon { font-size: 2.5rem; margin-bottom: .75rem; }
+.placeholder-title { font-family: var(--serif); font-style: italic; font-size: 1.1rem; font-weight: 700; color: var(--accent2); margin-bottom: .4rem; }
+.placeholder-desc { font-size: .8rem; color: var(--sub); margin-bottom: 1rem; }
+
+/* Coming Soon Badge */
+.coming-soon-badge {
+  display: inline-block; padding: .25rem .7rem;
+  background: rgba(30,58,95,.1); color: var(--accent2);
+  border-radius: 20px; font-size: .65rem; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase;
+  border: 1px solid rgba(30,58,95,.2);
+}
 </style>
 </head>
 <body class="">
@@ -1033,7 +1145,7 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
 
     <!-- 2. Preis-Radar -->
     <div class="nav-section">
-      <button class="nav-item" id="nav-ryanair" onclick="navigate('ryanair');closeSidebar()">
+      <button class="nav-item" id="nav-ryanair" onclick="navigate('priceradar');closeSidebar()">
         <span class="nav-icon">🎯</span>
         <span data-i18n="navPriceRadar">Preis-Radar</span>
       </button>
@@ -1056,10 +1168,12 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
     </div>
     <!-- Hidden nav items keep JS active-state working -->
     <div style="display:none">
+      <button id="nav-priceradar"></button>
       <button id="nav-google"></button>
       <button id="nav-homair"></button>
       <button id="nav-booking"></button>
       <button id="nav-budget"></button>
+      <button id="nav-ryanair"></button>
     </div>
 
   </nav>
@@ -1161,6 +1275,431 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
     </div>
 
     <!-- ════ PAGE: Ryanair Tracker ═════════════════════ -->
+    <!-- ════ PAGE: Preis-Radar ════════════════════════════ -->
+    <div class="page" id="page-priceradar">
+
+      <!-- ── Header ── -->
+      <div class="radar-header">
+        <h1 class="radar-title" data-i18n="navPriceRadar">Preis-Radar</h1>
+        <p class="radar-subtitle" data-i18n="radarSubtitle">Verfolge Preise für Flüge und Unterkünfte</p>
+      </div>
+
+      <!-- ── Main Pill Navigation ── -->
+      <div class="radar-pills">
+        <button class="radar-pill active" id="radar-tab-overview"        onclick="switchRadarCategory('overview')">
+          <span>📊</span><span data-i18n="radarOverview">Übersicht</span>
+        </button>
+        <button class="radar-pill" id="radar-tab-flights"               onclick="switchRadarCategory('flights')">
+          <span>✈️</span><span data-i18n="radarFlights">Flüge</span>
+        </button>
+        <button class="radar-pill" id="radar-tab-accommodations"        onclick="switchRadarCategory('accommodations')">
+          <span>🏨</span><span data-i18n="radarAccommodations">Unterkünfte</span>
+        </button>
+        <button class="radar-pill" id="radar-tab-carrental"             onclick="switchRadarCategory('carrental')">
+          <span>🚗</span><span data-i18n="radarCarRental">Mietwagen</span>
+        </button>
+      </div>
+
+      <!-- ══ PANEL: Übersicht ══════════════════════════════ -->
+      <div id="radar-panel-overview">
+        <div class="radar-overview-hero">
+          <div class="radar-overview-icon">🎯</div>
+          <h2 class="radar-overview-heading" data-i18n="navPriceRadar">Dein Preis-Radar</h2>
+          <p class="radar-overview-desc" data-i18n="radarOverviewDesc">Wähle eine Kategorie oben, um deine aktiven Tracker zu sehen und neue hinzuzufügen.</p>
+        </div>
+        <div class="radar-overview-grid">
+          <div class="radar-overview-card" onclick="switchRadarCategory('flights')">
+            <div class="radar-overview-card-icon">✈️</div>
+            <div class="radar-overview-card-label" data-i18n="radarFlights">Flüge</div>
+            <div class="radar-overview-card-sub">Ryanair · Google Flights</div>
+          </div>
+          <div class="radar-overview-card" onclick="switchRadarCategory('accommodations')">
+            <div class="radar-overview-card-icon">🏨</div>
+            <div class="radar-overview-card-label" data-i18n="radarAccommodations">Unterkünfte</div>
+            <div class="radar-overview-card-sub">Homair · Booking</div>
+          </div>
+          <div class="radar-overview-card radar-overview-card--soon">
+            <div class="radar-overview-card-icon">🚗</div>
+            <div class="radar-overview-card-label" data-i18n="radarCarRental">Mietwagen</div>
+            <div class="coming-soon-badge" data-i18n="comingSoon">Bald verfügbar</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ PANEL: Flüge ══════════════════════════════════ -->
+      <div id="radar-panel-flights" style="display:none">
+        <!-- Sub-Navigation -->
+        <div class="radar-subnav">
+          <button class="radar-subtab active" id="radar-subtab-ryanair" onclick="switchRadarSubTab('ryanair')">
+            🟠 <span data-i18n="navRyanair">Ryanair</span>
+          </button>
+          <button class="radar-subtab" id="radar-subtab-google"  onclick="switchRadarSubTab('google')">
+            ✈️ <span data-i18n="navGoogleFlights">Google Flights</span>
+          </button>
+        </div>
+        <!-- Ryanair Sub-Panel -->
+        <div id="radar-sub-ryanair" class="radar-sub-panel" data-active="true">
+
+      <div class="grid-2">
+        <div>
+          <div class="card">
+            <div class="card-title" data-i18n="newTracker">Neuen Tracker anlegen</div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>
+                  <div class="tooltip-wrap" style="width:auto">
+                    <span data-i18n="from">Von (IATA)</span>
+                    <span class="tooltip-icon">i<span class="tooltip-popup" data-i18n="faqIataAnswer">3-Buchstaben Flughafen-Code. z.B. BGY=Bergamo, DUB=Dublin</span></span>
+                  </div>
+                </label>
+                <input class="iata-input" id="origin" placeholder="BGY" maxlength="3">
+              </div>
+              <div class="form-group">
+                <label data-i18n="to">Nach (IATA)</label>
+                <input class="iata-input" id="destination" placeholder="DUB" maxlength="3">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label data-i18n="outbound">Hinflug</label>
+                <input type="date" id="outboundDate">
+              </div>
+              <div class="form-group">
+                <label data-i18n="return">Rückflug (opt.)</label>
+                <input type="date" id="returnDate">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label data-i18n="adults">Erwachsene</label>
+                <select id="adults">
+                  <option value="1" data-i18n-opt="adult1">1 Erwachsener</option>
+                  <option value="2" selected data-i18n-opt="adult2">2 Erwachsene</option>
+                  <option value="3" data-i18n-opt="adult3">3 Erwachsene</option>
+                  <option value="4" data-i18n-opt="adult4">4 Erwachsene</option>
+                  <option value="5" data-i18n-opt="adult5">5 Erwachsene</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label data-i18n="children">Kinder</label>
+                <select id="children">
+                  <option value="0" data-i18n-opt="child0">Keine Kinder</option>
+                  <option value="1" data-i18n-opt="child1">1 Kind</option>
+                  <option value="2" data-i18n-opt="child2">2 Kinder</option>
+                  <option value="3" data-i18n-opt="child3">3 Kinder</option>
+                </select>
+              </div>
+            </div>
+            <div class="baggage-section">
+              <div class="baggage-title" data-i18n="baggageTitle">🧳 Gepäck (pro Person)</div>
+              <div class="bag-option" id="bag-10kg" onclick="toggleBag('10kg')">
+                <div class="bag-checkbox" id="chk-10kg"></div>
+                <div class="bag-label" data-i18n="bag10">10 kg Check-in Koffer</div>
+                <div class="bag-note">+10kg</div>
+              </div>
+              <div class="bag-option" id="bag-20kg" onclick="toggleBag('20kg')">
+                <div class="bag-checkbox" id="chk-20kg"></div>
+                <div class="bag-label" data-i18n="bag20">20 kg Check-in Koffer</div>
+                <div class="bag-note">+20kg</div>
+              </div>
+              <div class="bag-option" id="bag-23kg" onclick="toggleBag('23kg')">
+                <div class="bag-checkbox" id="chk-23kg"></div>
+                <div class="bag-label" data-i18n="bag23">23 kg Koffer (Large)</div>
+                <div class="bag-note">+23kg</div>
+              </div>
+              <div style="font-size:.66rem;color:var(--sub);margin-top:.45rem" data-i18n="baggageNote">✓ Basic/Value-Tarif immer inklusive</div>
+            </div>
+
+            <!-- Seat Reservation -->
+            <div class="baggage-section">
+              <div class="baggage-title" data-i18n="seatReservation">🪑 Sitzplatzreservierung</div>
+              <div class="form-group">
+                <label data-i18n="seatPerPersonFlight">Pauschale pro Person/Flug (€)</label>
+                <input type="number" id="seatCost" placeholder="0.00" min="0" step="0.01" value="0">
+              </div>
+              <div style="font-size:.66rem;color:var(--sub);margin-top:.4rem" data-i18n="seatNote">Geschätzte Kosten — variiert je nach Sitzplatz</div>
+            </div>
+
+            <button class="btn btn-primary" id="addBtn" onclick="addTracker()">
+              + <span data-i18n="startTracker">Tracker starten</span>
+            </button>
+          </div>
+
+          <div class="tracker-list">
+            <div class="section-title" data-i18n="activeTrackers">Aktive Tracker</div>
+            <div id="trackerList">
+              <div style="color:var(--muted);font-size:.78rem;padding:.4rem 0" data-i18n="loading">Lade...</div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card" id="chartCard">
+            <div class="card-title" id="chartTitle" data-i18n="priceHistory">Preisverlauf</div>
+            <div id="chartEmpty" class="chart-empty">
+              <div class="chart-empty-icon">📈</div>
+              <div style="font-size:.8rem" data-i18n="selectTracker">Wähle einen Tracker aus</div>
+            </div>
+            <div id="chartContainer" style="display:none">
+              <div class="chart-stats" id="chartStats"></div>
+              <div class="chart-wrap" style="margin-top:.85rem">
+                <canvas id="priceChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" id="tableCard" style="margin-top:1rem;display:none">
+            <div class="card-title" data-i18n="historyDetails">Verlaufsdetails</div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr>
+                  <th data-i18n="date">Datum</th>
+                  <th data-i18n="outboundFlight">Hinflug</th>
+                  <th data-i18n="returnFlight">Rückflug</th>
+                  <th data-i18n="tickets">Tickets</th>
+                  <th data-i18n="baggage">Gepäck</th>
+                  <th data-i18n="seat">Sitzplatz</th>
+                  <th data-i18n="total">Gesamt</th>
+                  <th data-i18n="status">Status</th>
+                </tr></thead>
+                <tbody id="snapshotTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+        </div>
+        <!-- Google Sub-Panel -->
+        <div id="radar-sub-google" class="radar-sub-panel" style="display:none" data-active="false">
+      <div class="grid-2">
+        <div>
+          <div class="card">
+            <div class="card-title" data-i18n="googleFlightsTitle">Google Flights Tracker</div>
+            <div style="font-size:.78rem;color:var(--sub);margin-bottom:1rem;line-height:1.6" data-i18n="googleFlightsDesc">
+              Monitor flight prices via Google Flights
+            </div>
+            <div id="gf-serpapi-notice" class="notice-box" style="display:none;margin-bottom:.75rem" data-i18n="serpApiMissing">
+              SerpAPI Key fehlt — in den Einstellungen eintragen.
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label data-i18n="gfOrigin">Abflugort</label>
+                <input class="iata-input" id="gf-origin" placeholder="MUC" maxlength="3">
+              </div>
+              <div class="form-group">
+                <label data-i18n="gfDest">Zielort</label>
+                <input class="iata-input" id="gf-dest" placeholder="JFK" maxlength="3">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label data-i18n="gfDate">Datum</label>
+                <input type="date" id="gf-date">
+              </div>
+              <div class="form-group">
+                <label data-i18n="adults">Erwachsene</label>
+                <select id="gf-pax">
+                  <option value="1">1</option>
+                  <option value="2" selected>2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label data-i18n="children">Kinder</label>
+                <select id="gf-children">
+                  <option value="0" selected>0</option>
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group" style="margin-bottom:.65rem">
+              <label data-i18n="gfReturn">Rückflug (opt.)</label>
+              <input type="date" id="gf-return">
+            </div>
+            <button class="btn btn-primary" id="gf-addBtn" onclick="addGFTracker()">
+              + <span data-i18n="startTracker">Tracker starten</span>
+            </button>
+          </div>
+        </div>
+        <div>
+          <div class="section-title" data-i18n="gfActiveTrackers">Google Flights Tracker</div>
+          <div id="gf-trackerList">
+            <div style="color:var(--muted);font-size:.78rem;padding:.4rem 0" data-i18n="gfNoTrackers">Noch keine Google Flights Tracker</div>
+          </div>
+        </div>
+      </div>
+        </div>
+      </div>
+
+      <!-- ══ PANEL: Unterkünfte ════════════════════════════ -->
+      <div id="radar-panel-accommodations" style="display:none">
+        <!-- Sub-Navigation -->
+        <div class="radar-subnav">
+          <button class="radar-subtab active" id="radar-subtab-homair"  onclick="switchRadarSubTab('homair')">
+            ⛺ <span data-i18n="navHomair">Homair</span>
+          </button>
+          <button class="radar-subtab" id="radar-subtab-booking" onclick="switchRadarSubTab('booking')">
+            🏨 <span data-i18n="navBooking">Booking</span>
+          </button>
+        </div>
+        <!-- Homair Sub-Panel -->
+        <div id="radar-sub-homair" class="radar-sub-panel" data-active="true">
+      <div class="grid-2">
+        <div>
+          <div class="card">
+            <div class="card-title" data-i18n="homairTitle">Homair Camping-Tracker</div>
+            <div style="font-size:.78rem;color:var(--sub);margin-bottom:1rem;line-height:1.6" data-i18n="homairDesc">
+              Verfolge Preise für Homair-Campingplätze in Europa.
+            </div>
+            <div class="form-group" style="margin-bottom:.55rem">
+              <label data-i18n="region">Region</label>
+              <select id="hm-region">
+                <option value="cote-d-azur">Côte d'Azur</option>
+                <option value="kroatien">Kroatien</option>
+                <option value="toskana">Toskana</option>
+                <option value="katalonien">Katalonien</option>
+                <option value="languedoc">Languedoc</option>
+                <option value="provence">Provence</option>
+                <option value="venetien">Venetien</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label data-i18n="checkIn">Anreise</label>
+                <input type="date" id="hm-checkin">
+              </div>
+              <div class="form-group">
+                <label data-i18n="checkOut">Abreise</label>
+                <input type="date" id="hm-checkout">
+              </div>
+            </div>
+            <div class="form-group" style="margin-bottom:.55rem">
+              <label data-i18n="accommodationType">Unterkunftstyp</label>
+              <select id="hm-type">
+                <option value="mobilheim-standard">Mobilheim Standard</option>
+                <option value="mobilheim-premium">Mobilheim Premium</option>
+                <option value="chalet">Chalet</option>
+                <option value="stellplatz">Zeltstellplatz</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label data-i18n="adults">Erwachsene</label>
+                <select id="hm-adults">
+                  <option value="1">1</option>
+                  <option value="2" selected>2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label data-i18n="children">Kinder</label>
+                <select id="hm-children">
+                  <option value="0" selected>0</option>
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                </select>
+              </div>
+            </div>
+            <button class="btn btn-primary" id="hm-addBtn" onclick="addHomairTracker()">
+              + <span data-i18n="startTracker">Tracker starten</span>
+            </button>
+          </div>
+        </div>
+        <div>
+          <div class="section-title" data-i18n="homairActiveTrackers">Homair Tracker</div>
+          <div id="hm-trackerList">
+            <div style="color:var(--muted);font-size:.78rem;padding:.4rem 0" data-i18n="homairNoTrackers">Noch keine Homair Tracker</div>
+          </div>
+        </div>
+      </div>
+        </div>
+        <!-- Booking Sub-Panel -->
+        <div id="radar-sub-booking" class="radar-sub-panel" style="display:none" data-active="false">
+      <div class="grid-2">
+        <div>
+          <div class="card">
+            <div class="card-title" data-i18n="bookingTitle">Booking / Trivago Tracker</div>
+            <div style="font-size:.78rem;color:var(--sub);margin-bottom:1rem;line-height:1.6" data-i18n="bookingDesc">
+              Unterkunftspreise von Booking.com und Trivago im Blick behalten.
+            </div>
+            <div id="bk-serpapi-notice" class="notice-box" style="display:none;margin-bottom:.75rem" data-i18n="serpApiMissingBooking">
+              SerpAPI Key fehlt.
+            </div>
+            <div class="form-group" style="margin-bottom:.55rem">
+              <label>Quelle</label>
+              <select id="bk-source">
+                <option value="booking">Booking.com</option>
+                <option value="trivago">Trivago</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom:.55rem">
+              <label data-i18n="destination">Zielort / Hotel</label>
+              <input type="text" id="bk-dest" placeholder="z.B. Dublin, Irland">
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label data-i18n="checkIn">Check-in</label>
+                <input type="date" id="bk-checkin">
+              </div>
+              <div class="form-group">
+                <label data-i18n="checkOut">Check-out</label>
+                <input type="date" id="bk-checkout">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label data-i18n="adults">Erwachsene</label>
+                <select id="bk-adults">
+                  <option value="1">1</option>
+                  <option value="2" selected>2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label data-i18n="rooms">Zimmer</label>
+                <select id="bk-rooms">
+                  <option value="1" selected>1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                </select>
+              </div>
+            </div>
+            <button class="btn btn-primary" id="bk-addBtn" onclick="addBookingTracker()">
+              + <span data-i18n="startTracker">Tracker starten</span>
+            </button>
+          </div>
+        </div>
+        <div>
+          <div class="section-title" data-i18n="bookingActiveTrackers">Booking / Trivago Tracker</div>
+          <div id="bk-trackerList">
+            <div style="color:var(--muted);font-size:.78rem;padding:.4rem 0" data-i18n="bookingNoTrackers">Noch keine Booking Tracker</div>
+          </div>
+        </div>
+      </div>
+        </div>
+      </div>
+
+      <!-- ══ PANEL: Mietwagen ══════════════════════════════ -->
+      <div id="radar-panel-carrental" style="display:none">
+        <div class="placeholder-card">
+          <div class="placeholder-icon">🚗</div>
+          <div class="placeholder-title" data-i18n="radarCarRental">Mietwagen-Tracker</div>
+          <div class="placeholder-desc" data-i18n="radarCarRentalDesc">Vergleiche Mietwagenpreise automatisch — kommt bald.</div>
+          <span class="coming-soon-badge" data-i18n="comingSoon">Bald verfügbar</span>
+        </div>
+      </div>
+
+    </div>
+    <!-- ════ END PAGE: Preis-Radar ══════════════════════════ -->
+    <!-- Legacy page containers – kept for JS compatibility (loadTrackers etc.) -->
+    <div style="display:none" aria-hidden="true">
     <div class="page" id="page-ryanair">
 
       <div class="grid-2">
@@ -1496,6 +2035,7 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
           </div>
         </div>
       </div>
+    </div>
     </div>
 
     <!-- ════ PAGE: Discover ═════════════════════════════ -->
@@ -1927,7 +2467,7 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
     <span class="bn-icon">🧭</span>
     <span class="bn-label" data-i18n="navHome">Übersicht</span>
   </button>
-  <button class="bottom-nav-item" id="bn-radar" onclick="navigate('ryanair')">
+  <button class="bottom-nav-item" id="bn-radar" onclick="navigate('priceradar')">
     <span class="bn-icon">🎯</span>
     <span class="bn-label" data-i18n="navPriceRadar">Radar</span>
   </button>
