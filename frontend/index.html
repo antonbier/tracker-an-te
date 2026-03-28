@@ -2,9 +2,23 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="description" content="WanderSuite — Self-hosted travel management suite">
-<title>WanderSuite v1.0</title>
+<title>WanderSuite</title>
+
+<!-- PWA Manifest -->
+<link rel="manifest" href="/manifest.json">
+
+<!-- iOS PWA -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="WanderSuite">
+
+<!-- Theme color (light default; JS updates this for dark mode) -->
+<meta name="theme-color" content="#f9f8f6" id="meta-theme-color">
+
+<!-- Standalone mode: hide browser chrome on Android -->
+<meta name="mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -101,6 +115,11 @@ body {
 
 /* ── App Shell ──────────────────────────────────────── */
 .app-shell { display:flex; padding-top:var(--header-h); flex:1; }
+/* iOS safe area insets (notch / home indicator) */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .bottom-nav { padding-bottom: env(safe-area-inset-bottom); }
+  .header     { padding-left: max(1.2rem, env(safe-area-inset-left)); padding-right: max(1.2rem, env(safe-area-inset-right)); }
+}
 
 /* ── Sidebar Nav ────────────────────────────────────── */
 .sidebar {
@@ -1040,20 +1059,108 @@ tr:hover td { background:rgba(255,255,255,.02); }
 .footer a:hover { text-decoration:underline; }
 
 /* ── Light mode ──────────────────────────────────────── */
-/* ── Dark Mode (opt-in via toggle) ───────────────────── */
+/* ── Dark Mode — "Mitternacht" (opt-in via toggle) ──────
+   Deep night-blue base keeps the Wanderlust character alive.
+   Terracotta accent (#D95D39) stays — glows warmly in the dark.
+   ──────────────────────────────────────────────────────── */
 body.dark-mode {
-  --bg:        #14120f;
-  --surface:   #1e1b17;
-  --surface2:  #252118;
-  --border:    #3a3128;
-  --muted:     #4e4438;
-  --text:      #f0e8d8;
-  --sub:       #8a7a6a;
-  --accent:    #E8704A;
-  --accent2:   #5b9fd4;
-  --green:     #4a9a72;
-  --yellow:    #e8a020;
-  --red:       #d94444;
+  --bg:        #12141c;   /* deep night blue-grey */
+  --surface:   #1e212b;   /* card surfaces */
+  --surface2:  #252837;   /* input backgrounds, secondary surfaces */
+  --border:    #323647;   /* subtle borders */
+  --muted:     #4a4f66;   /* disabled / placeholder */
+  --text:      #eceef5;   /* primary text — warm white */
+  --sub:       #8b90aa;   /* secondary text */
+  --accent:    #D95D39;   /* terracotta — unchanged, warm glow in dark */
+  --accent2:   #6aaddc;   /* navy → sky blue for dark readability */
+  --green:     #4dac7a;   /* forest green, lighter for contrast */
+  --yellow:    #d4a030;
+  --red:       #e05555;
+  --shadow-sm: 0 1px 4px rgba(0,0,0,.25), 0 2px 12px rgba(0,0,0,.2);
+  --shadow-md: 0 4px 24px rgba(0,0,0,.35), 0 1px 4px rgba(0,0,0,.2);
+}
+/* Dark mode body background */
+body.dark-mode {
+  background: var(--bg);
+  background-image: var(--grain);
+}
+/* Header in dark mode */
+body.dark-mode .header {
+  background: rgba(18,20,28,.96);
+  border-bottom-color: var(--border);
+}
+/* Sidebar in dark mode */
+body.dark-mode .sidebar {
+  background: var(--surface);
+  border-right-color: var(--border);
+}
+/* Bottom nav in dark mode */
+body.dark-mode .bottom-nav {
+  background: rgba(18,20,28,.97);
+  border-top-color: var(--border);
+}
+/* Cards in dark mode */
+body.dark-mode .card {
+  background: var(--surface);
+  border-color: var(--border);
+}
+/* Inputs in dark mode */
+body.dark-mode input,
+body.dark-mode select,
+body.dark-mode textarea {
+  background: var(--surface2);
+  border-color: var(--border);
+  color: var(--text);
+}
+/* Tracker items (ticket cards) in dark mode */
+body.dark-mode .tracker-item {
+  background: var(--surface);
+  border-color: var(--border);
+}
+/* Settings + Field Guide slide panel in dark mode */
+body.dark-mode #settingsBackdrop .modal,
+body.dark-mode #fieldGuideBackdrop .modal {
+  background: var(--surface);
+  border-color: var(--border);
+}
+body.dark-mode .modal-footer,
+body.dark-mode #settingsBackdrop .modal-footer {
+  background: var(--surface2);
+  border-top-color: var(--border);
+}
+/* Onboarding wizard in dark mode */
+body.dark-mode #onboardingBackdrop {
+  background: var(--bg);
+}
+/* Pill navigation in dark mode */
+body.dark-mode .radar-pills,
+body.dark-mode [style*="radar-pills"] {
+  background: var(--surface2);
+  border-color: var(--border);
+}
+body.dark-mode .radar-pill.active {
+  background: var(--surface);
+  box-shadow: 0 1px 6px rgba(0,0,0,.3);
+}
+/* Overview cards in dark mode */
+body.dark-mode .radar-overview-card,
+body.dark-mode .mytrips-stat-card,
+body.dark-mode .bucket-card {
+  background: var(--surface);
+  border-color: var(--border);
+}
+/* Lang switcher */
+body.dark-mode .lang-switcher {
+  background: var(--surface2);
+  border-color: var(--border);
+}
+body.dark-mode .lang-btn.active {
+  background: var(--surface);
+}
+/* Btn icon header */
+body.dark-mode .btn-icon-hdr {
+  background: var(--surface2);
+  border-color: var(--border);
 }
 
 /* ══════════════════════════════════════════════════════
