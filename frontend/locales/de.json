@@ -279,5 +279,13 @@
   "statDawarichNotSet": "Dawarich nicht verknüpft",
   "statActualNotSet": "ActualBudget nicht verknüpft",
   "statSetupLink": "Einrichten →",
-  "mytripsCountries": "Länder"
+  "mytripsCountries": "Länder",
+  "scratchMapNotConfigured": "Dawarich nicht verknüpft",
+  "scratchMapDesc": "Verbinde Dawarich in den Einstellungen, um deine besuchten Länder zu sehen.",
+  "scratchMapLoading": "Lade Karte…",
+  "scratchMapCountries": "Länder",
+  "scratchMapTrips": "Reisen",
+  "scratchMapVisited": "Besucht",
+  "scratchMapNotVisited": "Nicht besucht",
+  "scratchMapNoVisits": "Noch keine besuchten Länder"
 }
