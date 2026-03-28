@@ -1,3 +1,17 @@
+/**
+ * app/ryanair.js — Ryanair price tracker
+ *
+ * Handles the full lifecycle of a Ryanair tracker:
+ *   - Form: toggleBag(), addTracker()
+ *   - List: loadTrackers(), renderTrackers()
+ *   - Detail: selectTracker(), renderStats(), renderChart() (Chart.js), renderTable()
+ *   - Actions: scrapeNow(), deleteTracker(), togglePause()
+ *   - Discover / AI: checkDawarich(), generateIdeas(), renderRecommendations()
+ *
+ * Chart.js is loaded from CDN in index.html and available as the global `Chart`.
+ * The chart instance is tracked in state.js (priceChart) and destroyed before re-render
+ * to avoid "canvas already in use" errors.
+ */
 // frontend/js/app/ryanair.js
 import { api } from '../core/api.js';
 import { t } from '../ui/i18n.js';
