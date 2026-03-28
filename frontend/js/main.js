@@ -58,7 +58,7 @@ import { loadJournalTrips, renderJournalTrips,
          syncJournal, deleteJournalTrip }                      from './app/journal.js';
 
 import { checkOnboarding, closeOnboarding, obNext, obBack,
-         updateObStep }                                        from './app/onboarding.js';
+         updateObStep, checkConnection }                        from './app/onboarding.js';
 
 import { addBucketListItem, deleteBucketListItem,
          renderBucketList, updateMyTripsStats }                from './app/bucketlist.js';
@@ -139,6 +139,7 @@ window.closeOnboarding       = closeOnboarding;
 window.obNext                = obNext;
 window.obBack                = obBack;
 window.updateObStep          = updateObStep;
+window.checkConnection       = checkConnection;
 window.addBucketListItem     = addBucketListItem;
 window.deleteBucketListItem  = deleteBucketListItem;
 window.renderBucketList      = renderBucketList;
