@@ -134,3 +134,66 @@ Kein HTML wurde dafür geändert.
 (z.B. `journal.js` → `dashboard.js` und `settings.js`).
 
 **Kein Build-Tool** – läuft nativ im Browser mit `<script type="module">`.
+---
+
+## UX/UI Refresh — "Modern Explorer"
+
+**Datum:** 2026-03-28  
+**Commits:** direkt auf `main` (4 Commits)
+
+### Farbschema — Hell als Standard
+
+| Variable | Vorher (dunkel) | Nachher (hell) |
+|----------|----------------|---------------|
+| `--bg` | `#12100e` | `#f9f8f6` (altes Papier) |
+| `--surface` | `#1c1814` | `#ffffff` |
+| `--accent` | `#c4622d` | `#D95D39` (Terracotta) |
+| `--accent2` | `#e8a020` | `#1E3A5F` (Navy) |
+| `--green` | `#3a8c62` | `#2A5C45` (Waldgrün) |
+
+Dark Mode ist jetzt Opt-in via `body.dark-mode` (Toggle in Einstellungen).
+
+### Neue Menüstruktur (workflow-orientiert)
+
+**Vorher:** Sortiert nach Scraper (Ryanair, Google, Homair, Booking, Discover, Budget, Journal)  
+**Nachher:** Sortiert nach Nutzer-Workflow:
+
+| Icon | Bereich | Enthält |
+|------|---------|---------|
+| 🧭 | Übersicht | Dashboard |
+| 🎯 | Preis-Radar | Ryanair, Google Flights, Homair, Booking |
+| ✨ | Inspiration | Discover / AI-Empfehlungen |
+| 🎒 | Meine Reisen | Budget + Reisetagebuch |
+
+### Mobile Bottom Navigation Bar
+
+Auf `@media (max-width: 900px)` wird die Sidebar durch eine feste Bottom-Bar ersetzt (Airbnb/Instagram-Pattern). Die Sidebar bleibt als Slide-in erreichbar via Hamburger.
+
+Bottom-Bar Tabs: 🧭 Übersicht · 🎯 Radar · ✨ Inspiration · 🎒 Reisen
+
+### Ticket-Style Tracker-Items
+
+Tracker-Karten haben jetzt:
+- Farbigen Streifen links (wie ein Flugticket)
+- Gestrichelte Trennlinie vor den Action-Buttons
+- Leichter Schatten + Hover-Lift-Effekt
+
+### Settings — Slide-Panel von rechts
+
+Das Settings-Modal wurde zum Full-Height Slide-Panel umgebaut (rechtsseitig, 520px breit). Drei Tabs:
+1. **Allgemein** — Backend-URL, Zeitzone, Erscheinungsbild
+2. **Integrationen** — Dawarich, ActualBudget, Home-Koordinaten
+3. **APIs & KI** — SerpAPI, Gemini, OpenAI, LLM-Anbieter
+
+### View Transitions API
+
+`document.startViewTransition()` für weiche Seitenübergänge (mit graceful degradation für ältere Browser).
+
+### Geänderte Dateien
+
+| Datei | Änderung |
+|-------|---------|
+| `frontend/index.html` | CSS-Variablen, Sidebar HTML, Bottom Nav HTML, Settings-Panel CSS |
+| `frontend/js/ui/nav.js` | Bottom-Bar Active-Sync, View Transition API |
+| `frontend/js/ui/settings.js` | 3. Tab "APIs & KI", Dark-Mode Toggle |
+| `frontend/js/main.js` | Theme-Init auf `dark-mode` Klasse umgestellt |
