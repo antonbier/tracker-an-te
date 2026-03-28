@@ -47,6 +47,7 @@ from routes import (
     trackers, prices, google_flights, discover,
     accommodations, budget, settings as settings_route,
     dashboard as dashboard_route,
+    userdata as userdata_route,
 )
 from routes import dawarich as dawarich_route
 
@@ -114,6 +115,7 @@ app.include_router(discover.router,        prefix="/api/discover",        tags=[
 app.include_router(settings_route.router,  prefix="/api/settings",        tags=["Settings"])
 app.include_router(dawarich_route.router,  prefix="/api/dawarich",        tags=["Dawarich"])
 app.include_router(dashboard_route.router, prefix="/api/dashboard",       tags=["Dashboard"])
+app.include_router(userdata_route.router,   prefix="/api/userdata",         tags=["UserData"])
 
 
 @app.get("/")
