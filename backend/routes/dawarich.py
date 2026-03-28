@@ -110,10 +110,14 @@ def get_countries():
     detected_trips in the local DB. Used by the Scratch Map frontend.
 
     Response:
-        configured:    bool   — whether Dawarich is set up
-        country_codes: list   — e.g. ["DE", "IT", "FR"]
-        countries:     list   — full country names for display
-        trip_count:    int    — total number of detected trips
+        configured:    bool   — whether Dawarich URL+token are configured
+        country_codes: list   — ISO-2 codes, e.g. ["DE", "IT", "FR"]
+        countries:     list   — full country names (Nominatim output), e.g. ["Italy"]
+        trip_count:    int    — total detected trips in local DB
+
+    Country names are mapped to ISO-2 via backend/countries.py (100+ entries,
+    covers DE/EN/IT locale names from Nominatim reverse geocoding).
+    Used by frontend scratchmap.js → jsvectormap to highlight visited countries.
     """
     return get_visited_country_codes()
 
