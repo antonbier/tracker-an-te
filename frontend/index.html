@@ -2466,17 +2466,17 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
         <div class="mytrips-stats-grid">
           <div class="mytrips-stat-card" onclick="switchMyTripsTab('journal')">
             <div class="mytrips-stat-icon">📍</div>
-            <div class="mytrips-stat-value" id="mytrips-stat-places">–</div>
-            <div class="mytrips-stat-label" data-i18n="mytripsVisitedPlaces">Besuchte Orte</div>
+            <div class="mytrips-stat-value" id="mytrips-stat-places"><span class="spinner" style="width:16px;height:16px;border-width:2px;display:inline-block"></span></div>
+            <div class="mytrips-stat-label" id="mytrips-label-places" data-i18n="mytripsVisitedPlaces">Besuchte Orte</div>
           </div>
           <div class="mytrips-stat-card" onclick="switchMyTripsTab('budget')">
             <div class="mytrips-stat-icon">💶</div>
-            <div class="mytrips-stat-value" id="mytrips-stat-budget">–</div>
-            <div class="mytrips-stat-label" data-i18n="mytripsSavedBudget">Verbleibendes Budget</div>
+            <div class="mytrips-stat-value" id="mytrips-stat-budget"><span class="spinner" style="width:16px;height:16px;border-width:2px;display:inline-block"></span></div>
+            <div class="mytrips-stat-label" id="mytrips-label-budget" data-i18n="mytripsSavedBudget">Verbleibendes Budget</div>
           </div>
           <div class="mytrips-stat-card" onclick="switchMyTripsTab('bucketlist')">
             <div class="mytrips-stat-icon">🗺️</div>
-            <div class="mytrips-stat-value" id="mytrips-stat-wishlist">–</div>
+            <div class="mytrips-stat-value" id="mytrips-stat-wishlist"><span class="spinner" style="width:16px;height:16px;border-width:2px;display:inline-block"></span></div>
             <div class="mytrips-stat-label" data-i18n="mytripsNextWish">Wunschziele</div>
           </div>
         </div>
