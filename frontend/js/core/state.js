@@ -30,6 +30,6 @@ export function setSelectedTrackerId(val)   { selectedTrackerId = val; }
 export function setPriceChart(val)          { priceChart = val; }
 export function setSelectedBags(val)        { selectedBags = val; }
 export function setCurrentPage(val)         { currentPage = val; }
-export function setTrips(val)               { trips = val; localStorage.setItem('ws-trips', JSON.stringify(val)); }
+export function setTrips(val)               { trips = val; localStorage.setItem('ws-trips', JSON.stringify(val)); import('./persist.js').then(m => m.syncToBackend('ws-trips')); }
 export function setObStep(val)              { obStep = val; }
 export function setAllExpenses(val)         { allExpenses = val; }
