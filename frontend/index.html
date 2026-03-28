@@ -1096,6 +1096,77 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
   letter-spacing: .08em; text-transform: uppercase;
   border: 1px solid rgba(30,58,95,.2);
 }
+
+/* ══════════════════════════════════════════════════════
+   MEINE REISEN (mytrips)
+   ══════════════════════════════════════════════════════ */
+
+.mytrips-header { margin-bottom: 1.25rem; }
+.mytrips-title {
+  font-family: var(--serif); font-style: italic;
+  font-size: 1.8rem; font-weight: 700;
+  color: var(--accent2); line-height: 1.2;
+}
+.mytrips-subtitle { font-size: .82rem; color: var(--sub); margin-top: .3rem; }
+
+/* Hero */
+.mytrips-hero {
+  text-align: center; padding: 2rem 1rem 1.5rem;
+}
+.mytrips-hero-icon { font-size: 3rem; margin-bottom: .6rem; }
+.mytrips-hero-heading {
+  font-family: var(--serif); font-style: italic;
+  font-size: 1.45rem; font-weight: 700; color: var(--accent2);
+  margin-bottom: .4rem;
+}
+.mytrips-hero-desc { font-size: .82rem; color: var(--sub); max-width: 360px; margin: 0 auto; }
+
+/* Stats grid */
+.mytrips-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: .9rem; margin: 1.5rem auto 0; max-width: 560px;
+}
+@media (max-width: 480px) { .mytrips-stats-grid { grid-template-columns: 1fr 1fr; } }
+.mytrips-stat-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 1.2rem .8rem;
+  text-align: center; cursor: pointer; transition: all .2s ease;
+  box-shadow: var(--shadow-sm);
+}
+.mytrips-stat-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.mytrips-stat-icon { font-size: 1.6rem; margin-bottom: .4rem; }
+.mytrips-stat-value { font-family: var(--mono); font-size: 1.15rem; font-weight: 700; color: var(--text); margin-bottom: .2rem; }
+.mytrips-stat-label { font-size: .65rem; color: var(--sub); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+
+/* Bucket List grid */
+.bucket-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: .85rem; margin-top: .5rem;
+}
+.bucket-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 1.1rem 1rem;
+  box-shadow: var(--shadow-sm); position: relative;
+  transition: all .2s ease;
+}
+.bucket-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+.bucket-card-emoji { font-size: 1.8rem; margin-bottom: .5rem; }
+.bucket-card-dest { font-weight: 700; font-size: .9rem; color: var(--text); margin-bottom: .2rem; }
+.bucket-card-when { font-size: .72rem; color: var(--sub); font-family: var(--mono); }
+.bucket-card-delete {
+  position: absolute; top: .6rem; right: .6rem;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: transparent; border: none; color: var(--muted);
+  cursor: pointer; font-size: .75rem; display: flex;
+  align-items: center; justify-content: center; transition: all var(--transition);
+}
+.bucket-card-delete:hover { background: rgba(185,43,43,.1); color: var(--red); }
+.bucket-empty {
+  text-align: center; padding: 2rem 1rem;
+  color: var(--muted); font-size: .82rem; font-style: italic;
+}
 </style>
 </head>
 <body class="">
@@ -1161,7 +1232,7 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
 
     <!-- 4. Meine Reisen -->
     <div class="nav-section">
-      <button class="nav-item" id="nav-journal" onclick="navigate('journal');closeSidebar()">
+      <button class="nav-item" id="nav-journal" onclick="navigate('mytrips');closeSidebar()">
         <span class="nav-icon">🎒</span>
         <span data-i18n="navMyTrips">Meine Reisen</span>
       </button>
@@ -1169,6 +1240,8 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
     <!-- Hidden nav items keep JS active-state working -->
     <div style="display:none">
       <button id="nav-priceradar"></button>
+      <button id="nav-mytrips"></button>
+      <button id="nav-journal"></button>
       <button id="nav-google"></button>
       <button id="nav-homair"></button>
       <button id="nav-booking"></button>
@@ -2085,6 +2158,226 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
     </div>
 
     <!-- ════ PAGE: Travel Journal ══════════════════════════ -->
+    <!-- ════ PAGE: Meine Reisen ══════════════════════════ -->
+    <div class="page" id="page-mytrips">
+
+      <!-- Header -->
+      <div class="mytrips-header">
+        <h1 class="mytrips-title" data-i18n="navMyTrips">Meine Reisen</h1>
+        <p class="mytrips-subtitle" data-i18n="mytripsSubtitle">Deine Reise-Schatzkammer</p>
+      </div>
+
+      <!-- Pill Navigation -->
+      <div class="radar-pills" style="margin-bottom:1.6rem">
+        <button class="radar-pill active" id="mytrips-tab-overview"   onclick="switchMyTripsTab('overview')">
+          <span>📊</span><span data-i18n="radarOverview">Übersicht</span>
+        </button>
+        <button class="radar-pill" id="mytrips-tab-bucketlist"        onclick="switchMyTripsTab('bucketlist')">
+          <span>🗺️</span><span data-i18n="mytripsWishlist">Wunschziele</span>
+        </button>
+        <button class="radar-pill" id="mytrips-tab-journal"           onclick="switchMyTripsTab('journal')">
+          <span>📓</span><span data-i18n="travelJournal">Tagebuch</span>
+        </button>
+        <button class="radar-pill" id="mytrips-tab-budget"            onclick="switchMyTripsTab('budget')">
+          <span>💶</span><span data-i18n="navBudget">Budget</span>
+        </button>
+      </div>
+
+      <!-- ══ SUB-PANEL: Übersicht ══════════════════════════ -->
+      <div id="mytrips-panel-overview">
+        <div class="mytrips-hero">
+          <div class="mytrips-hero-icon">🧳</div>
+          <h2 class="mytrips-hero-heading" data-i18n="mytripsSchatzkammer">Deine Reise-Schatzkammer</h2>
+          <p class="mytrips-hero-desc" data-i18n="mytripsHeroDesc">Verwalte dein Budget, halte Erinnerungen fest und träume von neuen Zielen.</p>
+        </div>
+        <div class="mytrips-stats-grid">
+          <div class="mytrips-stat-card" onclick="switchMyTripsTab('journal')">
+            <div class="mytrips-stat-icon">📍</div>
+            <div class="mytrips-stat-value" id="mytrips-stat-places">–</div>
+            <div class="mytrips-stat-label" data-i18n="mytripsVisitedPlaces">Besuchte Orte</div>
+          </div>
+          <div class="mytrips-stat-card" onclick="switchMyTripsTab('budget')">
+            <div class="mytrips-stat-icon">💶</div>
+            <div class="mytrips-stat-value" id="mytrips-stat-budget">–</div>
+            <div class="mytrips-stat-label" data-i18n="mytripsSavedBudget">Verbleibendes Budget</div>
+          </div>
+          <div class="mytrips-stat-card" onclick="switchMyTripsTab('bucketlist')">
+            <div class="mytrips-stat-icon">🗺️</div>
+            <div class="mytrips-stat-value" id="mytrips-stat-wishlist">–</div>
+            <div class="mytrips-stat-label" data-i18n="mytripsNextWish">Wunschziele</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ SUB-PANEL: Wunschziele ═════════════════════════ -->
+      <div id="mytrips-panel-bucketlist" style="display:none">
+        <div class="card" style="margin-bottom:1rem">
+          <div class="card-title" data-i18n="mytripsWishlist">🗺️ Wunschziele</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label data-i18n="mytripsDestination">Reiseziel</label>
+              <input id="bl-destination" type="text" data-i18n-placeholder="mytripsDestinationPlaceholder" placeholder="z.B. Kyoto, Japan">
+            </div>
+            <div class="form-group">
+              <label data-i18n="mytripsWhen">Wann?</label>
+              <input id="bl-when" type="text" data-i18n-placeholder="mytripsWhenPlaceholder" placeholder="z.B. Sommer 2027">
+            </div>
+          </div>
+          <button class="btn-primary" onclick="addBucketListItem()" style="margin-top:.75rem">
+            <span>+</span> <span data-i18n="mytripsAddWish">Wunschziel hinzufügen</span>
+          </button>
+        </div>
+        <div id="bucketListGrid" class="bucket-grid"></div>
+      </div>
+
+      <!-- ══ SUB-PANEL: Tagebuch ════════════════════════════ -->
+      <div id="mytrips-panel-journal" style="display:none">
+
+      <div class="journal-header">
+        <div>
+          <div style="font-family:var(--serif);font-size:1.5rem;font-weight:700;font-style:italic" data-i18n="travelJournalTitle">Reisetagebuch</div>
+          <div style="font-size:.8rem;color:var(--sub);margin-top:.2rem" id="journal-subtitle"></div>
+        </div>
+        <button class="btn btn-ghost" onclick="syncJournal()" id="journal-sync-btn">
+          🧭 <span data-i18n="syncNow">Jetzt synchronisieren</span>
+        </button>
+      </div>
+
+      <!-- Sync info bar -->
+      <div class="journal-sync-bar" id="journal-sync-bar" style="display:none">
+        <div class="journal-sync-info" id="journal-sync-info"></div>
+        <button class="btn-scrape" onclick="syncJournal()">⟳ Sync</button>
+      </div>
+
+      <!-- Trip list -->
+      <div id="journal-trip-list">
+        <div class="journal-empty">
+          <div class="journal-empty-icon">🗺️</div>
+          <div class="journal-empty-text" data-i18n="noJournalTrips">Noch keine Reisen erkannt</div>
+        </div>
+      </div>
+      </div>
+
+      <!-- ══ SUB-PANEL: Budget ══════════════════════════════ -->
+      <div id="mytrips-panel-budget" style="display:none">
+      <div class="budget-grid">
+        <div>
+          <div class="card">
+            <div class="card-title" data-i18n="budgetTitle">Reisebudget</div>
+            <div class="form-group" style="margin-bottom:.75rem">
+              <label data-i18n="budgetYearly">Jährliches Reisebudget (€)</label>
+              <input type="number" id="budgetTotal" placeholder="3000" oninput="updateBudget()">
+            </div>
+            <div class="toggle-row">
+              <span class="toggle-label" data-i18n="budgetSyncActual">Mit ActualBudget synchronisieren</span>
+              <label class="toggle">
+                <input type="checkbox" id="syncActual" onchange="toggleActualSync(this.checked)">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <!-- Manual entry -->
+            <div id="manualEntry" style="margin-top:.75rem">
+              <div class="form-row" style="margin-bottom:.4rem">
+                <div class="form-group">
+                  <label data-i18n="budgetTripName">Reisename</label>
+                  <input type="text" id="tripName" placeholder="Dublin Trip">
+                </div>
+                <div class="form-group">
+                  <label data-i18n="budgetTripCost">Kosten (€)</label>
+                  <input type="number" id="tripCost" placeholder="450">
+                </div>
+              </div>
+              <button class="btn btn-ghost" style="width:100%" onclick="addTrip()">
+                + <span data-i18n="budgetAddTrip">Reise hinzufügen</span>
+              </button>
+            </div>
+
+            <!-- ActualBudget sync -->
+            <div id="actualEntry" style="display:none;margin-top:.75rem">
+              <div id="actualNotice" class="notice-box" style="display:none" data-i18n="budgetNoActual">
+                ActualBudget nicht konfiguriert.
+              </div>
+              <div id="actualSyncResult" style="display:none;margin-top:.65rem"></div>
+              <button class="btn btn-ghost" style="width:100%;margin-top:.5rem" onclick="syncActualBudget()">
+                ↺ <span data-i18n="budgetSync">Synchronisieren</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card">
+            <div class="card-title" data-i18n="budgetTitle">Budget</div>
+            <div class="progress-wrap" id="budgetProgress">
+              <div style="display:flex;justify-content:space-between;font-size:.72rem;font-family:var(--mono);margin-bottom:.3rem">
+                <span id="budgetUsedLabel" style="color:var(--accent)">0 €</span>
+                <span id="budgetRemainingLabel" style="color:var(--green)">0 €</span>
+              </div>
+              <div class="progress-bar-bg">
+                <div class="progress-bar-fill" id="progressFill" style="width:0%"></div>
+              </div>
+              <div class="progress-labels">
+                <span data-i18n="budgetUsed">Verbraucht</span>
+                <span data-i18n="budgetRemaining">Verbleibend</span>
+              </div>
+            </div>
+            <div class="trip-list" id="tripList"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Expense Table -->
+      <div style="margin-top:1.25rem">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.85rem">
+          <div style="font-family:var(--serif);font-size:1rem;font-weight:600;font-style:italic;color:var(--accent2)" data-i18n="expenseTable">Ausgaben-Übersicht</div>
+          <button class="btn-scrape" onclick="loadExpenses()" id="expense-load-btn">
+            ⟳ <span data-i18n="syncNow">Laden</span>
+          </button>
+        </div>
+
+        <!-- Summary stats -->
+        <div class="expense-summary" id="expense-summary" style="display:none">
+          <div class="expense-stat">
+            <div class="expense-stat-label" data-i18n="expenseTotalSpent">Gesamtausgaben</div>
+            <div class="expense-stat-value accent" id="expense-total">0 €</div>
+          </div>
+          <div class="expense-stat">
+            <div class="expense-stat-label" data-i18n="expenseDate">Zeitraum</div>
+            <div class="expense-stat-value" id="expense-year" style="font-size:.95rem"></div>
+          </div>
+          <div class="expense-stat">
+            <div class="expense-stat-label">Transaktionen</div>
+            <div class="expense-stat-value" id="expense-count">0</div>
+          </div>
+        </div>
+
+        <!-- Filter bar -->
+        <div class="expense-filter-bar" id="expense-filters" style="display:none">
+          <input type="text" id="expense-search" placeholder="🔍 Suche Payee..."
+                 oninput="filterExpenses()" style="max-width:200px">
+          <select id="expense-cat-filter" onchange="filterExpenses()">
+            <option value="">Alle Kategorien</option>
+          </select>
+          <select id="expense-year-filter" onchange="loadExpenses()">
+            <option value="">Dieses Jahr</option>
+          </select>
+        </div>
+
+        <!-- Table -->
+        <div id="expense-table-wrap">
+          <div class="expense-loading" data-i18n="expenseNoData">
+            Keine Ausgaben — ActualBudget konfigurieren und laden
+          </div>
+        </div>
+      </div>
+
+      </div>
+
+    </div>
+    <!-- ════ END PAGE: Meine Reisen ════════════════════════ -->
+    <!-- Legacy journal+budget containers – kept for JS compat -->
+    <div style="display:none" aria-hidden="true">
     <div class="page" id="page-journal">
 
       <div class="journal-header">
@@ -2226,6 +2519,7 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
         </div>
       </div>
 
+    </div>
     </div>
 
   </main>
@@ -2475,7 +2769,7 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
     <span class="bn-icon">✨</span>
     <span class="bn-label" data-i18n="navDiscover">Inspiration</span>
   </button>
-  <button class="bottom-nav-item" id="bn-trips" onclick="navigate('journal')">
+  <button class="bottom-nav-item" id="bn-trips" onclick="navigate('mytrips')">
     <span class="bn-icon">🎒</span>
     <span class="bn-label" data-i18n="navMyTrips">Reisen</span>
   </button>
