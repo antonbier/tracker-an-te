@@ -708,42 +708,131 @@ tr:hover td { background:rgba(255,255,255,.02); }
 .tooltip-wrap:hover .tooltip-popup { display: block; }
 
 /* ── Onboarding ───────────────────────────────────────── */
-.onboarding-steps {
-  display: flex;
-  gap: .5rem;
-  justify-content: center;
+/* ── Onboarding — Full-Screen Wizard ─────────────────── */
+#onboardingBackdrop {
+  position: fixed; inset: 0; z-index: 1000;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  padding: 1.5rem;
+  opacity: 0; pointer-events: none;
+  transition: opacity .35s ease;
+  overflow-y: auto;
+}
+#onboardingBackdrop.open {
+  opacity: 1; pointer-events: all;
+}
+#onboardingBackdrop.ob-closing {
+  opacity: 0; pointer-events: none;
+  transition: opacity .4s ease;
+}
+.ob-wrapper {
+  width: 100%; max-width: 480px;
+  margin: auto;
+  display: flex; flex-direction: column; gap: 0;
+}
+/* Step indicators */
+.ob-steps {
+  display: flex; align-items: center; gap: 0;
+  margin-bottom: 2.5rem;
+}
+.ob-step {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--surface2); border: 2px solid var(--border);
+  color: var(--muted); font-size: .72rem; font-weight: 800;
+  font-family: var(--mono);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: all .25s ease;
+}
+.ob-step.active {
+  background: var(--accent); border-color: var(--accent);
+  color: #fff; box-shadow: 0 0 0 4px rgba(217,93,57,.15);
+}
+.ob-step.done {
+  background: var(--green); border-color: var(--green); color: #fff;
+}
+.ob-step-line {
+  flex: 1; height: 2px; background: var(--border);
+  margin: 0 .35rem; border-radius: 1px;
+  transition: background .25s ease;
+}
+.ob-step-line.done { background: var(--green); }
+/* Panel */
+.ob-panel { display: none; }
+.ob-panel.active { display: block; }
+.ob-eyebrow {
+  font-size: .65rem; font-weight: 800; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--accent);
+  margin-bottom: .6rem;
+}
+.ob-title {
+  font-family: var(--serif); font-style: italic;
+  font-size: 2rem; font-weight: 700; line-height: 1.2;
+  color: var(--text); margin-bottom: .75rem;
+}
+.ob-desc {
+  font-size: .88rem; color: var(--sub); line-height: 1.7;
   margin-bottom: 1.5rem;
 }
-.onboarding-step {
-  width: 28px; height: 28px;
-  border-radius: 50%;
-  background: var(--muted);
-  color: var(--sub);
-  display: flex; align-items: center; justify-content: center;
-  font-size: .75rem; font-weight: 700;
-  font-family: var(--mono);
-  transition: all var(--transition);
+.ob-icon { font-size: 3.5rem; margin-bottom: 1rem; line-height: 1; }
+/* Connection status */
+.ob-conn-status {
+  margin-top: .75rem; font-size: .8rem; min-height: 1.4rem;
+  display: flex; align-items: center; gap: .4rem;
+  border-radius: var(--radius); padding: .4rem .6rem;
+  transition: all .2s ease;
 }
-.onboarding-step.active {
-  background: var(--accent);
-  color: white;
-  box-shadow: 0 0 12px rgba(196,98,45,.4);
+.ob-conn-status:empty { padding: 0; }
+.ob-connecting { background: rgba(30,58,95,.06); color: var(--accent2); }
+.ob-success    { background: rgba(42,92,69,.08); color: var(--green); font-weight: 600; }
+.ob-error      { background: rgba(185,43,43,.07); color: var(--red); }
+@keyframes ob-spin { to { transform: rotate(360deg); } }
+.ob-spinner {
+  width: 14px; height: 14px; border-radius: 50%;
+  border: 2px solid var(--border); border-top-color: var(--accent2);
+  animation: ob-spin .7s linear infinite; flex-shrink: 0;
 }
-.onboarding-step.done {
-  background: var(--green);
-  color: white;
+/* Info link boxes */
+.ob-link-box {
+  display: flex; align-items: center; gap: .5rem;
+  padding: .5rem .7rem; margin-top: .4rem;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius); font-size: .72rem; color: var(--sub);
 }
-.onboarding-content { text-align: center; padding: .5rem 0 1rem; }
-.onboarding-icon { font-size: 2.5rem; margin-bottom: .75rem; }
-.onboarding-title {
-  font-family: var(--serif);
-  font-size: 1.1rem;
-  font-weight: 700;
-  font-style: italic;
-  color: var(--text);
-  margin-bottom: .5rem;
+.ob-link-box a { color: var(--accent2); text-decoration: none; font-weight: 600; }
+.ob-link-box a:hover { text-decoration: underline; }
+/* Optional badge */
+.ob-optional {
+  display: inline-block; font-size: .57rem; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase;
+  background: var(--surface2); color: var(--muted);
+  border: 1px solid var(--border); border-radius: 4px;
+  padding: .1rem .4rem; vertical-align: middle; margin-left: .4rem;
 }
-.onboarding-desc { font-size: .82rem; color: var(--sub); line-height: 1.6; }
+/* Footer buttons */
+.ob-footer {
+  display: flex; gap: .6rem; justify-content: flex-end;
+  margin-top: 2rem; padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+/* Ready step — centered */
+.ob-ready {
+  text-align: center; padding: 1rem 0 .5rem;
+}
+.ob-ready .ob-title { font-size: 2.2rem; }
+.ob-checklist {
+  text-align: left; margin: 1.2rem auto 0;
+  max-width: 300px; display: flex; flex-direction: column; gap: .5rem;
+}
+.ob-check-item {
+  display: flex; align-items: center; gap: .6rem;
+  font-size: .82rem; color: var(--sub);
+}
+.ob-check-item .ob-check-icon { font-size: 1rem; flex-shrink: 0; }
+.ob-skip {
+  font-size: .7rem; color: var(--muted); background: none; border: none;
+  cursor: pointer; text-decoration: underline; padding: 0;
+}
+.ob-skip:hover { color: var(--sub); }
 
 /* ── API Notice (collapsible) ────────────────────────── */
 .api-notice.hidden { display: none; }
@@ -2895,45 +2984,105 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
   </div>
 </div>
 
-<!-- ── Onboarding Modal ────────────────────────────────────── -->
-<div class="modal-backdrop" id="onboardingBackdrop">
-  <div class="modal" style="max-width:440px">
-    <div class="modal-header">
-      <div class="modal-title" style="font-family:var(--serif);font-style:italic">WanderSuite</div>
-      <button class="modal-close" onclick="closeOnboarding()">✕</button>
+<!-- ── Onboarding — Full-Screen Wizard ─────────────────────── -->
+<div id="onboardingBackdrop">
+  <div class="ob-wrapper">
+
+    <!-- Step indicators -->
+    <div class="ob-steps">
+      <div class="ob-step active" id="ob-step-1">1</div>
+      <div class="ob-step-line" id="ob-line-1"></div>
+      <div class="ob-step" id="ob-step-2">2</div>
+      <div class="ob-step-line" id="ob-line-2"></div>
+      <div class="ob-step" id="ob-step-3">3</div>
     </div>
-    <div class="modal-body">
-      <div class="onboarding-steps">
-        <div class="onboarding-step active" id="ob-step-1">1</div>
-        <div style="flex:1;height:2px;background:var(--border);margin-top:13px;border-radius:1px"></div>
-        <div class="onboarding-step" id="ob-step-2">2</div>
-        <div style="flex:1;height:2px;background:var(--border);margin-top:13px;border-radius:1px"></div>
-        <div class="onboarding-step" id="ob-step-3">3</div>
+
+    <!-- ── Schritt 1: Die Verbindung ── -->
+    <div class="ob-panel active" id="ob-panel-1">
+      <div class="ob-eyebrow" data-i18n="obStep1Eyebrow">Schritt 1 von 3</div>
+      <div class="ob-title" data-i18n="obStep1Title">Willkommen beim Abenteuer.</div>
+      <div class="ob-desc" data-i18n="obStep1Desc">WanderSuite läuft auf deinem eigenen Server. Trage die Adresse deines Backends ein und klicke auf "Verbinden".</div>
+
+      <div class="form-group">
+        <label style="font-size:.62rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--sub)">Backend-URL</label>
+        <div style="display:flex;gap:.5rem;margin-top:.35rem">
+          <input id="ob-url" type="text" placeholder="http://192.168.1.51:8766"
+                 style="flex:1" onkeydown="if(event.key==='Enter')checkConnection()">
+          <button class="btn-primary" style="width:auto;margin-top:0;padding:.52rem 1rem;flex-shrink:0"
+                  onclick="checkConnection()" data-i18n="obConnect">Verbinden</button>
+        </div>
+        <div id="ob-conn-status" class="ob-conn-status"></div>
       </div>
-      <div id="ob-panel-1" class="onboarding-content">
-        <div class="onboarding-icon">🧭</div>
-        <div class="onboarding-title">Willkommen bei WanderSuite</div>
-        <div class="onboarding-desc">Dein self-hosted Reise-Tracker. Lass uns in 3 Schritten loslegen.</div>
-        <div style="margin-top:1rem">
-          <label style="font-size:.7rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--sub);display:block;margin-bottom:.35rem">Backend-URL</label>
-          <input class="settings-input" id="ob-url" type="text" placeholder="http://192.168.1.51:8765 (oder leer lassen für lokalen Betrieb)">
+
+      <div class="ob-link-box" style="margin-top:1rem">
+        💡 <span data-i18n="obUrlHint">Typischerweise die IP deines Unraid-Servers + Port 8766 — z. B. <code>http://192.168.1.51:8766</code></span>
+      </div>
+    </div>
+
+    <!-- ── Schritt 2: Die Werkzeuge ── -->
+    <div class="ob-panel" id="ob-panel-2">
+      <div class="ob-eyebrow" data-i18n="obStep2Eyebrow">Schritt 2 von 3</div>
+      <div class="ob-title" data-i18n="obStep2Title">Deine Werkzeuge.</div>
+      <div class="ob-desc" data-i18n="obStep2Desc">Optional: Füge API-Keys hinzu, um alle Features freizuschalten. Du kannst das auch später in den Einstellungen nachholen.</div>
+
+      <div class="form-group" style="margin-bottom:.9rem">
+        <label style="font-size:.62rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--sub)">
+          SerpAPI Key <span class="ob-optional" data-i18n="optional">Optional</span>
+        </label>
+        <input id="ob-serpapi" type="password" placeholder="xxxxxxxxxxxxxxxx" style="margin-top:.35rem">
+        <div class="ob-link-box">
+          🔍 <span data-i18n="obSerpHint">Für Google Flights &amp; Booking. Kostenlos bis 100/Monat.</span>
+          <a href="https://serpapi.com" target="_blank">serpapi.com →</a>
         </div>
       </div>
-      <div id="ob-panel-2" class="onboarding-content" style="display:none">
-        <div class="onboarding-icon">✈</div>
-        <div class="onboarding-title">Ersten Tracker anlegen</div>
-        <div class="onboarding-desc">Geh zu Flüge → Ryanair Tracker und leg deinen ersten Preisalarm an.</div>
-      </div>
-      <div id="ob-panel-3" class="onboarding-content" style="display:none">
-        <div class="onboarding-icon">🎒</div>
-        <div class="onboarding-title">Bereit zum Erkunden!</div>
-        <div class="onboarding-desc">WanderSuite überwacht ab jetzt täglich um 07:00 Uhr alle deine Tracker automatisch.</div>
+
+      <div class="form-group">
+        <label style="font-size:.62rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--sub)">
+          Google Gemini Key <span class="ob-optional" data-i18n="optional">Optional</span>
+        </label>
+        <input id="ob-gemini" type="password" placeholder="AIzaSy..." style="margin-top:.35rem">
+        <div class="ob-link-box">
+          ✨ <span data-i18n="obGeminiHint">Für KI-Reiseempfehlungen. Kostenlos auf Google AI Studio.</span>
+          <a href="https://aistudio.google.com" target="_blank">aistudio.google.com →</a>
+        </div>
       </div>
     </div>
-    <div class="modal-footer">
+
+    <!-- ── Schritt 3: Ready ── -->
+    <div class="ob-panel" id="ob-panel-3">
+      <div class="ob-ready">
+        <div class="ob-icon">🧳</div>
+        <div class="ob-eyebrow" data-i18n="obStep3Eyebrow">Schritt 3 von 3</div>
+        <div class="ob-title" data-i18n="obStep3Title">Alles bereit!</div>
+        <div class="ob-desc" data-i18n="obStep3Desc">WanderSuite überwacht ab jetzt täglich um 07:00 Uhr alle deine Tracker automatisch.</div>
+        <div class="ob-checklist">
+          <div class="ob-check-item">
+            <span class="ob-check-icon">✅</span>
+            <span data-i18n="obCheckBackend">Backend verbunden</span>
+          </div>
+          <div class="ob-check-item">
+            <span class="ob-check-icon">⏰</span>
+            <span data-i18n="obCheckScheduler">Täglicher Abruf um 07:00 Uhr aktiv</span>
+          </div>
+          <div class="ob-check-item">
+            <span class="ob-check-icon">🔐</span>
+            <span data-i18n="obCheckKeys">API-Keys sicher gespeichert</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="ob-footer">
       <button class="btn-cancel" id="ob-back" onclick="obBack()" style="display:none" data-i18n="cancel">Zurück</button>
-      <button class="btn-save" id="ob-next" onclick="obNext()">Weiter →</button>
+      <button class="btn-save" id="ob-next" onclick="obNext()" disabled data-i18n="obNextStep">Weiter →</button>
     </div>
+
+    <!-- Skip link -->
+    <div style="text-align:center;margin-top:.8rem">
+      <button class="ob-skip" onclick="closeOnboarding()" data-i18n="obSkip">Überspringen und später einrichten</button>
+    </div>
+
   </div>
 </div>
 
