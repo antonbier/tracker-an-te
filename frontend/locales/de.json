@@ -246,5 +246,9 @@
   "mytripsDestinationPlaceholder": "z.B. Kyoto, Japan",
   "mytripsWhen": "Wann?",
   "mytripsWhenPlaceholder": "z.B. Sommer 2027",
-  "mytripsAddWish": "Wunschziel hinzufügen"
+  "mytripsAddWish": "Wunschziel hinzufügen",
+  "fgTabStart": "Start & APIs",
+  "fgTabRadar": "Preis-Radar",
+  "fgTabMyTrips": "Meine Reisen",
+  "fgTabDiscover": "Entdecken"
 }
