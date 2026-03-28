@@ -226,5 +226,13 @@
   "tripDuration": "Duration",
   "tripNights": "Nights",
   "syncNow": "Sync now",
-  "serpApiQuotaLabel": "Monthly usage:"
+  "serpApiQuotaLabel": "Monthly usage:",
+  "radarSubtitle": "Track prices for flights and accommodations",
+  "radarOverview": "Overview",
+  "radarFlights": "Flights",
+  "radarAccommodations": "Accommodations",
+  "radarCarRental": "Car Rental",
+  "radarOverviewDesc": "Select a category above to see your active trackers.",
+  "radarCarRentalDesc": "Compare car rental prices automatically — coming soon.",
+  "comingSoon": "Coming Soon"
 }
