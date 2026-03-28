@@ -919,7 +919,7 @@ body.dark-mode {
   .sidebar { transform:translateX(-240px); width:240px; box-shadow: 4px 0 24px rgba(0,0,0,.12); }
   .sidebar.open { transform:translateX(0); }
   .main-content { margin-left:0; padding-bottom:calc(var(--bottom-bar-h) + 1rem); }
-  .hamburger { display:flex; }
+  .hamburger { display:none !important; }
   .bottom-nav { display:flex; }
   .grid-2 { grid-template-columns:1fr; }
   .discover-grid { grid-template-columns:1fr; }
@@ -1033,22 +1033,9 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
 
     <!-- 2. Preis-Radar -->
     <div class="nav-section">
-      <span class="nav-section-label" data-i18n="navPriceRadar">Preis-Radar</span>
-      <button class="nav-item sub" id="nav-ryanair" onclick="navigate('ryanair');closeSidebar()">
-        <span class="nav-sub-icon">🟠</span>
-        <span data-i18n="navRyanair">Ryanair</span>
-      </button>
-      <button class="nav-item sub" id="nav-google" onclick="navigate('google');closeSidebar()">
-        <span class="nav-sub-icon">✈️</span>
-        <span data-i18n="navGoogleFlights">Google Flights</span>
-      </button>
-      <button class="nav-item sub" id="nav-homair" onclick="navigate('homair');closeSidebar()">
-        <span class="nav-sub-icon">⛺</span>
-        <span data-i18n="navHomair">Homair</span>
-      </button>
-      <button class="nav-item sub" id="nav-booking" onclick="navigate('booking');closeSidebar()">
-        <span class="nav-sub-icon">🏨</span>
-        <span data-i18n="navBooking">Booking</span>
+      <button class="nav-item" id="nav-ryanair" onclick="navigate('ryanair');closeSidebar()">
+        <span class="nav-icon">🎯</span>
+        <span data-i18n="navPriceRadar">Preis-Radar</span>
       </button>
     </div>
 
@@ -1062,15 +1049,17 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
 
     <!-- 4. Meine Reisen -->
     <div class="nav-section">
-      <span class="nav-section-label" data-i18n="navMyTrips">Meine Reisen</span>
-      <button class="nav-item sub" id="nav-budget" onclick="navigate('budget');closeSidebar()">
-        <span class="nav-sub-icon">💶</span>
-        <span data-i18n="navBudget">Budget</span>
+      <button class="nav-item" id="nav-journal" onclick="navigate('journal');closeSidebar()">
+        <span class="nav-icon">🎒</span>
+        <span data-i18n="navMyTrips">Meine Reisen</span>
       </button>
-      <button class="nav-item sub" id="nav-journal" onclick="navigate('journal');closeSidebar()">
-        <span class="nav-sub-icon">📓</span>
-        <span data-i18n="travelJournal">Reisetagebuch</span>
-      </button>
+    </div>
+    <!-- Hidden nav items keep JS active-state working -->
+    <div style="display:none">
+      <button id="nav-google"></button>
+      <button id="nav-homair"></button>
+      <button id="nav-booking"></button>
+      <button id="nav-budget"></button>
     </div>
 
   </nav>
