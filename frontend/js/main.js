@@ -187,9 +187,40 @@ window.addEventListener('DOMContentLoaded', async () => {
   // ── PWA: Register Service Worker ──────────────────────────────────────────
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js', { scope: '/' })
-      .then(reg => console.log('[SW] Registered, scope:', reg.scope))
+      .then(reg => { console.log('[SW] Registered:', reg.scope); reg.update(); })
       .catch(err => console.warn('[SW] Registration failed:', err));
   }
+
+  // ── PWA: Install prompt ────────────────────────────────────────────────────
+  // Chrome fires beforeinstallprompt when the app is installable.
+  // We catch it, show our custom button, and trigger it on click.
+  let _deferredInstallPrompt = null;
+
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();                            // stop Chrome's auto-banner
+    _deferredInstallPrompt = e;
+    const btn = document.getElementById('pwa-install-btn');
+    if (btn) btn.classList.add('visible');         // show our button
+    console.log('[PWA] Install prompt ready');
+  });
+
+  window.addEventListener('appinstalled', () => {
+    _deferredInstallPrompt = null;
+    const btn = document.getElementById('pwa-install-btn');
+    if (btn) btn.classList.remove('visible');
+    console.log('[PWA] App installed successfully');
+  });
+
+  // Called by onclick="pwaInstall()" on the install button
+  window.pwaInstall = async () => {
+    if (!_deferredInstallPrompt) return;
+    _deferredInstallPrompt.prompt();
+    const { outcome } = await _deferredInstallPrompt.userChoice;
+    console.log('[PWA] User choice:', outcome);
+    _deferredInstallPrompt = null;
+    const btn = document.getElementById('pwa-install-btn');
+    if (btn) btn.classList.remove('visible');
+  };
 
   // ── Dark mode: sync theme-color meta tag with body class ──────────────────
   const syncThemeColor = () => {
