@@ -1,3 +1,13 @@
+/**
+ * app/homair.js — Homair camping accommodation tracker
+ *
+ * Tracker CRUD via /api/accommodations/homair. The backend scraper uses
+ * SerpAPI Google Hotels to find Homair prices. No API key needed client-side
+ * (key is stored encrypted on the backend).
+ *
+ * Functions: addHomairTracker, loadHomairTrackers, renderHomairTrackers,
+ *             scrapeHomairTracker, deleteHomairTracker
+ */
 // frontend/js/app/homair.js
 import { t } from '../ui/i18n.js';
 import { toast } from '../ui/toast.js';
