@@ -183,4 +183,21 @@ window.addEventListener('DOMContentLoaded', async () => {
   });
 
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSettings(); });
+
+  // ── PWA: Register Service Worker ──────────────────────────────────────────
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js', { scope: '/' })
+      .then(reg => console.log('[SW] Registered, scope:', reg.scope))
+      .catch(err => console.warn('[SW] Registration failed:', err));
+  }
+
+  // ── Dark mode: sync theme-color meta tag with body class ──────────────────
+  const syncThemeColor = () => {
+    const isDark = document.body.classList.contains('dark-mode');
+    const meta   = document.getElementById('meta-theme-color');
+    if (meta) meta.content = isDark ? '#12141c' : '#f9f8f6';
+  };
+  // Observe body class changes
+  new MutationObserver(syncThemeColor).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+  syncThemeColor(); // run once on load
 });
