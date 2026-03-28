@@ -65,15 +65,17 @@ export function backdropClick(e) {
 }
 
 export function switchTab(tab) {
-  ['basic','integrations'].forEach(id => {
-    document.getElementById('panel-'+id).style.display = id===tab ? 'block' : 'none';
-    document.getElementById('tab-'+id).classList.toggle('active', id===tab);
+  ['basic','integrations','apis'].forEach(id => {
+    const panel = document.getElementById('panel-'+id);
+    const tabEl = document.getElementById('tab-'+id);
+    if (panel) panel.style.display = id===tab ? 'block' : 'none';
+    if (tabEl) tabEl.classList.toggle('active', id===tab);
   });
 }
 
-export function toggleTheme(isLight) {
-  document.body.classList.toggle('light-mode', isLight);
-  localStorage.setItem('theme', isLight ? 'light' : 'dark');
+export function toggleTheme(isDark) {
+  document.body.classList.toggle('dark-mode', isDark);
+  localStorage.setItem('theme', isDark ? 'dark' : 'light');
 }
 
 export async function saveSettings() {
