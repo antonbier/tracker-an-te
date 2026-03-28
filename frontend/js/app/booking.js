@@ -1,3 +1,12 @@
+/**
+ * app/booking.js — Booking.com / Trivago hotel tracker
+ *
+ * Tracker CRUD via /api/accommodations/booking. Uses SerpAPI Google Hotels.
+ * SerpAPI key is passed as a query param on scrape calls.
+ *
+ * Functions: addBookingTracker, loadBookingTrackers, renderBookingTrackers,
+ *             scrapeBookingTracker, deleteBookingTracker
+ */
 // frontend/js/app/booking.js
 import { t } from '../ui/i18n.js';
 import { toast } from '../ui/toast.js';
