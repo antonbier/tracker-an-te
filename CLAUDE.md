@@ -1,199 +1,303 @@
-# CLAUDE.md – WanderSuite Refactoring Log
+# CLAUDE.md – WanderSuite AI Assistant Context
 
-Dieses Dokument beschreibt alle Änderungen, die Claude (claude-sonnet-4-6) durchgeführt hat.
-
----
-
-## Deployment-Status
-
-| Umgebung | Branch | Status |
-|----------|--------|--------|
-| Production (Railway) | `main` | ✅ Beide PRs gemerged – wird via GitHub Action deployed |
-| GitHub Pages (Test) | `refactor/feature-modules` | ✅ https://antonbier.github.io/tracker-an-te/ |
-
-### Merge-Historie
-| PR | Titel | Gemerged | Main-SHA |
-|----|-------|----------|----------|
-| #1 | Monolith → ES-Module Basis | 2026-03-28 | `7d4e69db89` |
-| #2 | Feature-Module – vollständige Modularisierung | 2026-03-28 | `de9c23b666` |
-
-### Rückgängig machen (falls nötig)
-Falls der Deploy fehlschlägt: Auf GitHub bei PR #1 oder #2 den **"Revert"-Button** drücken.
-Das erstellt automatisch einen neuen PR der alle Änderungen rückgängig macht.
+This file gives AI assistants (Claude, Copilot, etc.) the context they need to work effectively on this codebase. It documents architecture decisions, refactoring history, and conventions.
 
 ---
 
-## PR #1 – Monolith → ES-Module Basis
+## Project Overview
 
-**Branch:** `refactor/es-modules` → `main`
-**Datum:** 2026-03-28
+**WanderSuite** is a self-hosted travel management suite. It is a single Docker Compose stack with:
+- **Frontend:** Vanilla HTML/CSS + native ES Modules (no bundler, no npm)
+- **Backend:** FastAPI (Python) + SQLite + APScheduler
+- **Reverse proxy:** Nginx
 
-Der ~1400-zeilige Inline-`<script>`-Block in `frontend/index.html` wurde herausgelöst
-und durch `<script type="module" src="js/main.js">` ersetzt.
-
-### Neue Dateien
-| Datei | Inhalt |
-|-------|--------|
-| `frontend/js/core/state.js` | Globaler App-State als ES-Exports + Setter |
-| `frontend/js/core/api.js` | `api()` HTTP-Client + `checkApiStatus()` |
-| `frontend/js/ui/i18n.js` | `loadLocale()`, `t()`, `applyTranslations()`, `setLang()` |
-| `frontend/js/ui/nav.js` | `navigate()`, `toggleSidebar()`, `closeSidebar()` |
-| `frontend/js/main.js` | Entry Point |
-| `frontend/index.html` | Bereinigt: 3155 → 1748 Zeilen (−43%) |
+The app runs on Unraid but works anywhere with Docker.
 
 ---
 
-## PR #2 – Feature-Module: vollständige Modularisierung
-
-**Branch:** `refactor/feature-modules` → `main`
-**Datum:** 2026-03-28
-
-Der verbleibende Monolith-Code in `main.js` (1493 Zeilen) wurde vollständig in Fach-Module aufgeteilt.
-`main.js` besteht jetzt nur noch aus Imports, `window.*`-Bindungen und DOMContentLoaded-Init (156 Zeilen).
-
-### Neue Dateien
-| Datei | Extrahierte Funktionen |
-|-------|------------------------|
-| `frontend/js/ui/toast.js` | `toast()` |
-| `frontend/js/ui/settings.js` | `openSettings`, `closeSettings`, `saveSettings`, `loadSerpApiQuota`, `backdropClick`, `switchTab`, `toggleTheme` |
-| `frontend/js/app/ryanair.js` | Tracker CRUD, Chart, Discover/AI – 14 Fns |
-| `frontend/js/app/budget.js` | ActualBudget-Sync, Trips, Expense-Tabelle – 9 Fns |
-| `frontend/js/app/dashboard.js` | `loadDashboard`, `loadDashTrackers`, `loadDashBudget`, `loadDashTrips` |
-| `frontend/js/app/googleflights.js` | Google Flights Tracker CRUD |
-| `frontend/js/app/homair.js` | Homair Unterkunfts-Tracker CRUD |
-| `frontend/js/app/booking.js` | Booking.com Tracker CRUD |
-| `frontend/js/app/journal.js` | `loadJournalTrips`, `renderJournalTrips`, `syncJournal`, `deleteJournalTrip` |
-| `frontend/js/app/onboarding.js` | `checkOnboarding`, `closeOnboarding`, `obNext/Back`, `openFieldGuide`, `closeFieldGuide` |
-
-### Bugfix im selben PR
-- `fix: use relative path for locale fetch (GitHub Pages compat)` – `i18n.js` nutzte `/locales/` (absolut), jetzt `locales/` (relativ)
-
----
-
-## Finale Dateistruktur
+## Repository Layout
 
 ```
-frontend/
-├── index.html                  ← 1748 Zeilen (war 3155)
-└── js/
-    ├── main.js                 ← 156 Zeilen: nur Imports + window.* + Init
-    ├── core/
-    │   ├── state.js
-    │   └── api.js
-    └── ui/
-    │   ├── i18n.js
-    │   ├── nav.js
-    │   ├── toast.js
-    │   └── settings.js
-    └── app/
-        ├── ryanair.js
-        ├── budget.js
-        ├── dashboard.js
-        ├── googleflights.js
-        ├── homair.js
-        ├── booking.js
-        ├── journal.js
-        └── onboarding.js
+antonbier/tracker-an-te
+├── frontend/
+│   ├── index.html          ← SPA: 2700+ lines — HTML structure + all CSS
+│   ├── locales/            ← i18n JSON files (de, en, it)
+│   └── js/                 ← Native ES Modules
+│       ├── main.js         ← Entry point (imports + window.* + DOMContentLoaded)
+│       ├── core/           ← Shared infrastructure
+│       └── ui/ + app/      ← Feature modules
+├── backend/                ← FastAPI app
+├── docker-compose.yml
+├── README.md
+└── CLAUDE.md               ← You are here
 ```
+
+---
+
+## Frontend Module Architecture
+
+All JavaScript is split into native ES Modules loaded via `<script type="module" src="js/main.js">`.  
+**No bundler. No npm. No build step.**
+
+### Why `window.*` bindings?
+
+ES Modules have their own scope — they don't pollute `window` automatically. Because `index.html` uses `onclick="someFunction()"` inline handlers throughout, every exported function that is called from HTML must be explicitly bound to `window` in `main.js`. This is the single source of truth for all global bindings.
+
+```js
+// main.js pattern
+import { addTracker } from './app/ryanair.js';
+window.addTracker = addTracker;
+```
+
+### Module Map
+
+```
+main.js
+│
+├── core/state.js       ← Mutable app state (let exports + setter functions)
+│                          currentLang, API_URL, selectedTrackerId, trips, ...
+│
+├── core/api.js         ← api(path, opts) — central HTTP client
+│                          checkApiStatus() — pings /health, updates status dot
+│
+├── ui/i18n.js          ← loadLocale(lang), t(key), applyTranslations(), setLang(lang)
+│                          Fetches /locales/{lang}.json — uses RELATIVE path (not /locales/)
+│
+├── ui/nav.js           ← navigate(page) — switches .page divs + syncs bottom bar
+│                          Uses document.startViewTransition() with graceful degradation
+│                          toggleSidebar(), closeSidebar()
+│
+├── ui/toast.js         ← toast(msg, type) — appends to #toastContainer, auto-removes after 4s
+│
+├── ui/settings.js      ← openSettings(), closeSettings(), saveSettings()
+│                          switchTab(tab) — supports 'basic', 'integrations', 'apis'
+│                          toggleTheme(isDark) — toggles body.dark-mode class
+│
+├── ui/priceradar.js    ← switchRadarCategory(cat) — main pill nav for Preis-Radar
+│                          switchRadarSubTab(trackerId) — secondary sub-nav
+│
+├── ui/tabs.js          ← switchMyTripsTab(tabId) — Meine Reisen sub-tabs
+│                          Lazy-loads journal/budget/bucketlist on first open
+│
+├── app/ryanair.js      ← Full Ryanair tracker: addTracker, loadTrackers, renderTrackers,
+│                          selectTracker, renderChart (Chart.js), scrapeNow, deleteTracker,
+│                          togglePause, checkDawarich, generateIdeas, renderRecommendations
+│
+├── app/budget.js       ← toggleActualSync, addTrip, syncActualBudget, updateBudget,
+│                          renderBudget, removeTrip, loadExpenses, filterExpenses, renderExpenseTable
+│
+├── app/dashboard.js    ← loadDashboard() → calls loadDashTrackers, loadDashBudget, loadDashTrips
+│
+├── app/googleflights.js← addGFTracker, loadGFTrackers, renderGFTrackers,
+│                          scrapeGFTracker, deleteGFTracker
+│
+├── app/homair.js       ← addHomairTracker, loadHomairTrackers, renderHomairTrackers,
+│                          scrapeHomairTracker, deleteHomairTracker
+│
+├── app/booking.js      ← addBookingTracker, loadBookingTrackers, renderBookingTrackers,
+│                          scrapeBookingTracker, deleteBookingTracker
+│
+├── app/journal.js      ← loadJournalTrips, renderJournalTrips, syncJournal, deleteJournalTrip
+│                          Uses dynamic import for settings.js to avoid circular deps
+│
+├── app/onboarding.js   ← checkOnboarding, closeOnboarding, obNext/obBack, updateObStep
+│                          openFieldGuide, closeFieldGuide
+│
+└── app/bucketlist.js   ← addBucketListItem, renderBucketList, deleteBucketListItem, updateMyTripsStats
+                           Persisted to localStorage key 'ws-bucketlist' — no backend needed
+```
+
+### Avoiding Circular Imports
+
+Some modules need each other at runtime but not at load time. Use **dynamic imports** inside functions:
+
+```js
+// journal.js calls openSettings if Dawarich config is missing — but we can't static-import
+// settings.js at the top (would create a cycle). Solution:
+const { openSettings } = await import('../ui/settings.js');
+```
+
+### Page/DOM Architecture
+
+`index.html` contains all pages as `<div class="page" id="page-*">` siblings. `navigate(page)` switches them by toggling the `.active` class. 
+
+Some pages were **nested** into two-level navigation views:
+
+- `page-ryanair`, `page-google`, `page-homair`, `page-booking` → moved into `page-priceradar` as `radar-sub-*` panels. The original `<div class="page">` wrappers still exist in a hidden `aria-hidden="true"` container so that JS functions like `loadTrackers()` can still find their DOM targets (`#trackerList` etc.) without modification.
+- `page-journal`, `page-budget` → moved into `page-mytrips` as `mytrips-panel-*` panels. Same pattern.
+
+---
+
+## Navigation Structure
+
+```
+Bottom Bar / Sidebar item → navigate(page) call
+─────────────────────────────────────────────
+🧭 Übersicht    → navigate('home')
+🎯 Preis-Radar  → navigate('priceradar')  → switchRadarCategory('overview')
+✨ Inspiration  → navigate('discover')
+🎒 Meine Reisen → navigate('mytrips')    → switchMyTripsTab('overview')
+```
+
+**Mobile (`< 900px`):** Sidebar hidden, replaced by bottom navigation bar.  
+**Desktop:** Sidebar with 4 top-level items + hidden `<button id="nav-*">` elements for JS active-state sync.
+
+---
+
+## CSS Architecture
+
+All CSS lives in `index.html` inside a single `<style>` block (no external CSS files).
+
+### CSS Variables (`:root`)
+
+The app defaults to **light mode**. Dark mode is opt-in via `body.dark-mode`.
+
+| Variable | Light | Dark |
+|----------|-------|------|
+| `--bg` | `#f9f8f6` (off-white) | `#14120f` |
+| `--accent` | `#D95D39` (terracotta) | `#E8704A` |
+| `--accent2` | `#1E3A5F` (navy) | `#5b9fd4` |
+| `--green` | `#2A5C45` (forest) | `#4a9a72` |
+
+### Key CSS Patterns
+
+- **Pill nav** (`.radar-pills`, `.radar-pill`) — used for Preis-Radar + Meine Reisen main tabs
+- **Sub-nav** (`.radar-subnav`, `.radar-subtab`) — used for tracker sub-tabs inside Preis-Radar
+- **Ticket-style cards** (`.tracker-item`) — left accent stripe (`::before`), dashed border before actions
+- **Settings slide-panel** — `#settingsBackdrop .modal` slides in from the right (`translateX`)
+- **Bottom nav** (`.bottom-nav`) — `display:none` by default, `display:flex` at `< 900px`
+
+---
+
+## Backend Conventions
+
+### API Key Storage
+
+API keys (SerpAPI, Gemini, OpenAI, Dawarich token, ActualBudget password) are:
+1. Stored in `localStorage` on the client (never sent in URLs)
+2. Optionally synced to the backend via `POST /api/settings` where they are encrypted with AES-Fernet before storing in SQLite
+
+### ActualBudget Integration
+
+Uses `actualpy` (≥ 0.21.0). Key fields:
+- `base_url` — ActualBudget server URL
+- `password` — server password (not a token)
+- `budget_file` — budget name as displayed in ActualBudget top-left
+- Date format: `YYYYMMDD` integer
+- Transfer field: `transferred_id` (not `transfer_id`)
+
+### Dawarich Integration
+
+Fetches GPS points from Dawarich API (paginated). Haversine distance calculation to home coordinates. Points > 50 km from home qualify. Overnight = 2+ consecutive days away. Max 2-day gap between consecutive days to merge into one trip.
+
+---
+
+## Refactoring History
+
+### 2026-03-28 — ES Module Refactoring (PR #1 + PR #2)
+
+The original `index.html` had a ~1400-line inline `<script>` block (monolith). This was split into native ES Modules across two PRs:
+
+- **PR #1** (`refactor/es-modules` → `main`): Extracted `core/` and `ui/` modules, replaced `<script>` with `<script type="module" src="js/main.js">`. index.html: 3155 → 1748 lines (−43%).
+- **PR #2** (`refactor/feature-modules` → `main`): Extracted all `app/` modules. `main.js`: 1493 → 156 lines.
+
+**Key decision:** All functions called from `onclick="..."` in HTML are explicitly bound to `window` in `main.js`. No HTML was modified.
+
+### 2026-03-28 — UX/UI Reboot
+
+- **Theme:** Dark → Light default. New palette: off-white bg, terracotta accent, navy accent2, forest green.
+- **Navigation:** Sidebar restructured from scraper-sorted to workflow-oriented (4 sections). Mobile bottom bar added.
+- **Ticket cards:** Tracker items restyled with left accent stripe + dashed action separator.
+- **Settings:** Compact modal → full-height slide-panel from right, 3 tabs (Allgemein / Integrationen / APIs & KI).
+- **View Transitions:** `document.startViewTransition()` for smooth page switches (graceful degradation).
+- **Dark mode:** Now opt-in via `body.dark-mode` (was `body.light-mode`).
+
+### 2026-03-28 — Preis-Radar
+
+New two-level navigation page (`page-priceradar`):
+- **Level 1:** Pill tabs — Übersicht / Flüge / Unterkünfte / Mietwagen
+- **Level 2:** Sub-tabs — Ryanair|Google, Homair|Booking
+- Old `page-ryanair` etc. kept as hidden DOM nodes for JS compatibility.
+- Logic in `frontend/js/ui/priceradar.js`.
+
+### 2026-03-28 — Meine Reisen
+
+New hub page (`page-mytrips`) bundles Budget, Journal + new Bucket List feature:
+- **Level 1:** Pill tabs — Übersicht / Wunschziele / Tagebuch / Budget
+- **Bucket List:** Wishlist stored in `localStorage['ws-bucketlist']` as JSON array. Each item has `{id, dest, when, emoji, added}`. Random emoji from a curated travel set.
+- **Stats panel:** Shows visited places count, remaining budget, wishlist count. Lazy-loaded on tab open.
+- Logic in `frontend/js/app/bucketlist.js` + `frontend/js/ui/tabs.js`.
+
+---
+
+## Working with This Codebase
+
+### Making changes via GitHub API
+
+Claude uses Python `urllib.request` with the GitHub Contents API. Key pattern:
+
+```python
+# Always fetch SHA before writing
+url = f'https://api.github.com/repos/{REPO}/contents/{path}?ref={branch}'
+# PUT to create or update (sha required for updates)
+body = {'message': msg, 'content': base64_content, 'branch': branch, 'sha': existing_sha}
+```
+
+For large files, fetch with `?ref=branch` first to get the SHA, then PUT with the new content.
+
+### Adding a new i18n key
+
+1. Add to `frontend/locales/de.json`
+2. Add to `frontend/locales/en.json`  
+3. Add to `frontend/locales/it.json`
+4. Use in HTML: `data-i18n="myKey"` or `data-i18n-placeholder="myKey"`
+5. Use in JS: `t('myKey')`
+
+### Adding a new page
+
+1. Add `<div class="page" id="page-mypage">` in `index.html` (inside `<main class="main-content">`)
+2. Add nav item in sidebar + bottom nav if needed
+3. Update `bnMap` in `nav.js`
+4. Add lazy-load in `doNav()` in `nav.js`
+5. Add hidden `<button id="nav-mypage">` in the hidden nav div for active-state sync
+6. Create `frontend/js/app/mypage.js` (follow existing modules as template)
+7. Import + bind in `main.js`
+
+---
+
+## localStorage Keys
+
+| Key | Type | Contents |
+|-----|------|----------|
+| `apiUrl` | string | Backend URL (e.g. `http://192.168.1.51:8766`) |
+| `lang` | string | Active language code (`de`, `en`, `it`) |
+| `theme` | string | `'dark'` or absent (light is default) |
+| `ws-budget` | string | Budget total in EUR |
+| `ws-trips` | JSON array | Manual + ActualBudget trips `[{name, cost, date, source?}]` |
+| `ws-bucketlist` | JSON array | Bucket list items `[{id, dest, when, emoji, added}]` |
+| `ws-onboarding-done` | string | `'1'` when onboarding completed |
+| `s-timezone` | string | Timezone (e.g. `Europe/Rome`) |
+| `s-dawarichUrl` | string | Dawarich instance URL |
+| `s-dawarichToken` | string | Dawarich API token |
+| `s-homeLat` / `s-homeLon` | string | Home coordinates for trip detection |
+| `s-actualUrl` | string | ActualBudget server URL |
+| `s-actualPassword` | string | ActualBudget password |
+| `s-actualFile` | string | ActualBudget budget name |
+| `s-travelCategories` | string | Comma-separated ActualBudget travel categories |
+| `s-serpApiKey` | string | SerpAPI key |
+| `s-geminiKey` | string | Google Gemini API key |
+| `s-openaiKey` | string | OpenAI API key |
+| `s-llmProvider` | string | AI provider (`gemini`, `openai`, `anthropic`, `ollama`) |
 
 ---
 
 ## Roadmap
 
-- [x] `js/core/state.js`
-- [x] `js/core/api.js`
-- [x] `js/ui/i18n.js`
-- [x] `js/ui/nav.js`
-- [x] `js/ui/toast.js`
-- [x] `js/ui/settings.js`
-- [x] `js/app/ryanair.js`
-- [x] `js/app/budget.js`
-- [x] `js/app/dashboard.js`
-- [x] `js/app/googleflights.js`
-- [x] `js/app/homair.js`
-- [x] `js/app/booking.js`
-- [x] `js/app/journal.js`
-- [x] `js/app/onboarding.js`
-- [ ] Skeleton Loaders
-- [ ] CSV Export
-- [ ] Currency Toggle
-- [ ] Notifications (Telegram/Discord/Gotify)
-- [ ] SerpAPI Quota Tracking
-- [ ] Price Threshold Alerts
-- [ ] Mobile PWA Support
-
----
-
-## Technische Hinweise
-
-**`window.*`-Bindungen:** Da `<script type="module">` keinen globalen Scope teilt,
-sind alle per `onclick="fn()"` aufgerufenen Funktionen explizit an `window` gebunden.
-Kein HTML wurde dafür geändert.
-
-**Zirkuläre Imports vermieden** durch dynamische `import()` zur Laufzeit
-(z.B. `journal.js` → `dashboard.js` und `settings.js`).
-
-**Kein Build-Tool** – läuft nativ im Browser mit `<script type="module">`.
----
-
-## UX/UI Refresh — "Modern Explorer"
-
-**Datum:** 2026-03-28  
-**Commits:** direkt auf `main` (4 Commits)
-
-### Farbschema — Hell als Standard
-
-| Variable | Vorher (dunkel) | Nachher (hell) |
-|----------|----------------|---------------|
-| `--bg` | `#12100e` | `#f9f8f6` (altes Papier) |
-| `--surface` | `#1c1814` | `#ffffff` |
-| `--accent` | `#c4622d` | `#D95D39` (Terracotta) |
-| `--accent2` | `#e8a020` | `#1E3A5F` (Navy) |
-| `--green` | `#3a8c62` | `#2A5C45` (Waldgrün) |
-
-Dark Mode ist jetzt Opt-in via `body.dark-mode` (Toggle in Einstellungen).
-
-### Neue Menüstruktur (workflow-orientiert)
-
-**Vorher:** Sortiert nach Scraper (Ryanair, Google, Homair, Booking, Discover, Budget, Journal)  
-**Nachher:** Sortiert nach Nutzer-Workflow:
-
-| Icon | Bereich | Enthält |
-|------|---------|---------|
-| 🧭 | Übersicht | Dashboard |
-| 🎯 | Preis-Radar | Ryanair, Google Flights, Homair, Booking |
-| ✨ | Inspiration | Discover / AI-Empfehlungen |
-| 🎒 | Meine Reisen | Budget + Reisetagebuch |
-
-### Mobile Bottom Navigation Bar
-
-Auf `@media (max-width: 900px)` wird die Sidebar durch eine feste Bottom-Bar ersetzt (Airbnb/Instagram-Pattern). Die Sidebar bleibt als Slide-in erreichbar via Hamburger.
-
-Bottom-Bar Tabs: 🧭 Übersicht · 🎯 Radar · ✨ Inspiration · 🎒 Reisen
-
-### Ticket-Style Tracker-Items
-
-Tracker-Karten haben jetzt:
-- Farbigen Streifen links (wie ein Flugticket)
-- Gestrichelte Trennlinie vor den Action-Buttons
-- Leichter Schatten + Hover-Lift-Effekt
-
-### Settings — Slide-Panel von rechts
-
-Das Settings-Modal wurde zum Full-Height Slide-Panel umgebaut (rechtsseitig, 520px breit). Drei Tabs:
-1. **Allgemein** — Backend-URL, Zeitzone, Erscheinungsbild
-2. **Integrationen** — Dawarich, ActualBudget, Home-Koordinaten
-3. **APIs & KI** — SerpAPI, Gemini, OpenAI, LLM-Anbieter
-
-### View Transitions API
-
-`document.startViewTransition()` für weiche Seitenübergänge (mit graceful degradation für ältere Browser).
-
-### Geänderte Dateien
-
-| Datei | Änderung |
-|-------|---------|
-| `frontend/index.html` | CSS-Variablen, Sidebar HTML, Bottom Nav HTML, Settings-Panel CSS |
-| `frontend/js/ui/nav.js` | Bottom-Bar Active-Sync, View Transition API |
-| `frontend/js/ui/settings.js` | 3. Tab "APIs & KI", Dark-Mode Toggle |
-| `frontend/js/main.js` | Theme-Init auf `dark-mode` Klasse umgestellt |
+- [ ] Skeleton loaders for data fetching states
+- [ ] CSV export for price history
+- [ ] Currency toggle (EUR / USD / GBP)
+- [ ] Telegram / Discord / Gotify price drop alerts
+- [ ] Price threshold configuration per tracker
+- [ ] SerpAPI quota tracker in dashboard
+- [ ] Mobile PWA (service worker + manifest.json)
+- [ ] Car rental tracker (Preis-Radar → Mietwagen tab)
