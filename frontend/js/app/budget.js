@@ -80,7 +80,9 @@ export async function syncActualBudget() {
 }
 
 export function updateBudget() {
-  localStorage.setItem('ws-budget', document.getElementById('budgetTotal').value);
+  const val = document.getElementById('budgetTotal').value;
+  localStorage.setItem('ws-budget', val);
+  import('../core/persist.js').then(m => m.syncToBackend('ws-budget'));
   renderBudget();
 }
 
