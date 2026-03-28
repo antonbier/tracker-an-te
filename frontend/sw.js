@@ -38,6 +38,8 @@ const CACHE_SHELL = [
   '/locales/en.json',
   '/locales/it.json',
   '/manifest.json',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
 ];
 
 // ── Install: pre-cache app shell ──────────────────────────────────────────────
