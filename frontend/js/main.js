@@ -15,9 +15,6 @@
  *   2. Import it here
  *   3. Add window.myFunction = myFunction
  */
-// frontend/js/main.js
-// Entry Point – nur Imports und window.*-Bindungen.
-// Kein Logik-Code mehr hier.
 
 // ── Core ──────────────────────────────────────────────────────────────────────
 import { API_URL, currentLang, setApiUrl }               from './core/state.js';
@@ -26,16 +23,14 @@ import { api, checkApiStatus }                            from './core/api.js';
 // ── UI ────────────────────────────────────────────────────────────────────────
 import { loadLocale, t, applyTranslations, setLang }     from './ui/i18n.js';
 import { navigate, toggleSidebar, closeSidebar }          from './ui/nav.js';
-import { switchRadarCategory, switchRadarSubTab }          from './ui/priceradar.js';
-import { switchMyTripsTab }                                from './ui/tabs.js';
-import { openFieldGuide, closeFieldGuide,
-         switchFieldGuideTab }                             from './ui/fieldguide.js';
-import { addBucketListItem, deleteBucketListItem,
-         renderBucketList, updateMyTripsStats }            from './app/bucketlist.js';
 import { toast }                                          from './ui/toast.js';
 import { openSettings, closeSettings, saveSettings,
          loadSerpApiQuota, backdropClick, switchTab,
          toggleTheme }                                    from './ui/settings.js';
+import { switchRadarCategory, switchRadarSubTab }         from './ui/priceradar.js';
+import { switchMyTripsTab }                               from './ui/tabs.js';
+import { openFieldGuide, closeFieldGuide,
+         switchFieldGuideTab }                            from './ui/fieldguide.js';
 
 // ── App Modules ───────────────────────────────────────────────────────────────
 import { toggleBag, addTracker, loadTrackers, renderTrackers,
@@ -63,7 +58,10 @@ import { loadJournalTrips, renderJournalTrips,
          syncJournal, deleteJournalTrip }                      from './app/journal.js';
 
 import { checkOnboarding, closeOnboarding, obNext, obBack,
-         updateObStep, openFieldGuide, closeFieldGuide }       from './app/onboarding.js';
+         updateObStep }                                        from './app/onboarding.js';
+
+import { addBucketListItem, deleteBucketListItem,
+         renderBucketList, updateMyTripsStats }                from './app/bucketlist.js';
 
 // ── Hilfsfunktionen ───────────────────────────────────────────────────────────
 function fmt(d) { return d.toISOString().slice(0,10); }
@@ -87,6 +85,12 @@ window.loadSerpApiQuota      = loadSerpApiQuota;
 window.backdropClick         = backdropClick;
 window.switchTab             = switchTab;
 window.toggleTheme           = toggleTheme;
+window.openFieldGuide        = openFieldGuide;
+window.closeFieldGuide       = closeFieldGuide;
+window.switchFieldGuideTab   = switchFieldGuideTab;
+window.switchRadarCategory   = switchRadarCategory;
+window.switchRadarSubTab     = switchRadarSubTab;
+window.switchMyTripsTab      = switchMyTripsTab;
 window.toggleBag             = toggleBag;
 window.addTracker            = addTracker;
 window.loadTrackers          = loadTrackers;
@@ -135,12 +139,6 @@ window.closeOnboarding       = closeOnboarding;
 window.obNext                = obNext;
 window.obBack                = obBack;
 window.updateObStep          = updateObStep;
-window.openFieldGuide        = openFieldGuide;   // ui/fieldguide.js
-window.closeFieldGuide       = closeFieldGuide;   // ui/fieldguide.js
-window.switchFieldGuideTab   = switchFieldGuideTab;
-window.switchRadarCategory   = switchRadarCategory;
-window.switchRadarSubTab     = switchRadarSubTab;
-window.switchMyTripsTab      = switchMyTripsTab;
 window.addBucketListItem     = addBucketListItem;
 window.deleteBucketListItem  = deleteBucketListItem;
 window.renderBucketList      = renderBucketList;
