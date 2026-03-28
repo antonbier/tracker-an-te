@@ -226,5 +226,13 @@
   "tripDuration": "Durata",
   "tripNights": "Notti",
   "syncNow": "Sincronizza ora",
-  "serpApiQuotaLabel": "Utilizzo mensile:"
+  "serpApiQuotaLabel": "Utilizzo mensile:",
+  "radarSubtitle": "Monitora i prezzi di voli e alloggi",
+  "radarOverview": "Panoramica",
+  "radarFlights": "Voli",
+  "radarAccommodations": "Alloggi",
+  "radarCarRental": "Noleggio Auto",
+  "radarOverviewDesc": "Seleziona una categoria per vedere i tuoi tracker attivi.",
+  "radarCarRentalDesc": "Confronta automaticamente i prezzi dei noleggi — presto disponibile.",
+  "comingSoon": "Prossimamente"
 }
