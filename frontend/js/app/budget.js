@@ -1,3 +1,19 @@
+/**
+ * app/budget.js — Travel Budget + ActualBudget integration + Expense Table
+ *
+ * Three related features in one module:
+ *
+ * 1. Manual Trips — addTrip(), removeTrip(), renderBudget()
+ *    Trips are stored in localStorage (ws-trips) as [{name, cost, date}].
+ *
+ * 2. ActualBudget sync — toggleActualSync(), syncActualBudget()
+ *    POSTs to /api/budget/actual/summary with {base_url, password, budget_file}.
+ *    Replaces manual trips with ActualBudget travel categories.
+ *
+ * 3. Expense Table — loadExpenses(), filterExpenses(), renderExpenseTable()
+ *    Fetches individual transactions from /api/budget/actual/expenses.
+ *    Cached in state.allExpenses for client-side filtering.
+ */
 // frontend/js/app/budget.js
 import { api } from '../core/api.js';
 import { t } from '../ui/i18n.js';
