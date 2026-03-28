@@ -246,5 +246,9 @@
   "mytripsDestinationPlaceholder": "e.g. Kyoto, Japan",
   "mytripsWhen": "When?",
   "mytripsWhenPlaceholder": "e.g. Summer 2027",
-  "mytripsAddWish": "Add to Bucket List"
+  "mytripsAddWish": "Add to Bucket List",
+  "fgTabStart": "Start & APIs",
+  "fgTabRadar": "Price Radar",
+  "fgTabMyTrips": "My Trips",
+  "fgTabDiscover": "Discover"
 }
