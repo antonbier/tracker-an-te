@@ -1,3 +1,19 @@
+/**
+ * app/journal.js — Travel Journal powered by Dawarich
+ *
+ * Fetches automatically detected overnight trips from the backend
+ * (/api/dawarich/trips). Trips are detected by the backend from GPS
+ * points imported from Dawarich (Haversine distance > 50 km from home,
+ * 2+ consecutive nights away).
+ *
+ * syncJournal() triggers a full Dawarich sync: fetches points, detects
+ * trips, reverse-geocodes with Nominatim, and saves to the database.
+ *
+ * Note: openSettings() is imported dynamically to avoid a circular
+ * dependency (journal.js → settings.js → ... → journal.js).
+ *
+ * Functions: loadJournalTrips, renderJournalTrips, syncJournal, deleteJournalTrip
+ */
 // frontend/js/app/journal.js
 import { api } from '../core/api.js';
 import { t } from '../ui/i18n.js';
