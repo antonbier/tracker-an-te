@@ -1,10 +1,28 @@
-// frontend/js/ui/priceradar.js
-// Preis-Radar: Two-level navigation (category → sub-tracker)
+/**
+ * ui/priceradar.js — Preis-Radar two-level navigation
+ *
+ * The Preis-Radar page has two levels of navigation:
+ *
+ *   Level 1 (pill tabs): overview | flights | accommodations | carrental
+ *     → switchRadarCategory(cat)
+ *
+ *   Level 2 (sub-tabs inside flights/accommodations):
+ *     flights:         ryanair | google
+ *     accommodations:  homair  | booking
+ *     → switchRadarSubTab(trackerId)
+ *
+ * The legacy page-ryanair etc. divs still exist as hidden DOM nodes so that
+ * JS functions like loadTrackers() can find their container IDs unchanged.
+ */
 
 const CATEGORIES = ['overview', 'flights', 'accommodations', 'carrental'];
 const SUB_TABS   = { flights: ['ryanair', 'google'], accommodations: ['homair', 'booking'] };
 
-// Switch main Radar category (overview / flights / accommodations / carrental)
+/**
+ * Switch the main Preis-Radar category.
+ * Hides all panels, shows the selected one, and lazy-loads the default sub-tab.
+ * @param {'overview'|'flights'|'accommodations'|'carrental'} cat
+ */
 export function switchRadarCategory(cat) {
   CATEGORIES.forEach(c => {
     const panel = document.getElementById('radar-panel-' + c);
@@ -13,7 +31,7 @@ export function switchRadarCategory(cat) {
     if (tab)   tab.classList.toggle('active', c === cat);
   });
 
-  // Lazy-load sub-content when entering flights/accommodations
+  // Auto-open the previously active sub-tab, or default to the first one
   if (cat === 'flights') {
     const active = document.querySelector('#radar-panel-flights .radar-sub-panel[data-active="true"]');
     const id = active ? active.id.replace('radar-sub-', '') : 'ryanair';
@@ -26,10 +44,14 @@ export function switchRadarCategory(cat) {
   }
 }
 
-// Switch sub-tracker tab (ryanair / google / homair / booking)
+/**
+ * Switch the tracker sub-tab within flights or accommodations.
+ * Determines the parent category automatically from the trackerId.
+ * Also triggers lazy-loading of the tracker list.
+ * @param {'ryanair'|'google'|'homair'|'booking'} trackerId
+ */
 export function switchRadarSubTab(trackerId) {
-  // Determine parent category
-  const cat = ['ryanair','google'].includes(trackerId) ? 'flights' : 'accommodations';
+  const cat      = ['ryanair','google'].includes(trackerId) ? 'flights' : 'accommodations';
   const siblings = SUB_TABS[cat];
 
   siblings.forEach(id => {
@@ -42,7 +64,7 @@ export function switchRadarSubTab(trackerId) {
     if (tab) tab.classList.toggle('active', id === trackerId);
   });
 
-  // Trigger lazy-load for the selected tracker
+  // Lazy-load tracker data for the newly visible panel
   if (trackerId === 'ryanair') import('../app/ryanair.js').then(m => m.loadTrackers());
   if (trackerId === 'google')  import('../app/googleflights.js').then(m => m.loadGFTrackers());
   if (trackerId === 'homair')  import('../app/homair.js').then(m => m.loadHomairTrackers());
