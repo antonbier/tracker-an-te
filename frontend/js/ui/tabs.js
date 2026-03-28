@@ -27,6 +27,6 @@ export function switchMyTripsTab(tabId) {
   // Lazy-load on tab open — each import is cached by the browser after first load
   if (tabId === 'journal')    import('../app/journal.js').then(m => m.loadJournalTrips());
   if (tabId === 'budget')     import('../app/budget.js').then(m => m.renderBudget());
+  if (tabId === 'overview')   import('../app/dashboard.js').then(m => m.loadMyTripsDashboard());
   if (tabId === 'bucketlist') import('../app/bucketlist.js').then(m => m.renderBucketList());
-  if (tabId === 'overview')   import('../app/bucketlist.js').then(m => m.updateMyTripsStats());
 }
