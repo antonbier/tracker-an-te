@@ -1,7 +1,20 @@
-// frontend/js/ui/nav.js
+/**
+ * ui/nav.js — Page navigation, sidebar and mobile bottom bar
+ *
+ * navigate(page) is the single entry point for all page switches. It:
+ *   1. Toggles .page divs and .nav-item active states in the sidebar
+ *   2. Syncs the mobile bottom bar active state via bnMap
+ *   3. Lazy-loads page-specific data (avoids loading all modules on startup)
+ *   4. Uses the View Transition API for smooth animations (Chrome 111+, graceful fallback)
+ *
+ * Page IDs (passed to navigate):
+ *   home | priceradar | discover | mytrips | ryanair | google | homair | booking | budget | journal
+ */
+
 import { setCurrentPage } from '../core/state.js';
 
 export function navigate(page) {
+  // 1. Switch visible page and active nav highlight
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page-' + page)?.classList.add('active');
@@ -9,13 +22,13 @@ export function navigate(page) {
   setCurrentPage(page);
   if (window.innerWidth < 900) closeSidebar();
 
-  // Sync Bottom Navigation Bar active state
+  // 2. Sync bottom bar — sub-pages share a parent bar item (e.g. ryanair → bn-radar)
   const bnMap = { home:'bn-home', priceradar:'bn-radar', ryanair:'bn-radar', google:'bn-radar', homair:'bn-radar', booking:'bn-radar', discover:'bn-discover', mytrips:'bn-trips', budget:'bn-trips', journal:'bn-trips' };
   document.querySelectorAll('.bottom-nav-item').forEach(b => b.classList.remove('active'));
   const bnId = bnMap[page];
   if (bnId) document.getElementById(bnId)?.classList.add('active');
 
-  // View Transition API (graceful degradation)
+  // 3. Lazy-load page data via dynamic import (only loads the module when first needed)
   const doNav = () => {
     if (page === 'home')       import('../app/dashboard.js').then(m => m.loadDashboard());
     if (page === 'budget')     import('../app/budget.js').then(m => m.renderBudget());
@@ -26,6 +39,8 @@ export function navigate(page) {
     if (page === 'priceradar') import('../ui/priceradar.js').then(m => m.switchRadarCategory('overview'));
     if (page === 'mytrips')    import('../ui/tabs.js').then(m => { m.switchMyTripsTab('overview'); import('../app/bucketlist.js').then(b => b.updateMyTripsStats()); });
   };
+
+  // 4. View Transition API — smooth crossfade between pages
   if (document.startViewTransition) {
     document.startViewTransition(doNav);
   } else {
@@ -33,13 +48,15 @@ export function navigate(page) {
   }
 }
 
+/** Toggle the sidebar open/closed (hamburger button, desktop only). */
 export function toggleSidebar() {
-  const sb = document.getElementById('sidebar');
-  const hb = document.getElementById('hamburger');
+  const sb     = document.getElementById('sidebar');
+  const hb     = document.getElementById('hamburger');
   const isOpen = sb.classList.toggle('open');
   hb.classList.toggle('open', isOpen);
 }
 
+/** Close the sidebar. Called after a mobile nav tap or an outside click. */
 export function closeSidebar() {
   document.getElementById('sidebar').classList.remove('open');
   document.getElementById('hamburger').classList.remove('open');
