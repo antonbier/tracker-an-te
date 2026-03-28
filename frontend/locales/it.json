@@ -234,5 +234,17 @@
   "radarCarRental": "Noleggio Auto",
   "radarOverviewDesc": "Seleziona una categoria per vedere i tuoi tracker attivi.",
   "radarCarRentalDesc": "Confronta automaticamente i prezzi dei noleggi — presto disponibile.",
-  "comingSoon": "Prossimamente"
+  "comingSoon": "Prossimamente",
+  "mytripsSubtitle": "Il Tuo Tesoro di Viaggi",
+  "mytripsWishlist": "Lista dei Desideri",
+  "mytripsSchatzkammer": "Il Tuo Tesoro di Viaggi",
+  "mytripsHeroDesc": "Gestisci il budget, conserva i ricordi e sogna nuove mete.",
+  "mytripsVisitedPlaces": "Luoghi Visitati",
+  "mytripsSavedBudget": "Budget Rimanente",
+  "mytripsNextWish": "Lista dei Desideri",
+  "mytripsDestination": "Destinazione",
+  "mytripsDestinationPlaceholder": "es. Kyoto, Giappone",
+  "mytripsWhen": "Quando?",
+  "mytripsWhenPlaceholder": "es. Estate 2027",
+  "mytripsAddWish": "Aggiungi alla Lista"
 }
