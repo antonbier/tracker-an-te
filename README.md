@@ -42,13 +42,13 @@ cd wandersuite
 
 # 2. Configure
 cp .env.example .env
-nano .env          # Set APP_SECRET (required) and ports
+nano .env    # Set HOST_PORT, TZ, DATA_DIR, APP_SECRET
 
 # 3. Start
 docker compose up -d --build
 ```
 
-Open **`http://YOUR-UNRAID-IP:8765`** in your browser.  
+Open **`http://YOUR-UNRAID-IP:8765`** (or your `HOST_PORT`) in your browser.  
 First-time setup: ⚙️ Settings → Backend URL → `http://YOUR-UNRAID-IP:8766`
 
 ### Updating
@@ -56,16 +56,24 @@ First-time setup: ⚙️ Settings → Backend URL → `http://YOUR-UNRAID-IP:876
 ```bash
 cd /mnt/user/appdata/wandersuite
 git pull && docker compose up -d --build
+# Database and .env are preserved
 ```
 
 ### Environment Variables (`.env`)
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `PORT` | `8765` | Frontend port (Nginx) |
-| `BACKEND_PORT` | `8766` | Backend port (FastAPI, accessed directly by browser) |
-| `APP_SECRET` | *(required)* | Encryption key for API keys — change before first start! |
-| `DB_PATH` | `/data/tracker.db` | SQLite database path |
+| `HOST_PORT` | `8765` | Frontend port (Nginx, open in browser) |
+| `BACKEND_PORT` | `8766` | Backend port (FastAPI, called directly by browser for API) |
+| `TZ` | `Europe/Rome` | Timezone for daily scraping cron (07:00) |
+| `DATA_DIR` | `./data` | Host path for SQLite DB and persistent data |
+| `APP_SECRET` | *(required)* | AES-Fernet encryption key — **change before first start!** |
+
+**Unraid tip:** Set `DATA_DIR=/mnt/user/appdata/wandersuite/data`
+
+### Data Persistence
+
+The SQLite database lives at `${DATA_DIR}/tracker.db` on the host, mounted into the container at `/app/data/tracker.db`. All data (trackers, price history, detected trips, settings) survives container restarts and updates.
 
 ---
 
