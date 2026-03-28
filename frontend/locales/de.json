@@ -226,5 +226,13 @@
   "tripDuration": "Dauer",
   "tripNights": "Nächte",
   "syncNow": "Jetzt synchronisieren",
-  "serpApiQuotaLabel": "Monatliche Nutzung:"
+  "serpApiQuotaLabel": "Monatliche Nutzung:",
+  "radarSubtitle": "Verfolge Preise für Flüge und Unterkünfte",
+  "radarOverview": "Übersicht",
+  "radarFlights": "Flüge",
+  "radarAccommodations": "Unterkünfte",
+  "radarCarRental": "Mietwagen",
+  "radarOverviewDesc": "Wähle eine Kategorie, um deine aktiven Tracker zu sehen.",
+  "radarCarRentalDesc": "Mietwagenpreise automatisch vergleichen — kommt bald.",
+  "comingSoon": "Bald verfügbar"
 }
