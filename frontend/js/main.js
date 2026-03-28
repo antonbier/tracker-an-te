@@ -10,6 +10,9 @@ import { api, checkApiStatus }                            from './core/api.js';
 import { loadLocale, t, applyTranslations, setLang }     from './ui/i18n.js';
 import { navigate, toggleSidebar, closeSidebar }          from './ui/nav.js';
 import { switchRadarCategory, switchRadarSubTab }          from './ui/priceradar.js';
+import { switchMyTripsTab }                                from './ui/tabs.js';
+import { addBucketListItem, deleteBucketListItem,
+         renderBucketList, updateMyTripsStats }            from './app/bucketlist.js';
 import { toast }                                          from './ui/toast.js';
 import { openSettings, closeSettings, saveSettings,
          loadSerpApiQuota, backdropClick, switchTab,
@@ -117,6 +120,11 @@ window.openFieldGuide        = openFieldGuide;
 window.closeFieldGuide       = closeFieldGuide;
 window.switchRadarCategory   = switchRadarCategory;
 window.switchRadarSubTab     = switchRadarSubTab;
+window.switchMyTripsTab      = switchMyTripsTab;
+window.addBucketListItem     = addBucketListItem;
+window.deleteBucketListItem  = deleteBucketListItem;
+window.renderBucketList      = renderBucketList;
+window.updateMyTripsStats    = updateMyTripsStats;
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
