@@ -22,9 +22,8 @@ class SettingsPayload(BaseModel):
     dawarich_url:       Optional[str] = None
     dawarich_token:     Optional[str] = None
     actual_url:         Optional[str] = None
-    actual_token:       Optional[str] = None  # stores the server password
-    actual_file:        Optional[str] = None  # stores the password
-    actual_file:        Optional[str] = None
+    actual_token:       Optional[str] = None  # ActualBudget server password
+    actual_file:        Optional[str] = None  # Budget display name (top-left in ActualBudget)
     llm_provider:       Optional[str] = None
     timezone:           Optional[str] = None
     home_lat:           Optional[str] = None
