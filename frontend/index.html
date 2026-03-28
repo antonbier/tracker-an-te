@@ -26,6 +26,10 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<!-- jsvectormap — Scratch Map -->
+<script src="https://cdn.jsdelivr.net/npm/jsvectormap@1.5.3/dist/js/jsvectormap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsvectormap@1.5.3/dist/maps/world.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jsvectormap@1.5.3/dist/css/jsvectormap.min.css">
 <style>
 /* ── Reset & Variables ─────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -1440,6 +1444,85 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
   box-shadow: 0 4px 12px rgba(217,93,57,.45);
 }
 #pwa-install-btn.visible { display: inline-flex; }
+
+/* ══════════════════════════════════════════════════════
+   SCRATCH MAP
+   ══════════════════════════════════════════════════════ */
+#scratch-map-container {
+  padding: 1rem 1rem .6rem;
+  min-height: 200px;
+  position: relative;
+}
+.scratch-map-loading {
+  display: flex; align-items: center; gap: .6rem;
+  justify-content: center; padding: 3rem 0;
+  color: var(--sub); font-size: .82rem;
+}
+/* jsvectormap overrides */
+#scratch-map-svg .jvm-tooltip {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 8px !important;
+  font-family: var(--sans) !important;
+  font-size: .72rem !important;
+  padding: .3rem .7rem !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+#scratch-map-svg svg { width: 100% !important; }
+/* Legend */
+.scratch-map-legend {
+  display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+  margin-top: .5rem; padding: .4rem .2rem 0;
+  border-top: 1px solid var(--border);
+}
+.scratch-map-legend-item {
+  display: flex; align-items: center; gap: .35rem;
+  font-size: .7rem; color: var(--sub);
+}
+.scratch-map-dot {
+  width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0;
+}
+.scratch-map-dot--visited   { background: var(--accent); }
+.scratch-map-dot--unvisited { background: var(--surface2); border: 1px solid var(--border); }
+.scratch-map-count {
+  margin-left: auto; font-size: .68rem; font-family: var(--mono);
+  color: var(--sub); font-weight: 600;
+}
+/* Not configured state */
+.scratch-map-unconfigured {
+  text-align: center; padding: 2.5rem 1rem;
+}
+.scratch-map-unconfigured-icon { font-size: 2.5rem; margin-bottom: .6rem; }
+.scratch-map-unconfigured-title {
+  font-family: var(--serif); font-style: italic;
+  font-size: 1rem; font-weight: 700; color: var(--sub); margin-bottom: .4rem;
+}
+.scratch-map-unconfigured-desc { font-size: .8rem; color: var(--muted); max-width: 300px; margin: 0 auto; }
+/* Fallback badges */
+.scratch-map-fallback { padding: .5rem 0; }
+.scratch-map-fallback-header {
+  display: flex; align-items: baseline; gap: .4rem;
+  margin-bottom: .8rem; font-size: .8rem; color: var(--sub);
+}
+.scratch-map-fallback-count {
+  font-family: var(--mono); font-size: 1.8rem; font-weight: 700; color: var(--accent); line-height: 1;
+}
+.scratch-map-fallback-trips { color: var(--muted); font-size: .72rem; }
+.scratch-map-badges {
+  display: flex; flex-wrap: wrap; gap: .4rem;
+}
+.scratch-map-badge {
+  display: flex; align-items: center; gap: .3rem;
+  padding: .25rem .55rem; background: var(--surface2);
+  border: 1px solid var(--border); border-radius: 6px;
+  font-size: .7rem; font-family: var(--mono); color: var(--text);
+  cursor: default;
+}
+.scratch-map-flag { font-size: .9rem; }
+.scratch-map-empty { font-size: .8rem; color: var(--muted); font-style: italic; padding: .5rem 0; }
+/* Dark mode adjustments */
+body.dark-mode #scratch-map-svg .jvm-region { stroke: var(--border) !important; }
 </style>
 </head>
 <body class="">
@@ -2458,10 +2541,15 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
 
       <!-- ══ SUB-PANEL: Übersicht ══════════════════════════ -->
       <div id="mytrips-panel-overview">
-        <div class="mytrips-hero">
+        <div class="mytrips-hero" style="padding-bottom:.75rem">
           <div class="mytrips-hero-icon">🧳</div>
           <h2 class="mytrips-hero-heading" data-i18n="mytripsSchatzkammer">Deine Reise-Schatzkammer</h2>
           <p class="mytrips-hero-desc" data-i18n="mytripsHeroDesc">Verwalte dein Budget, halte Erinnerungen fest und träume von neuen Zielen.</p>
+        </div>
+
+        <!-- Scratch Map -->
+        <div id="scratch-map-container" class="card" style="margin-bottom:1.2rem">
+          <div class="scratch-map-loading"><span class="spinner"></span></div>
         </div>
         <div class="mytrips-stats-grid">
           <div class="mytrips-stat-card" onclick="switchMyTripsTab('journal')">
