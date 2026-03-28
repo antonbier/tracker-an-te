@@ -69,16 +69,4 @@ export function updateObStep() {
   document.getElementById('ob-next').textContent     = obStep >= 3 ? `🎒 ${t('startTracker')}` : `${t('refresh')} →`;
 }
 
-export function openFieldGuide() {
-  document.querySelectorAll('.faq-answer[data-i18n]').forEach(el => { el.textContent = t(el.getAttribute('data-i18n')); });
-  document.querySelectorAll('.faq-question[data-i18n]').forEach(el => { el.textContent = t(el.getAttribute('data-i18n')); });
-  document.getElementById('fieldGuideBackdrop').classList.add('open');
-  document.body.style.overflow = 'hidden';
-  if (window.innerWidth < 900) { import('../ui/nav.js').then(m => m.closeSidebar()); }
-}
-
-export function closeFieldGuide(e) {
-  if (e && e.target !== document.getElementById('fieldGuideBackdrop')) return;
-  document.getElementById('fieldGuideBackdrop').classList.remove('open');
-  document.body.style.overflow = '';
-}
+// openFieldGuide() and closeFieldGuide() live in ui/fieldguide.js
