@@ -332,3 +332,76 @@ Das alte Feldführer-Modal (kleines, überladenes Popup mit 5 FAQ-Einträgen) wu
 - `.fg-badge` + Varianten (`-green`, `-orange`, `-navy`) — Status-Badges in Erklärungstexten
 - `.faq-question` — Playfair Display, italic, accent2-Farbe (edler als vorher)
 - `.faq-answer` — klare DM Sans, besserer Zeilenabstand
+---
+
+## PWA & Dark Mode Polish
+
+**Datum:** 2026-03-28
+
+### PWA Setup
+
+WanderSuite ist jetzt eine installierbare Progressive Web App.
+
+**`frontend/manifest.json`**
+- `display: "standalone"` — läuft ohne Browser-Chrome
+- `theme_color: "#D95D39"` (Terracotta) — Titelleiste auf Android
+- `background_color: "#f9f8f6"` — Splash-Screen
+- Icons: SVG-Kompass (Base64-inline, 192×512px) — kein CDN, kein Build-Schritt
+- Shortcuts: "Preis-Radar" + "Meine Reisen" — Long-Press auf iOS/Android
+
+**`frontend/sw.js`**
+- Strategie: Network-first, Cache-Fallback
+- Pre-cached beim Install: alle JS-Module, Locale-Dateien, HTML
+- API-Calls (`/api/*`) und externe Ressourcen: immer network-only
+- Cache-Versionierung via `CACHE_NAME = 'wandersuite-v1'`
+- Sauberes Cleanup alter Cache-Versionen im `activate`-Event
+
+**`frontend/index.html` — Meta-Tags**
+```html
+<link rel="manifest" href="/manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="WanderSuite">
+<meta name="theme-color" content="#f9f8f6" id="meta-theme-color">
+<meta name="mobile-web-app-capable" content="yes">
+```
+- `viewport-fit=cover` für iOS Notch/Dynamic Island
+- Safe-area-inset CSS für Bottom Bar und Header (`env(safe-area-inset-*)`)
+
+**`frontend/js/main.js`**
+- Service Worker Registrierung in `DOMContentLoaded`
+- `MutationObserver` auf `body.classList` → aktualisiert `#meta-theme-color` automatisch bei Dark-Mode-Wechsel
+
+### iOS Installation
+
+1. Safari → Teilen → "Zum Home-Bildschirm"
+2. App startet ohne Browser-Chrome (standalone)
+3. Status Bar: light-mode → weiß, dark-mode → `#12141c`
+
+### Android Installation
+
+Chrome → drei Punkte → "App installieren" (oder Banner)
+
+---
+
+### Dark Mode "Mitternacht" — Farbpalette
+
+| Variable | Light | Dark (Mitternacht) |
+|----------|-------|-------------------|
+| `--bg` | `#f9f8f6` | `#12141c` (tief nachtblau) |
+| `--surface` | `#ffffff` | `#1e212b` |
+| `--surface2` | `#f2f0ec` | `#252837` |
+| `--border` | `#e2ddd6` | `#323647` |
+| `--text` | `#1a1612` | `#eceef5` |
+| `--accent` | `#D95D39` | `#D95D39` (unverändert ← Wanderlust) |
+| `--accent2` | `#1E3A5F` | `#6aaddc` (aufgehellt für Kontrast) |
+| `--green` | `#2A5C45` | `#4dac7a` |
+
+**Component-Level Overrides** (zusätzlich zu den CSS-Variablen):
+- `.header`, `.sidebar`, `.bottom-nav` — eigene Dark-Mode Backgrounds
+- `.card`, `.tracker-item` — explizit `background: var(--surface)`
+- Settings- und Field-Guide-Panels — `background: var(--surface)`
+- `input`, `select`, `textarea` — `background: var(--surface2)`
+- Pill-Navigation, Overview-Cards, Bucket-Cards
+
+**Toggle:** `Settings → Allgemein → Dark Mode` (speichert `theme: 'dark'` in localStorage, stellt beim Neuladen via `main.js` korrekt wieder her)
