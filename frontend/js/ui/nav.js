@@ -10,19 +10,20 @@ export function navigate(page) {
   if (window.innerWidth < 900) closeSidebar();
 
   // Sync Bottom Navigation Bar active state
-  const bnMap = { home:'bn-home', ryanair:'bn-radar', google:'bn-radar', homair:'bn-radar', booking:'bn-radar', discover:'bn-discover', budget:'bn-trips', journal:'bn-trips' };
+  const bnMap = { home:'bn-home', priceradar:'bn-radar', ryanair:'bn-radar', google:'bn-radar', homair:'bn-radar', booking:'bn-radar', discover:'bn-discover', budget:'bn-trips', journal:'bn-trips' };
   document.querySelectorAll('.bottom-nav-item').forEach(b => b.classList.remove('active'));
   const bnId = bnMap[page];
   if (bnId) document.getElementById(bnId)?.classList.add('active');
 
   // View Transition API (graceful degradation)
   const doNav = () => {
-    if (page === 'home')    import('../app/dashboard.js').then(m => m.loadDashboard());
-    if (page === 'budget')  import('../app/budget.js').then(m => m.renderBudget());
-    if (page === 'journal') import('../app/journal.js').then(m => m.loadJournalTrips());
-    if (page === 'google')  import('../app/googleflights.js').then(m => m.loadGFTrackers());
-    if (page === 'homair')  import('../app/homair.js').then(m => m.loadHomairTrackers());
-    if (page === 'booking') import('../app/booking.js').then(m => m.loadBookingTrackers());
+    if (page === 'home')       import('../app/dashboard.js').then(m => m.loadDashboard());
+    if (page === 'budget')     import('../app/budget.js').then(m => m.renderBudget());
+    if (page === 'journal')    import('../app/journal.js').then(m => m.loadJournalTrips());
+    if (page === 'google')     import('../app/googleflights.js').then(m => m.loadGFTrackers());
+    if (page === 'homair')     import('../app/homair.js').then(m => m.loadHomairTrackers());
+    if (page === 'booking')    import('../app/booking.js').then(m => m.loadBookingTrackers());
+    if (page === 'priceradar') import('../ui/priceradar.js').then(m => m.switchRadarCategory('overview'));
   };
   if (document.startViewTransition) {
     document.startViewTransition(doNav);
