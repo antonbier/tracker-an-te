@@ -301,3 +301,34 @@ For large files, fetch with `?ref=branch` first to get the SHA, then PUT with th
 - [ ] SerpAPI quota tracker in dashboard
 - [ ] Mobile PWA (service worker + manifest.json)
 - [ ] Car rental tracker (Preis-Radar → Mietwagen tab)
+---
+
+## Feldführer UX-Redesign
+
+**Datum:** 2026-03-28
+
+### Was geändert wurde
+
+Das alte Feldführer-Modal (kleines, überladenes Popup mit 5 FAQ-Einträgen) wurde in ein elegantes **Full-Height Slide-Panel** umgebaut – identisches Muster wie das Settings-Panel.
+
+**Neue Datei:** `frontend/js/ui/fieldguide.js`
+- `openFieldGuide()` — öffnet das Panel, setzt Standardtab 'start'
+- `closeFieldGuide(e)` — schließt Panel (auch als Backdrop-Klick-Handler)
+- `switchFieldGuideTab(tab)` — wechselt zwischen 4 Tabs
+- Aus `onboarding.js` ausgelagert (war dort als Export, was semantisch falsch war)
+
+**4 Tabs mit vollständigem Handbuch-Inhalt:**
+
+| Tab | Inhalt |
+|-----|--------|
+| 🚀 Start & APIs | Cronjob 07:00, IATA-Codes, SerpAPI/Gemini/OpenAI Keys mit direkten Links, Key-Speicherung |
+| 🎯 Preis-Radar | Direktes vs. SerpAPI-Scraping, Status-Badges (pausiert/geblockt/~Schätzwert), Tracker-Limits |
+| 🎒 Meine Reisen | Dawarich-Algorithmus (5 Schritte), ActualBudget-Setup, manueller Modus, Bucket List |
+| ✨ Entdecken | KI-Anbieter-Vergleich (Gemini vs. OpenAI), Dawarich-Filter-Toggle, Datenschutz |
+
+**Neues CSS:**
+- `.fg-infobox` — hervorgehobene URL-Boxen mit Monospace-Font und direkten Links
+- `.fg-section-title` — Serif/Italic-Abschnittsüberschriften innerhalb eines Tabs
+- `.fg-badge` + Varianten (`-green`, `-orange`, `-navy`) — Status-Badges in Erklärungstexten
+- `.faq-question` — Playfair Display, italic, accent2-Farbe (edler als vorher)
+- `.faq-answer` — klare DM Sans, besserer Zeilenabstand
