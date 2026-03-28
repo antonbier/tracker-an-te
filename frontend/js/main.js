@@ -45,7 +45,7 @@ import { toggleActualSync, addTrip, syncActualBudget,
 import { loadDashboard, loadDashTrackers,
          loadDashBudget, loadDashTrips,
          loadMyTripsDashboard }                               from './app/dashboard.js';
-
+import { initScratchMap, loadScratchMap }                    from './app/scratchmap.js';
 import { addGFTracker, loadGFTrackers, renderGFTrackers,
          scrapeGFTracker, deleteGFTracker }                    from './app/googleflights.js';
 
@@ -117,6 +117,8 @@ window.loadDashTrackers      = loadDashTrackers;
 window.loadDashBudget        = loadDashBudget;
 window.loadDashTrips         = loadDashTrips;
 window.loadMyTripsDashboard  = loadMyTripsDashboard;
+window.initScratchMap        = initScratchMap;
+window.loadScratchMap        = loadScratchMap;
 window.addGFTracker          = addGFTracker;
 window.loadGFTrackers        = loadGFTrackers;
 window.renderGFTrackers      = renderGFTrackers;
