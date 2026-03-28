@@ -1,3 +1,13 @@
+/**
+ * app/googleflights.js — Google Flights price tracker
+ *
+ * Tracker CRUD via /api/google-flights. Requires a SerpAPI key (stored in
+ * localStorage s-serpApiKey, synced to backend). The key is passed as a
+ * query param on scrape requests: /api/google-flights/{id}/scrape?api_key=...
+ *
+ * Functions: addGFTracker, loadGFTrackers, renderGFTrackers,
+ *             scrapeGFTracker, deleteGFTracker
+ */
 // frontend/js/app/googleflights.js
 import { t } from '../ui/i18n.js';
 import { toast } from '../ui/toast.js';
