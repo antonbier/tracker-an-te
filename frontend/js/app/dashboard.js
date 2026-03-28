@@ -1,3 +1,14 @@
+/**
+ * app/dashboard.js — Home dashboard
+ *
+ * Renders three sections of the dashboard:
+ *   loadDashTrackers() — active Ryanair trackers with latest price
+ *   loadDashBudget()   — budget donut chart + remaining/spent amounts
+ *   loadDashTrips()    — upcoming manual trips + past trips from Dawarich
+ *
+ * All three are called by loadDashboard(), which is triggered by navigate('home')
+ * and also after Settings save or Dawarich sync completes.
+ */
 // frontend/js/app/dashboard.js
 import { api } from '../core/api.js';
 import { t } from '../ui/i18n.js';
