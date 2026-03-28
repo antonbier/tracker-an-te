@@ -2,19 +2,23 @@
  * sw.js — WanderSuite Service Worker
  *
  * Strategy: Network-first with cache fallback for static assets.
+ * API calls (/api/*) are always network-only.
  *
- * - On install: pre-caches the app shell (HTML, JS modules, fonts, Chart.js)
- * - On fetch:   tries network first; falls back to cache on failure
- * - On activate: cleans up old cache versions
- *
- * This gives the app PWA installability and basic offline resilience.
- * API calls (/api/*) are always network-only — no stale data.
+ * Cache version: increment CACHE_VER to force re-install on deploy.
  */
 
-const CACHE_NAME  = 'wandersuite-v1';
+const CACHE_VER  = 'v2';
+const CACHE_NAME = 'wandersuite-' + CACHE_VER;
+
 const CACHE_SHELL = [
   '/',
   '/index.html',
+  '/manifest.json',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
+  '/locales/de.json',
+  '/locales/en.json',
+  '/locales/it.json',
   '/js/main.js',
   '/js/core/state.js',
   '/js/core/api.js',
@@ -34,30 +38,35 @@ const CACHE_SHELL = [
   '/js/app/journal.js',
   '/js/app/onboarding.js',
   '/js/app/bucketlist.js',
-  '/locales/de.json',
-  '/locales/en.json',
-  '/locales/it.json',
-  '/manifest.json',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
 ];
 
 // ── Install: pre-cache app shell ──────────────────────────────────────────────
 self.addEventListener('install', event => {
+  console.log('[SW] Installing cache:', CACHE_NAME);
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      // Use individual adds so a single 404 doesn't block the whole install
-      return Promise.allSettled(CACHE_SHELL.map(url => cache.add(url).catch(() => {})));
-    }).then(() => self.skipWaiting())
+    caches.open(CACHE_NAME)
+      .then(cache => Promise.allSettled(
+        CACHE_SHELL.map(url => cache.add(url).catch(e => console.warn('[SW] Cache miss:', url, e)))
+      ))
+      .then(() => {
+        console.log('[SW] App shell cached');
+        self.skipWaiting();
+      })
   );
 });
 
 // ── Activate: clean up old caches ─────────────────────────────────────────────
 self.addEventListener('activate', event => {
+  console.log('[SW] Activating, cleaning old caches');
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    ).then(() => self.clients.claim())
+    caches.keys()
+      .then(keys => Promise.all(
+        keys.filter(k => k !== CACHE_NAME).map(k => {
+          console.log('[SW] Deleting old cache:', k);
+          return caches.delete(k);
+        })
+      ))
+      .then(() => self.clients.claim())
   );
 });
 
@@ -66,22 +75,33 @@ self.addEventListener('fetch', event => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // API calls and external resources: always network-only, no caching
-  if (url.pathname.startsWith('/api/') ||
-      url.hostname !== self.location.hostname) {
-    return; // let the browser handle it normally
-  }
+  // Skip: non-GET, cross-origin, API calls, Chrome extensions
+  if (request.method !== 'GET') return;
+  if (url.origin !== self.location.origin) return;
+  if (url.pathname.startsWith('/api/')) return;
+  if (url.pathname.startsWith('/health')) return;
+  if (url.pathname.startsWith('/docs')) return;
 
   event.respondWith(
     fetch(request)
       .then(response => {
-        // Cache successful GET responses for static assets
-        if (response.ok && request.method === 'GET') {
+        // Cache successful responses for static assets
+        if (response.ok && response.type === 'basic') {
           const clone = response.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
         }
         return response;
       })
-      .catch(() => caches.match(request)) // fallback to cache on network failure
+      .catch(() => {
+        // Network failed — try cache
+        return caches.match(request).then(cached => {
+          if (cached) return cached;
+          // Last resort for navigation: return cached index.html
+          if (request.mode === 'navigate') {
+            return caches.match('/index.html');
+          }
+          return new Response('Offline', { status: 503 });
+        });
+      })
   );
 });
