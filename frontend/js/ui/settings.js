@@ -1,3 +1,16 @@
+/**
+ * ui/settings.js — Settings slide-panel (right side)
+ *
+ * The settings panel slides in from the right edge of the screen (#settingsBackdrop).
+ * It has three tabs: Allgemein | Integrationen | APIs & KI
+ *   switchTab(tab): 'basic' | 'integrations' | 'apis'
+ *
+ * openSettings():  Fills all inputs from localStorage, then shows the panel.
+ * saveSettings():  Persists to localStorage + syncs encrypted keys to backend.
+ *                  Uses dynamic imports to avoid circular deps (settings → api → settings).
+ * toggleTheme():   Toggles body.dark-mode class (dark is opt-in, light is default).
+ * loadSerpApiQuota(): Fetches /api/settings/serpapi-quota and renders the quota bar.
+ */
 // frontend/js/ui/settings.js
 import { setApiUrl } from '../core/state.js';
 import { t } from './i18n.js';
