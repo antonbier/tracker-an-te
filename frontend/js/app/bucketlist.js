@@ -27,6 +27,8 @@ function load() {
 
 function save(items) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  // Fire-and-forget sync to backend
+  import('../core/persist.js').then(m => m.syncToBackend(STORAGE_KEY));
 }
 
 export function addBucketListItem() {
