@@ -1,19 +1,20 @@
 /**
  * app/dashboard.js — Home dashboard + Meine Reisen overview stats
  *
- * Renders three sections of the home dashboard:
+ * Home dashboard (navigate → 'home'):
+ *   loadDashboard()    — calls the three functions below
  *   loadDashTrackers() — active Ryanair trackers with latest price
- *   loadDashBudget()   — budget donut chart + remaining/spent amounts
- *   loadDashTrips()    — upcoming manual trips + past trips from Dawarich
+ *   loadDashBudget()   — budget donut chart SVG + remaining/spent amounts (localStorage)
+ *   loadDashTrips()    — upcoming manual trips + Dawarich past trips
  *
- * Also renders the "Meine Reisen → Übersicht" stats panel:
- *   loadMyTripsDashboard() — fetches /api/dashboard/stats for live data
- *     • Besuchte Orte: from Dawarich (locally synced trips)
- *     • Verbleibendes Budget: from ActualBudget
- *     • Wunschziele: from localStorage (client-side only)
- *
- * All three are called by loadDashboard(), which is triggered by navigate('home').
- * loadMyTripsDashboard() is called by switchMyTripsTab('overview').
+ * Meine Reisen overview tab (switchMyTripsTab → 'overview'):
+ *   loadMyTripsDashboard() — fetches GET /api/dashboard/stats
+ *     Populates:
+ *       #mytrips-stat-places  — visited places count (Dawarich DB)
+ *       #mytrips-stat-budget  — remaining budget (ActualBudget, filtered to travel categories)
+ *       #mytrips-stat-wishlist— wishlist count (always from localStorage, backend returns null)
+ *     States: spinner → value | "not configured" + setup link | error
+ *     Fallback: if backend unreachable, reads from localStorage (ws-trips, ws-budget)
  */
 
 import { api } from '../core/api.js';
