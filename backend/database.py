@@ -179,6 +179,14 @@ def init_db():
             CREATE INDEX IF NOT EXISTS idx_homair_snaps  ON homair_snapshots(tracker_id, fetched_at DESC);
             CREATE INDEX IF NOT EXISTS idx_booking_snaps ON booking_snapshots(tracker_id, fetched_at DESC);
             CREATE INDEX IF NOT EXISTS idx_detected_trips ON detected_trips(start_date DESC);
+
+            -- User data: manual trips, budget, bucket list
+            -- Stored as JSON blobs keyed by name — simple but effective for client-synced data
+            CREATE TABLE IF NOT EXISTS user_data (
+                key         TEXT PRIMARY KEY,
+                value       TEXT NOT NULL,
+                updated_at  TEXT DEFAULT (datetime('now'))
+            );
         """)
 
         # Migrations for existing Ryanair tables
@@ -547,3 +555,29 @@ def delete_detected_trip(trip_id: int) -> bool:
         return conn.execute(
             "DELETE FROM detected_trips WHERE id=?", (trip_id,)
         ).rowcount > 0
+
+# ─── User Data (trips, budget, bucket list) ───────────────────────────────────
+
+def save_user_data(key: str, value: str) -> None:
+    """Store a JSON blob for the given key (upsert)."""
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT INTO user_data (key, value, updated_at) VALUES (?, ?, datetime('now'))"
+            " ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at",
+            (key, value),
+        )
+
+def get_user_data(key: str) -> str | None:
+    """Retrieve a stored JSON blob by key. Returns None if not found."""
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT value FROM user_data WHERE key=?", (key,)
+        ).fetchone()
+    return row[0] if row else None
+
+def list_user_data_keys() -> list[str]:
+    """Return all stored user data keys."""
+    with get_conn() as conn:
+        rows = conn.execute("SELECT key FROM user_data ORDER BY key").fetchall()
+    return [r[0] for r in rows]
+
