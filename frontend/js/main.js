@@ -121,7 +121,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   await Promise.all(toLoad.map(loadLocale));
   applyTranslations();
 
-  if (localStorage.getItem('theme') === 'light') document.body.classList.add('light-mode');
+  if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark-mode');
 
   const savedUrl = localStorage.getItem('apiUrl') || '';
   setApiUrl(savedUrl);
