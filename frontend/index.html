@@ -587,32 +587,88 @@ tr:hover td { background:rgba(255,255,255,.02); }
 .dash-tracker-meta { font-size: .68rem; color: var(--sub); margin-top: .18rem; }
 .trend-arrow { font-size: .8rem; margin-left: .3rem; }
 
-/* ── Field Guide Modal ────────────────────────────────── */
-.field-guide-modal .modal {
-  max-width: 560px;
+/* ── Field Guide — Full-Height Slide Panel ───────────── */
+/* Same pattern as #settingsBackdrop */
+#fieldGuideBackdrop {
+  align-items: stretch;
+  justify-content: flex-end;
+  padding: 0;
 }
+#fieldGuideBackdrop .modal {
+  border-radius: 0;
+  max-width: 600px; width: 100%;
+  max-height: 100vh; height: 100%;
+  transform: translateX(100%);
+  transition: transform .3s cubic-bezier(.4,0,.2,1);
+  box-shadow: -8px 0 40px rgba(0,0,0,.12);
+  display: flex; flex-direction: column;
+}
+#fieldGuideBackdrop.open .modal { transform: translateX(0); }
+#fieldGuideBackdrop .modal-header {
+  padding: 1.4rem 1.5rem 1rem; flex-shrink: 0;
+}
+#fieldGuideBackdrop .modal-title {
+  font-size: 1.3rem; font-weight: 700;
+  font-family: var(--serif); font-style: italic;
+  color: var(--accent2);
+}
+#fieldGuideBackdrop .modal-tabs {
+  padding: 0 1.5rem; flex-shrink: 0;
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+#fieldGuideBackdrop .modal-tab {
+  font-size: .68rem; padding: .7rem .85rem; white-space: nowrap;
+}
+#fieldGuideBackdrop .modal-body {
+  flex: 1; overflow-y: auto; padding: 1.4rem 1.5rem;
+}
+@media (max-width: 900px) {
+  #fieldGuideBackdrop .modal { max-width: 100%; }
+}
+
+/* ── FAQ Items ────────────────────────────────────────── */
 .faq-item {
   border-bottom: 1px solid var(--border);
-  padding: .85rem 0;
+  padding: 1rem 0;
 }
 .faq-item:last-child { border-bottom: none; }
 .faq-question {
   font-family: var(--serif);
-  font-size: .92rem;
-  font-weight: 600;
-  font-style: italic;
-  color: var(--accent2);
-  margin-bottom: .4rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  font-size: .95rem; font-weight: 700; font-style: italic;
+  color: var(--accent2); margin-bottom: .5rem;
+  line-height: 1.35;
 }
 .faq-answer {
-  font-size: .8rem;
-  color: var(--sub);
-  line-height: 1.65;
+  font-family: var(--sans);
+  font-size: .82rem; color: var(--sub); line-height: 1.7;
 }
+.faq-answer strong { color: var(--text); font-weight: 600; }
+
+/* ── Info boxes inside Field Guide ───────────────────── */
+.fg-infobox {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: .7rem .9rem;
+  margin: .5rem 0; font-size: .78rem; color: var(--sub);
+  font-family: var(--mono); line-height: 1.6;
+}
+.fg-infobox a { color: var(--accent2); text-decoration: none; }
+.fg-infobox a:hover { text-decoration: underline; }
+.fg-section-title {
+  font-family: var(--serif); font-style: italic;
+  font-size: 1rem; font-weight: 700; color: var(--accent2);
+  margin: 1.2rem 0 .6rem; border-bottom: 1px solid var(--border);
+  padding-bottom: .35rem;
+}
+.fg-badge {
+  display: inline-block; padding: .12rem .45rem;
+  border-radius: 4px; font-size: .62rem; font-weight: 700;
+  font-family: var(--mono); letter-spacing: .04em;
+  margin-right: .3rem; vertical-align: middle;
+}
+.fg-badge-green  { background: rgba(42,92,69,.12); color: var(--green); }
+.fg-badge-orange { background: rgba(217,93,57,.12); color: var(--accent); }
+.fg-badge-navy   { background: rgba(30,58,95,.12);  color: var(--accent2); }
 
 /* ── Tooltip ──────────────────────────────────────────── */
 .tooltip-wrap { position: relative; display: inline-flex; align-items: center; gap: .3rem; width: 100%; }
@@ -2675,40 +2731,167 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
   </div>
 </div>
 
-<!-- ── Field Guide Modal ──────────────────────────────────── -->
-<div class="modal-backdrop field-guide-modal" id="fieldGuideBackdrop" onclick="closeFieldGuide(event)">
-  <div class="modal" style="max-width:560px">
-    <div class="modal-header">
-      <div class="modal-title" style="font-family:var(--serif);font-style:italic;font-size:1.1rem" data-i18n="fieldGuideTitle">Der Feldführer</div>
-      <button class="modal-close" onclick="closeFieldGuide()">✕</button>
-    </div>
-    <div class="modal-body">
-      <div style="font-size:.78rem;color:var(--sub);margin-bottom:1rem;font-style:italic" data-i18n="fieldGuideSubtitle">Alles was du wissen musst</div>
+<!-- ── Field Guide — Slide Panel ───────────────────────────── -->
+<div class="modal-backdrop" id="fieldGuideBackdrop" onclick="closeFieldGuide(event)">
+  <div class="modal" role="dialog" aria-modal="true" aria-label="Feldführer">
 
+    <!-- Header -->
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" data-i18n="fieldGuideTitle">Der Feldführer</div>
+        <div style="font-size:.72rem;color:var(--sub);margin-top:.2rem;font-style:italic" data-i18n="fieldGuideSubtitle">Alles was du wissen musst</div>
+      </div>
+      <button class="modal-close" onclick="closeFieldGuide()" aria-label="Schließen">✕</button>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div class="modal-tabs">
+      <button class="modal-tab active" id="fg-tab-start"    onclick="switchFieldGuideTab('start')">🚀 Start &amp; APIs</button>
+      <button class="modal-tab"        id="fg-tab-radar"    onclick="switchFieldGuideTab('radar')">🎯 Preis-Radar</button>
+      <button class="modal-tab"        id="fg-tab-mytrips"  onclick="switchFieldGuideTab('mytrips')">🎒 Meine Reisen</button>
+      <button class="modal-tab"        id="fg-tab-discover" onclick="switchFieldGuideTab('discover')">✨ Entdecken</button>
+    </div>
+
+    <!-- ══ TAB: Start & APIs ═════════════════════════════════ -->
+    <div class="modal-body" id="fg-panel-start">
+
+      <div class="fg-section-title">⏰ Automatischer Abruf</div>
       <div class="faq-item">
-        <div class="faq-question" data-i18n="faqScheduler">Wie funktioniert der tägliche Abruf?</div>
-        <div class="faq-answer" data-i18n="faqSchedulerAnswer">WanderSuite scrapt automatisch täglich um 07:00 Uhr.</div>
+        <div class="faq-question">Wie funktioniert der tägliche Abruf?</div>
+        <div class="faq-answer">WanderSuite prüft automatisch jeden Morgen um <strong>07:00 Uhr</strong> alle aktiven Tracker. Die Zeitzone ist in den Einstellungen konfigurierbar (Standard: Europe/Rome). Du kannst jeden Tracker auch jederzeit manuell mit dem <strong>⟳ Jetzt</strong>-Button aktualisieren.</div>
+      </div>
+
+      <div class="fg-section-title">✈️ IATA-Codes</div>
+      <div class="faq-item">
+        <div class="faq-question">Was sind IATA-Codes?</div>
+        <div class="faq-answer">IATA-Codes sind 3-buchstabige Kürzel für Flughäfen — international standardisiert. Beispiele: <strong>BZO</strong> = Bozen, <strong>VIE</strong> = Wien, <strong>BCN</strong> = Barcelona, <strong>LHR</strong> = London Heathrow.</div>
+        <div class="fg-infobox">🔍 IATA-Code nachschlagen: <a href="https://www.iata.org/en/publications/directories/code-search/" target="_blank">iata.org/code-search</a> oder einfach „{Stadt} Flughafen IATA" googeln.</div>
+      </div>
+
+      <div class="fg-section-title">🔑 API-Keys</div>
+      <div class="faq-item">
+        <div class="faq-question">Wo bekomme ich einen SerpAPI-Key?</div>
+        <div class="faq-answer">SerpAPI wird für <strong>Google Flights</strong> und <strong>Booking-Tracker</strong> benötigt. Das kostenlose Paket beinhaltet <strong>100 Suchen/Monat</strong> — für den normalen Gebrauch ausreichend.</div>
+        <div class="fg-infobox">🌐 <a href="https://serpapi.com" target="_blank">serpapi.com</a> → Konto erstellen → Dashboard → API Key kopieren</div>
       </div>
       <div class="faq-item">
-        <div class="faq-question" data-i18n="faqIata">Was sind IATA-Codes?</div>
-        <div class="faq-answer" data-i18n="faqIataAnswer">IATA-Codes sind 3-buchstabige Flughafen-Kürzel.</div>
+        <div class="faq-question">Wo bekomme ich einen Google Gemini-Key?</div>
+        <div class="faq-answer">Gemini wird für KI-Reiseempfehlungen unter <strong>Inspiration</strong> verwendet. Das kostenlose Kontingent (Gemini 1.5 Flash) ist für normale Nutzung völlig ausreichend.</div>
+        <div class="fg-infobox">🌐 <a href="https://aistudio.google.com" target="_blank">aistudio.google.com</a> → „Get API key" → Neuen Key erstellen</div>
       </div>
       <div class="faq-item">
-        <div class="faq-question" data-i18n="faqSerpApi">Wo bekomme ich einen SerpAPI Key?</div>
-        <div class="faq-answer" data-i18n="faqSerpApiAnswer">Kostenlos auf serpapi.com registrieren.</div>
+        <div class="faq-question">Wo bekomme ich einen OpenAI-Key?</div>
+        <div class="faq-answer">OpenAI ist eine Alternative zu Gemini. WanderSuite nutzt <strong>gpt-4o-mini</strong> — günstig und schnell.</div>
+        <div class="fg-infobox">🌐 <a href="https://platform.openai.com" target="_blank">platform.openai.com</a> → API Keys → Create new secret key</div>
       </div>
       <div class="faq-item">
-        <div class="faq-question" data-i18n="faqGemini">Wo bekomme ich einen Gemini API Key?</div>
-        <div class="faq-answer" data-i18n="faqGeminiAnswer">Auf aistudio.google.com kostenlos generieren.</div>
-      </div>
-      <div class="faq-item">
-        <div class="faq-question" data-i18n="faqOpenAI">Wo bekomme ich einen OpenAI API Key?</div>
-        <div class="faq-answer" data-i18n="faqOpenAIAnswer">Auf platform.openai.com.</div>
+        <div class="faq-question">Wo werden die Keys gespeichert?</div>
+        <div class="faq-answer">Lokal im Browser (localStorage) <strong>und</strong> optional verschlüsselt auf deinem Backend (AES-Fernet). Beim Speichern in den Einstellungen werden sie ans Backend übertragen und dort codiert in SQLite gespeichert — niemals im Klartext.</div>
       </div>
     </div>
-    <div class="modal-footer">
-      <button class="btn-save" onclick="closeFieldGuide()" data-i18n="cancel">Schließen</button>
+
+    <!-- ══ TAB: Preis-Radar ══════════════════════════════════ -->
+    <div class="modal-body" id="fg-panel-radar" style="display:none">
+
+      <div class="fg-section-title">🎯 Wie der Preis-Radar funktioniert</div>
+      <div class="faq-item">
+        <div class="faq-question">Direktes Scraping vs. SerpAPI — was ist der Unterschied?</div>
+        <div class="faq-answer">
+          <span class="fg-badge fg-badge-green">Direktes Scraping</span> <strong>Ryanair &amp; Homair</strong>: WanderSuite spricht direkt mit der Ryanair-API bzw. Homair. Kein externer Key nötig — dafür können Anti-Bot-Maßnahmen gelegentlich Abrufe blockieren.<br><br>
+          <span class="fg-badge fg-badge-navy">SerpAPI</span> <strong>Google Flights &amp; Booking</strong>: Die Preise werden über die SerpAPI-Schnittstelle abgerufen, die Google-Suchergebnisse strukturiert zurückgibt. Zuverlässiger, aber auf 100 Anfragen/Monat (Free Tier) limitiert.
+        </div>
+      </div>
+
+      <div class="fg-section-title">⏸ Tracker-Status</div>
+      <div class="faq-item">
+        <div class="faq-question">Was bedeutet "Pausiert"?</div>
+        <div class="faq-answer">Ein pausierter Tracker wird beim automatischen Morgen-Abruf <strong>übersprungen</strong>, aber nicht gelöscht. Du kannst ihn jederzeit mit dem ▶-Button wieder aktivieren. Nützlich für abgeschlossene Reisen, die du noch im Verlauf behalten möchtest.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-question">Was bedeutet "Geblockt"?</div>
+        <div class="faq-answer">Das Backend hat einen temporären Fehler beim Abrufen erhalten — meist durch Anti-Bot-Maßnahmen bei Ryanair. <strong>Das ist normal und temporär.</strong> Der nächste automatische Abruf (07:00 Uhr) versucht es erneut. Du kannst auch sofort mit ⟳ erneut versuchen.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-question">Was bedeutet das ~-Zeichen ("Schätzwert")?</div>
+        <div class="faq-answer">Wenn die Gepäckpreise nicht direkt vom Scraper zurückgegeben werden, schätzt WanderSuite sie anhand historischer Daten. Der Gesamtpreis ist dann eine Annäherung, kein garantierter Wert. Das Badge <span class="fg-badge fg-badge-orange">~Schätzwert</span> zeigt dies an.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-question">Wie viele Tracker kann ich anlegen?</div>
+        <div class="faq-answer">Unbegrenzt — WanderSuite ist self-hosted, also kein künstliches Limit. Beachte nur das SerpAPI-Kontingent (100/Monat) für Google Flights und Booking-Tracker.</div>
+      </div>
     </div>
+
+    <!-- ══ TAB: Meine Reisen ════════════════════════════════ -->
+    <div class="modal-body" id="fg-panel-mytrips" style="display:none">
+
+      <div class="fg-section-title">📓 Reisetagebuch — Dawarich-Integration</div>
+      <div class="faq-item">
+        <div class="faq-question">Was ist Dawarich und wie funktioniert der Sync?</div>
+        <div class="faq-answer"><strong>Dawarich</strong> ist eine self-hosted App, die deinen GPS-Standortverlauf aufzeichnet (z. B. von OwnTracks oder Overland). WanderSuite analysiert diese Daten und erkennt automatisch Übernachtungsreisen.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-question">Wie erkennt WanderSuite Reisen automatisch?</div>
+        <div class="faq-answer">
+          Der Algorithmus funktioniert in 5 Schritten:<br><br>
+          <strong>1.</strong> Alle GPS-Punkte werden von Dawarich abgerufen (paginiert)<br>
+          <strong>2.</strong> Haversine-Distanz zum Heimatort wird berechnet<br>
+          <strong>3.</strong> Nur Punkte <strong>&gt; 50 km</strong> von zu Hause werden behalten<br>
+          <strong>4.</strong> Tage mit mind. 2 aufeinanderfolgenden Nächten weg = eine Reise<br>
+          <strong>5.</strong> Reverse Geocoding via OpenStreetMap Nominatim (kein API-Key nötig)
+        </div>
+        <div class="fg-infobox">⚙️ Heimatkoordinaten einstellen: Einstellungen → Integrationen → Dawarich → Latitude / Longitude</div>
+      </div>
+
+      <div class="fg-section-title">💶 Reisebudget — ActualBudget-Integration</div>
+      <div class="faq-item">
+        <div class="faq-question">Was ist ActualBudget und wie funktioniert der Sync?</div>
+        <div class="faq-answer"><strong>ActualBudget</strong> ist eine self-hosted Budgetierungs-App. WanderSuite importiert deine Reise-Kategorien daraus und zeigt Ausgaben direkt im Budget-Tab an.</div>
+        <div class="fg-infobox">⚙️ Einrichten: Einstellungen → Integrationen → ActualBudget → Server-URL, Passwort und Budget-Name eingeben. Dann Reise-Kategorien als kommagetrennte Liste hinterlegen (z.B. "Urlaub, Flüge").</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-question">Kann ich das Budget auch ohne ActualBudget nutzen?</div>
+        <div class="faq-answer">Ja. Über den manuellen Modus kannst du Reisen mit Namen, Datum und Kosten direkt in WanderSuite eintragen. Diese werden lokal im Browser gespeichert (kein Backend nötig).</div>
+      </div>
+
+      <div class="fg-section-title">🗺️ Wunschziele (Bucket List)</div>
+      <div class="faq-item">
+        <div class="faq-question">Wie funktionieren die Wunschziele?</div>
+        <div class="faq-answer">Die Wunschziele sind vollständig lokal im Browser gespeichert — kein Backend, kein Account nötig. Trage einfach ein Ziel (z.B. "Kyoto, Japan") und ein Wunschdatum (z.B. "Sommer 2027") ein. WanderSuite wählt automatisch ein passendes Reise-Emoji.</div>
+      </div>
+    </div>
+
+    <!-- ══ TAB: Entdecken ════════════════════════════════════ -->
+    <div class="modal-body" id="fg-panel-discover" style="display:none">
+
+      <div class="fg-section-title">✨ KI-Reiseempfehlungen</div>
+      <div class="faq-item">
+        <div class="faq-question">Wie nutze ich die KI für Reise-Inspiration?</div>
+        <div class="faq-answer">Gib unter <strong>Inspiration</strong> einfach eine Beschreibung dessen ein, was du suchst — z.B. "Warmes Meer im Oktober, Kultur, kein Massentourismus". WanderSuite schickt deine Anfrage an Gemini oder OpenAI und zeigt konkrete Ziele mit Reisezeit, Budget-Einschätzung und Top-Highlights.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-question">Welchen KI-Anbieter soll ich wählen?</div>
+        <div class="faq-answer">
+          <span class="fg-badge fg-badge-green">Empfohlen</span> <strong>Google Gemini</strong> — kostenlos, schnell, gute Reise-Kenntnisse. API-Key auf aistudio.google.com.<br><br>
+          <span class="fg-badge fg-badge-navy">Alternative</span> <strong>OpenAI gpt-4o-mini</strong> — kostenpflichtig, aber sehr günstig (Cent-Beträge pro Anfrage). Gut für komplexere Anfragen.
+        </div>
+        <div class="fg-infobox">⚙️ KI-Anbieter wählen: Einstellungen → APIs &amp; KI → Anbieter auswählen + Key eintragen</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-question">Was macht der "Dawarich-Verlauf nutzen"-Toggle?</div>
+        <div class="faq-answer">Wenn du Dawarich verbunden hast, kann WanderSuite Orte, an denen du schon warst, aus den Empfehlungen <strong>ausschließen</strong>. So bekommst du wirklich neue Vorschläge statt Länder zu sehen, die du schon kennst. Der Toggle aktiviert diese Filterung.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-question">Werden meine Anfragen gespeichert?</div>
+        <div class="faq-answer">Nein. Die Anfragen werden direkt von deinem Backend an den KI-Anbieter geschickt und nicht gespeichert. WanderSuite ist vollständig self-hosted — deine Daten gehören dir.</div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="modal-footer" style="flex-shrink:0;background:var(--surface2)">
+      <span style="font-size:.7rem;color:var(--muted);font-family:var(--mono)">WanderSuite Feldführer</span>
+      <button class="btn-save" onclick="closeFieldGuide()">Schließen</button>
+    </div>
+
   </div>
 </div>
 
