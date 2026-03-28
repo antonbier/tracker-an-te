@@ -28,6 +28,8 @@ import { loadLocale, t, applyTranslations, setLang }     from './ui/i18n.js';
 import { navigate, toggleSidebar, closeSidebar }          from './ui/nav.js';
 import { switchRadarCategory, switchRadarSubTab }          from './ui/priceradar.js';
 import { switchMyTripsTab }                                from './ui/tabs.js';
+import { openFieldGuide, closeFieldGuide,
+         switchFieldGuideTab }                             from './ui/fieldguide.js';
 import { addBucketListItem, deleteBucketListItem,
          renderBucketList, updateMyTripsStats }            from './app/bucketlist.js';
 import { toast }                                          from './ui/toast.js';
@@ -133,8 +135,9 @@ window.closeOnboarding       = closeOnboarding;
 window.obNext                = obNext;
 window.obBack                = obBack;
 window.updateObStep          = updateObStep;
-window.openFieldGuide        = openFieldGuide;
-window.closeFieldGuide       = closeFieldGuide;
+window.openFieldGuide        = openFieldGuide;   // ui/fieldguide.js
+window.closeFieldGuide       = closeFieldGuide;   // ui/fieldguide.js
+window.switchFieldGuideTab   = switchFieldGuideTab;
 window.switchRadarCategory   = switchRadarCategory;
 window.switchRadarSubTab     = switchRadarSubTab;
 window.switchMyTripsTab      = switchMyTripsTab;
