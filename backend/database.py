@@ -14,7 +14,7 @@ import os
 from contextlib import contextmanager
 from datetime import datetime
 
-DB_PATH = os.environ.get("DB_PATH", "tracker.db")
+DB_PATH = os.environ.get("DB_PATH", "/app/data/tracker.db")  # matches Docker volume /app/data
 
 
 def get_connection() -> sqlite3.Connection:
