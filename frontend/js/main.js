@@ -19,6 +19,7 @@
 // ── Core ──────────────────────────────────────────────────────────────────────
 import { API_URL, currentLang, setApiUrl }               from './core/state.js';
 import { api, checkApiStatus }                            from './core/api.js';
+import { syncAllToBackend, restoreFromBackend }           from './core/persist.js';
 
 // ── UI ────────────────────────────────────────────────────────────────────────
 import { loadLocale, t, applyTranslations, setLang }     from './ui/i18n.js';
@@ -73,6 +74,8 @@ window.toggleSidebar         = toggleSidebar;
 window.closeSidebar          = closeSidebar;
 window.api                   = api;
 window.checkApiStatus        = checkApiStatus;
+window.syncAllToBackend      = syncAllToBackend;
+window.restoreFromBackend    = restoreFromBackend;
 window.t                     = t;
 window.setLang               = setLang;
 window.applyTranslations     = applyTranslations;
@@ -167,6 +170,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('returnDate').value   = fmt(ret);
 
   checkApiStatus();
+  restoreFromBackend(); // cold-start: pull ws-trips/budget/bucketlist from backend if localStorage is empty
   loadTrackers();
   loadDashboard();
   checkOnboarding();
