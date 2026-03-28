@@ -4,7 +4,7 @@ import { TRANSLATIONS, currentLang, selectedTrackerId, setTranslations, setCurre
 export async function loadLocale(lang) {
   if (TRANSLATIONS[lang]) return;
   try {
-    const r = await fetch(`/locales/${lang}.json?v=0.1`);
+    const r = await fetch(`locales/${lang}.json?v=0.1`);
     if (!r.ok) throw new Error(r.status);
     TRANSLATIONS[lang] = await r.json();
     setTranslations(TRANSLATIONS);
