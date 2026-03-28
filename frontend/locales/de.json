@@ -234,5 +234,17 @@
   "radarCarRental": "Mietwagen",
   "radarOverviewDesc": "Wähle eine Kategorie, um deine aktiven Tracker zu sehen.",
   "radarCarRentalDesc": "Mietwagenpreise automatisch vergleichen — kommt bald.",
-  "comingSoon": "Bald verfügbar"
+  "comingSoon": "Bald verfügbar",
+  "mytripsSubtitle": "Deine Reise-Schatzkammer",
+  "mytripsWishlist": "Wunschziele",
+  "mytripsSchatzkammer": "Deine Reise-Schatzkammer",
+  "mytripsHeroDesc": "Verwalte dein Budget, halte Erinnerungen fest und träume von neuen Zielen.",
+  "mytripsVisitedPlaces": "Besuchte Orte",
+  "mytripsSavedBudget": "Verbleibendes Budget",
+  "mytripsNextWish": "Wunschziele",
+  "mytripsDestination": "Reiseziel",
+  "mytripsDestinationPlaceholder": "z.B. Kyoto, Japan",
+  "mytripsWhen": "Wann?",
+  "mytripsWhenPlaceholder": "z.B. Sommer 2027",
+  "mytripsAddWish": "Wunschziel hinzufügen"
 }
