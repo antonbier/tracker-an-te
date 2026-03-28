@@ -10,7 +10,7 @@ export function navigate(page) {
   if (window.innerWidth < 900) closeSidebar();
 
   // Sync Bottom Navigation Bar active state
-  const bnMap = { home:'bn-home', priceradar:'bn-radar', ryanair:'bn-radar', google:'bn-radar', homair:'bn-radar', booking:'bn-radar', discover:'bn-discover', budget:'bn-trips', journal:'bn-trips' };
+  const bnMap = { home:'bn-home', priceradar:'bn-radar', ryanair:'bn-radar', google:'bn-radar', homair:'bn-radar', booking:'bn-radar', discover:'bn-discover', mytrips:'bn-trips', budget:'bn-trips', journal:'bn-trips' };
   document.querySelectorAll('.bottom-nav-item').forEach(b => b.classList.remove('active'));
   const bnId = bnMap[page];
   if (bnId) document.getElementById(bnId)?.classList.add('active');
@@ -24,6 +24,7 @@ export function navigate(page) {
     if (page === 'homair')     import('../app/homair.js').then(m => m.loadHomairTrackers());
     if (page === 'booking')    import('../app/booking.js').then(m => m.loadBookingTrackers());
     if (page === 'priceradar') import('../ui/priceradar.js').then(m => m.switchRadarCategory('overview'));
+    if (page === 'mytrips')    import('../ui/tabs.js').then(m => { m.switchMyTripsTab('overview'); import('../app/bucketlist.js').then(b => b.updateMyTripsStats()); });
   };
   if (document.startViewTransition) {
     document.startViewTransition(doNav);
