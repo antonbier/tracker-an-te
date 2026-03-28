@@ -100,6 +100,14 @@ export async function saveSettings() {
    's-homeLat','s-homeLon','s-travelCategories'].forEach(k => {
     localStorage.setItem(k, document.getElementById(k).value);
   });
+
+  // Security: after syncing to backend, clear sensitive API keys from localStorage.
+  // They remain in the backend DB (encrypted). On next openSettings() they are
+  // not re-populated from localStorage — intentional, backend is source of truth.
+  // The fields stay empty in the UI unless the user re-enters them.
+  ['s-serpApiKey','s-geminiKey','s-openaiKey','s-dawarichToken','s-actualPassword'].forEach(k => {
+    localStorage.removeItem(k);
+  });
   try {
     await fetch(newUrl + '/api/settings', {
       method: 'POST',
