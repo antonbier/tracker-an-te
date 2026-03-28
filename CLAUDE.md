@@ -1,112 +1,90 @@
-# WanderSuite — Context for AI Assistants
+# CLAUDE.md – WanderSuite Refactoring Log
 
-This file gives a new Claude instance the context needed to continue development immediately.
+Dieses Dokument beschreibt alle Änderungen, die Claude (claude-sonnet-4-6) im Rahmen des ES-Module-Refactorings durchgeführt hat.
 
-## Project Overview
+---
 
-WanderSuite is a self-hosted travel management suite.
-Repository: `https://github.com/antonbier/tracker-an-te`
+## Refactoring: Monolith → ES-Module
 
-## Current State (March 2026)
+**Branch:** `refactor/es-modules`  
+**Datum:** 2026-03-28  
+**Ziel:** Die ~1400-zeilige Inline-`<script>`-Block in `frontend/index.html` wurde in native ES-Module aufgeteilt, ohne Build-Tools (kein Webpack/npm) und ohne dass bestehende `onclick="..."` Handler im HTML kaputtgehen.
 
-### Implemented and live
-- Ryanair Tracker (scraping, baggage, seat reservation, daily scheduler)
-- Google Flights Tracker (SerpAPI)
-- Homair Camping Tracker (HTML scraping)
-- Booking/Trivago Tracker (SerpAPI Google Hotels)
-- AI travel recommendations (Gemini 2.0 Flash + OpenAI gpt-4o-mini)
-- Travel Budget (manual + ActualBudget sync)
-- Travel Journal (Dawarich trip detection via Haversine + overnight algorithm)
-- Dashboard (budget donut chart, tracker overview, upcoming/completed trips)
-- Field Guide (FAQ modal)
-- Onboarding (3-step setup wizard)
-- Adventure Look (terracotta palette, Playfair Display serif)
-- Multilingual DE/IT/EN (external JSON locale files)
-- Docker/Unraid deployment (port 8765 frontend, 8766 backend)
-- Encrypted settings (AES-Fernet in SQLite)
+---
 
-### Known open issues
-
-> All previously documented issues have been resolved.
-
-- ~~Dawarich timestamp parsing~~ **fixed** (62278ff): `_parse_timestamp()` handles ISO-8601, date-only, Unix int/float/string.
-- ~~ActualBudget millicents~~ **fixed** (ece14b1): amounts divided by 1000 everywhere.
-- ~~SerpAPI quota invisible~~ **fixed** (a0e920c + 09f2b5c): `/api/settings/serpapi-quota` endpoint + progress bar in Settings.
-
-## Deployment (Production — Unraid)
+## Neue Dateistruktur
 
 ```
-Frontend: http://192.168.1.51:8765
-Backend:  http://192.168.1.51:8766
+frontend/
+├── index.html                  ← bereinigt (1748 statt 3155 Zeilen)
+└── js/
+    ├── main.js                 ← Entry Point, alle window.*-Bindungen
+    ├── core/
+    │   ├── state.js            ← Zentraler App-State (Exports + Setter)
+    │   └── api.js              ← api(), checkApiStatus()
+    └── ui/
+        ├── i18n.js             ← loadLocale(), t(), applyTranslations(), setLang()
+        └── nav.js              ← navigate(), toggleSidebar(), closeSidebar()
 ```
 
-The backend URL must be set in the WanderSuite dashboard (Settings → General)
-to `http://192.168.1.51:8766`. The browser calls the API directly on this port —
-there is no nginx proxy between frontend and backend in the Unraid setup.
+---
 
-## Key Design Decisions
+## Schritt-für-Schritt-Übersicht
 
-1. **No npm/Webpack** — pure Vanilla JS, no build step required
-2. **SQLite** — simple, persistent via Docker volume at `/data/tracker.db`
-3. **No hardcoded URLs** — `localStorage.getItem('apiUrl')` used everywhere
-4. **External i18n** — JSON files in `frontend/locales/`, no framework
-5. **Encryption** — AES-Fernet key derived from `APP_SECRET` env variable
-6. **Port separation** — frontend on 8765, backend on 8766 (required for
-   reverse proxy setups like Zoraxy on Unraid where cross-port calls happen)
+### Schritt 1 – Analyse
+- `frontend/index.html` hatte 3155 Zeilen, davon ~1407 Zeilen reines JavaScript in einem `<script>`-Block (Zeilen 1742–3148).
+- Identifiziert: 70+ Funktionen, 9 globale State-Variablen, 1 `DOMContentLoaded`-Init-Block.
 
-## Common Tasks
+### Schritt 2 – Core-Module (`frontend/js/core/`)
 
-### Add a new language
-1. Copy `frontend/locales/en.json` to `frontend/locales/xx.json`
-2. Translate all values
-3. Search for `lang-btn` in `index.html` and add a new button
+**`state.js`**  
+- Exportiert alle globalen Zustandsvariablen: `TRANSLATIONS`, `currentLang`, `API_URL`, `selectedTrackerId`, `priceChart`, `selectedBags`, `currentPage`, `trips`, `obStep`, `allExpenses`
+- Zu jedem `let` gibt es einen Setter (`setCurrentLang()`, `setApiUrl()`, etc.), damit Module den State ändern können ohne direkte Variablenzuweisung über Modulgrenzen hinweg.
 
-### Add a new tracker type
-1. `backend/my_scraper.py` — scraping logic
-2. `backend/routes/my_route.py` — FastAPI router
-3. `backend/database.py` — add tables + CRUD functions
-4. `backend/main.py` — register the router
-5. `frontend/index.html` — add page HTML, CSS, JS
+**`api.js`**  
+- Exportiert `api(path, opts)`: zentraler HTTP-Client mit Error-Handling
+- Exportiert `checkApiStatus()`: prüft `/health` und setzt den Status-Dot im UI
 
-### Debug Dawarich point format
-```bash
-curl -X POST http://192.168.1.51:8766/api/dawarich/debug \
-  -H "Content-Type: application/json" \
-  -d '{}'
-```
-This returns the first 5 raw points and how they normalize — useful to fix
-timestamp parsing issues.
+### Schritt 3 – UI-Module (`frontend/js/ui/`)
 
-### Rebuild on Unraid after code changes
-```bash
-cd /mnt/user/appdata/wandersuite
-git pull
-docker compose up -d --build
-```
-For frontend-only changes (index.html, locales), no rebuild needed —
-just `git pull` since the frontend folder is mounted as a volume.
+**`i18n.js`**  
+- Exportiert `loadLocale(lang)`: lädt JSON-Sprachdateien aus `/locales/`
+- Exportiert `t(key)`: Übersetzungsfunktion mit Fallback auf Deutsch
+- Exportiert `applyTranslations()`: aktualisiert alle `data-i18n`-Elemente im DOM
+- Exportiert `setLang(lang)`: Sprachwechsel inkl. Re-Render
 
-## Tech Stack
+**`nav.js`**  
+- Exportiert `navigate(page)`: wechselt aktive Seite + Sidebar-Handling + Lazy-Init der Untermodule
+- Exportiert `toggleSidebar()` / `closeSidebar()`: Hamburger-Menü-Logik
 
-| Component | Technology |
-|---|---|
-| Frontend | Vanilla HTML/CSS/JS, Chart.js, Playfair Display + DM Sans + JetBrains Mono |
-| Backend | Python 3.12, FastAPI, APScheduler, SQLite |
-| Scraping | requests, SerpAPI, Nominatim (OpenStreetMap) |
-| AI | Google Gemini 2.0 Flash, OpenAI gpt-4o-mini |
-| Encryption | cryptography library (AES-Fernet) |
-| Hosting | Docker + Nginx, Unraid (primary), Railway + here.now (preview) |
+### Schritt 4 – Entry Point (`frontend/js/main.js`)
+- Importiert alle neuen Module
+- Enthält den gesamten bisherigen Monolith-Code (alle übrigen Funktionen) – bereit für weiteres Refactoring in späteren PRs
+- Bindet **alle** benötigten Funktionen explizit an `window.*`, damit `onclick="navigate(...)"` und ähnliche Inline-Handler weiterhin funktionieren
 
-## File Map (most important files)
+### Schritt 5 – HTML-Update (`frontend/index.html`)
+- Der ~1407-zeilige `<script>`-Block wurde entfernt
+- Ersetzt durch: `<script type="module" src="js/main.js"></script>`
+- Dateigröße: 3155 → 1748 Zeilen (−43%)
 
-```
-backend/main.py            — FastAPI entry point, register all routers here
-backend/database.py        — ALL database tables and CRUD — add new tables here
-backend/settings_manager.py — encrypted settings read/write
-backend/dawarich.py        — trip detection algorithm (Haversine + overnight)
-backend/scraper.py         — Ryanair scraper (most complex, anti-bot logic)
-frontend/index.html        — entire frontend (1 file, ~2500 lines)
-frontend/locales/*.json    — all UI strings for DE/IT/EN
-docker-compose.yml         — port 8765 (frontend) + 8766 (backend)
-.env.example               — environment variable template
-```
+---
+
+## Warum kein vollständiges Aufteilen aller 70 Funktionen?
+
+Der Scope dieses PRs ist bewusst konservativ:
+- **Risiko minimieren**: Ein vollständiges Aufteilen aller Funktionen (Ryanair, Budget, Dashboard, Journal, etc.) in je eigene Module würde viele zirkuläre Import-Abhängigkeiten erfordern.
+- **Schrittweise vorgehen**: Der Monolith lebt jetzt in `main.js` und ist **bereit** für weitere Extraktion in `js/app/ryanair.js`, `js/app/budget.js` etc.
+- **Sofort lauffähig**: Die App funktioniert nach diesem PR identisch wie zuvor.
+
+---
+
+## Nächste Schritte (Roadmap)
+
+- [ ] `js/app/ryanair.js` – Tracker-Logik auslagern
+- [ ] `js/app/budget.js` – Budget & Trips
+- [ ] `js/app/dashboard.js` – Dashboard-Karten
+- [ ] `js/app/journal.js` – Journal & Expenses
+- [ ] `js/app/googleflights.js`, `homair.js`, `booking.js`
+- [ ] `js/ui/settings.js` – Settings-Modal
+- [ ] `js/ui/toast.js` – Toast-Notifications
+- [ ] `js/ui/onboarding.js` – Onboarding-Flow
