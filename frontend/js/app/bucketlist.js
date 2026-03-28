@@ -1,3 +1,19 @@
+/**
+ * app/bucketlist.js — Bucket List / Wunschziele
+ *
+ * A fully client-side wishlist for travel destinations.
+ * No backend required — data is stored in localStorage under 'ws-bucketlist'.
+ *
+ * Data structure per item:
+ *   { id: timestamp, dest: string, when: string, emoji: string, added: date }
+ *
+ * Emojis are chosen randomly from a curated travel set on item creation.
+ *
+ * updateMyTripsStats() is called whenever the bucket list changes, and also
+ * when the Meine Reisen overview tab opens — it updates the 3 stat counters.
+ *
+ * Functions: addBucketListItem, renderBucketList, deleteBucketListItem, updateMyTripsStats
+ */
 // frontend/js/app/bucketlist.js
 // Bucket List (Wunschziele) — localStorage-backed, no backend needed
 
