@@ -28,6 +28,11 @@ SETTING_KEYS = [
     "home_lat",
     "home_lon",
     "travel_categories",  # comma-separated ActualBudget category names
+    # Notification services
+    "telegram_bot_token",
+    "telegram_chat_id",
+    "gotify_url",
+    "gotify_token",
 ]
 
 
