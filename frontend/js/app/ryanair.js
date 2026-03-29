@@ -100,6 +100,7 @@ export function renderTrackers(trackers) {
         <span>${tr.adults} ${t('adultShort')}</span>
         <span>🧳 ${bagStr}</span>
         ${statusBadge}
+        ${tr.threshold_price ? `<span class="threshold-badge" title="${t('thresholdActive')}">🎯 ${tr.threshold_price.toFixed(2)} €</span>` : ''}
       </div>
       <div class="tracker-actions">
         <button class="btn-scrape" onclick="event.stopPropagation();scrapeNow(${tr.id})">⟳ ${t('current')}</button>
@@ -279,4 +280,44 @@ export function renderRecommendations(recs) {
         <span style="color:var(--text)">⭐ ${r.highlight}</span>
       </div>
     </div>`).join('');
+}
+
+/**
+ * Save a price-alert threshold for the selected tracker.
+ * Reads value from #threshold-input, sends PATCH /api/trackers/{id}/threshold.
+ * Pass empty/0 to clear the threshold.
+ */
+export async function setThreshold(trackerId) {
+  const input = document.getElementById('threshold-input');
+  const val   = parseFloat(input?.value);
+  const threshold = (input?.value === '' || isNaN(val) || val <= 0) ? null : val;
+
+  try {
+    await api(`/api/trackers/${trackerId}/threshold`, {
+      method: 'PATCH',
+      body: JSON.stringify({ threshold }),
+    });
+    const msg = threshold
+      ? `🎯 ${t('thresholdSet')}: ${threshold.toFixed(2)} €`
+      : t('thresholdCleared');
+    toast(msg, 'success');
+    loadTrackers(); // refresh card badges
+  } catch(e) {
+    toast(`❌ ${e.message}`, 'error');
+  }
+}
+
+/**
+ * Trigger browser download of price history CSV for a tracker.
+ * Uses a direct <a> click — no fetch needed, browser handles the download.
+ */
+export function exportCsv(trackerId, origin, destination, date) {
+  const apiUrl = localStorage.getItem('apiUrl') || '';
+  const url    = `${apiUrl}/api/prices/${trackerId}/export.csv`;
+  const a      = document.createElement('a');
+  a.href       = url;
+  a.download   = `wandersuite_${origin}-${destination}_${date}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }
