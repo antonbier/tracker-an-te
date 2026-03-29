@@ -3191,6 +3191,26 @@ body.dark-mode #scratch-map-svg .jvm-region { stroke: var(--border) !important; 
         <div class="faq-question">Wo werden die Keys gespeichert?</div>
         <div class="faq-answer">Lokal im Browser (localStorage) <strong>und</strong> optional verschlüsselt auf deinem Backend (AES-Fernet). Beim Speichern in den Einstellungen werden sie ans Backend übertragen und dort codiert in SQLite gespeichert — niemals im Klartext.</div>
       </div>
+
+      <div class="fg-section-title">🔔 Benachrichtigungen</div>
+      <div class="faq-item">
+        <div class="faq-question">Wie richte ich Telegram-Benachrichtigungen ein?</div>
+        <div class="faq-answer">
+          WanderSuite sendet dir eine Nachricht, sobald ein Flugpreis sinkt. Dazu brauchst du zwei Dinge:<br><br>
+          <strong>1. Telegram Bot erstellen:</strong> Öffne Telegram → suche <strong>@BotFather</strong> → tippe <code>/newbot</code> → folge den Anweisungen → kopiere den <strong>Bot Token</strong>.<br><br>
+          <strong>2. Chat-ID ermitteln:</strong> Schreibe deinem Bot eine Nachricht, dann öffne <strong>@userinfobot</strong> oder <strong>@myidbot</strong> — sie zeigen deine numerische Chat-ID.
+        </div>
+        <div class="fg-infobox">⚙️ Einrichten: Einstellungen → 🔔 Alerts → Telegram → Token + Chat-ID eingeben → "Testen"</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-question">Wie richte ich Gotify-Benachrichtigungen ein?</div>
+        <div class="faq-answer">
+          <strong>Gotify</strong> ist ein self-hosted Push-Benachrichtigungsdienst — perfekt für Unraid. Dazu brauchst du:<br><br>
+          <strong>1. Gotify-Server:</strong> Läuft bereits auf deinem Unraid? Dann hast du eine URL wie <code>http://192.168.1.51:8070</code>.<br><br>
+          <strong>2. App Token:</strong> In Gotify → <strong>Apps</strong> → <strong>Create Application</strong> → Token kopieren.
+        </div>
+        <div class="fg-infobox">🌐 <a href="https://gotify.net" target="_blank">gotify.net</a> — Docker Image: <code>gotify/server</code><br>⚙️ Einrichten: Einstellungen → 🔔 Alerts → Gotify → URL + Token → "Testen"</div>
+      </div>
     </div>
 
     <!-- ══ TAB: Preis-Radar ══════════════════════════════════ -->
