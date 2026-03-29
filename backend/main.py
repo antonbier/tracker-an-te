@@ -49,6 +49,7 @@ from routes import (
     dashboard as dashboard_route,
     userdata as userdata_route,
 )
+from routes import notifications as notifications_route
 from routes import dawarich as dawarich_route
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -115,7 +116,8 @@ app.include_router(discover.router,        prefix="/api/discover",        tags=[
 app.include_router(settings_route.router,  prefix="/api/settings",        tags=["Settings"])
 app.include_router(dawarich_route.router,  prefix="/api/dawarich",        tags=["Dawarich"])
 app.include_router(dashboard_route.router, prefix="/api/dashboard",       tags=["Dashboard"])
-app.include_router(userdata_route.router,   prefix="/api/userdata",         tags=["UserData"])
+app.include_router(userdata_route.router,       prefix="/api/userdata",         tags=["UserData"])
+app.include_router(notifications_route.router,  prefix="/api/notifications",    tags=["Notifications"])
 
 
 @app.get("/")
