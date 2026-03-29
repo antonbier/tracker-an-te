@@ -1523,6 +1523,41 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
 .scratch-map-empty { font-size: .8rem; color: var(--muted); font-style: italic; padding: .5rem 0; }
 /* Dark mode adjustments */
 body.dark-mode #scratch-map-svg .jvm-region { stroke: var(--border) !important; }
+
+/* ── Settings: Notification Tab ─────────────────────── */
+.notif-segmented {
+  display: flex; gap: .4rem; margin-bottom: 1.4rem;
+  background: var(--surface2); border-radius: var(--radius);
+  padding: .3rem; border: 1px solid var(--border);
+}
+.notif-seg-btn {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  gap: .4rem; padding: .5rem .8rem;
+  background: none; border: none; border-radius: calc(var(--radius) - 2px);
+  font-family: var(--sans); font-size: .78rem; font-weight: 600;
+  color: var(--sub); cursor: pointer; transition: all .18s ease;
+}
+.notif-seg-btn.active {
+  background: var(--surface); color: var(--text);
+  box-shadow: 0 1px 6px rgba(0,0,0,.08);
+}
+.notif-seg-icon { font-size: .9rem; }
+.btn-test-notif {
+  display: flex; align-items: center; gap: .4rem;
+  margin-top: 1rem; padding: .5rem 1rem;
+  background: var(--accent); color: #fff; border: none;
+  border-radius: var(--radius); font-family: var(--sans);
+  font-size: .78rem; font-weight: 700; cursor: pointer;
+  transition: all .18s ease;
+}
+.btn-test-notif:hover { opacity: .88; transform: translateY(-1px); }
+.btn-test-notif:disabled { opacity: .55; cursor: wait; }
+.notif-result {
+  margin-top: .6rem; font-size: .75rem; min-height: 1.2rem;
+  padding: .3rem .5rem; border-radius: 6px; transition: all .2s;
+}
+.notif-result.success { color: var(--green); background: rgba(42,92,69,.08); }
+.notif-result.error   { color: var(--red);   background: rgba(185,43,43,.07); }
 </style>
 </head>
 <body class="">
@@ -2904,6 +2939,7 @@ body.dark-mode #scratch-map-svg .jvm-region { stroke: var(--border) !important; 
       <button class="modal-tab active" onclick="switchTab('basic')" id="tab-basic" data-i18n="settingsBasic">Allgemein</button>
       <button class="modal-tab" onclick="switchTab('integrations')" id="tab-integrations" data-i18n="settingsIntegrations">Integrationen</button>
       <button class="modal-tab" onclick="switchTab('apis')" id="tab-apis">APIs & KI</button>
+      <button class="modal-tab" onclick="switchTab('notifications')" id="tab-notifications" data-i18n="settingsNotifications">🔔 Alerts</button>
     </div>
     <div class="modal-body" id="panel-basic">
       <div class="modal-section">
@@ -3029,6 +3065,68 @@ body.dark-mode #scratch-map-svg .jvm-region { stroke: var(--border) !important; 
         <input class="settings-input" id="s-openaiKey-api" type="password" placeholder="sk-...">
       </div>
     </div>
+    <!-- ══ PANEL: Benachrichtigungen ══════════════════════ -->
+    <div class="modal-body" id="panel-notifications" style="display:none">
+
+      <!-- Segmented control: Telegram | Gotify -->
+      <div class="notif-segmented">
+        <button class="notif-seg-btn active" id="nseg-telegram" onclick="switchNotifTab('telegram')">
+          <span class="notif-seg-icon">✈️</span> Telegram
+        </button>
+        <button class="notif-seg-btn" id="nseg-gotify" onclick="switchNotifTab('gotify')">
+          <span class="notif-seg-icon">🔔</span> Gotify
+        </button>
+      </div>
+
+      <!-- Telegram sub-panel -->
+      <div id="npanel-telegram">
+        <div style="font-size:.72rem;color:var(--sub);margin-bottom:1rem;font-style:italic" data-i18n="notifTelegramDesc">
+          Sende Preisalarme direkt in deinen Telegram-Chat.
+        </div>
+        <div class="modal-section">
+          <div class="modal-section-label" data-i18n="notifTgToken">Bot Token</div>
+          <input class="settings-input" id="s-telegramToken" type="password" placeholder="1234567890:AAH...">
+          <div style="font-size:.62rem;color:var(--sub);margin-top:.3rem" data-i18n="notifTgTokenHint">
+            Von @BotFather auf Telegram — /newbot erstellen, Token kopieren
+          </div>
+        </div>
+        <div class="modal-section">
+          <div class="modal-section-label" data-i18n="notifTgChatId">Chat ID</div>
+          <input class="settings-input" id="s-telegramChatId" type="text" placeholder="123456789">
+          <div style="font-size:.62rem;color:var(--sub);margin-top:.3rem" data-i18n="notifTgChatHint">
+            Deine persönliche Chat-ID — von @userinfobot oder @myidbot abrufen
+          </div>
+        </div>
+        <button class="btn-test-notif" onclick="testTelegram()" id="btn-test-telegram">
+          <span>🔔</span> <span data-i18n="notifTest">Telegram testen</span>
+        </button>
+        <div id="notif-telegram-result" class="notif-result"></div>
+      </div>
+
+      <!-- Gotify sub-panel -->
+      <div id="npanel-gotify" style="display:none">
+        <div style="font-size:.72rem;color:var(--sub);margin-bottom:1rem;font-style:italic" data-i18n="notifGotifyDesc">
+          Sende Preisalarme an deinen selbst-gehosteten Gotify-Server.
+        </div>
+        <div class="modal-section">
+          <div class="modal-section-label" data-i18n="notifGotifyUrl">Gotify Server URL</div>
+          <input class="settings-input" id="s-gotifyUrl" type="text" placeholder="https://gotify.meinserver.de">
+        </div>
+        <div class="modal-section">
+          <div class="modal-section-label" data-i18n="notifGotifyToken">App Token</div>
+          <input class="settings-input" id="s-gotifyToken" type="password" placeholder="Axxxxxxxxxxxxxxx">
+          <div style="font-size:.62rem;color:var(--sub);margin-top:.3rem" data-i18n="notifGotifyHint">
+            In Gotify → Apps → neue App erstellen → Token kopieren
+          </div>
+        </div>
+        <button class="btn-test-notif" onclick="testGotify()" id="btn-test-gotify">
+          <span>🔔</span> <span data-i18n="notifTest">Gotify testen</span>
+        </button>
+        <div id="notif-gotify-result" class="notif-result"></div>
+      </div>
+
+    </div>
+
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeSettings()" data-i18n="cancel">Abbrechen</button>
       <button class="btn-save" onclick="saveSettings()" data-i18n="save">Speichern</button>
