@@ -12,7 +12,8 @@ import logging
 
 from database import (
     create_tracker, list_trackers, get_tracker,
-    delete_tracker, toggle_tracker, get_latest_snapshot
+    delete_tracker, toggle_tracker, get_latest_snapshot,
+    set_tracker_threshold,
 )
 from scheduler import run_single_tracker
 
@@ -111,6 +112,30 @@ def toggle(tracker_id: int, active: bool):
     if not toggle_tracker(tracker_id, active):
         raise HTTPException(404, f"Tracker #{tracker_id} nicht gefunden")
     return {"message": f"Tracker {'aktiviert' if active else 'pausiert'}"}
+
+
+class ThresholdPayload(BaseModel):
+    threshold: Optional[float] = None  # None = disable alert
+
+
+@router.patch("/{tracker_id}/threshold")
+def set_threshold(tracker_id: int, data: ThresholdPayload):
+    """
+    Set or clear the price-alert threshold for a Ryanair tracker.
+    When the daily scrape finds a price at or below this value, a notification
+    is sent regardless of whether the price dropped from the previous snapshot.
+    Pass threshold=null to disable the alert.
+    """
+    t = get_tracker(tracker_id)
+    if not t:
+        raise HTTPException(404, f"Tracker #{tracker_id} nicht gefunden")
+    value = round(data.threshold, 2) if data.threshold is not None else None
+    set_tracker_threshold(tracker_id, value)
+    if value is not None:
+        msg = f"Preisalarm gesetzt: unter {value:.2f} €"
+    else:
+        msg = "Preisalarm deaktiviert"
+    return {"message": msg, "threshold_price": value}
 
 
 @router.post("/{tracker_id}/scrape")
