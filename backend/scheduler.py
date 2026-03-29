@@ -32,7 +32,7 @@ def run_all_trackers():
                 new_price = snap.get("total_price")
                 logger.info(f"  ✅ Gespeichert (id={snap_id}): {new_price} {snap['currency']}")
 
-                # Price-drop notification: compare with previous snapshot
+                # ── Notification 1: Price drop vs previous snapshot ──────────
                 prev = result.get("previous_price")
                 if prev and new_price and new_price < prev:
                     logger.info(f"  📉 Preissturz: {prev} → {new_price} — sende Benachrichtigung")
@@ -41,6 +41,20 @@ def run_all_trackers():
                         notify_price_drop(tracker, old_price=prev, new_price=new_price)
                     except Exception as ne:
                         logger.warning(f"  ⚠️  Benachrichtigung fehlgeschlagen: {ne}")
+
+                # ── Notification 2: Threshold alert (user-defined target price) ─
+                threshold = tracker.get("threshold_price")
+                if threshold and new_price and new_price <= threshold:
+                    # Only alert if we haven't already alerted for this price level
+                    # (avoid spamming: skip if prev price was also below threshold)
+                    already_below = prev and prev <= threshold
+                    if not already_below:
+                        logger.info(f"  🎯 Preisziel erreicht: {new_price} ≤ {threshold} — sende Alert")
+                        try:
+                            from notifications import notify_threshold_reached
+                            notify_threshold_reached(tracker, price=new_price, threshold=threshold)
+                        except Exception as ne:
+                            logger.warning(f"  ⚠️  Threshold-Alert fehlgeschlagen: {ne}")
             else:
                 logger.warning(f"  ⚠️  Status={result['status']}: {snap.get('error_message')}")
 
