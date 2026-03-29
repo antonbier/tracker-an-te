@@ -298,5 +298,15 @@
   "notifGotifyDesc": "Sende Preisalarme an deinen selbst-gehosteten Gotify-Server.",
   "notifGotifyUrl": "Gotify Server URL",
   "notifGotifyToken": "App Token",
-  "notifGotifyHint": "In Gotify → Apps → neue App erstellen → Token kopieren"
+  "notifGotifyHint": "In Gotify → Apps → neue App erstellen → Token kopieren",
+  "thresholdLabel": "🎯 Preisalarm",
+  "thresholdHint": "Alert wenn Preis ≤ Zielpreis",
+  "thresholdSave": "Speichern",
+  "thresholdClear": "Entfernen",
+  "thresholdSet": "Preisalarm gesetzt",
+  "thresholdCleared": "Preisalarm deaktiviert",
+  "thresholdActive": "Preisalarm aktiv",
+  "exportCsvTitle": "Preishistorie als CSV herunterladen",
+  "lineChart": "Linie",
+  "barChart": "Balken"
 }
