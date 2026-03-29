@@ -25,4 +25,5 @@ jobs:
           HERENOW_API_KEY: ${{ secrets.HERENOW_API_KEY }}
         run: |
           bash ~/.agents/skills/here-now/scripts/publish.sh ./frontend \
-            --client github-actions
+            --client github-actions \
+            --site wander-epoch-69vc
