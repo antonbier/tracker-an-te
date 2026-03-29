@@ -25,5 +25,9 @@ jobs:
           HERENOW_API_KEY: ${{ secrets.HERENOW_API_KEY }}
         run: |
           bash ~/.agents/skills/here-now/scripts/publish.sh ./frontend \
-            --client github-actions \
-            --site wander-epoch-69vc
+            --client github-actions
+
+      - name: Show deployed URL
+        run: |
+          echo "Deployed! Check the URL in the Deploy step output above."
+          echo "To pin the URL permanently, configure the site name in here.now dashboard."
