@@ -25,6 +25,8 @@
 | 🗺️ **Bucket List** | Wishlist with emoji, "when" field — synced to backend | ✅ |
 | 🧭 **Dashboard** | Live stats: visited countries, remaining budget, tracker summary | ✅ |
 | 🔔 **Alerts** | Price-drop notifications via Telegram and Gotify | ✅ |
+| 🎯 **Preisalarm** | Per-tracker target price alert with 🎯 badge | ✅ |
+| ⬇ **CSV Export** | Download full price history as CSV file | ✅ |
 | 📖 **Field Guide** | Full slide-panel manual with 4 tabs | ✅ |
 | 🌍 **Multilingual** | Deutsch · Italiano · English | ✅ |
 | 🎨 **Modern Explorer** | Light-first theme, Playfair serif, dark mode "Mitternacht" | ✅ |
@@ -185,6 +187,8 @@ Swagger UI: `http://YOUR-IP:8766/docs`
 | `PATCH` | `/api/trackers/{id}/toggle` | Pause / resume |
 | `POST` | `/api/trackers/{id}/scrape` | Manual price fetch |
 | `GET` | `/api/prices/{id}` | Price history (chart data) |
+| `GET` | `/api/prices/{id}/export.csv` | Download price history as CSV |
+| `PATCH` | `/api/trackers/{id}/threshold` | Set / clear price-alert threshold |
 
 ### Google Flights
 | Method | Path | Description |
@@ -339,11 +343,11 @@ The "Mitternacht" theme uses deep night-blue `#12141c` while keeping terracotta 
 ## Roadmap
 
 ### In Progress / Next
-- [ ] Price threshold alerts — user-defined trigger price per tracker (e.g. "alert me below 49 €")
+- [x] ~~Price threshold alerts~~ — per-tracker 🎯 target price, Telegram/Gotify alert when reached
 - [ ] Car rental tracker (Preis-Radar → Mietwagen tab)
 
 ### Planned
-- [ ] CSV / Excel export for price history
+- [x] ~~CSV export for price history~~ — `GET /api/prices/{id}/export.csv`
 - [ ] Currency toggle (EUR / USD / GBP)
 - [ ] SerpAPI quota widget in dashboard
 - [ ] Skeleton loaders during data fetching
