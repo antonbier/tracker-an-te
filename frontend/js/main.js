@@ -27,6 +27,7 @@ import { navigate, toggleSidebar, closeSidebar }          from './ui/nav.js';
 import { toast }                                          from './ui/toast.js';
 import { openSettings, closeSettings, saveSettings,
          loadSerpApiQuota, backdropClick, switchTab,
+         switchNotifTab, testTelegram, testGotify,
          toggleTheme }                                    from './ui/settings.js';
 import { switchRadarCategory, switchRadarSubTab }         from './ui/priceradar.js';
 import { switchMyTripsTab }                               from './ui/tabs.js';
@@ -88,6 +89,9 @@ window.saveSettings          = saveSettings;
 window.loadSerpApiQuota      = loadSerpApiQuota;
 window.backdropClick         = backdropClick;
 window.switchTab             = switchTab;
+window.switchNotifTab        = switchNotifTab;
+window.testTelegram          = testTelegram;
+window.testGotify            = testGotify;
 window.toggleTheme           = toggleTheme;
 window.openFieldGuide        = openFieldGuide;
 window.closeFieldGuide       = closeFieldGuide;
