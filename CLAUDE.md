@@ -1,20 +1,12 @@
 # CLAUDE.md — WanderSuite AI Assistant Context
 
-This file gives AI assistants the full context needed to work effectively on this codebase.
-Keep it updated after significant changes.
+Full architecture reference for AI assistants working on this codebase.
+Update after significant changes.
 
 **Repository:** `antonbier/tracker-an-te`  
 **Live URL:** `https://wander-epoch-69vc.here.now`  
-**Stack:** FastAPI backend · Nginx + Vanilla JS frontend · SQLite · Docker Compose
-
----
-
-## Project Overview
-
-WanderSuite is a self-hosted travel management suite. One Docker Compose stack:
-- **Frontend:** Nginx serving `frontend/` — HTML/CSS + native ES Modules (no bundler, no npm)
-- **Backend:** FastAPI (Python 3.12) + SQLite + APScheduler
-- **Deployment:** here.now (static frontend via GitHub Action) + Railway/Unraid (backend)
+**Stack:** FastAPI backend · Nginx + Vanilla JS frontend · SQLite · Docker Compose  
+**Deployment:** here.now (static frontend via GitHub Action on push to main) + backend on host/Railway
 
 ---
 
@@ -23,66 +15,71 @@ WanderSuite is a self-hosted travel management suite. One Docker Compose stack:
 ```
 wandersuite/
 ├── frontend/
-│   ├── index.html         ← SPA: all HTML + CSS (~3100 lines)
-│   ├── manifest.json      ← PWA manifest (standalone, PNG icons)
-│   ├── sw.js              ← Service Worker (network-first, cache fallback)
-│   ├── _headers           ← Static host MIME type hints
-│   ├── icons/             ← PWA icons (icon-192.png, icon-512.png)
-│   ├── locales/           ← i18n: de.json, en.json, it.json (~280 keys each)
+│   ├── index.html         ← SPA: all HTML + CSS (~3300 lines, no build step)
+│   ├── manifest.json      ← PWA: standalone, PNG icons, shortcuts
+│   ├── sw.js              ← Service Worker: network-first, pre-caches app shell
+│   ├── _headers           ← Static host MIME type hints (here.now)
+│   ├── icons/             ← PWA icons: icon-192.png, icon-512.png
+│   ├── locales/           ← i18n JSON: de.json, en.json, it.json (~300 keys each)
 │   └── js/
-│       ├── main.js        ← Entry point (imports + window.* + DOMContentLoaded)
+│       ├── main.js        ← Entry point: static imports + window.* + DOMContentLoaded
 │       ├── core/
-│       │   ├── state.js   ← Global state + setters
-│       │   ├── api.js     ← HTTP client + health check
+│       │   ├── state.js   ← Global mutable state + setter functions
+│       │   ├── api.js     ← HTTP client api() + checkApiStatus()
 │       │   └── persist.js ← localStorage ↔ backend sync (ws-trips, ws-budget, ws-bucketlist)
 │       ├── ui/
-│       │   ├── i18n.js    ← Translations
-│       │   ├── nav.js     ← navigate() + bottom bar + View Transitions
-│       │   ├── toast.js   ← Toast notifications
-│       │   ├── settings.js← Settings slide-panel
-│       │   ├── priceradar.js ← Preis-Radar tab logic
-│       │   ├── tabs.js    ← Meine Reisen tab logic
-│       │   └── fieldguide.js ← Field Guide slide-panel
+│       │   ├── i18n.js       ← loadLocale, t(), applyTranslations, setLang
+│       │   ├── nav.js        ← navigate(), bnMap, sidebar, bottom bar, View Transitions
+│       │   ├── toast.js      ← toast(msg, type)
+│       │   ├── settings.js   ← 4-tab slide-panel: basic|integrations|apis|notifications
+│       │   ├── priceradar.js ← switchRadarCategory(), switchRadarSubTab()
+│       │   ├── tabs.js       ← switchMyTripsTab()
+│       │   └── fieldguide.js ← openFieldGuide(), closeFieldGuide(), switchFieldGuideTab()
 │       └── app/
-│           ├── ryanair.js     ← Ryanair + Discover/AI
-│           ├── budget.js      ← Budget + ActualBudget + Expenses
+│           ├── ryanair.js     ← Ryanair CRUD + Chart.js + Discover/AI
+│           ├── budget.js      ← Budget + ActualBudget + expense table
 │           ├── dashboard.js   ← Home dashboard + Meine Reisen live stats
-│           ├── scratchmap.js  ← Scratch Map (jsvectormap)
+│           ├── scratchmap.js  ← initScratchMap(), loadScratchMap() (jsvectormap)
 │           ├── googleflights.js
 │           ├── homair.js
 │           ├── booking.js
-│           ├── journal.js     ← Dawarich sync
-│           ├── onboarding.js  ← Full-screen wizard
-│           └── bucketlist.js  ← Wishlist (localStorage only)
+│           ├── journal.js     ← Dawarich sync + trip list
+│           ├── onboarding.js  ← 3-step full-screen wizard + checkConnection()
+│           └── bucketlist.js  ← Bucket list (localStorage + backend sync)
 │
 ├── backend/
-│   ├── main.py            ← FastAPI app + APScheduler
-│   ├── database.py        ← SQLite CRUD
-│   ├── settings_manager.py← AES-Fernet encrypted settings
-│   ├── countries.py       ← Country name → ISO-2 mapping (100+ entries, DE/EN/IT)
-│   ├── scraper.py         ← Ryanair
+│   ├── main.py            ← FastAPI entry point + APScheduler (07:00 TZ)
+│   ├── database.py        ← SQLite schema + CRUD (all tables)
+│   ├── settings_manager.py← AES-Fernet encrypted settings (16 SETTING_KEYS)
+│   ├── notifications.py   ← send_telegram(), send_gotify(), notify_price_drop()
+│   ├── scraper.py         ← Ryanair API scraper
 │   ├── google_scraper.py  ← Google Flights via SerpAPI
 │   ├── homair_scraper.py  ← Homair via SerpAPI Google Hotels
 │   ├── booking_scraper.py ← Booking via SerpAPI
-│   ├── dawarich.py        ← Trip detection algorithm
-│   ├── actual_budget.py   ← ActualBudget client (actualpy ≥0.21.0)
-│   ├── gemini.py / openai_client.py
-│   ├── scheduler.py       ← Daily 07:00 cron
+│   ├── dawarich.py        ← Trip detection algorithm + Nominatim geocoding
+│   ├── countries.py       ← Country name → ISO-2 mapping (100+ entries, DE/EN/IT)
+│   ├── actual_budget.py   ← ActualBudget client (actualpy ≥ 0.21.0)
+│   ├── gemini.py          ← Google Gemini AI
+│   ├── openai_client.py   ← OpenAI gpt-4o-mini
+│   ├── scheduler.py       ← Daily batch + price-drop notification trigger
 │   └── routes/
-│       ├── trackers.py    ← /api/trackers
-│       ├── prices.py      ← /api/prices
-│       ├── google_flights.py← /api/google-flights
-│       ├── accommodations.py← /api/accommodations/homair + /booking
-│       ├── budget.py      ← /api/budget/actual/*
-│       ├── dawarich.py    ← /api/dawarich/* (incl. /countries)
-│       ├── discover.py    ← /api/discover
-│       ├── settings.py    ← /api/settings
-│       └── dashboard.py   ← /api/dashboard/stats
+│       ├── trackers.py       ← /api/trackers (Ryanair CRUD)
+│       ├── prices.py         ← /api/prices
+│       ├── google_flights.py ← /api/google-flights
+│       ├── accommodations.py ← /api/accommodations/homair + /booking
+│       ├── budget.py         ← /api/budget/actual/*
+│       ├── dawarich.py       ← /api/dawarich/* (incl. /countries)
+│       ├── discover.py       ← /api/discover
+│       ├── settings.py       ← /api/settings + /serpapi-quota
+│       ├── dashboard.py      ← /api/dashboard/stats
+│       ├── userdata.py       ← /api/userdata/* (ws-trips, ws-budget, ws-bucketlist)
+│       └── notifications.py  ← /api/notifications/test-telegram + test-gotify
 │
 ├── docker/
-│   ├── Dockerfile
-│   └── nginx.conf         ← Explicit locations for sw.js, manifest.json, /icons/, /js/
-├── docker-compose.yml
+│   ├── Dockerfile         ← Python 3.12-slim + curl; creates /app/data
+│   └── nginx.conf         ← Explicit locations: /sw.js, /manifest.json, /icons/, /js/
+├── docker-compose.yml     ← HOST_PORT, BACKEND_PORT, TZ, DATA_DIR, APP_SECRET
+├── .env.example           ← Template with all variables + comments
 └── .github/workflows/deploy-frontend.yml  ← Deploys frontend/ to here.now on push
 ```
 
@@ -92,100 +89,80 @@ wandersuite/
 
 ### ES Module Pattern
 
-All JS is split into native ES Modules. No bundler, no npm. The browser loads them directly.
+All JS in native ES Modules — no bundler, no npm, browser loads directly.
 
-**The `window.*` binding rule:**  
-ES Modules don't share scope with `onclick="fn()"` inline handlers. Every function called from HTML must be explicitly bound in `main.js`:
-
+**`window.*` binding rule:** Every function called from `onclick="fn()"` in HTML must be bound in `main.js`:
 ```js
-// main.js pattern
 import { addTracker } from './app/ryanair.js';
-window.addTracker = addTracker;  // makes it callable from onclick=""
+window.addTracker = addTracker;
 ```
 
-**Avoiding circular imports:**  
-Where modules need each other at runtime but not at load time, use dynamic `import()`:
+**Circular import avoidance:** Use dynamic `import()` inside functions:
 ```js
-// journal.js needs openSettings() but can't static-import settings.js (would create cycle)
+// journal.js needs openSettings() but can't static-import (cycle risk)
 const { openSettings } = await import('../ui/settings.js');
 ```
 
-### State Management
+### State Management (`core/state.js`)
 
-All mutable state lives in `core/state.js` as named exports with setter functions:
+Named `let` exports + setter functions. Never reassign across module boundary:
 ```js
 export let API_URL = '';
 export function setApiUrl(val) { API_URL = val; }
-// Usage: import { API_URL, setApiUrl } from '../core/state.js';
 ```
-Never reassign imported `let` variables directly across module boundaries — use setters.
+
+### Data Persistence (`core/persist.js`)
+
+localStorage is the runtime store. Backend is the durable backup:
+```
+ws-trips / ws-budget / ws-bucketlist
+  → syncToBackend(key)   — fire-and-forget PUT after every mutation
+  → restoreFromBackend() — cold start: fills localStorage if empty
+```
+
+Trigger points:
+- `setTrips()` in `state.js` → `syncToBackend('ws-trips')`
+- `updateBudget()` in `budget.js` → `syncToBackend('ws-budget')`
+- `save()` in `bucketlist.js` → `syncToBackend('ws-bucketlist')`
+- `DOMContentLoaded` in `main.js` → `restoreFromBackend()`
 
 ### Page/DOM Architecture
 
-All pages are `<div class="page" id="page-*">` siblings inside `<main>`.  
-`navigate(page)` switches them by toggling `.active`.
+All pages are `<div class="page" id="page-*">`. `navigate(page)` switches by toggling `.active`.
 
-**Two-level navigation embedding:**  
-Some pages are embedded inside parent tabs. The original `<div class="page">` wrappers remain in a hidden `aria-hidden="true"` container so JS functions still find their DOM targets:
-
+**Two-level nesting (original page divs preserved in hidden `aria-hidden` container):**
 ```
-page-priceradar
-  └── radar-sub-ryanair    ← former page-ryanair content
-  └── radar-sub-google     ← former page-google content
-  └── radar-sub-homair     ← former page-homair content
-  └── radar-sub-booking    ← former page-booking content
-[hidden div aria-hidden]
-  └── page-ryanair         ← preserved for JS compatibility
-  └── page-google
-  ...
-
-page-mytrips
-  └── mytrips-panel-overview  ← Scratch Map + live stats
-  └── mytrips-panel-bucketlist
-  └── mytrips-panel-journal   ← former page-journal content
-  └── mytrips-panel-budget    ← former page-budget content
-[hidden div aria-hidden]
-  └── page-journal            ← preserved for JS compatibility
-  └── page-budget
+page-priceradar → radar-sub-ryanair, radar-sub-google, radar-sub-homair, radar-sub-booking
+page-mytrips   → mytrips-panel-overview (Scratch Map), mytrips-panel-bucketlist, mytrips-panel-journal, mytrips-panel-budget
+[hidden aria-hidden] → page-ryanair, page-google, page-homair, page-booking, page-journal, page-budget
 ```
+The hidden legacy pages keep JS DOM targets intact — never remove them.
 
-### Navigation Map
-
+### Navigation Flow
 ```
-Bottom Bar / Sidebar → navigate(page)
-────────────────────────────────────────────
-🧭 Übersicht    → navigate('home')
-🎯 Preis-Radar  → navigate('priceradar') → switchRadarCategory('overview')
-✨ Inspiration  → navigate('discover')
-🎒 Meine Reisen → navigate('mytrips')   → switchMyTripsTab('overview') + loadScratchMap()
+🧭 navigate('home')        → loadDashboard()
+🎯 navigate('priceradar')  → switchRadarCategory('overview')
+✨ navigate('discover')
+🎒 navigate('mytrips')     → switchMyTripsTab('overview') → loadMyTripsDashboard() + loadScratchMap()
 ```
-
-Mobile (`< 900px`): Sidebar hidden → fixed bottom nav bar.  
-Hidden `<button id="nav-*">` elements in sidebar keep JS active-state sync working for sub-pages.
 
 ### Lazy Loading
 
-Tab content is loaded on demand via dynamic imports:
+Content loaded on demand via dynamic imports in `nav.js`:
 ```js
-// nav.js
-if (page === 'mytrips') import('../ui/tabs.js').then(m => {
-  m.switchMyTripsTab('overview');
-  import('../app/bucketlist.js').then(b => b.updateMyTripsStats());
-});
+if (page === 'mytrips') import('../ui/tabs.js').then(m => m.switchMyTripsTab('overview'));
 ```
 
 ---
 
 ## CSS Architecture
 
-All CSS is in `index.html` in a single `<style>` block. No external CSS files.
+All CSS in `index.html` inside a single `<style>` block.
 
-### CSS Variables
+### CSS Variables (Light / Dark)
 
-Default = **light mode**. Dark mode is opt-in via `body.dark-mode`.
-
-| Variable | Light | Dark ("Mitternacht") |
-|----------|-------|---------------------|
+| Variable | Light | Dark "Mitternacht" |
+|----------|-------|-------------------|
 | `--bg` | `#f9f8f6` | `#12141c` |
 | `--surface` | `#ffffff` | `#1e212b` |
 | `--surface2` | `#f2f0ec` | `#252837` |
@@ -195,7 +172,7 @@ Default = **light mode**. Dark mode is opt-in via `body.dark-mode`.
 | `--accent2` | `#1E3A5F` | `#6aaddc` |
 | `--green` | `#2A5C45` | `#4dac7a` |
 
-Dark mode also applies component-level overrides (`.header`, `.sidebar`, `.card`, etc.).
+Dark mode is opt-in via `body.dark-mode`. Component-level overrides exist for `.header`, `.sidebar`, `.card`, inputs, panels.
 
 ### Key CSS Patterns
 
@@ -203,105 +180,91 @@ Dark mode also applies component-level overrides (`.header`, `.sidebar`, `.card`
 |----------|---------|
 | `.radar-pills` / `.radar-pill` | Main pill tab navigation |
 | `.radar-subnav` / `.radar-subtab` | Secondary sub-tabs |
-| `.tracker-item` | Ticket-style cards with left accent stripe |
-| `#settingsBackdrop .modal` | Slides in from right (translateX) |
-| `#fieldGuideBackdrop .modal` | Same pattern as settings |
+| `.tracker-item` | Ticket-style card with left accent stripe (`::before`) |
+| `#settingsBackdrop .modal` | Slides in from right via `translateX` |
+| `#fieldGuideBackdrop .modal` | Same slide pattern |
 | `#onboardingBackdrop` | Full-screen overlay (no `.modal-backdrop` class) |
-| `.bottom-nav` | `display:none` by default, `display:flex` at `< 900px` |
-| `#scratch-map-container` | jsvectormap world map container |
-| `.ob-*` | Onboarding wizard classes |
+| `.ob-*` | Onboarding wizard elements |
 | `.fg-*` | Field Guide content classes |
+| `.notif-segmented` / `.notif-seg-btn` | Telegram/Gotify segmented control |
+| `.btn-test-notif` / `.notif-result` | Notification test button + result area |
+| `#scratch-map-container` | jsvectormap world map container |
+| `.bottom-nav` | `display:none` default, `flex` at `< 900px` |
 
 ---
 
 ## Backend Conventions
 
-### API Key Storage
+### Encrypted Settings (`settings_manager.py`)
 
-1. Stored in `localStorage` on the client
-2. Synced to backend via `POST /api/settings` → encrypted with AES-Fernet → SQLite
+All 16 `SETTING_KEYS` stored AES-Fernet encrypted in SQLite `settings` table:
+```python
+SETTING_KEYS = [
+    "serpapi_key", "gemini_key", "openai_key",
+    "dawarich_url", "dawarich_token",
+    "actual_url", "actual_token", "actual_file",
+    "llm_provider", "timezone", "home_lat", "home_lon",
+    "travel_categories",
+    "telegram_bot_token", "telegram_chat_id",
+    "gotify_url", "gotify_token",
+]
+```
 
-Keys available via `get_setting_value(key)` in Python (decrypted).
+Read with `get_setting_value(key)` anywhere in the backend.
 
-### ActualBudget (`actual_budget.py`)
+### Notification System (`notifications.py`)
+
+```python
+send_telegram(message: str) -> bool      # HTML-formatted, uses telegram_bot_token + telegram_chat_id
+send_gotify(title, message, priority) -> bool  # uses gotify_url + gotify_token
+notify_price_drop(tracker, old_price, new_price)  # called by scheduler
+```
+
+Price-drop trigger in `scheduler.py`: when `new_price < previous_price` → `notify_price_drop()`.
+
+### User Data (`routes/userdata.py`)
+
+Stores client-side data that previously lived only in localStorage:
+- Allowed keys: `ws-trips`, `ws-budget`, `ws-bucketlist`
+- Values stored as JSON strings in `user_data` table (unencrypted — not secrets)
+- Routes: `GET /api/userdata`, `GET /api/userdata/{key}`, `PUT /api/userdata/{key}`
+
+### ActualBudget Notes
 
 - Library: `actualpy` ≥ 0.21.0
-- Auth: `password` (server password, not a token)
-- Budget identifier: `budget_file` = display name as shown in ActualBudget top-left
+- Auth field: `actual_token` = server password (not a token)
+- Budget identifier: `actual_file` = display name shown top-left in ActualBudget
 - Date format: `YYYYMMDD` integer
-- Transfer field: `transferred_id` (not `transfer_id`)
 
-### Dawarich Trip Detection (`dawarich.py`)
+### Dawarich Trip Detection
 
-1. Fetch GPS points from Dawarich API (paginated, all pages)
-2. Haversine distance from `home_lat`/`home_lon`
-3. Keep points > 50 km from home
-4. Group by date
-5. Overnight = 2+ consecutive days away (min 1 night)
-6. Merge groups with ≤ 2-day gaps into one trip
-7. Reverse geocode centroid via Nominatim (OSM, free, 1 req/sec)
-8. Store `location_name`, `country` (full name), `lat`, `lon`, `nights` in SQLite
-
-### Country Name → ISO-2 (`countries.py`)
-
-Nominatim returns country names in the user's locale (e.g. „Italy", „Deutschland", „Italia").  
-`countries.py` has 100+ entries covering DE/EN/IT names → ISO-2 codes.  
-Used by `GET /api/dawarich/countries` for the Scratch Map.
-
-### Scratch Map (`scratchmap.js` + `/api/dawarich/countries`)
-
-- Library: jsvectormap 1.5.3 (CDN, world map projection)
-- Backend reads `detected_trips` from SQLite → maps country names → ISO-2 codes
-- Frontend: `loadScratchMap()` → fetch → `initScratchMap(codes, names, tripCount, configured)`
-- Visited countries: `var(--accent)` (Terracotta)
-- Unvisited: `var(--surface2)` with `var(--border)` stroke
-- Fallback: flag emoji badge grid if jsvectormap fails to load
+1. Fetch GPS points (paginated), 2. Haversine > 50 km from home, 3. Group by date,
+4. 2+ consecutive nights = trip, 5. Merge groups with ≤ 2-day gap, 6. Nominatim geocoding,
+7. Store `location_name`, `country` (full name) → `countries.py` maps to ISO-2 for Scratch Map.
 
 ---
 
-## PWA Setup
+## Settings Panel (4 Tabs)
 
-| File | Purpose |
-|------|---------|
-| `frontend/manifest.json` | PWA manifest: standalone, icons, shortcuts |
-| `frontend/sw.js` | Service Worker: network-first, pre-caches app shell |
-| `frontend/_headers` | MIME type hints for static hosts |
-| `frontend/icons/icon-192.png` | PNG icon (required for install prompt) |
-| `frontend/icons/icon-512.png` | PNG icon |
+| Tab ID | `switchTab()` arg | Content |
+|--------|-------------------|---------|
+| Allgemein | `'basic'` | Backend URL, timezone, dark mode toggle |
+| Integrationen | `'integrations'` | Dawarich, ActualBudget |
+| APIs & KI | `'apis'` | SerpAPI, Gemini, OpenAI |
+| 🔔 Alerts | `'notifications'` | Telegram (token + chat ID + test) / Gotify (URL + token + test) |
 
-**Install button:** `beforeinstallprompt` is intercepted in `main.js`. When Chrome fires it, a `⬇ App` button appears in the header. Click → native install dialog.
+Notification sub-tabs: `switchNotifTab('telegram')` / `switchNotifTab('gotify')`  
+Test buttons call `testTelegram()` / `testGotify()` → save keys first → `POST /api/notifications/test-*` → show result inline.
 
-**iOS:** No automatic banner — use Safari → Share → Add to Home Screen.
-
-**nginx.conf** has explicit `location = /sw.js` with `Service-Worker-Allowed: /` header.
-
----
-
-## Onboarding Wizard (`onboarding.js`)
-
-Full-screen 3-step wizard shown when no backend URL is configured:
-
-1. **Step 1 — Connection:** URL input + live `/health` check (`checkConnection()`). "Weiter" only enabled after successful ping.
-2. **Step 2 — Toolkit:** Optional SerpAPI + Gemini keys with direct links.
-3. **Step 3 — Ready:** Confirmation. Final button saves keys to localStorage + syncs to backend.
-
-Close: fade-out via `.ob-closing` CSS class + `setTimeout`.  
-Skip link: always visible, writes `ws-onboarding-done = '1'`.
-
----
-
-## Field Guide (`fieldguide.js`)
-
-Full-height slide-panel from right (identical pattern to Settings).  
-4 tabs: **Start & APIs** · **Preis-Radar** · **Meine Reisen** · **Entdecken**  
-Content is inline HTML (not i18n keys) — rich formatting with `.fg-infobox`, `.fg-badge`, `.fg-section-title`.
+Security: after `saveSettings()`, these keys are **removed from localStorage**:  
+`s-serpApiKey`, `s-geminiKey`, `s-openaiKey`, `s-dawarichToken`, `s-actualPassword`, `s-telegramToken`, `s-gotifyToken`
 
 ---
 
 ## localStorage Keys
 
-| Key | Type | Backed up to backend? | Description |
-|-----|------|-----------------------|-------------|
+| Key | Type | Backend backup | Description |
+|-----|------|----------------|-------------|
 | `apiUrl` | string | ✗ | Backend URL |
 | `lang` | string | ✗ | `'de'` · `'en'` · `'it'` |
 | `theme` | string | ✗ | `'dark'` (absent = light) |
@@ -309,199 +272,159 @@ Content is inline HTML (not i18n keys) — rich formatting with `.fg-infobox`, `
 | `ws-trips` | JSON | ✅ `/api/userdata/ws-trips` | `[{name, cost, date, source?}]` |
 | `ws-bucketlist` | JSON | ✅ `/api/userdata/ws-bucketlist` | `[{id, dest, when, emoji, added}]` |
 | `ws-onboarding-done` | string | ✗ | `'1'` when completed |
-| `s-timezone` | string | ✅ encrypted in DB | e.g. `'Europe/Rome'` |
-| `s-dawarichUrl` | string | ✅ encrypted in DB | Dawarich server URL |
-| `s-dawarichToken` | string | ✅ encrypted in DB → **cleared from localStorage after sync** | Dawarich API token |
-| `s-homeLat` / `s-homeLon` | string | ✅ encrypted in DB | Home coordinates |
-| `s-actualUrl` | string | ✅ encrypted in DB | ActualBudget URL |
-| `s-actualPassword` | string | ✅ encrypted in DB → **cleared from localStorage after sync** | ActualBudget password |
-| `s-actualFile` | string | ✅ encrypted in DB | Budget display name |
-| `s-travelCategories` | string | ✅ encrypted in DB | Comma-separated category names |
-| `s-serpApiKey` | string | ✅ encrypted in DB → **cleared from localStorage after sync** | SerpAPI key |
-| `s-geminiKey` | string | ✅ encrypted in DB → **cleared from localStorage after sync** | Gemini API key |
-| `s-openaiKey` | string | ✅ encrypted in DB → **cleared from localStorage after sync** | OpenAI API key |
-| `s-llmProvider` | string | ✅ encrypted in DB | `'gemini'` · `'openai'` · `'anthropic'` · `'ollama'` |
-
-### Data Persistence Architecture
-
-```
-Browser localStorage  ←→  core/persist.js  ←→  /api/userdata/*  →  SQLite user_data table
-    (runtime cache)        (sync layer)           (REST)              (durable store)
-
-Settings s-* keys:
-Browser input  →  settings.js saveSettings()  →  /api/settings  →  SQLite settings table (AES-Fernet)
-               →  localStorage (temp cache)   →  cleared after successful backend sync
-```
-
-**`core/persist.js`** — three functions:
-- `syncToBackend(key)` — fire-and-forget PUT after every mutation of ws-* keys
-- `syncAllToBackend()` — push all three keys in parallel
-- `restoreFromBackend()` — cold-start: fetches GET /api/userdata, fills localStorage only for missing keys
-
-**Trigger points:**
-- `setTrips()` in `state.js` → `syncToBackend('ws-trips')` (dynamic import)
-- `updateBudget()` in `budget.js` → `syncToBackend('ws-budget')`
-- `save()` in `bucketlist.js` → `syncToBackend('ws-bucketlist')`
-- `DOMContentLoaded` in `main.js` → `restoreFromBackend()` (cold start)
-
-**Security: sensitive keys cleared from localStorage after backend sync**  
-`s-serpApiKey`, `s-geminiKey`, `s-openaiKey`, `s-dawarichToken`, `s-actualPassword`  
-→ stored encrypted in SQLite, not needed in browser storage after successful sync
+| `s-timezone` | string | ✅ encrypted DB | Timezone |
+| `s-dawarichUrl` | string | ✅ encrypted DB | Dawarich server URL |
+| `s-dawarichToken` | string | ✅ encrypted DB → **cleared after sync** | Dawarich token |
+| `s-homeLat` / `s-homeLon` | string | ✅ encrypted DB | Home coordinates |
+| `s-actualUrl` | string | ✅ encrypted DB | ActualBudget URL |
+| `s-actualPassword` | string | ✅ encrypted DB → **cleared after sync** | ActualBudget password |
+| `s-actualFile` | string | ✅ encrypted DB | Budget display name |
+| `s-travelCategories` | string | ✅ encrypted DB | Comma-separated categories |
+| `s-serpApiKey` | string | ✅ encrypted DB → **cleared after sync** | SerpAPI key |
+| `s-geminiKey` | string | ✅ encrypted DB → **cleared after sync** | Gemini key |
+| `s-openaiKey` | string | ✅ encrypted DB → **cleared after sync** | OpenAI key |
+| `s-llmProvider` | string | ✅ encrypted DB | AI provider |
+| `s-telegramToken` | string | ✅ encrypted DB → **cleared after sync** | Telegram bot token |
+| `s-telegramChatId` | string | ✅ encrypted DB | Telegram chat ID |
+| `s-gotifyUrl` | string | ✅ encrypted DB | Gotify server URL |
+| `s-gotifyToken` | string | ✅ encrypted DB → **cleared after sync** | Gotify app token |
 
 ---
 
-## Working via GitHub API (Claude's method)
+## PWA Setup
 
-Claude edits this repo directly via the GitHub Contents API. Key pattern:
+| File | Purpose |
+|------|---------|
+| `frontend/manifest.json` | standalone, PNG icons, 2 shortcuts |
+| `frontend/sw.js` | network-first, pre-caches app shell, skips /api/* |
+| `frontend/_headers` | MIME hints for here.now static host |
+| `frontend/icons/icon-{192,512}.png` | Required for Chrome install prompt |
 
-```python
-# 1. Always fetch SHA before writing
-url = f'https://api.github.com/repos/{REPO}/contents/{path}?ref=main'
-# 2. PUT with sha to update, PUT without sha to create
-body = {'message': msg, 'content': base64_content, 'branch': 'main', 'sha': existing_sha}
-```
+SW registration + `beforeinstallprompt` intercept in `main.js`. ⬇ App button shows in header.
 
-For multiline content use `json=` not curl. Always work on `main` branch directly unless explicitly asked for a PR.
+`nginx.conf` has explicit `location = /sw.js` with `Service-Worker-Allowed: /` header.
 
 ---
 
-## How-to: Add a New Page
+## Onboarding Wizard (`onboarding.js`)
 
-```
-1. Add <div class="page" id="page-mypage"> in index.html
-2. Add nav item in sidebar + bottom nav button if needed
-3. Update bnMap in nav.js (page → bottom bar item)
-4. Add lazy-load in doNav() in nav.js
-5. Add hidden <button id="nav-mypage"> in the hidden nav div for active-state sync
-6. Create frontend/js/app/mypage.js (follow googleflights.js as template)
-7. Import + bind in main.js
-8. Add i18n keys to all 3 locale files
-```
+Full-screen 3-step wizard on first launch:
+1. **Step 1:** Backend URL + live `/health` check via `checkConnection()` — Weiter disabled until success
+2. **Step 2:** Optional SerpAPI + Gemini keys
+3. **Step 3:** Confirmation — saves everything to localStorage + backend
 
-## How-to: Add a New i18n Key
-
-```
-1. Add to frontend/locales/de.json
-2. Add to frontend/locales/en.json
-3. Add to frontend/locales/it.json
-4. Use in HTML:   <span data-i18n="myKey">Fallback</span>
-5. Use in JS:     t('myKey')
-```
-
-## How-to: Add a New Tracker Type
-
-```
-1. backend/my_scraper.py         ← scraping logic
-2. backend/routes/my_route.py    ← FastAPI router
-3. backend/database.py           ← tables + CRUD
-4. backend/main.py               ← register router
-5. js/app/my_tracker.js          ← CRUD module
-6. js/main.js                    ← import + window bindings
-7. index.html                    ← sub-tab in Preis-Radar + form
-8. locales/*.json                ← all 3 languages
-```
+Close: fade-out via `.ob-closing` + `setTimeout(400)`. Skip link always visible.
 
 ---
 
 ## Deployment
 
-### Quickstart (Unraid / jeder Docker-Host)
+### Quickstart
 
 ```bash
-# 1. Repository klonen
-git clone https://github.com/antonbier/tracker-an-te.git wandersuite
-cd wandersuite
-
-# 2. Konfiguration anlegen
 cp .env.example .env
-nano .env   # Mindestens APP_SECRET ändern, HOST_PORT und TZ anpassen
-
-# 3. Starten
+nano .env          # set HOST_PORT, TZ, DATA_DIR, APP_SECRET
 docker compose up -d --build
-
-# 4. Im Browser öffnen
-# Frontend: http://DEINE-IP:8765  (oder ${HOST_PORT})
-# Backend:  http://DEINE-IP:8766  (direkt für API, Settings → Backend URL)
 ```
 
-### .env Variablen
+### .env Variables
 
-| Variable | Default | Beschreibung |
-|----------|---------|--------------|
-| `HOST_PORT` | `8765` | Frontend-Port (Nginx, im Browser) |
-| `BACKEND_PORT` | `8766` | Backend-Port (FastAPI, direkt vom Browser) |
-| `TZ` | `Europe/Rome` | Zeitzone für Scraping-Cronjob (07:00 Uhr) |
-| `DATA_DIR` | `./data` | Host-Pfad für SQLite-DB und persistente Daten |
-| `APP_SECRET` | *(kein Default)* | AES-Fernet Key — **vor dem ersten Start setzen!** |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `HOST_PORT` | `8765` | Frontend (Nginx) |
+| `BACKEND_PORT` | `8766` | Backend (FastAPI, direct browser access) |
+| `TZ` | `Europe/Rome` | Cron timezone |
+| `DATA_DIR` | `./data` | Host path → mounted as `/app/data` in container |
+| `APP_SECRET` | *(required)* | AES-Fernet key — change before first start, never change after |
 
-**Unraid-Tipp:** `DATA_DIR=/mnt/user/appdata/wandersuite/data`
+SQLite DB: `${DATA_DIR}/tracker.db` on host → `/app/data/tracker.db` in container.
 
-### Datenpersistenz
-
-Die SQLite-Datenbank liegt im Container unter `/app/data/tracker.db`.  
-Auf dem Host wird sie unter `${DATA_DIR:-./data}/tracker.db` gespeichert.  
-Das Volume-Mapping `${DATA_DIR}:/app/data` stellt sicher, dass alle Daten  
-(Tracker, Preishistorie, erkannte Reisen, Settings) Container-Neustarts überleben.
-
-### Updating
+### Local Development (no Docker)
 
 ```bash
-cd wandersuite
-git pull
-docker compose up -d --build
-# Datenbank und .env bleiben unberührt
-```
-
-### Umgebungsvariablen im Backend
-
-Das Backend (`backend/main.py`) liest beim Start:
-- `DB_PATH` → Datenbankpfad (Default: `/app/data/tracker.db`)
-- `TZ` → Zeitzone für APScheduler (Default: `Europe/Rome`)
-- `APP_SECRET` → Encryption Key
-
-Das Backend stellt sicher, dass der Daten-Ordner existiert (`os.makedirs`),  
-auch wenn das Volume nicht gemountet ist (z. B. bei lokalem Entwickeln).
-
-### Lokale Entwicklung (ohne Docker)
-
-```bash
-# Backend
 cd backend
-pip install -r requirements.txt
 DB_PATH=./tracker.db APP_SECRET=dev uvicorn main:app --reload --port 8000
 
-# Frontend (statisch servieren)
 cd frontend
 python3 -m http.server 8765
-# Im Browser: http://localhost:8765
 # Settings → Backend URL: http://localhost:8000
 ```
 
 ---
 
+## How-To Guides
+
+### Add a new i18n key
+1. Add to `frontend/locales/de.json`
+2. Add to `frontend/locales/en.json`
+3. Add to `frontend/locales/it.json`
+4. HTML: `<span data-i18n="myKey">Fallback</span>`
+5. JS: `t('myKey')`
+
+### Add a new page
+1. `<div class="page" id="page-mypage">` in `index.html`
+2. Nav item in sidebar + bottom bar + hidden `<button id="nav-mypage">`
+3. `bnMap` entry in `nav.js` + lazy-load in `doNav()`
+4. `frontend/js/app/mypage.js` + import + `window.*` in `main.js`
+5. i18n keys in all 3 locale files
+
+### Add a new tracker type
+1. `backend/my_scraper.py` — scraping logic
+2. `backend/routes/my_route.py` — FastAPI router
+3. `backend/database.py` — tables + CRUD
+4. `backend/main.py` — register router
+5. `frontend/js/app/my_tracker.js` — CRUD module (template: `googleflights.js`)
+6. `frontend/js/main.js` — import + `window.*`
+7. `frontend/index.html` — sub-tab in Preis-Radar + form
+8. `frontend/locales/*.json` — all 3 languages
+
+### GitHub API workflow (Claude's method)
+Always fetch SHA before writing. Use Python `urllib.request` + `json=`:
+```python
+url = f'https://api.github.com/repos/{REPO}/contents/{path}?ref=main'
+# PUT with sha to update, omit sha to create
+body = {'message': msg, 'content': base64_content, 'branch': 'main', 'sha': sha}
+```
+Work directly on `main` unless explicitly asked for a PR.
+
+---
+
 ## Refactoring History
 
-| Date | What |
-|------|------|
-| 2026-03-28 | **ES Module Refactoring** — split 1400-line `<script>` monolith into 18 ES modules |
+| Date | Change |
+|------|--------|
+| 2026-03-28 | **ES Module Refactoring** — split 1400-line `<script>` monolith into 19 ES modules |
 | 2026-03-28 | **UX/UI Reboot** — light theme, Bottom Bar, ticket cards, Settings slide-panel |
 | 2026-03-28 | **Preis-Radar** — two-level navigation (pills + sub-tabs) |
-| 2026-03-28 | **Meine Reisen** — hub with Bucket List + Scratch Map |
+| 2026-03-28 | **Meine Reisen** — hub page: Scratch Map + Bucket List + Journal + Budget |
 | 2026-03-28 | **Field Guide Redesign** — small FAQ modal → full slide-panel with 4-tab manual |
-| 2026-03-28 | **Onboarding Wizard** — full-screen, live /health check, API key setup |
-| 2026-03-28 | **PWA** — manifest, Service Worker, install button, iOS meta tags |
-| 2026-03-28 | **Dark Mode "Mitternacht"** — component-level overrides |
+| 2026-03-28 | **Onboarding Wizard** — full-screen 3-step, live `/health` check, API key setup |
+| 2026-03-28 | **PWA** — manifest, Service Worker, icons, install button, iOS meta tags |
+| 2026-03-28 | **Dark Mode "Mitternacht"** — component-level overrides, theme-color meta sync |
 | 2026-03-28 | **Dashboard Live Stats** — `/api/dashboard/stats`, spinner states, setup links |
-| 2026-03-28 | **Scratch Map** — jsvectormap world map, `/api/dawarich/countries`, country name→ISO mapping |
+| 2026-03-28 | **Scratch Map** — jsvectormap, `/api/dawarich/countries`, country name→ISO mapping |
+| 2026-03-28 | **Docker/Unraid** — HOST_PORT, TZ, DATA_DIR env vars, /app/data volume |
+| 2026-03-28 | **Data Persistence** — `user_data` table, `/api/userdata`, `core/persist.js` |
+| 2026-03-28 | **Security Hardening** — `actual_file` in SETTING_KEYS, API keys cleared from localStorage after sync |
+| 2026-03-29 | **Notifications** — Telegram + Gotify, `notifications.py`, 🔔 Alerts tab in Settings, scheduler trigger |
 
 ---
 
 ## Roadmap
 
-- [ ] Skeleton loaders
-- [ ] CSV export for price history  
-- [ ] Currency toggle (EUR/USD/GBP)
-- [ ] Price threshold alerts + Telegram/Discord/Gotify notifications
-- [ ] Car rental tracker
+### Next
+- [ ] Price threshold alerts — user-defined trigger price per tracker
+- [ ] Car rental tracker (Mietwagen tab in Preis-Radar)
+
+### Planned
+- [ ] CSV / Excel export for price history
+- [ ] Currency toggle (EUR / USD / GBP)
 - [ ] SerpAPI quota widget in dashboard
+- [ ] Skeleton loaders during data fetching
 - [ ] Scratch Map: click country → show trip details panel
+- [ ] Discord webhook notifications
+
+### Ideas / Backlog
+- [ ] Multi-user support
+- [ ] Email alerts (SMTP)
+- [ ] Repeat-trip suggestions
