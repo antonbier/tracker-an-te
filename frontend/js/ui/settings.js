@@ -2,14 +2,16 @@
  * ui/settings.js — Settings slide-panel (right side)
  *
  * The settings panel slides in from the right edge of the screen (#settingsBackdrop).
- * It has three tabs: Allgemein | Integrationen | APIs & KI
- *   switchTab(tab): 'basic' | 'integrations' | 'apis'
+ * Four tabs: Allgemein | Integrationen | APIs & KI | 🔔 Alerts
+ *   switchTab(tab): 'basic' | 'integrations' | 'apis' | 'notifications'
+ *   switchNotifTab(tab): 'telegram' | 'gotify'  (within notifications panel)
  *
- * openSettings():  Fills all inputs from localStorage, then shows the panel.
- * saveSettings():  Persists to localStorage + syncs encrypted keys to backend.
- *                  Uses dynamic imports to avoid circular deps (settings → api → settings).
- * toggleTheme():   Toggles body.dark-mode class (dark is opt-in, light is default).
- * loadSerpApiQuota(): Fetches /api/settings/serpapi-quota and renders the quota bar.
+ * openSettings():   Fills all inputs from localStorage, shows panel.
+ * saveSettings():   Saves to localStorage + syncs all keys (incl. notifications) to backend.
+ * testTelegram():   Saves first, then calls POST /api/notifications/test-telegram.
+ * testGotify():     Saves first, then calls POST /api/notifications/test-gotify.
+ * toggleTheme():    Toggles body.dark-mode class.
+ * loadSerpApiQuota(): Fetches /api/settings/serpapi-quota and renders quota bar.
  */
 // frontend/js/ui/settings.js
 import { setApiUrl } from '../core/state.js';
@@ -78,12 +80,94 @@ export function backdropClick(e) {
 }
 
 export function switchTab(tab) {
-  ['basic','integrations','apis'].forEach(id => {
+  ['basic','integrations','apis','notifications'].forEach(id => {
     const panel = document.getElementById('panel-'+id);
     const tabEl = document.getElementById('tab-'+id);
     if (panel) panel.style.display = id===tab ? 'block' : 'none';
     if (tabEl) tabEl.classList.toggle('active', id===tab);
   });
+}
+
+/** Switch between Telegram / Gotify sub-tabs in the notifications panel. */
+export function switchNotifTab(tab) {
+  ['telegram','gotify'].forEach(id => {
+    const panel = document.getElementById('npanel-'+id);
+    const btn   = document.getElementById('nseg-'+id);
+    if (panel) panel.style.display = id===tab ? 'block' : 'none';
+    if (btn)   btn.classList.toggle('active', id===tab);
+  });
+}
+
+/** Send a test Telegram message — saves settings first. */
+export async function testTelegram() {
+  await _saveNotifKeys();
+  const btn    = document.getElementById('btn-test-telegram');
+  const result = document.getElementById('notif-telegram-result');
+  btn.disabled = true;
+  btn.textContent = '⏳ Sende…';
+  result.className = 'notif-result';
+  result.textContent = '';
+  try {
+    const apiUrl = localStorage.getItem('apiUrl');
+    if (!apiUrl) throw new Error('Backend-URL nicht konfiguriert');
+    const r = await fetch(apiUrl + '/api/notifications/test-telegram', { method: 'POST' });
+    const d = await r.json();
+    result.textContent  = d.message;
+    result.className    = 'notif-result ' + (d.success ? 'success' : 'error');
+  } catch(e) {
+    result.textContent = '❌ ' + e.message;
+    result.className   = 'notif-result error';
+  } finally {
+    btn.disabled    = false;
+    btn.innerHTML   = '<span>🔔</span> Telegram testen';
+  }
+}
+
+/** Send a test Gotify notification — saves settings first. */
+export async function testGotify() {
+  await _saveNotifKeys();
+  const btn    = document.getElementById('btn-test-gotify');
+  const result = document.getElementById('notif-gotify-result');
+  btn.disabled = true;
+  btn.textContent = '⏳ Sende…';
+  result.className = 'notif-result';
+  result.textContent = '';
+  try {
+    const apiUrl = localStorage.getItem('apiUrl');
+    if (!apiUrl) throw new Error('Backend-URL nicht konfiguriert');
+    const r = await fetch(apiUrl + '/api/notifications/test-gotify', { method: 'POST' });
+    const d = await r.json();
+    result.textContent  = d.message;
+    result.className    = 'notif-result ' + (d.success ? 'success' : 'error');
+  } catch(e) {
+    result.textContent = '❌ ' + e.message;
+    result.className   = 'notif-result error';
+  } finally {
+    btn.disabled    = false;
+    btn.innerHTML   = '<span>🔔</span> Gotify testen';
+  }
+}
+
+/** Save notification keys to localStorage + backend (used by test buttons). */
+async function _saveNotifKeys() {
+  ['s-telegramToken','s-telegramChatId','s-gotifyUrl','s-gotifyToken'].forEach(k => {
+    const el = document.getElementById(k);
+    if (el) localStorage.setItem(k, el.value);
+  });
+  const apiUrl = localStorage.getItem('apiUrl');
+  if (!apiUrl) return;
+  try {
+    await fetch(apiUrl + '/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        telegram_bot_token: document.getElementById('s-telegramToken').value  || null,
+        telegram_chat_id:   document.getElementById('s-telegramChatId').value || null,
+        gotify_url:         document.getElementById('s-gotifyUrl').value      || null,
+        gotify_token:       document.getElementById('s-gotifyToken').value    || null,
+      }),
+    });
+  } catch(e) { /* silent */ }
 }
 
 export function toggleTheme(isDark) {
@@ -97,7 +181,8 @@ export async function saveSettings() {
   setApiUrl(newUrl);
   ['s-timezone','s-dawarichUrl','s-dawarichToken','s-actualUrl','s-actualPassword',
    's-actualFile','s-llmProvider','s-llmKey','s-serpApiKey','s-geminiKey','s-openaiKey',
-   's-homeLat','s-homeLon','s-travelCategories'].forEach(k => {
+   's-homeLat','s-homeLon','s-travelCategories',
+   's-telegramToken','s-telegramChatId','s-gotifyUrl','s-gotifyToken'].forEach(k => {
     localStorage.setItem(k, document.getElementById(k).value);
   });
 
@@ -105,7 +190,8 @@ export async function saveSettings() {
   // They remain in the backend DB (encrypted). On next openSettings() they are
   // not re-populated from localStorage — intentional, backend is source of truth.
   // The fields stay empty in the UI unless the user re-enters them.
-  ['s-serpApiKey','s-geminiKey','s-openaiKey','s-dawarichToken','s-actualPassword'].forEach(k => {
+  ['s-serpApiKey','s-geminiKey','s-openaiKey','s-dawarichToken','s-actualPassword',
+   's-telegramToken','s-gotifyToken'].forEach(k => {
     localStorage.removeItem(k);
   });
   try {
@@ -126,6 +212,10 @@ export async function saveSettings() {
         home_lat:          document.getElementById('s-homeLat').value       || null,
         home_lon:          document.getElementById('s-homeLon').value       || null,
         travel_categories: document.getElementById('s-travelCategories').value || null,
+        telegram_bot_token: document.getElementById('s-telegramToken').value    || null,
+        telegram_chat_id:   document.getElementById('s-telegramChatId').value   || null,
+        gotify_url:         document.getElementById('s-gotifyUrl').value        || null,
+        gotify_token:       document.getElementById('s-gotifyToken').value      || null,
       }),
     });
   } catch(e) { /* Server sync optional */ }
