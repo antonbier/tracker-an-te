@@ -1558,6 +1558,71 @@ body.dark-mode #scratch-map-svg .jvm-region { stroke: var(--border) !important; 
 }
 .notif-result.success { color: var(--green); background: rgba(42,92,69,.08); }
 .notif-result.error   { color: var(--red);   background: rgba(185,43,43,.07); }
+
+/* ── Threshold Alert Panel ─────────────────────────────── */
+.threshold-panel {
+  margin-top: .9rem;
+  padding-top: .9rem;
+  border-top: 1px dashed var(--border);
+}
+.threshold-label {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin-bottom: .45rem;
+  font-size: .65rem; font-weight: 800; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--sub);
+}
+.threshold-hint {
+  font-size: .6rem; font-weight: 400; letter-spacing: 0;
+  text-transform: none; color: var(--muted); font-style: italic;
+}
+.threshold-row {
+  display: flex; gap: .4rem; align-items: center;
+}
+.threshold-row input[type="number"] {
+  width: 90px; padding: .42rem .6rem;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface2); color: var(--text);
+  font-family: var(--mono); font-size: .84rem;
+}
+.threshold-currency {
+  font-family: var(--mono); font-size: .82rem;
+  color: var(--sub); margin-left: -.2rem;
+}
+.btn-threshold-save {
+  padding: .38rem .75rem;
+  background: var(--accent); color: #fff; border: none;
+  border-radius: var(--radius); font-family: var(--sans);
+  font-size: .72rem; font-weight: 700; cursor: pointer;
+  transition: all .18s ease; white-space: nowrap;
+}
+.btn-threshold-save:hover { opacity: .88; transform: translateY(-1px); }
+.btn-threshold-clear {
+  padding: .38rem .55rem;
+  background: none; border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--sub);
+  font-size: .75rem; cursor: pointer; transition: all .18s;
+}
+.btn-threshold-clear:hover { border-color: var(--red); color: var(--red); }
+.threshold-badge {
+  display: inline-flex; align-items: center; gap: .2rem;
+  padding: .1rem .4rem; border-radius: 4px;
+  background: rgba(217,93,57,.1); color: var(--accent);
+  font-size: .62rem; font-weight: 700; font-family: var(--mono);
+}
+
+/* ── CSV Export Button ─────────────────────────────────── */
+.btn-csv {
+  margin-left: auto;
+  background: none; border: 1px solid var(--border);
+  color: var(--sub); font-size: .68rem; padding: .28rem .65rem;
+  border-radius: var(--radius); cursor: pointer;
+  transition: all .18s ease; font-family: var(--sans); font-weight: 600;
+  display: flex; align-items: center; gap: .3rem;
+}
+.btn-csv:hover { border-color: var(--accent2); color: var(--accent2); }
+.chart-actions {
+  display: flex; gap: .4rem; margin-top: .6rem; align-items: center;
+}
 </style>
 </head>
 <body class="">
@@ -1908,6 +1973,32 @@ body.dark-mode #scratch-map-svg .jvm-region { stroke: var(--border) !important; 
               <div class="chart-stats" id="chartStats"></div>
               <div class="chart-wrap" style="margin-top:.85rem">
                 <canvas id="priceChart"></canvas>
+              </div>
+              <!-- Chart type + CSV export actions -->
+              <div class="chart-actions" id="chartActions">
+                <button class="btn-sm" onclick="renderChart(selectedTrackerId,'line')" data-i18n="lineChart">Linie</button>
+                <button class="btn-sm" onclick="renderChart(selectedTrackerId,'bar')"  data-i18n="barChart">Balken</button>
+                <button class="btn-csv" onclick="exportCsvSelected()" title="CSV herunterladen">⬇ CSV</button>
+              </div>
+              <!-- Price alert threshold -->
+              <div class="threshold-panel" id="thresholdPanel">
+                <div class="threshold-label">
+                  <span data-i18n="thresholdLabel">🎯 Preisalarm</span>
+                  <span class="threshold-hint" data-i18n="thresholdHint">Alert wenn Preis ≤ Zielpreis</span>
+                </div>
+                <div class="threshold-row">
+                  <input id="threshold-input" type="number" step="0.5" min="0"
+                         placeholder="z.B. 49.00"
+                         onkeydown="if(event.key==='Enter')setThreshold(selectedTrackerId)">
+                  <span class="threshold-currency">€</span>
+                  <button class="btn-threshold-save"
+                          onclick="setThreshold(selectedTrackerId)"
+                          data-i18n="thresholdSave">🎯 Speichern</button>
+                  <button class="btn-threshold-clear" id="threshold-clear-btn"
+                          style="display:none"
+                          onclick="clearThreshold(selectedTrackerId)"
+                          data-i18n="thresholdClear">✕</button>
+                </div>
               </div>
             </div>
           </div>
@@ -2270,6 +2361,32 @@ body.dark-mode #scratch-map-svg .jvm-region { stroke: var(--border) !important; 
               <div class="chart-stats" id="chartStats"></div>
               <div class="chart-wrap" style="margin-top:.85rem">
                 <canvas id="priceChart"></canvas>
+              </div>
+              <!-- Chart type + CSV export actions -->
+              <div class="chart-actions" id="chartActions">
+                <button class="btn-sm" onclick="renderChart(selectedTrackerId,'line')" data-i18n="lineChart">Linie</button>
+                <button class="btn-sm" onclick="renderChart(selectedTrackerId,'bar')"  data-i18n="barChart">Balken</button>
+                <button class="btn-csv" onclick="exportCsvSelected()" title="CSV herunterladen">⬇ CSV</button>
+              </div>
+              <!-- Price alert threshold -->
+              <div class="threshold-panel" id="thresholdPanel">
+                <div class="threshold-label">
+                  <span data-i18n="thresholdLabel">🎯 Preisalarm</span>
+                  <span class="threshold-hint" data-i18n="thresholdHint">Alert wenn Preis ≤ Zielpreis</span>
+                </div>
+                <div class="threshold-row">
+                  <input id="threshold-input" type="number" step="0.5" min="0"
+                         placeholder="z.B. 49.00"
+                         onkeydown="if(event.key==='Enter')setThreshold(selectedTrackerId)">
+                  <span class="threshold-currency">€</span>
+                  <button class="btn-threshold-save"
+                          onclick="setThreshold(selectedTrackerId)"
+                          data-i18n="thresholdSave">🎯 Speichern</button>
+                  <button class="btn-threshold-clear" id="threshold-clear-btn"
+                          style="display:none"
+                          onclick="clearThreshold(selectedTrackerId)"
+                          data-i18n="thresholdClear">✕</button>
+                </div>
               </div>
             </div>
           </div>
