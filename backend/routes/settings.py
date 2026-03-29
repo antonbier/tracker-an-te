@@ -29,6 +29,11 @@ class SettingsPayload(BaseModel):
     home_lat:           Optional[str] = None
     home_lon:           Optional[str] = None
     travel_categories:  Optional[str] = None
+    # Notification services
+    telegram_bot_token: Optional[str] = None
+    telegram_chat_id:   Optional[str] = None
+    gotify_url:         Optional[str] = None
+    gotify_token:       Optional[str] = None
 
 
 @router.get("")
