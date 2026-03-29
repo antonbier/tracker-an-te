@@ -38,7 +38,8 @@ import { openFieldGuide, closeFieldGuide,
 import { toggleBag, addTracker, loadTrackers, renderTrackers,
          selectTracker, renderStats, renderChart, renderTable,
          scrapeNow, deleteTracker, togglePause,
-         checkDawarich, generateIdeas, renderRecommendations } from './app/ryanair.js';
+         checkDawarich, generateIdeas, renderRecommendations,
+         setThreshold, clearThreshold, exportCsvSelected }    from './app/ryanair.js';
 
 import { toggleActualSync, addTrip, syncActualBudget,
          updateBudget, renderBudget, removeTrip,
@@ -110,6 +111,9 @@ window.togglePause           = togglePause;
 window.checkDawarich         = checkDawarich;
 window.generateIdeas         = generateIdeas;
 window.renderRecommendations = renderRecommendations;
+window.setThreshold          = setThreshold;
+window.clearThreshold        = clearThreshold;
+window.exportCsvSelected     = exportCsvSelected;
 window.toggleActualSync      = toggleActualSync;
 window.addTrip               = addTrip;
 window.syncActualBudget      = syncActualBudget;
