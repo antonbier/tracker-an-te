@@ -137,3 +137,45 @@ def notify_price_drop(tracker: dict, old_price: float, new_price: float) -> None
         logger.info(f"[Notify] Preissturz-Alert gesendet via: {', '.join(sent_via)}")
     else:
         logger.debug("[Notify] Keine Benachrichtigungsdienste konfiguriert")
+
+def notify_threshold_reached(tracker: dict, price: float, threshold: float) -> None:
+    """
+    Send a threshold-alert: price has dropped to or below the user-defined target.
+    Called by the scheduler when new_price <= tracker.threshold_price.
+
+    Args:
+        tracker:   tracker dict with origin, destination, outbound_date
+        price:     current price (EUR)
+        threshold: the user-set target price (EUR)
+    """
+    origin      = tracker.get("origin", "?")
+    destination = tracker.get("destination", "?")
+    date        = tracker.get("outbound_date", "")
+    savings_vs_target = round(threshold - price, 2)
+
+    tg_msg = (
+        f"🎯 <b>Preisziel erreicht!</b>\n"
+        f"<b>{origin} → {destination}</b>  {date}\n"
+        f"\n"
+        f"Aktueller Preis: <b>{price:.2f} €</b>\n"
+        f"Dein Zielpreis:  {threshold:.2f} €\n"
+        f"Unterschreitung: -{savings_vs_target:.2f} €\n"
+        f"\n"
+        f"<i>WanderSuite Preis-Radar · Jetzt buchen!</i>"
+    )
+
+    gotify_title = f"🎯 {origin} → {destination} — {price:.2f} € (Ziel: {threshold:.2f} €)"
+    gotify_msg   = (
+        f"Preisziel erreicht!\n"
+        f"Aktuell: {price:.2f} € | Ziel: {threshold:.2f} €\n"
+        f"Datum: {date}"
+    )
+
+    sent_via = []
+    if send_telegram(tg_msg):                              sent_via.append("Telegram")
+    if send_gotify(gotify_title, gotify_msg, priority=9): sent_via.append("Gotify")
+
+    if sent_via:
+        logger.info(f"[Notify] Threshold-Alert gesendet via: {', '.join(sent_via)}")
+    else:
+        logger.debug("[Notify] Keine Benachrichtigungsdienste konfiguriert")
