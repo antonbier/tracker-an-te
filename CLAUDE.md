@@ -64,7 +64,7 @@ wandersuite/
 │   ├── scheduler.py       ← Daily batch + price-drop notification trigger
 │   └── routes/
 │       ├── trackers.py       ← /api/trackers (Ryanair CRUD)
-│       ├── prices.py         ← /api/prices
+│       ├── prices.py         ← /api/prices (+ /api/prices/{id}/export.csv)
 │       ├── google_flights.py ← /api/google-flights
 │       ├── accommodations.py ← /api/accommodations/homair + /booking
 │       ├── budget.py         ← /api/budget/actual/*
@@ -413,11 +413,11 @@ Work directly on `main` unless explicitly asked for a PR.
 ## Roadmap
 
 ### Next
-- [ ] Price threshold alerts — user-defined trigger price per tracker
+- [x] ~~Price threshold alerts~~ — done: per-tracker 🎯 badge, Telegram/Gotify alert
 - [ ] Car rental tracker (Mietwagen tab in Preis-Radar)
 
 ### Planned
-- [ ] CSV / Excel export for price history
+- [x] ~~CSV export for price history~~ — done: `GET /api/prices/{id}/export.csv`
 - [ ] Currency toggle (EUR / USD / GBP)
 - [ ] SerpAPI quota widget in dashboard
 - [ ] Skeleton loaders during data fetching
