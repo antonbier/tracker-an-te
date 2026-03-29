@@ -53,6 +53,7 @@ def init_db():
                 children        INTEGER NOT NULL DEFAULT 0,
                 baggage_json    TEXT    NOT NULL DEFAULT '[]',
                 seat_cost       REAL    NOT NULL DEFAULT 0,
+                threshold_price REAL             DEFAULT NULL, -- alert when price drops below this
                 active          INTEGER NOT NULL DEFAULT 1,
                 created_at      TEXT    NOT NULL
             );
@@ -188,6 +189,13 @@ def init_db():
                 updated_at  TEXT DEFAULT (datetime('now'))
             );
         """)
+        # ── Safe migrations (additive only, idempotent) ───────────────────────
+        # SQLite: ALTER TABLE ADD COLUMN is safe to run multiple times via try/except
+        try:
+            conn.execute("ALTER TABLE trackers ADD COLUMN threshold_price REAL DEFAULT NULL")
+            conn.commit()
+        except Exception:
+            pass  # column already exists — expected on existing installations
 
         # Migrations for existing Ryanair tables
         for col, definition in [
@@ -555,6 +563,27 @@ def delete_detected_trip(trip_id: int) -> bool:
         return conn.execute(
             "DELETE FROM detected_trips WHERE id=?", (trip_id,)
         ).rowcount > 0
+
+# ─── Tracker Threshold ────────────────────────────────────────────────────────
+
+def set_tracker_threshold(tracker_id: int, threshold: float | None) -> bool:
+    """Set or clear the price-alert threshold for a tracker. Returns True if found."""
+    with db() as conn:
+        cur = conn.execute(
+            "UPDATE trackers SET threshold_price=? WHERE id=?",
+            (threshold, tracker_id)
+        )
+    return cur.rowcount > 0
+
+
+def get_tracker_threshold(tracker_id: int) -> float | None:
+    """Return the current threshold_price for a tracker, or None if not set."""
+    with db() as conn:
+        row = conn.execute(
+            "SELECT threshold_price FROM trackers WHERE id=?", (tracker_id,)
+        ).fetchone()
+    return row[0] if row else None
+
 
 # ─── User Data (trips, budget, bucket list) ───────────────────────────────────
 
