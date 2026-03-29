@@ -29,7 +29,18 @@ def run_all_trackers():
             snap_id = save_snapshot(tracker["id"], snap)
 
             if result["status"] == "ok":
-                logger.info(f"  ✅ Gespeichert (id={snap_id}): {snap['total_price']} {snap['currency']}")
+                new_price = snap.get("total_price")
+                logger.info(f"  ✅ Gespeichert (id={snap_id}): {new_price} {snap['currency']}")
+
+                # Price-drop notification: compare with previous snapshot
+                prev = result.get("previous_price")
+                if prev and new_price and new_price < prev:
+                    logger.info(f"  📉 Preissturz: {prev} → {new_price} — sende Benachrichtigung")
+                    try:
+                        from notifications import notify_price_drop
+                        notify_price_drop(tracker, old_price=prev, new_price=new_price)
+                    except Exception as ne:
+                        logger.warning(f"  ⚠️  Benachrichtigung fehlgeschlagen: {ne}")
             else:
                 logger.warning(f"  ⚠️  Status={result['status']}: {snap.get('error_message')}")
 
