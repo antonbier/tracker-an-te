@@ -298,5 +298,15 @@
   "notifGotifyDesc": "Send price alerts to your self-hosted Gotify server.",
   "notifGotifyUrl": "Gotify Server URL",
   "notifGotifyToken": "App Token",
-  "notifGotifyHint": "In Gotify → Apps → Create Application → copy token"
+  "notifGotifyHint": "In Gotify → Apps → Create Application → copy token",
+  "thresholdLabel": "🎯 Price Alert",
+  "thresholdHint": "Alert when price ≤ target",
+  "thresholdSave": "Save",
+  "thresholdClear": "Remove",
+  "thresholdSet": "Price alert set",
+  "thresholdCleared": "Price alert disabled",
+  "thresholdActive": "Price alert active",
+  "exportCsvTitle": "Download price history as CSV",
+  "lineChart": "Line",
+  "barChart": "Bar"
 }
