@@ -301,10 +301,39 @@ export async function setThreshold(trackerId) {
       ? `🎯 ${t('thresholdSet')}: ${threshold.toFixed(2)} €`
       : t('thresholdCleared');
     toast(msg, 'success');
+    _syncThresholdUI(threshold);
     loadTrackers(); // refresh card badges
   } catch(e) {
     toast(`❌ ${e.message}`, 'error');
   }
+}
+
+/** Clear the threshold (shortcut for the ✕ button). */
+export async function clearThreshold(trackerId) {
+  const input = document.getElementById('threshold-input');
+  if (input) input.value = '';
+  await setThreshold(trackerId);
+}
+
+/**
+ * Export CSV for the currently selected tracker.
+ * Called from the ⬇ CSV button — reads selectedTrackerId from state.
+ */
+export function exportCsvSelected() {
+  const { selectedTrackerId } = window;
+  if (!selectedTrackerId) return;
+  const apiUrl = localStorage.getItem('apiUrl') || '';
+  const a = document.createElement('a');
+  a.href = `${apiUrl}/api/prices/${selectedTrackerId}/export.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+/** Sync threshold clear button visibility after save. */
+function _syncThresholdUI(threshold) {
+  const clearBtn = document.getElementById('threshold-clear-btn');
+  if (clearBtn) clearBtn.style.display = threshold ? 'inline-flex' : 'none';
 }
 
 /**
