@@ -22,13 +22,15 @@
 | 🎒 **Meine Reisen** | Budget · Journal · Bucket List — all in one hub | ✅ |
 | 📓 **Travel Journal** | Automatic overnight trip detection from Dawarich GPS history | ✅ |
 | 💶 **Travel Budget** | Manual trips + ActualBudget sync + expense table | ✅ |
-| 🗺️ **Bucket List** | Wishlist with emoji, "when" field — stored client-side | ✅ |
+| 🗺️ **Bucket List** | Wishlist with emoji, "when" field — synced to backend | ✅ |
 | 🧭 **Dashboard** | Live stats: visited countries, remaining budget, tracker summary | ✅ |
+| 🔔 **Alerts** | Price-drop notifications via Telegram and Gotify | ✅ |
 | 📖 **Field Guide** | Full slide-panel manual with 4 tabs | ✅ |
 | 🌍 **Multilingual** | Deutsch · Italiano · English | ✅ |
-| 🎨 **Modern Explorer** | Light-first theme, Playfair serif, dark mode opt-in | ✅ |
+| 🎨 **Modern Explorer** | Light-first theme, Playfair serif, dark mode "Mitternacht" | ✅ |
 | 📱 **PWA + Bottom Bar** | Installable on iOS/Android, mobile bottom navigation | ✅ |
-| 🔐 **Encrypted Settings** | API keys encrypted with AES-Fernet in SQLite | ✅ |
+| 🔐 **Encrypted Settings** | All API keys and tokens AES-Fernet encrypted in SQLite | ✅ |
+| 💾 **Data Persistence** | trips, budget, bucket list synced to backend — survive browser wipes | ✅ |
 
 ---
 
@@ -64,7 +66,7 @@ git pull && docker compose up -d --build
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `HOST_PORT` | `8765` | Frontend port (Nginx, open in browser) |
-| `BACKEND_PORT` | `8766` | Backend port (FastAPI, called directly by browser for API) |
+| `BACKEND_PORT` | `8766` | Backend port (FastAPI, called directly by browser) |
 | `TZ` | `Europe/Rome` | Timezone for daily scraping cron (07:00) |
 | `DATA_DIR` | `./data` | Host path for SQLite DB and persistent data |
 | `APP_SECRET` | *(required)* | AES-Fernet encryption key — **change before first start!** |
@@ -73,7 +75,7 @@ git pull && docker compose up -d --build
 
 ### Data Persistence
 
-The SQLite database lives at `${DATA_DIR}/tracker.db` on the host, mounted into the container at `/app/data/tracker.db`. All data (trackers, price history, detected trips, settings) survives container restarts and updates.
+The SQLite database lives at `${DATA_DIR}/tracker.db` on the host, mounted into the container at `/app/data/tracker.db`. All data (trackers, price history, detected trips, settings, user data) survives container restarts and updates.
 
 ---
 
@@ -86,20 +88,18 @@ wandersuite/
 │   ├── manifest.json            # PWA manifest
 │   ├── sw.js                    # Service Worker (network-first cache)
 │   ├── icons/                   # PWA icons (192×192, 512×512 PNG)
-│   ├── locales/                 # i18n JSON files
-│   │   ├── de.json              # German (default)
-│   │   ├── en.json              # English
-│   │   └── it.json              # Italian
+│   ├── locales/                 # i18n JSON files (de, en, it)
 │   └── js/                      # Native ES Modules (no bundler)
 │       ├── main.js              # Entry point: imports + window.* + DOMContentLoaded
 │       ├── core/
 │       │   ├── state.js         # Global mutable state + setter functions
-│       │   └── api.js           # HTTP client api() + checkApiStatus()
+│       │   ├── api.js           # HTTP client api() + checkApiStatus()
+│       │   └── persist.js       # localStorage ↔ backend sync (ws-trips, ws-budget, ws-bucketlist)
 │       ├── ui/
 │       │   ├── i18n.js          # loadLocale, t(), applyTranslations, setLang
 │       │   ├── nav.js           # navigate(), sidebar, bottom bar, View Transitions
 │       │   ├── toast.js         # Toast notifications
-│       │   ├── settings.js      # Settings slide-panel (3 tabs)
+│       │   ├── settings.js      # Settings slide-panel (4 tabs incl. 🔔 Alerts)
 │       │   ├── priceradar.js    # Preis-Radar two-level tab logic
 │       │   ├── tabs.js          # Meine Reisen sub-tab logic
 │       │   └── fieldguide.js    # Field Guide slide-panel (4 tabs)
@@ -112,13 +112,14 @@ wandersuite/
 │           ├── homair.js        # Homair tracker CRUD
 │           ├── booking.js       # Booking.com tracker CRUD
 │           ├── journal.js       # Dawarich sync + trip list
-│           ├── onboarding.js    # Full-screen onboarding wizard
-│           └── bucketlist.js    # Bucket List (localStorage only)
+│           ├── onboarding.js    # Full-screen onboarding wizard (3 steps)
+│           └── bucketlist.js    # Bucket List (localStorage + backend sync)
 │
 ├── backend/                     # FastAPI application
 │   ├── main.py                  # App entry point + APScheduler (daily 07:00)
 │   ├── database.py              # SQLite schema + CRUD
-│   ├── settings_manager.py      # AES-Fernet encrypted settings
+│   ├── settings_manager.py      # AES-Fernet encrypted settings (16 keys)
+│   ├── notifications.py         # send_telegram(), send_gotify(), notify_price_drop()
 │   ├── scraper.py               # Ryanair API scraper
 │   ├── google_scraper.py        # Google Flights via SerpAPI
 │   ├── homair_scraper.py        # Homair via SerpAPI Google Hotels
@@ -128,7 +129,7 @@ wandersuite/
 │   ├── actual_budget.py         # ActualBudget REST client (actualpy)
 │   ├── gemini.py                # Google Gemini AI integration
 │   ├── openai_client.py         # OpenAI gpt-4o-mini integration
-│   ├── scheduler.py             # Daily batch job runner
+│   ├── scheduler.py             # Daily batch job + price-drop notification trigger
 │   └── routes/
 │       ├── trackers.py          # /api/trackers
 │       ├── prices.py            # /api/prices
@@ -138,15 +139,17 @@ wandersuite/
 │       ├── dawarich.py          # /api/dawarich/*
 │       ├── discover.py          # /api/discover
 │       ├── settings.py          # /api/settings
-│       └── dashboard.py         # /api/dashboard/stats
+│       ├── dashboard.py         # /api/dashboard/stats
+│       ├── userdata.py          # /api/userdata/* (ws-trips, ws-budget, ws-bucketlist)
+│       └── notifications.py     # /api/notifications/test-telegram + test-gotify
 │
 ├── docker/
-│   ├── Dockerfile               # Python 3.12 slim backend image
-│   └── nginx.conf               # Nginx with explicit PWA routes
+│   ├── Dockerfile               # Python 3.12 slim + curl for healthcheck
+│   └── nginx.conf               # Nginx with explicit PWA + JS MIME routes
 │
-├── docker-compose.yml
-├── .env.example
-├── CLAUDE.md                    # AI assistant context + architecture reference
+├── docker-compose.yml           # HOST_PORT, BACKEND_PORT, TZ, DATA_DIR, APP_SECRET
+├── .env.example                 # Template with all variables documented
+├── CLAUDE.md                    # AI assistant context + full architecture reference
 └── README.md
 ```
 
@@ -155,14 +158,16 @@ wandersuite/
 ## Navigation Structure
 
 ```
-🧭 Übersicht      →  Home dashboard
+🧭 Übersicht      →  Home dashboard (tracker summary, budget donut, trip list)
 🎯 Preis-Radar    →  [📊 Übersicht] [✈️ Flüge: Ryanair | Google] [🏨 Unterkünfte: Homair | Booking] [🚗 Mietwagen]
-✨ Inspiration    →  AI travel recommendations
+✨ Inspiration    →  AI travel recommendations (Gemini / OpenAI)
 🎒 Meine Reisen  →  [📊 Übersicht + Scratch Map] [🗺️ Wunschziele] [📓 Tagebuch] [💶 Budget]
 ```
 
 **Mobile** (`< 900px`): Fixed bottom navigation bar (Airbnb-style).  
-**Header** (always): ⚙️ Settings · 📖 Field Guide · 🌐 Language · API status dot
+**Header**: ⚙️ Settings · 📖 Field Guide · 🌐 Language · 🔴/🟢 API status dot · ⬇ App (PWA install)
+
+**Settings Tabs**: Allgemein · Integrationen · APIs & KI · 🔔 Alerts
 
 ---
 
@@ -188,6 +193,7 @@ Swagger UI: `http://YOUR-IP:8766/docs`
 | `POST` | `/api/google-flights` | Create tracker |
 | `DELETE` | `/api/google-flights/{id}` | Delete tracker |
 | `POST` | `/api/google-flights/{id}/scrape` | Fetch price |
+| `GET` | `/api/google-flights/{id}/history` | Price history |
 
 ### Accommodations
 | Method | Path | Description |
@@ -205,20 +211,25 @@ Swagger UI: `http://YOUR-IP:8766/docs`
 | `POST` | `/api/dawarich/sync` | Run full Dawarich sync |
 | `GET` | `/api/dawarich/trips` | List detected trips |
 | `DELETE` | `/api/dawarich/trips/{id}` | Delete trip |
-| `GET` | `/api/dawarich/countries` | ISO-2 codes of visited countries |
+| `GET` | `/api/dawarich/countries` | ISO-2 codes of visited countries (Scratch Map) |
 | `POST` | `/api/dawarich/debug` | Debug Dawarich point format |
 
-### Budget & Dashboard
+### Budget, Dashboard & User Data
 | Method | Path | Description |
 |--------|------|-------------|
 | `POST` | `/api/budget/actual/summary` | ActualBudget month summary |
 | `POST` | `/api/budget/actual/expenses` | Travel transactions by category |
 | `GET` | `/api/dashboard/stats` | Live stats: visited places + remaining budget |
+| `GET` | `/api/userdata` | All stored user data (trips, budget, bucketlist) |
+| `GET` | `/api/userdata/{key}` | Single user data value |
+| `PUT` | `/api/userdata/{key}` | Store user data value |
 
-### Settings & AI
+### Notifications, Settings & AI
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET/POST` | `/api/settings` | Get / save encrypted settings |
+| `POST` | `/api/notifications/test-telegram` | Send Telegram test message |
+| `POST` | `/api/notifications/test-gotify` | Send Gotify test notification |
+| `GET/POST` | `/api/settings` | Get / save all encrypted settings |
 | `GET` | `/api/settings/serpapi-quota` | SerpAPI monthly usage |
 | `POST` | `/api/discover` | AI travel recommendations |
 | `GET` | `/health` | Health check |
@@ -228,15 +239,15 @@ Swagger UI: `http://YOUR-IP:8766/docs`
 ## Integrations Setup
 
 ### SerpAPI
-Required for Google Flights and Booking trackers.  
-Free tier: 100 searches/month → [serpapi.com](https://serpapi.com)
+For Google Flights and Booking trackers. Free tier: 100 searches/month.  
+→ [serpapi.com](https://serpapi.com) → Create account → API Key
 
 ### Google Gemini
-For AI travel recommendations in the Inspiration tab.  
-Free on Google AI Studio → [aistudio.google.com](https://aistudio.google.com)
+For AI travel recommendations. Free on Google AI Studio.  
+→ [aistudio.google.com](https://aistudio.google.com) → Get API key
 
 ### Dawarich
-Self-hosted GPS location history app. WanderSuite reads your location points, detects overnight trips and displays them on the **Scratch Map**.  
+Self-hosted GPS location history app. WanderSuite reads your location points, detects overnight trips and displays them on the Scratch Map.  
 → [dawarich.app](https://dawarich.app)
 
 **Trip Detection Algorithm:**
@@ -245,16 +256,42 @@ Self-hosted GPS location history app. WanderSuite reads your location points, de
 3. Keep points > 50 km from home
 4. Group into days → overnight = 2+ consecutive nights
 5. Merge trips (max 2-day gap allowed)
-6. Reverse geocode via Nominatim (no API key needed)
+6. Reverse geocode via Nominatim (free, no API key)
 7. Map country names → ISO-2 codes for Scratch Map
 
-Configure home coordinates: Settings → Integrations → Dawarich → Lat / Lon
+Configure: Settings → Integrations → Dawarich → URL, Token, Home Lat/Lon
 
 ### ActualBudget
-Self-hosted budget app. WanderSuite syncs travel categories and shows remaining budget in the dashboard.  
-Uses `actualpy` (≥ 0.21.0).
+Self-hosted budget app. WanderSuite syncs travel categories and shows remaining budget.  
+Uses `actualpy` (≥ 0.21.0). Configure: Settings → Integrations → ActualBudget
 
-Configure: Settings → Integrations → ActualBudget → URL, Password, Budget Name, Travel Categories
+### Telegram Alerts
+Get price-drop notifications directly in Telegram.
+
+1. Open Telegram → search **@BotFather** → `/newbot` → copy the **Bot Token**
+2. Get your **Chat ID** from @userinfobot or @myidbot
+3. Settings → 🔔 Alerts → Telegram → enter both → **Test**
+
+### Gotify Alerts
+Push notifications to your self-hosted Gotify server (great for Unraid).
+
+1. In Gotify → **Apps** → **Create Application** → copy **App Token**
+2. Settings → 🔔 Alerts → Gotify → enter server URL + token → **Test**
+
+When a tracker finds a price lower than its previous price, alerts are sent automatically at 07:00 after the daily scrape.
+
+---
+
+## Security
+
+All API keys, tokens and passwords are:
+1. Synced to the backend via `POST /api/settings`
+2. Encrypted with **AES-Fernet** before storing in SQLite
+3. **Removed from localStorage** immediately after successful backend sync
+
+Encrypted keys: SerpAPI, Gemini, OpenAI, Dawarich token, ActualBudget password, Telegram Bot Token, Gotify Token and all other `s-*` settings.
+
+Plain-text in SQLite (not secrets): `ws-trips`, `ws-budget`, `ws-bucketlist` (user preference data, no credentials).
 
 ---
 
@@ -263,21 +300,17 @@ Configure: Settings → Integrations → ActualBudget → URL, Password, Budget 
 WanderSuite is an installable Progressive Web App.
 
 **iOS (Safari):** Share → Add to Home Screen  
-**Android (Chrome):** ⬇ App button appears in header once PWA criteria are met, or ⋮ → Install app
+**Android (Chrome):** ⬇ App button in header (appears when PWA criteria met), or ⋮ → Install app
 
-**Requirements for install prompt:**
-- Must be served over **HTTPS** (Railway, Cloudflare, etc.)
-- Service Worker must be registered successfully
-- Valid `manifest.json` with PNG icons
+Requirements: served over **HTTPS** (Railway, Cloudflare Tunnel, etc.)
 
 ---
 
 ## Dark Mode
 
-Toggle in Settings → General → Dark Mode.  
-Stored in `localStorage` as `theme: 'dark'`. Theme is restored on page load.
+Toggle: Settings → General → Dark Mode. Stored in `localStorage` as `theme: 'dark'`.
 
-The dark theme "Mitternacht" uses deep night-blue `#12141c` as background while keeping the terracotta accent `#D95D39` unchanged — preserving the Wanderlust character.
+The "Mitternacht" theme uses deep night-blue `#12141c` while keeping terracotta `#D95D39` unchanged.
 
 ---
 
@@ -286,15 +319,7 @@ The dark theme "Mitternacht" uses deep night-blue `#12141c` as background while 
 1. Fork → feature branch → pull request
 2. **Python:** PEP 8, type hints where practical
 3. **JS:** Vanilla ES Modules only — no bundler, no npm, no frameworks
-4. **i18n:** Add all new string keys to `de.json`, `en.json` AND `it.json`
-
-### Adding a new language
-
-```bash
-cp frontend/locales/en.json frontend/locales/fr.json
-# Translate all values (keys stay in English)
-# Add <button class="lang-btn" onclick="setLang('fr')">FR</button> in index.html header
-```
+4. **i18n:** Add all new keys to `de.json`, `en.json` AND `it.json`
 
 ### Adding a new tracker type
 
@@ -313,14 +338,22 @@ cp frontend/locales/en.json frontend/locales/fr.json
 
 ## Roadmap
 
-- [ ] Skeleton loaders during data fetching
-- [ ] CSV export for price history
+### In Progress / Next
+- [ ] Price threshold alerts — user-defined trigger price per tracker (e.g. "alert me below 49 €")
+- [ ] Car rental tracker (Preis-Radar → Mietwagen tab)
+
+### Planned
+- [ ] CSV / Excel export for price history
 - [ ] Currency toggle (EUR / USD / GBP)
-- [ ] Price threshold alerts per tracker
-- [ ] Telegram / Discord / Gotify push notifications
-- [ ] Car rental tracker (Preis-Radar → Mietwagen)
 - [ ] SerpAPI quota widget in dashboard
-- [ ] Scratch Map: click country → show trip details
+- [ ] Skeleton loaders during data fetching
+- [ ] Scratch Map: click country → show trip details panel
+- [ ] Discord webhook notifications
+
+### Ideas / Backlog
+- [ ] Multi-user support (separate data per user)
+- [ ] Email alerts (SMTP)
+- [ ] Repeat-trip suggestions ("You visited Rome last June — prices this year?")
 
 ---
 
