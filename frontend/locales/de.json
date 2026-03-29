@@ -287,5 +287,16 @@
   "scratchMapTrips": "Reisen",
   "scratchMapVisited": "Besucht",
   "scratchMapNotVisited": "Nicht besucht",
-  "scratchMapNoVisits": "Noch keine besuchten Länder"
+  "scratchMapNoVisits": "Noch keine besuchten Länder",
+  "settingsNotifications": "🔔 Alerts",
+  "notifTelegramDesc": "Sende Preisalarme direkt in deinen Telegram-Chat.",
+  "notifTgToken": "Bot Token",
+  "notifTgTokenHint": "Von @BotFather — /newbot erstellen, Token kopieren",
+  "notifTgChatId": "Chat ID",
+  "notifTgChatHint": "Von @userinfobot oder @myidbot abrufen",
+  "notifTest": "Testen",
+  "notifGotifyDesc": "Sende Preisalarme an deinen selbst-gehosteten Gotify-Server.",
+  "notifGotifyUrl": "Gotify Server URL",
+  "notifGotifyToken": "App Token",
+  "notifGotifyHint": "In Gotify → Apps → neue App erstellen → Token kopieren"
 }
