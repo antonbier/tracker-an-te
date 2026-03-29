@@ -1,9 +1,12 @@
 """
-WanderSuite v0.1 — REST Routes: /api/prices
-Preisverlauf für Charts — inkl. Sitzplatzkosten.
+WanderSuite — REST Routes: /api/prices
+Preisverlauf für Charts und CSV-Export.
 """
 
+import csv
+import io
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 from database import get_tracker, get_snapshots
 
 router = APIRouter()
@@ -28,6 +31,7 @@ def get_price_history(tracker_id: int, limit: int = 90):
             "return_date":   t.get("return_date"),
             "adults":        t["adults"],
             "seat_cost":     t.get("seat_cost", 0.0),
+            "threshold_price": t.get("threshold_price"),
         },
         "labels":         [s["fetched_at"][:10] for s in snaps_sorted],
         "total_prices":   [s["total_price"]   for s in snaps_sorted],
@@ -37,3 +41,56 @@ def get_price_history(tracker_id: int, limit: int = 90):
         "statuses":       [s["status"]        for s in snaps_sorted],
         "snapshots":      snaps_sorted,
     }
+
+
+@router.get("/{tracker_id}/export.csv")
+def export_price_history_csv(tracker_id: int, limit: int = 365):
+    """
+    Export full price history as a CSV file download.
+    Columns: date, total_price, flight_price, baggage_price, seat_price, status, currency
+
+    Example: GET /api/prices/3/export.csv?limit=365
+    Browser will download: wandersuite_BGY-DUB_2024-06-01.csv
+    """
+    t = get_tracker(tracker_id)
+    if not t:
+        raise HTTPException(404, f"Tracker #{tracker_id} nicht gefunden")
+
+    snaps = get_snapshots(tracker_id, limit=limit)
+    snaps_sorted = sorted(snaps, key=lambda s: s["fetched_at"])
+
+    # Build CSV in memory
+    output = io.StringIO()
+    writer = csv.writer(output, quoting=csv.QUOTE_NONNUMERIC)
+
+    # Header row with tracker metadata as comments
+    writer.writerow([
+        f"# WanderSuite Preishistorie — "
+        f"{t['origin']} → {t['destination']} "
+        f"({t['outbound_date']}"
+        f"{' ⇄ ' + t['return_date'] if t.get('return_date') else ''})"
+    ])
+    writer.writerow([f"# Erwachsene: {t['adults']} | Abruf: {len(snaps_sorted)} Datenpunkte"])
+    writer.writerow([])  # blank line
+    writer.writerow(["Datum", "Gesamtpreis (€)", "Flugpreis (€)",
+                     "Gepäck (€)", "Sitzplatz (€)", "Status", "Währung"])
+
+    for s in snaps_sorted:
+        writer.writerow([
+            s["fetched_at"][:10],
+            s.get("total_price")   or "",
+            s.get("flight_price")  or "",
+            s.get("baggage_price") or "",
+            s.get("seat_price")    or "",
+            s.get("status", ""),
+            s.get("currency", "EUR"),
+        ])
+
+    output.seek(0)
+    filename = f"wandersuite_{t['origin']}-{t['destination']}_{t['outbound_date']}.csv"
+
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
