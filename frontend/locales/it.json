@@ -308,5 +308,10 @@
   "thresholdActive": "Allerta prezzo attiva",
   "exportCsvTitle": "Scarica storico prezzi come CSV",
   "lineChart": "Linea",
-  "barChart": "Barre"
+  "barChart": "Barre",
+  "authLogin": "Accedi",
+  "authSetup": "Prima configurazione",
+  "authLogout": "Esci",
+  "authSecurity": "🔐 Sicurezza",
+  "authAdminUsers": "👥 Utenti"
 }
