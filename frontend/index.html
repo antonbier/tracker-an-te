@@ -89,6 +89,12 @@ body {
   border-bottom:1px solid var(--border);
   box-shadow: 0 1px 0 var(--border), 0 2px 16px rgba(0,0,0,.04);
 }
+/* Keep header buttons above View Transition API overlay */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.18s;
+}
+.header { view-transition-name: header; }
 .logo {
   display:flex; align-items:center; gap:.55rem;
   font-family: var(--serif);

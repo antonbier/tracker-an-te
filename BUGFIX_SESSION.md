@@ -51,15 +51,34 @@ before it reaches the button.
 - Bound via `addEventListener('click', e => { e.stopPropagation(); openFieldGuide(); })`
   in `main.js` DOMContentLoaded — pushed but not yet confirmed working
 
-**Next steps to try if still broken:**
-1. Open DevTools → Elements → inspect the 📖 button
-2. Run in console: `document.getElementById('btn-fieldguide').getBoundingClientRect()`
-   — check if width/height is 0 (invisible/collapsed)
-3. Run: `document.elementFromPoint(X, Y)` where X,Y are the pixel coords of the button
-   — this reveals what element is actually receiving the click
-4. Check if `.header-right` has correct `overflow: visible` and no child is expanding
-5. Suspect: `.status-dot` or another element in `.header-right` may be expanding
-   beyond its visual bounds and overlapping the 📖 button
+### 6. View Transition API overlay blocking header clicks (ROOT CAUSE — FIXED)
+
+`nav.js` uses `document.startViewTransition()` for page animations. This API
+creates a `::view-transition` pseudo-element that covers the **entire viewport**
+including the header during (and sometimes after) the animation.
+
+On Chrome 111+ (which here.now uses), this overlay intercepts all click events
+on the header buttons (⚙ Settings, 📖 Field Guide) after any navigation.
+
+**Fix in `frontend/js/ui/nav.js`:**
+```js
+// Added transition.finished.then() to clean up pointer-events
+const transition = document.startViewTransition(doNav);
+transition.finished.then(() => {
+  document.documentElement.style.pointerEvents = '';
+});
+```
+
+**Fix in `frontend/index.html`:**
+```css
+/* Shorter transition duration + give header its own layer */
+::view-transition-old(root), ::view-transition-new(root) {
+  animation-duration: 0.18s;
+}
+.header { view-transition-name: header; }
+```
+
+**Commits:** see latest push
 
 ## Files Modified
 - `frontend/index.html` — CSS fixes for onboarding, auth-overlay, fieldguide button id

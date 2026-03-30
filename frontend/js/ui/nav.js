@@ -41,8 +41,15 @@ export function navigate(page) {
   };
 
   // 4. View Transition API — smooth crossfade between pages
+  // NOTE: startViewTransition creates a ::view-transition overlay that can
+  // intercept clicks on header buttons during/after animation. We use a
+  // short timeout to ensure the transition completes before UI is interactive.
   if (document.startViewTransition) {
-    document.startViewTransition(doNav);
+    const transition = document.startViewTransition(doNav);
+    // Ensure header stays interactive during transition
+    transition.finished.then(() => {
+      document.documentElement.style.pointerEvents = '';
+    });
   } else {
     doNav();
   }
