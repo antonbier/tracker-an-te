@@ -133,3 +133,29 @@ running an animation that reset opacity back to 0 on all fixed-position elements
 - Onboarding check simplified back to basics (only `seen` + `hasUrl` checks)
 
 **Result:** Field Guide and Settings panels should now open correctly.
+
+
+### 9. Service Worker serving stale JS — fixes never reached browser (ROOT CAUSE)
+
+**The real problem all along:**
+here.now only deploys files in `frontend/` root (4 files: index.html, sw.js,
+manifest.json, _headers). The `js/` subdirectory with all module files was
+deployed once from a previous session and is served from the Service Worker
+cache (`CACHE_VER = 'v2'`).
+
+All our fixes to `fieldguide.js`, `nav.js`, `onboarding.js` etc. were committed
+to GitHub but **never reached the browser** — the SW kept serving old cached versions.
+
+**Fixes:**
+1. SW cache version bumped v2 → v3 (forces re-install on next visit)
+2. All critical fixes inlined directly into `index.html` as a `<script>` block
+   that runs after DOMContentLoaded and **overrides** whatever the SW cached:
+   - `openFieldGuide()` — forces opacity/pointer-events inline styles
+   - `closeFieldGuide()` — cleanup
+   - fieldguide button rebound via cloneNode + addEventListener
+   - `_checkOnboarding()` — simplified: only apiUrl + ws-onboarding-done checks
+3. Security tab (`#tab-security`) hidden by default in HTML
+   — should only show when AUTH_ENABLED=true (handled by settings.js auth check)
+
+**Lesson:** When using a Service Worker with pre-caching, always bump CACHE_VER
+when deploying JS changes, and be aware that static hosts may not deploy subdirectories.
