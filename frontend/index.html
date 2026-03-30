@@ -3731,68 +3731,6 @@ body.dark-mode #scratch-map-svg .jvm-region { stroke: var(--border) !important; 
 <div class="toast-container" id="toastContainer"></div>
 
 
-<script>
-// ── WanderSuite hotfix — overrides SW-cached JS ──────────────────────────
-// Runs after DOMContentLoaded, patches functions that SW may serve stale.
-document.addEventListener('DOMContentLoaded', () => {
-  // Fix 1: openFieldGuide — force styles directly
-  window._origOpenFieldGuide = window.openFieldGuide;
-  window.openFieldGuide = function() {
-    const bd = document.getElementById('fieldGuideBackdrop');
-    if (!bd) return;
-    bd.classList.add('open');
-    bd.style.cssText += ';opacity:1!important;pointer-events:all!important;z-index:1100!important;visibility:visible!important;';
-    document.body.style.overflow = 'hidden';
-    // Switch to first tab
-    ['start','radar','mytrips','discover'].forEach(id => {
-      const p = document.getElementById('fg-panel-' + id);
-      const t = document.getElementById('fg-tab-' + id);
-      if (p) p.style.display = id === 'start' ? 'block' : 'none';
-      if (t) t.classList.toggle('active', id === 'start');
-    });
-    if (window.innerWidth < 900 && window.closeSidebar) window.closeSidebar();
-  };
-
-  // Fix 2: closeFieldGuide
-  window.closeFieldGuide = function(e) {
-    const bd = document.getElementById('fieldGuideBackdrop');
-    if (!bd) return;
-    if (e && e.target !== bd) return;
-    bd.classList.remove('open');
-    bd.style.cssText = bd.style.cssText
-      .replace(/opacity:[^;]+;?/g,'')
-      .replace(/pointer-events:[^;]+;?/g,'');
-    document.body.style.overflow = '';
-  };
-
-  // Fix 3: bind fieldguide button reliably
-  const fgBtn = document.getElementById('btn-fieldguide');
-  if (fgBtn) {
-    fgBtn.replaceWith(fgBtn.cloneNode(true)); // remove old listeners
-    const newBtn = document.getElementById('btn-fieldguide');
-    newBtn.addEventListener('click', e => { e.stopPropagation(); window.openFieldGuide(); });
-  }
-
-  // Fix 4: onboarding — only show if BOTH apiUrl and ws-onboarding-done are missing
-  window._checkOnboarding = function() {
-    if (localStorage.getItem('ws-onboarding-done')) return;
-    if (localStorage.getItem('apiUrl')) {
-      localStorage.setItem('ws-onboarding-done', '1');
-      return;
-    }
-    const bd = document.getElementById('onboardingBackdrop');
-    if (!bd) return;
-    bd.classList.add('open');
-    bd.style.cssText += ';opacity:1!important;pointer-events:all!important;visibility:visible!important;';
-    document.body.style.overflow = 'hidden';
-  };
-
-  // Delay to let main.js module load first, then apply fixes
-  setTimeout(() => {
-    window._checkOnboarding();
-  }, 800);
-});
-</script>
 
 <script type="module" src="js/main.js"></script>
 </body>
