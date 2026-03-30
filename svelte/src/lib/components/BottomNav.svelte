@@ -4,8 +4,8 @@
   const nav = [
     { id: 'home',       icon: '🏠', label: 'Home' },
     { id: 'priceradar', icon: '🎯', label: 'Radar' },
+    { id: 'mytrips',    icon: '🎒', label: 'Reisen' },
     { id: 'discover',   icon: '✨', label: 'Inspiration' },
-    { id: 'journal',    icon: '📓', label: 'Tagebuch' },
   ];
 </script>
 
