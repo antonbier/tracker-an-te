@@ -35,7 +35,7 @@ import { openSettings, closeSettings, saveSettings,
          toggleTheme }                                    from './ui/settings.js';
 import { switchRadarCategory, switchRadarSubTab }         from './ui/priceradar.js';
 import { switchMyTripsTab }                               from './ui/tabs.js';
-import { openFieldGuide, closeFieldGuide,
+import { openFieldGuide, closeFieldGuide, closeFieldGuideForced,
          switchFieldGuideTab }                            from './ui/fieldguide.js';
 
 // ── App Modules ───────────────────────────────────────────────────────────────
@@ -110,6 +110,7 @@ window.testTelegram          = testTelegram;
 window.testGotify            = testGotify;
 window.toggleTheme           = toggleTheme;
 window.openFieldGuide        = openFieldGuide;
+window.closeFieldGuideForced = closeFieldGuideForced;
 window.closeFieldGuide       = closeFieldGuide;
 window.switchFieldGuideTab   = switchFieldGuideTab;
 window.switchRadarCategory   = switchRadarCategory;
@@ -217,7 +218,7 @@ window.addEventListener('DOMContentLoaded', async () => {
         !sb.contains(e.target) && !hb.contains(e.target)) closeSidebar();
   });
 
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSettings(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeSettings(); closeFieldGuideForced(); } });
 
   // Bind fieldguide button via addEventListener (more reliable than onclick for ES modules)
   const fgBtn = document.getElementById('btn-fieldguide');
