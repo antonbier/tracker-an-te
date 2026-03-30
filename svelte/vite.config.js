@@ -9,33 +9,78 @@ export default defineConfig({
     sveltekit(),
     SvelteKitPWA({
       registerType: 'autoUpdate',
+
+      // Inline the service worker registration — most reliable method
+      injectRegister: 'inline',
+
       manifest: {
         name: 'WanderSuite',
         short_name: 'WanderSuite',
-        description: 'Reise- und Budget-Tracker',
+        description: 'Self-hosted Reise- und Budget-Tracker',
         theme_color: '#D95D39',
-        background_color: '#f9f8f6',
+        background_color: '#12141c',
         display: 'standalone',
+        orientation: 'portrait',
+        scope: '/',
         start_url: '/',
+        lang: 'de',
         icons: [
-          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+          {
+            src: '/icons/icon-192.png',
+            sizes: '192x192',
+            type: 'image/png',
+          },
+          {
+            src: '/icons/icon-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+          },
+          {
+            // Maskable icon required for Android install prompt
+            src: '/icons/icon-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
         ],
         shortcuts: [
-          { name: 'Preis-Radar', url: '/#priceradar', icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }] },
-          { name: 'Meine Reisen', url: '/#mytrips', icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }] },
-        ],
-      },
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,webp}'],
-        navigateFallback: 'index.html',
-        runtimeCaching: [
           {
-            urlPattern: /^\/api\//,
-            handler: 'NetworkOnly',   // Never cache API calls
+            name: 'Preis-Radar',
+            short_name: 'Radar',
+            url: '/',
+            icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }],
+          },
+          {
+            name: 'Meine Reisen',
+            short_name: 'Reisen',
+            url: '/',
+            icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }],
           },
         ],
       },
+
+      workbox: {
+        // Cache all build assets
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff2}'],
+        // SPA fallback
+        navigateFallback: '/',
+        navigateFallbackDenylist: [/^\/api/, /^\/health/],
+        // Never cache API calls
+        runtimeCaching: [
+          {
+            urlPattern: /^\/api\//,
+            handler: 'NetworkOnly',
+          },
+          {
+            urlPattern: /^\/health/,
+            handler: 'NetworkOnly',
+          },
+        ],
+        cleanupOutdatedCaches: true,
+        skipWaiting: true,
+        clientsClaim: true,
+      },
+
       devOptions: {
         enabled: false,
       },
