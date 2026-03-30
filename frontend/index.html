@@ -1758,7 +1758,7 @@ body.dark-mode #scratch-map-svg .jvm-region { stroke: var(--border) !important; 
       <button class="lang-btn" onclick="setLang('en')">EN</button>
     </div>
     <button class="btn-icon-hdr btn-settings" onclick="openSettings()" title="Einstellungen" aria-label="Settings">⚙</button>
-    <button class="btn-icon-hdr" id="btn-fieldguide" title="Feldführer" aria-label="Field Guide" style="font-size:.75rem">📖</button>
+    <button class="btn-icon-hdr" id="btn-fieldguide" title="Feldführer" aria-label="Field Guide" style="font-size:.75rem" onclick="document.getElementById('fieldGuideBackdrop').classList.add('open');document.body.style.overflow='hidden'">📖</button>
     <div class="status-dot" id="statusDot" title="API Status"></div>
   </div>
 </header>
