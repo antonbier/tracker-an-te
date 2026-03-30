@@ -27,7 +27,9 @@ function _closeFieldGuide() {
   const bd = document.getElementById('fieldGuideBackdrop');
   if (!bd) return;
   bd.classList.remove('open');
-  document.body.style.overflow = '';
+  // Only reset if no other modal is open
+  const anyOpen = document.querySelector('.modal-backdrop.open, #onboardingBackdrop.open');
+  if (!anyOpen) document.body.style.overflow = '';
 }
 
 export function switchFieldGuideTab(tab) {
