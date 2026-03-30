@@ -1,4 +1,4 @@
-// Build: 2026-03-30 11:46 UTC
+// Build: 2026-03-30 11:47 UTC
 /**
  * sw.js — WanderSuite Service Worker
  *
