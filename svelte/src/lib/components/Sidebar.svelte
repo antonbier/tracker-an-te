@@ -8,7 +8,6 @@
     { id: 'priceradar', icon: '🎯', labelKey: 'navRadar' },
     { id: 'discover',   icon: '✨', labelKey: 'navDiscover' },
     { id: 'mytrips',    icon: '🎒', labelKey: 'navTrips' },
-    { id: 'journal',    icon: '📓', labelKey: 'navJournal' },
   ];
 
   function handleLogout() { logout(); window.location.reload(); }
@@ -36,17 +35,15 @@
       </div>
     {/if}
     <button onclick={onSettings}
-      class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium w-full transition-colors"
+      class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium w-full"
       style="color:var(--ws-muted)">
-      <span class="text-base">⚙️</span>
-      {$t('settings')}
+      <span>⚙️</span>{$t('settings')}
     </button>
     {#if $appStatus?.auth_enabled && $currentUser}
       <button onclick={handleLogout}
-        class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium w-full transition-colors"
+        class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium w-full"
         style="color:var(--ws-muted)">
-        <span class="text-base">🚪</span>
-        {$t('logout')}
+        <span>🚪</span>{$t('logout')}
       </button>
     {/if}
   </div>
