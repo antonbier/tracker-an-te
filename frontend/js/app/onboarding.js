@@ -40,8 +40,15 @@ export function checkOnboarding() {
     localStorage.setItem('ws-onboarding-done', '1');
     return;
   }
-  // First visit with no backend: show the wizard
-  // But only if the onboardingBackdrop element exists and is in the DOM
+
+  // Any existing localStorage data = user has visited before or is on demo URL
+  // Skip wizard to prevent blocking preview deployments like here.now
+  if (localStorage.length > 0) {
+    localStorage.setItem('ws-onboarding-done', '1');
+    return;
+  }
+
+  // Truly first visit (empty localStorage) → show wizard
   const bd = document.getElementById('onboardingBackdrop');
   if (!bd) return;
   setObStep(1);

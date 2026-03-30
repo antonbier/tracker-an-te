@@ -55,7 +55,7 @@ export async function initAuth() {
     if (!r.ok) return true; // Backend unreachable → open access
     const status = await r.json();
 
-    if (!status.auth_enabled) return true; // AUTH_ENABLED=false → pass through
+    if (!status.auth_enabled) { _removeOverlayIfPresent(); return true; }
 
     if (status.needs_setup) {
       showAuthScreen('setup');
@@ -65,7 +65,8 @@ export async function initAuth() {
     // Check existing JWT
     const token = getToken();
     if (token && await _validateToken(apiUrl, token)) {
-      return true; // Valid JWT → start app
+      _removeOverlayIfPresent();
+      return true;
     }
 
     showAuthScreen('login');
@@ -73,8 +74,14 @@ export async function initAuth() {
 
   } catch(e) {
     console.warn('[Auth] Status check failed:', e.message);
+    _removeOverlayIfPresent();
     return true; // Can't reach backend → open access (fail-open)
   }
+}
+
+function _removeOverlayIfPresent() {
+  const overlay = document.getElementById('auth-overlay');
+  if (overlay) { overlay.remove(); document.body.style.overflow = ''; }
 }
 
 async function _validateToken(apiUrl, token) {
