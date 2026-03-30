@@ -31,10 +31,22 @@ let connectionVerified = false;
 export function checkOnboarding() {
   const hasUrl = localStorage.getItem('apiUrl');
   const seen   = localStorage.getItem('ws-onboarding-done');
-  if (!hasUrl && !seen) {
-    setObStep(1);
-    updateObStep();
-    document.getElementById('onboardingBackdrop').classList.add('open');
+
+  // Never show onboarding again once dismissed or completed
+  if (seen) return;
+
+  // If backend URL already configured: silently mark done, don't show overlay
+  if (hasUrl) {
+    localStorage.setItem('ws-onboarding-done', '1');
+    return;
+  }
+
+  // First visit with no backend: show the wizard
+  setObStep(1);
+  updateObStep();
+  const bd = document.getElementById('onboardingBackdrop');
+  if (bd) {
+    bd.classList.add('open');
     document.body.style.overflow = 'hidden';
   }
 }
@@ -42,9 +54,13 @@ export function checkOnboarding() {
 /** Close the wizard with a fade-out animation, then save completion flag. */
 export function closeOnboarding() {
   const el = document.getElementById('onboardingBackdrop');
+  if (!el) return;
+  // Disable pointer-events immediately — don't wait for fade-out
+  el.style.pointerEvents = 'none';
   el.classList.add('ob-closing');
   setTimeout(() => {
     el.classList.remove('open', 'ob-closing');
+    el.style.pointerEvents = '';
     document.body.style.overflow = '';
     localStorage.setItem('ws-onboarding-done', '1');
   }, 400);
