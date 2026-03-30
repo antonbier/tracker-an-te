@@ -1,0 +1,43 @@
+@import 'tailwindcss';
+
+/* ── WanderSuite Design Tokens ─────────────────────────────────────── */
+/* Mapped to Tailwind CSS variables for use in components             */
+
+:root {
+  /* Light theme */
+  --ws-bg:       #f9f8f6;
+  --ws-surface:  #ffffff;
+  --ws-surface2: #f2f0ec;
+  --ws-border:   #e2ddd6;
+  --ws-text:     #1a1612;
+  --ws-accent:   #D95D39;
+  --ws-accent2:  #1E3A5F;
+  --ws-green:    #2A5C45;
+  --ws-muted:    #6b6560;
+}
+
+.dark {
+  --ws-bg:       #12141c;
+  --ws-surface:  #1e212b;
+  --ws-surface2: #252837;
+  --ws-border:   #323647;
+  --ws-text:     #eceef5;
+  --ws-accent:   #D95D39;
+  --ws-accent2:  #6aaddc;
+  --ws-green:    #4dac7a;
+  --ws-muted:    #9094a8;
+}
+
+/* ── Base ───────────────────────────────────────────────────────────── */
+html, body {
+  height: 100%;
+  background-color: var(--ws-bg);
+  color: var(--ws-text);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Scrollbar ──────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--ws-border); border-radius: 3px; }
