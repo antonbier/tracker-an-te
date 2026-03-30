@@ -1,6 +1,5 @@
 """
-WanderSuite v1.0 — REST Routes: /api/settings
-Verschlüsselte API Key Verwaltung.
+WanderSuite — REST Routes: /api/settings
 """
 
 from fastapi import APIRouter
@@ -9,7 +8,7 @@ from typing import Optional
 import requests
 import logging
 
-from settings_manager import save_settings_bulk, get_settings_all, get_setting_value
+from settings_manager import save_settings_bulk, get_settings_all, get_setting_value, SETTING_KEYS
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -22,45 +21,39 @@ class SettingsPayload(BaseModel):
     dawarich_url:       Optional[str] = None
     dawarich_token:     Optional[str] = None
     actual_url:         Optional[str] = None
-    actual_token:       Optional[str] = None  # ActualBudget server password
-    actual_file:        Optional[str] = None  # Budget display name (top-left in ActualBudget)
+    actual_token:       Optional[str] = None
+    actual_file:        Optional[str] = None
     llm_provider:       Optional[str] = None
     timezone:           Optional[str] = None
     home_lat:           Optional[str] = None
     home_lon:           Optional[str] = None
     travel_categories:  Optional[str] = None
-    # Notification services
     telegram_bot_token: Optional[str] = None
     telegram_chat_id:   Optional[str] = None
     gotify_url:         Optional[str] = None
     gotify_token:       Optional[str] = None
+    language:           Optional[str] = None   # NEW: UI language preference
 
 
 @router.get("")
 def get_settings():
-    """Alle Settings abrufen (Keys maskiert)."""
+    """Alle Settings abrufen (Keys maskiert, language im Klartext)."""
     return get_settings_all()
 
 
 @router.post("")
 def update_settings(data: SettingsPayload):
-    """Settings speichern — leere Strings werden ignoriert."""
-    payload = {k: v for k, v in data.model_dump().items() if v}
+    """Settings speichern — None-Werte werden ignoriert."""
+    payload = {k: v for k, v in data.model_dump().items() if v is not None and v != ""}
     save_settings_bulk(payload)
     return {"message": "Gespeichert", "updated": list(payload.keys())}
 
 
 @router.get("/serpapi-quota")
 def get_serpapi_quota():
-    """
-    SerpAPI Quota-Nutzung abrufen.
-    Gibt {used, limit, remaining, plan} zurück.
-    Free plan: 100 Suchen/Monat.
-    """
     api_key = get_setting_value("serpapi_key")
     if not api_key:
         return {"error": "SerpAPI Key nicht konfiguriert"}
-
     try:
         resp = requests.get(
             "https://serpapi.com/account",
@@ -71,19 +64,16 @@ def get_serpapi_quota():
             return {"error": "Ungültiger SerpAPI Key"}
         resp.raise_for_status()
         data = resp.json()
-
-        searches_per_month = data.get("plan_searches_left", None)
+        searches_left  = data.get("plan_searches_left", None)
         total_searches = data.get("plan_monthly_searches", None)
-        used = (total_searches - searches_per_month) if (total_searches and searches_per_month is not None) else None
-
+        used = (total_searches - searches_left) if (total_searches and searches_left is not None) else None
         return {
             "used":      used,
             "limit":     total_searches,
-            "remaining": searches_per_month,
+            "remaining": searches_left,
             "plan":      data.get("plan_name", "unknown"),
             "account":   data.get("email", ""),
         }
     except requests.RequestException as e:
         logger.warning(f"[SerpAPI] Quota-Abfrage fehlgeschlagen: {e}")
         return {"error": f"SerpAPI nicht erreichbar: {str(e)}"}
-
