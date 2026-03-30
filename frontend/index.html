@@ -60,7 +60,7 @@
   --shadow-md: 0 4px 24px rgba(0,0,0,.08), 0 1px 4px rgba(0,0,0,.04);
   --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
 }
-html { font-size:15px; scroll-behavior:smooth; }
+html { font-size:15px; scroll-behavior:smooth; overflow-y:scroll; }
 body {
   background: var(--bg);
   background-image: var(--grain);
@@ -205,7 +205,6 @@ body {
   margin-left:var(--nav-w);
   flex:1; min-width:0;
   padding:1.6rem 1.4rem 2rem;
-  overflow-y:auto;
   /* animation removed — was creating stacking context affecting fixed modals */
 }
 @keyframes page-in { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
@@ -1740,7 +1739,7 @@ body.dark-mode #scratch-map-svg .jvm-region { stroke: var(--border) !important; 
     <button class="hamburger" id="hamburger" onclick="toggleSidebar()" aria-label="Menu">
       <span></span><span></span><span></span>
     </button>
-    <a class="logo" href="#" onclick="navigate('ryanair');return false;">
+    <a class="logo" href="#" onclick="navigate('home');return false;">
       <div class="logo-icon">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="10"/><line x1="12" y1="2" x2="12" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/>
