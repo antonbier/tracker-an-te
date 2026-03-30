@@ -41,13 +41,8 @@ export function checkOnboarding() {
     return;
   }
 
-  // Check if user has any WanderSuite-specific data (theme, language prefs, etc.)
-  // This prevents the wizard from showing on demo/preview URLs
-  const hasWsData = ['theme','lang','s-timezone','s-lightMode'].some(k => localStorage.getItem(k));
-  if (hasWsData) {
-    localStorage.setItem('ws-onboarding-done', '1');
-    return;
-  }
+  // Show wizard on any first visit without backend URL
+  // (removed extra skip logic that was too aggressive)
 
   // Truly first visit (empty localStorage) → show wizard
   const bd = document.getElementById('onboardingBackdrop');

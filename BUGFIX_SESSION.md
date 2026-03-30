@@ -119,3 +119,17 @@ onboarding:     1000
 modal-backdrop: 1100  ← Settings + Field Guide
 auth-overlay:   2000
 ```
+
+
+### 8. opacity:0 not overridden — View Transition animation resetting styles (ROOT CAUSE CONFIRMED)
+
+Console showed: `opacity: 0` even after `bd.style.opacity = '1'` was set inline.
+This confirms the View Transition API's `::view-transition` pseudo-element was
+running an animation that reset opacity back to 0 on all fixed-position elements.
+
+**Final fixes:**
+- `document.startViewTransition()` **completely disabled** in `nav.js` — just `doNav()` now
+- `.modal-backdrop.open { opacity:1 !important }` to prevent any override
+- Onboarding check simplified back to basics (only `seen` + `hasUrl` checks)
+
+**Result:** Field Guide and Settings panels should now open correctly.

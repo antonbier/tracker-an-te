@@ -40,19 +40,9 @@ export function navigate(page) {
     if (page === 'mytrips')    import('../ui/tabs.js').then(m => { m.switchMyTripsTab('overview'); import('../app/bucketlist.js').then(b => b.updateMyTripsStats()); });
   };
 
-  // 4. View Transition API — smooth crossfade between pages
-  // NOTE: startViewTransition creates a ::view-transition overlay that can
-  // intercept clicks on header buttons during/after animation. We use a
-  // short timeout to ensure the transition completes before UI is interactive.
-  if (document.startViewTransition) {
-    const transition = document.startViewTransition(doNav);
-    // Ensure header stays interactive during transition
-    transition.finished.then(() => {
-      document.documentElement.style.pointerEvents = '';
-    });
-  } else {
-    doNav();
-  }
+  // 4. View Transition API disabled — it creates ::view-transition overlays
+  // that block clicks and reset opacity on modals. Using simple doNav() instead.
+  doNav();
 }
 
 /** Toggle the sidebar open/closed (hamburger button, desktop only). */
