@@ -1,35 +1,42 @@
 <script>
   import { onMount } from 'svelte';
   import { api } from '$lib/api.js';
-  import { apiUrl, trips, budget } from '$lib/stores.js';
+  import { apiUrl, trips, budget, appVersion } from '$lib/stores.js';
   import { currentPage } from '$lib/stores.js';
 
-  let trackers    = $state([]);
-  let stats       = $state(null);
-  let loading     = $state(true);
+  let trackers      = $state([]);
+  let dawarichTrips = $state([]);
+  let loading       = $state(true);
 
   const totalBudget = $derived($budget ? parseFloat($budget) : 0);
   const totalSpent  = $derived($trips.reduce((s, t) => s + (parseFloat(t.cost) || 0), 0));
   const remaining   = $derived(Math.max(0, totalBudget - totalSpent));
   const spentPct    = $derived(totalBudget > 0 ? Math.min(100, (totalSpent / totalBudget) * 100) : 0);
 
-  // Donut math (r=38, circumference≈239)
   const CIRC = 2 * Math.PI * 38;
-  const donutFill = $derived((spentPct / 100) * CIRC);
+  const donutFill  = $derived((spentPct / 100) * CIRC);
   const donutColor = $derived(spentPct > 85 ? 'var(--ws-red)' : spentPct > 60 ? 'var(--ws-accent2)' : 'var(--ws-accent)');
 
   onMount(async () => {
     if (!$apiUrl) { loading = false; return; }
     try {
-      trackers = await api('/api/trackers');
-    } catch (e) { /* no backend */ }
+      [trackers, dawarichTrips] = await Promise.all([
+        api('/api/trackers').catch(() => []),
+        api('/api/dawarich/trips?limit=20').catch(() => []),
+      ]);
+    } catch { /* no backend */ }
     loading = false;
   });
 
   const activeTrackers = $derived(trackers.filter(t => t.active));
-  const today = new Date().toISOString().slice(0, 10);
+  const today     = new Date().toISOString().slice(0, 10);
   const upcoming  = $derived($trips.filter(t => t.date >= today));
   const completed = $derived($trips.filter(t => t.date < today));
+
+  // Dawarich trips sorted newest first
+  const recentDawarich = $derived(
+    [...dawarichTrips].sort((a, b) => b.start_date.localeCompare(a.start_date)).slice(0, 4)
+  );
 </script>
 
 <div class="space-y-4">
@@ -45,9 +52,9 @@
   <!-- Stats row -->
   <div class="grid grid-cols-3 gap-3">
     {#each [
-      { label: 'Aktive Tracker', value: activeTrackers.length, color: 'var(--ws-accent)' },
-      { label: 'Jahresbudget',   value: totalBudget > 0 ? totalBudget.toFixed(0) + ' €' : '–', color: 'var(--ws-accent2)' },
-      { label: 'Verbleibend',    value: totalBudget > 0 ? remaining.toFixed(0) + ' €' : '–', color: 'var(--ws-green)' },
+      { label: 'Aktive Tracker', value: activeTrackers.length,                                         color: 'var(--ws-accent)' },
+      { label: 'Jahresbudget',   value: totalBudget > 0 ? totalBudget.toFixed(0) + ' €' : '–',        color: 'var(--ws-accent2)' },
+      { label: 'Verbleibend',    value: totalBudget > 0 ? remaining.toFixed(0) + ' €' : '–',          color: 'var(--ws-green)' },
     ] as s}
       <div class="rounded-xl p-3 border" style="background:var(--ws-surface);border-color:var(--ws-border)">
         <div class="text-xs font-bold tracking-widest uppercase mb-1" style="color:var(--ws-muted);font-family:var(--ws-mono)">{s.label}</div>
@@ -75,9 +82,9 @@
         </svg>
         <div class="flex-1 space-y-1.5 text-xs">
           {#each [
-            { dot: 'var(--ws-accent)',  label: 'Ausgegeben', val: totalSpent.toFixed(2) + ' €' },
+            { dot: 'var(--ws-accent)',  label: 'Ausgegeben',  val: totalSpent.toFixed(2) + ' €' },
             { dot: 'var(--ws-green)',   label: 'Verbleibend', val: remaining.toFixed(2) + ' €' },
-            { dot: 'var(--ws-border)',  label: 'Jahresbudget', val: totalBudget.toFixed(2) + ' €' },
+            { dot: 'var(--ws-border)',  label: 'Jahresbudget',val: totalBudget.toFixed(2) + ' €' },
           ] as row}
             <div class="flex items-center gap-2">
               <div class="w-2.5 h-2.5 rounded-full shrink-0" style="background:{row.dot}"></div>
@@ -104,11 +111,9 @@
         <div class="space-y-2">
           {#each activeTrackers.slice(0, 4) as tr}
             {@const snap = tr.latest_snapshot}
-            <button
-              onclick={() => currentPage.set('priceradar')}
+            <button onclick={() => currentPage.set('priceradar')}
               class="w-full flex items-center justify-between p-2.5 rounded-lg border text-left transition-colors hover:border-[var(--ws-accent)]"
-              style="background:var(--ws-surface2);border-color:var(--ws-border)"
-            >
+              style="background:var(--ws-surface2);border-color:var(--ws-border)">
               <div>
                 <div class="text-sm font-bold font-mono" style="color:var(--ws-text)">{tr.origin} → {tr.destination}</div>
                 <div class="text-xs mt-0.5" style="color:var(--ws-muted)">{tr.outbound_date}</div>
@@ -120,21 +125,19 @@
           {/each}
         </div>
       {/if}
-      <button
-        onclick={() => currentPage.set('priceradar')}
+      <button onclick={() => currentPage.set('priceradar')}
         class="mt-3 w-full py-2 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80"
-        style="background:linear-gradient(135deg,var(--ws-accent),#b84928);color:#fff5ec"
-      >
+        style="background:linear-gradient(135deg,var(--ws-accent),#b84928);color:#fff5ec">
         + Tracker starten
       </button>
     </div>
 
   </div>
 
-  <!-- Trips row -->
+  <!-- Trips grid -->
   <div class="grid md:grid-cols-2 gap-4">
 
-    <!-- Upcoming -->
+    <!-- Upcoming (manual) -->
     <div class="rounded-xl p-4 border" style="background:var(--ws-surface);border-color:var(--ws-border)">
       <h2 class="text-sm font-semibold italic mb-3" style="font-family:var(--ws-serif);color:var(--ws-accent2)">✈️ Geplante Reisen</h2>
       {#if upcoming.length === 0}
@@ -155,15 +158,16 @@
       {/if}
     </div>
 
-    <!-- Completed -->
+    <!-- Completed: manual + Dawarich -->
     <div class="rounded-xl p-4 border" style="background:var(--ws-surface);border-color:var(--ws-border)">
-      <h2 class="text-sm font-semibold italic mb-3" style="font-family:var(--ws-serif);color:var(--ws-accent2)">✅ Abgeschlossen</h2>
-      {#if completed.length === 0}
+      <h2 class="text-sm font-semibold italic mb-3" style="font-family:var(--ws-serif);color:var(--ws-accent2)">✅ Abgeschlossene Reisen</h2>
+      {#if completed.length === 0 && recentDawarich.length === 0}
         <p class="text-xs" style="color:var(--ws-muted)">Noch keine abgeschlossenen Reisen.</p>
       {:else}
         <div class="space-y-2">
-          {#each completed.slice(0, 4) as t}
-            <div class="flex items-center gap-3 p-2 rounded-lg opacity-70" style="background:var(--ws-surface2)">
+          <!-- Manual completed -->
+          {#each completed.slice(0, 2) as t}
+            <div class="flex items-center gap-3 p-2 rounded-lg opacity-80" style="background:var(--ws-surface2)">
               <span>✅</span>
               <div class="flex-1">
                 <div class="text-sm font-semibold italic" style="font-family:var(--ws-serif)">{t.name}</div>
@@ -172,9 +176,34 @@
               <div class="text-sm font-bold font-mono" style="color:var(--ws-muted)">{parseFloat(t.cost).toFixed(2)} €</div>
             </div>
           {/each}
+          <!-- Dawarich detected trips -->
+          {#each recentDawarich as trip}
+            {@const loc = [trip.location_name, trip.country].filter(Boolean).join(', ') || '?'}
+            <div class="flex items-center gap-3 p-2 rounded-lg opacity-80" style="background:var(--ws-surface2)">
+              <span>📍</span>
+              <div class="flex-1">
+                <div class="text-sm font-semibold italic truncate" style="font-family:var(--ws-serif)">{loc}</div>
+                <div class="text-xs font-mono" style="color:var(--ws-muted)">{trip.start_date} · {trip.nights}N</div>
+              </div>
+              <span class="text-xs px-2 py-0.5 rounded-full shrink-0"
+                style="background:rgba(196,98,45,.1);color:var(--ws-accent)">Dawarich</span>
+            </div>
+          {/each}
         </div>
       {/if}
+      <button onclick={() => currentPage.set('journal')}
+        class="mt-3 text-xs" style="color:var(--ws-muted)">
+        → Alle im Reisetagebuch
+      </button>
     </div>
+
   </div>
+
+  <!-- Version footer -->
+  {#if $appVersion}
+    <div class="text-center pt-2">
+      <span class="text-xs font-mono" style="color:var(--ws-border)">{$appVersion}</span>
+    </div>
+  {/if}
 
 </div>
