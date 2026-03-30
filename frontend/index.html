@@ -182,7 +182,7 @@ body {
 /* ── Bottom Navigation Bar (Mobile) ─────────────────── */
 .bottom-nav {
   display: none;
-  position: fixed; bottom: 0; left: 0; right: 0; z-index: 400;
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 1002;
   height: var(--bottom-bar-h);
   background: rgba(249,248,246,.97); backdrop-filter: blur(20px);
   border-top: 1px solid var(--border);
@@ -1189,7 +1189,7 @@ body.dark-mode .btn-icon-hdr {
   .sidebar.open { transform:translateX(0); }
   .main-content { margin-left:0; padding-bottom:calc(var(--bottom-bar-h) + 1rem); }
   .hamburger { display:none !important; }
-  .bottom-nav { display:flex; }
+  .bottom-nav { display:flex !important; }
   .grid-2 { grid-template-columns:1fr; }
   .discover-grid { grid-template-columns:1fr; }
   .budget-grid { grid-template-columns:1fr; }
