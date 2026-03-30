@@ -4,9 +4,7 @@
 
 - Unraid 6.12+ mit Docker aktiviert
 - **Compose Manager** Plugin installiert (Community Applications → suche "Compose Manager")
-- **Node.js** auf Unraid verfügbar — entweder via:
-  - Community Applications → "NerdTools" → `nodejs` aktivieren
-  - oder einmalig per Docker Node-Image (s.u. Option B)
+- **Kein Node.js auf dem Host nötig** — der Build läuft vollständig im Docker Multi-Stage Build
 
 ---
 
@@ -51,42 +49,15 @@ python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().
 ```
 ⚠️ Diesen Wert **einmalig setzen und nie mehr ändern** — sonst sind alle verschlüsselten Settings in der DB unleserlich.
 
-### 4. Svelte Frontend bauen
-
-**Option A — NerdTools Node.js auf Unraid (empfohlen):**
-```bash
-cd /mnt/user/appdata/wandersuite/svelte
-npm ci
-npm run build
-cd ..
-```
-
-**Option B — via Docker (falls kein Node.js auf Unraid installiert):**
-```bash
-docker run --rm \
-  -v /mnt/user/appdata/wandersuite/svelte:/app \
-  -w /app \
-  node:20-alpine \
-  sh -c "npm ci && npm run build"
-```
-
-Der Build landet in `svelte/dist/` — genau dort, wo Nginx es erwartet.
-
-### 5. PWA Icons kopieren
-
-```bash
-cp -r /mnt/user/appdata/wandersuite/frontend/icons \
-      /mnt/user/appdata/wandersuite/svelte/dist/icons
-```
-
-### 6. Container starten
+### 4. Container starten
 
 ```bash
 cd /mnt/user/appdata/wandersuite
 docker compose up -d --build
 ```
 
-Beim ersten Start wird das Backend-Image gebaut (~2 Min).
+Beim ersten Start wird das Frontend-Image gebaut (~3–5 Min, Node.js läuft im Container).
+Danach cached Docker die npm-Layer — Rebuilds bei Code-Änderungen dauern nur Sekunden.
 
 ---
 
@@ -99,7 +70,7 @@ Beim ersten Start wird das Backend-Image gebaut (~2 Min).
 | **API Docs (Swagger)** | `http://unraid-ip:8766/docs` |
 
 Beim ersten Aufruf startet der Onboarding-Wizard automatisch.
-Backend URL dort eingeben: `http://unraid-ip:8766`
+Backend URL dort eingeben: `http://unraid-ip:8765` (Nginx proxied /api/ intern weiter)
 
 ---
 
@@ -111,19 +82,33 @@ cd /mnt/user/appdata/wandersuite
 # 1. Neuen Code holen
 git pull
 
-# 2. Svelte neu bauen (nur wenn svelte/** geändert hat)
-cd svelte && npm ci && npm run build && cd ..
-cp -r frontend/icons svelte/dist/icons
-
-# 3. Backend neu bauen (nur wenn backend/** oder Dockerfile geändert hat)
-docker compose up -d --build backend
-
-# 4. Frontend-Container neu starten (liest dist/ direkt — meist reicht restart)
-docker compose restart frontend
+# 2. Container neu bauen und starten
+docker compose up -d --build
 ```
 
-> **Tipp:** `git log --oneline -5` zeigt was sich geändert hat —
-> so siehst du ob ein Backend-Rebuild wirklich nötig ist.
+Docker erkennt anhand des Layer-Caches automatisch was sich geändert hat:
+- Nur `backend/` geändert → nur Backend-Image wird neu gebaut
+- Nur `svelte/` geändert → nur Frontend-Image wird neu gebaut (npm ci cached)
+- `package-lock.json` unverändert → npm ci wird übersprungen
+
+> **Tipp:** `git log --oneline -5` zeigt was sich geändert hat.
+
+---
+
+## Architektur
+
+```
+Browser
+  │
+  └─► Nginx :8765
+        ├─ /* ──────────────────► Svelte SPA (dist/)
+        ├─ /api/* ──────────────► backend:8000 (intern, kein offener Port nötig)
+        └─ /health ─────────────► backend:8000/health
+
+Docker Multi-Stage Build:
+  Stage 1 (node:20-alpine)  → npm ci + npm run build → dist/
+  Stage 2 (nginx:alpine)    → dist/ + nginx.conf → fertig
+```
 
 ---
 
@@ -133,7 +118,7 @@ docker compose restart frontend
 2. **Add Stack** → Name: `wandersuite`
 3. Path: `/mnt/user/appdata/wandersuite/docker-compose.yml`
 4. Stack lässt sich dann über die GUI starten/stoppen
-5. Updates aber weiterhin per Terminal (`git pull` + `npm run build`)
+5. Updates: Terminal → `git pull` → GUI: Stack neu starten mit "Rebuild"
 
 ---
 
@@ -156,16 +141,13 @@ Empfohlen: **Nginx Proxy Manager** aus Community Applications.
 /mnt/user/appdata/wandersuite/
 ├── data/
 │   └── tracker.db              ← SQLite DB (nie löschen!)
-├── svelte/
-│   ├── src/                    ← Svelte Quellcode
-│   ├── dist/                   ← Build Output → Nginx Volume
-│   │   └── icons/              ← PWA Icons (nach build kopieren)
-│   └── package.json
+├── svelte/                     ← Svelte Quellcode (kein dist/ mehr nötig!)
 ├── backend/                    ← FastAPI Python Code
 ├── frontend/
-│   └── icons/                  ← Quell-Icons (bleiben im Repo)
+│   └── icons/                  ← PWA Icons (werden im Docker-Build kopiert)
 ├── docker/
-│   ├── Dockerfile
+│   ├── Dockerfile              ← Backend
+│   ├── Dockerfile.frontend     ← Frontend (Multi-Stage)
 │   └── nginx.conf
 ├── docker-compose.yml
 └── .env                        ← ⚠️ Geheim halten, nie committen!
@@ -177,11 +159,18 @@ Empfohlen: **Nginx Proxy Manager** aus Community Applications.
 
 **Frontend zeigt leere Seite / 404:**
 ```bash
-ls /mnt/user/appdata/wandersuite/svelte/dist/
-# Muss index.html enthalten — falls nicht: Schritt 4 wiederholen
+docker compose logs frontend --tail=50
+# Build-Fehler? → prüfen ob svelte/package-lock.json im Repo ist
 ```
 
-**Backend nicht erreichbar im Onboarding:**
+**405 Not Allowed bei API-Calls:**
+```bash
+# Nginx proxied /api/ intern → Backend-URL im Onboarding auf Frontend-URL setzen
+# z.B. http://unraid-ip:8765 (NICHT :8766)
+docker compose logs frontend | grep -i "upstream"
+```
+
+**Backend nicht erreichbar:**
 ```bash
 docker compose logs backend --tail=50
 docker compose exec backend curl http://localhost:8000/health
@@ -195,7 +184,7 @@ chmod -R 755 /mnt/user/appdata/wandersuite/data
 **APP_SECRET geändert oder vergessen:**
 → Alle verschlüsselten Settings (API Keys, Tokens) in der DB sind verloren.
 → Im Frontend unter Settings alles neu eingeben und speichern.
-→ Reisedaten (Trips, Budget, Bucket List) sind NICHT betroffen — liegen unverschlüsselt.
+→ Reisedaten (Trips, Budget, Bucket List) sind NICHT betroffen.
 
 **Container startet nicht nach git pull:**
 ```bash
