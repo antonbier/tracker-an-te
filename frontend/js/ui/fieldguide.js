@@ -6,14 +6,7 @@ const FG_TABS = ['start', 'radar', 'mytrips', 'discover'];
 
 export function openFieldGuide() {
   const bd = document.getElementById('fieldGuideBackdrop');
-  if (!bd) return;
-  // Apply translations
-  const { t } = window;
-  if (t) {
-    document.querySelectorAll('#fieldGuideBackdrop [data-i18n]').forEach(el => {
-      el.textContent = t(el.getAttribute('data-i18n'));
-    });
-  }
+  if (!bd) { console.warn('[FG] fieldGuideBackdrop not found'); return; }
   switchFieldGuideTab('start');
   bd.classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -21,7 +14,16 @@ export function openFieldGuide() {
 }
 
 export function closeFieldGuide(e) {
+  // Close when clicking the backdrop itself (not its children)
   if (e && e.target !== document.getElementById('fieldGuideBackdrop')) return;
+  _closeFieldGuide();
+}
+
+export function closeFieldGuideForced() {
+  _closeFieldGuide();
+}
+
+function _closeFieldGuide() {
   const bd = document.getElementById('fieldGuideBackdrop');
   if (!bd) return;
   bd.classList.remove('open');
