@@ -740,17 +740,18 @@ tr:hover td { background:rgba(255,255,255,.02); }
   background: var(--bg);
   display: flex; align-items: center; justify-content: center;
   padding: 1.5rem;
-  opacity: 0; pointer-events: none !important;
+  opacity: 0; pointer-events: none;
   transition: opacity .35s ease;
   overflow-y: auto;
+  visibility: hidden;
 }
 #onboardingBackdrop:not(.open) {
-  pointer-events: none !important;
+  pointer-events: none;
   visibility: hidden;
 }
 #onboardingBackdrop.open {
   opacity: 1; pointer-events: all;
-  transition: opacity .35s ease, pointer-events 0s .35s;
+  transition: opacity .35s ease;
 }
 #onboardingBackdrop.ob-closing {
   opacity: 0; pointer-events: none;
@@ -1638,6 +1639,11 @@ body.dark-mode #scratch-map-svg .jvm-region { stroke: var(--border) !important; 
   display: flex; align-items: center; justify-content: center;
   padding: 1.5rem;
   animation: auth-fade-in .25s ease;
+}
+/* Safety: if auth-overlay has no children, hide it completely */
+#auth-overlay:empty {
+  display: none;
+  pointer-events: none;
 }
 @keyframes auth-fade-in  { from { opacity:0; } to { opacity:1; } }
 @keyframes auth-fade-out { from { opacity:1; } to { opacity:0; } }
