@@ -58,17 +58,15 @@ export function closeOnboarding() {
  */
 export async function obNext() {
   if (obStep === 1) {
-    // Only proceed if connection was verified (or user explicitly skips)
+    // URL is optional — save it if provided but don't block on connection
     const url = document.getElementById('ob-url').value.trim().replace(/\/$/, '');
-    if (!url) {
-      _showUrlError(t('obUrlRequired') || 'Bitte Backend-URL eingeben.');
-      return;
+    if (url) {
+      localStorage.setItem('apiUrl', url);
+      const { setApiUrl } = await import('../core/state.js');
+      setApiUrl(url);
+      checkConnection(); // fire-and-forget visual feedback, don't block
     }
-    if (!connectionVerified) {
-      // Try auto-check before blocking
-      await checkConnection();
-      if (!connectionVerified) return;
-    }
+    // Always allow proceeding — app works without backend (frontend-only mode)
   }
 
   if (obStep >= 3) {
