@@ -14,34 +14,59 @@
 
   async function loadTrips() {
     if (!$apiUrl) { loading = false; return; }
-    try { trips = await api('/api/dawarich/trips?limit=100'); } catch {}
+    try { trips = await api('/api/dawarich/trips?limit=100'); }
+    catch(e) { toast('Fehler beim Laden: ' + e.message, 'error'); }
     loading = false;
   }
 
   async function syncJournal() {
-    if (!$apiUrl) { toast('Backend-URL fehlt', 'warning'); return; }
-    const url   = browser ? localStorage.getItem('s-dawarichUrl')   || '' : '';
-    const token = browser ? localStorage.getItem('s-dawarichToken') || '' : '';
-    const lat   = parseFloat(browser ? localStorage.getItem('s-homeLat') || '0' : '0');
-    const lon   = parseFloat(browser ? localStorage.getItem('s-homeLon') || '0' : '0');
-    if (!url || !token) { toast('Dawarich URL/Token fehlen — Einstellungen → Integrationen', 'warning'); return; }
-    if (!lat && !lon)   { toast('Home-Koordinaten fehlen — Einstellungen → Integrationen', 'warning'); return; }
+    if (!$apiUrl) { toast('Backend-URL fehlt','warning'); return; }
     syncing = true; syncInfo = '';
     try {
-      const r = await api('/api/dawarich/sync', {
-        method: 'POST',
-        body: JSON.stringify({ dawarich_url: url, dawarich_token: token, home_lat: lat, home_lon: lon }),
-      });
-      syncInfo = `${r.points_loaded} Punkte · ${r.trips_detected} Reisen erkannt · ${r.trips_saved} gespeichert`;
-      toast(`${r.trips_detected} Reisen erkannt ✓`, 'success');
+      // Backend liest Dawarich-Credentials aus der verschlüsselten DB.
+      // Wir übergeben zusätzlich localStorage-Werte als Fallback falls
+      // die Settings noch nicht im Backend gespeichert wurden.
+      const url   = browser ? localStorage.getItem('s-dawarichUrl')   || '' : '';
+      const token = browser ? localStorage.getItem('s-dawarichToken') || '' : '';
+      const lat   = parseFloat(browser ? localStorage.getItem('s-homeLat') || '0' : '0');
+      const lon   = parseFloat(browser ? localStorage.getItem('s-homeLon') || '0' : '0');
+
+      // POST ohne Body → Backend nutzt gespeicherte Settings
+      // Mit Body → überschreibt temporär (Fallback wenn noch nicht gespeichert)
+      const body = (url && token)
+        ? JSON.stringify({ dawarich_url: url, dawarich_token: token, home_lat: lat || null, home_lon: lon || null })
+        : '{}';
+
+      const r = await api('/api/dawarich/sync', { method: 'POST', body });
+
+      if (r.trips_detected === 0 && r.points_loaded === 0) {
+        syncInfo = 'Keine GPS-Punkte gefunden — Dawarich URL/Token prüfen';
+        toast('Keine Punkte geladen — Einstellungen prüfen', 'warning');
+      } else {
+        syncInfo = `${r.points_loaded} Punkte · ${r.trips_detected} erkannt · ${r.trips_saved} gespeichert`;
+        toast(`${r.trips_detected} Reisen erkannt ✓`, 'success');
+      }
       await loadTrips();
-    } catch(e) { toast(e.message, 'error'); }
+    } catch(e) {
+      // Detailliertere Fehlermeldung
+      const msg = e.message || 'Unbekannter Fehler';
+      if (msg.includes('dawarich')) {
+        toast('Dawarich nicht erreichbar — URL in Einstellungen prüfen', 'error');
+      } else if (msg.includes('422') || msg.includes('credentials')) {
+        toast('Dawarich-Credentials fehlen — Einstellungen → Integrationen', 'error');
+      } else {
+        toast('Sync-Fehler: ' + msg, 'error');
+      }
+    }
     syncing = false;
   }
 
   async function deleteTrip(id) {
     if (!confirm('Trip löschen?')) return;
-    await api(`/api/dawarich/trips/${id}`, { method: 'DELETE' });
+    try {
+      await api(`/api/dawarich/trips/${id}`, { method: 'DELETE' });
+      toast('Trip gelöscht', 'success');
+    } catch(e) { toast(e.message, 'error'); }
     await loadTrips();
   }
 </script>
@@ -61,22 +86,29 @@
 
   {#if syncInfo}
     <div class="rounded-xl px-4 py-2.5 text-xs border" style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)">
-      ✓ {syncInfo}
+      ℹ️ {syncInfo}
     </div>
   {/if}
 
-  {#if loading}
-    <p class="text-sm" style="color:var(--ws-muted)">Lade…</p>
-  {:else if !$apiUrl}
+  {#if !$apiUrl}
     <div class="rounded-xl p-6 border-2 border-dashed text-center" style="border-color:var(--ws-border)">
       <div class="text-3xl mb-2">🗺️</div>
       <p class="text-sm italic" style="font-family:var(--ws-serif);color:var(--ws-muted)">Backend-URL in den Einstellungen konfigurieren</p>
     </div>
+  {:else if loading}
+    <p class="text-sm" style="color:var(--ws-muted)">Lade…</p>
   {:else if trips.length === 0}
     <div class="rounded-xl p-6 border-2 border-dashed text-center" style="border-color:var(--ws-border)">
       <div class="text-3xl mb-2">🗺️</div>
-      <p class="text-sm italic mb-1" style="font-family:var(--ws-serif);color:var(--ws-text)">Noch keine Reisen erkannt</p>
-      <p class="text-xs" style="color:var(--ws-muted)">Dawarich URL + Token + Home-Koordinaten in Einstellungen eintragen, dann synchronisieren</p>
+      <p class="text-sm font-semibold italic mb-1" style="font-family:var(--ws-serif);color:var(--ws-text)">Noch keine Reisen erkannt</p>
+      <p class="text-xs mb-3" style="color:var(--ws-muted)">
+        Dawarich URL + Token + Home-Koordinaten in<br/>Einstellungen → Integrationen eintragen
+      </p>
+      <button onclick={syncJournal} disabled={syncing}
+        class="px-4 py-2 rounded-xl text-sm font-semibold"
+        style="background:var(--ws-accent);color:#fff5ec">
+        {syncing ? '⏳ Sync…' : '🧭 Jetzt synchronisieren'}
+      </button>
     </div>
   {:else}
     <div class="space-y-3">
@@ -84,12 +116,10 @@
         {@const loc = [trip.location_name, trip.country].filter(Boolean).join(', ') || `${trip.lat},${trip.lon}`}
         {@const mapsUrl = `https://www.google.com/maps?q=${trip.lat},${trip.lon}`}
         <div class="rounded-xl p-4 border flex gap-3" style="background:var(--ws-surface);border-color:var(--ws-border)">
-          <!-- Pin -->
           <div class="w-9 h-9 rounded-full shrink-0 flex items-center justify-center text-sm mt-0.5"
             style="background:linear-gradient(135deg,var(--ws-accent),#b84928);color:#fff5ec;box-shadow:0 2px 8px rgba(196,98,45,.3)">
             📍
           </div>
-          <!-- Info -->
           <div class="flex-1 min-w-0">
             <div class="font-bold italic truncate" style="font-family:var(--ws-serif);color:var(--ws-text)">{loc}</div>
             <div class="text-xs font-mono mt-0.5" style="color:var(--ws-muted)">
