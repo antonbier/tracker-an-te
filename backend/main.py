@@ -50,6 +50,7 @@ from routes import (
     userdata as userdata_route,
 )
 from routes import notifications as notifications_route
+from routes.auth import router_status, router_auth, router_admin
 from routes import dawarich as dawarich_route
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -119,6 +120,11 @@ app.include_router(dashboard_route.router, prefix="/api/dashboard",       tags=[
 app.include_router(userdata_route.router,       prefix="/api/userdata",         tags=["UserData"])
 app.include_router(notifications_route.router,  prefix="/api/notifications",    tags=["Notifications"])
 
+
+# Auth routes (public endpoints — no JWT required on these)
+app.include_router(router_status, prefix="/api", tags=["Auth"])
+app.include_router(router_auth,   prefix="/api", tags=["Auth"])
+app.include_router(router_admin,  prefix="/api", tags=["Admin"])
 
 @app.get("/")
 def root():
