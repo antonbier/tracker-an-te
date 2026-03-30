@@ -1,0 +1,55 @@
+name: Build & Deploy Svelte to here.now
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'svelte/**'
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: svelte/package-lock.json
+
+      - name: Install dependencies
+        working-directory: svelte
+        run: npm ci
+
+      - name: Build
+        working-directory: svelte
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Copy PWA assets from frontend
+        run: |
+          mkdir -p svelte/dist/icons
+          cp frontend/icons/icon-192.png svelte/dist/icons/ 2>/dev/null || true
+          cp frontend/icons/icon-512.png svelte/dist/icons/ 2>/dev/null || true
+
+      - name: Install here.now CLI
+        run: |
+          sudo apt-get install -y jq
+          npm install -g skills
+          npx skills add heredotnow/skill --skill here-now -g --yes
+
+      - name: Deploy to here.now
+        env:
+          HERENOW_API_KEY: ${{ secrets.HERENOW_API_KEY }}
+        run: |
+          bash ~/.agents/skills/here-now/scripts/publish.sh ./svelte/dist \
+            --client github-actions
+
+      - name: Show deployed URL
+        run: echo "Build complete — check Actions output for here.now URL"
