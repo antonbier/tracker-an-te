@@ -1,24 +1,23 @@
 <script>
   import { currentPage } from '$lib/stores.js';
+  import { t } from '$lib/i18n.js';
 
   const nav = [
-    { id: 'home',       icon: '🏠', label: 'Home' },
-    { id: 'priceradar', icon: '🎯', label: 'Radar' },
-    { id: 'mytrips',    icon: '🎒', label: 'Reisen' },
-    { id: 'discover',   icon: '✨', label: 'Inspiration' },
+    { id: 'home',       icon: '🏠', labelKey: 'navHomeShort' },
+    { id: 'priceradar', icon: '🎯', labelKey: 'navRadarShort' },
+    { id: 'mytrips',    icon: '🎒', labelKey: 'navTripsShort' },
+    { id: 'discover',   icon: '✨', labelKey: 'navDiscover' },
   ];
 </script>
 
 <nav class="md:hidden flex border-t shrink-0"
   style="background:var(--ws-surface);border-color:var(--ws-border)">
   {#each nav as item}
-    <button
-      onclick={() => currentPage.set(item.id)}
+    <button onclick={() => currentPage.set(item.id)}
       class="flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-xs font-medium transition-colors"
-      style={$currentPage === item.id ? 'color:var(--ws-accent)' : 'color:var(--ws-muted)'}
-    >
+      style={$currentPage === item.id ? 'color:var(--ws-accent)' : 'color:var(--ws-muted)'}>
       <span class="text-lg leading-none">{item.icon}</span>
-      {item.label}
+      {$t(item.labelKey)}
     </button>
   {/each}
 </nav>
