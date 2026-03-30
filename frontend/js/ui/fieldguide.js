@@ -31,6 +31,12 @@ export function openFieldGuide() {
   console.log('[FieldGuide] backdrop element:', bd);
   if (!bd) { console.error('[FieldGuide] fieldGuideBackdrop not found!'); return; }
   bd.classList.add('open');
+  // Force styles directly — bypass any CSS specificity issues
+  bd.style.opacity = '1';
+  bd.style.pointerEvents = 'all';
+  bd.style.zIndex = '1100';
+  const computed = window.getComputedStyle(bd);
+  console.log('[FieldGuide] after open — opacity:', computed.opacity, 'visibility:', computed.visibility, 'display:', computed.display, 'zIndex:', computed.zIndex);
   document.body.style.overflow = 'hidden';
   // Close sidebar on mobile
   if (window.innerWidth < 900 && window.closeSidebar) window.closeSidebar();
