@@ -219,6 +219,18 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSettings(); });
 
+  // Bind fieldguide button via addEventListener (more reliable than onclick for ES modules)
+  const fgBtn = document.getElementById('btn-fieldguide');
+  if (fgBtn) {
+    fgBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      console.log('[FieldGuide] button clicked via addEventListener');
+      openFieldGuide();
+    });
+  } else {
+    console.warn('[FieldGuide] btn-fieldguide not found in DOM');
+  }
+
   // ── PWA: Register Service Worker ──────────────────────────────────────────
   if ('serviceWorker' in navigator) {
     // Verify sw.js is reachable with correct MIME type before registering
