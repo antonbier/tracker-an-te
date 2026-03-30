@@ -1623,6 +1623,97 @@ body.dark-mode #scratch-map-svg .jvm-region { stroke: var(--border) !important; 
 .chart-actions {
   display: flex; gap: .4rem; margin-top: .6rem; align-items: center;
 }
+
+/* ══════════════════════════════════════════════════════
+   AUTH OVERLAY
+   ══════════════════════════════════════════════════════ */
+#auth-overlay {
+  position: fixed; inset: 0; z-index: 2000;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  padding: 1.5rem;
+  animation: auth-fade-in .25s ease;
+}
+@keyframes auth-fade-in  { from { opacity:0; } to { opacity:1; } }
+@keyframes auth-fade-out { from { opacity:1; } to { opacity:0; } }
+#auth-overlay.auth-fade-out { animation: auth-fade-out .35s ease forwards; }
+.auth-card {
+  width: 100%; max-width: 380px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 2rem 2rem 1.5rem;
+  box-shadow: var(--shadow-md);
+}
+.auth-logo {
+  font-size: 2.5rem; text-align: center; margin-bottom: .5rem;
+  filter: drop-shadow(0 2px 8px rgba(217,93,57,.3));
+}
+.auth-title {
+  font-family: var(--serif); font-style: italic; font-size: 1.6rem;
+  font-weight: 700; color: var(--accent2); text-align: center;
+  margin-bottom: 1.5rem;
+}
+.auth-tabs {
+  display: flex; gap: .3rem; margin-bottom: 1.4rem;
+  background: var(--surface2); border-radius: 8px;
+  padding: .25rem; border: 1px solid var(--border);
+}
+.auth-tab {
+  flex: 1; padding: .45rem .5rem; background: none; border: none;
+  border-radius: 6px; font-family: var(--sans); font-size: .78rem;
+  font-weight: 600; color: var(--sub); cursor: pointer; transition: all .18s;
+}
+.auth-tab.active {
+  background: var(--surface); color: var(--text);
+  box-shadow: 0 1px 4px rgba(0,0,0,.08);
+}
+.auth-field { margin-bottom: .9rem; }
+.auth-field label {
+  display: block; font-size: .65rem; font-weight: 800;
+  letter-spacing: .08em; text-transform: uppercase;
+  color: var(--sub); margin-bottom: .3rem;
+}
+.auth-field input {
+  width: 100%; padding: .55rem .75rem;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius); font-family: var(--sans);
+  font-size: .88rem; color: var(--text); outline: none;
+  transition: border-color .18s;
+}
+.auth-field input:focus { border-color: var(--accent2); }
+.auth-error {
+  font-size: .75rem; color: var(--red); min-height: 1rem; margin-bottom: .5rem;
+}
+.auth-submit {
+  width: 100%; padding: .65rem; margin-top: .5rem;
+  background: var(--accent); color: #fff; border: none;
+  border-radius: var(--radius); font-family: var(--sans);
+  font-size: .9rem; font-weight: 700; cursor: pointer;
+  transition: all .18s ease;
+}
+.auth-submit:hover   { opacity: .88; transform: translateY(-1px); }
+.auth-submit:disabled{ opacity: .55; cursor: wait; transform: none; }
+
+/* ── Settings: Security + Admin Tabs ───────────────────── */
+.admin-user-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: .6rem .5rem; border-bottom: 1px solid var(--border);
+}
+.admin-user-row:last-child { border-bottom: none; }
+.admin-user-info { display: flex; align-items: center; gap: .6rem; }
+.admin-user-email { font-size: .82rem; color: var(--text); }
+.admin-user-badge {
+  font-size: .58rem; font-weight: 800; letter-spacing: .06em;
+  text-transform: uppercase; padding: .12rem .4rem;
+  border-radius: 4px;
+}
+.admin-user-badge.admin { background: rgba(217,93,57,.12); color: var(--accent); }
+.admin-user-badge.user  { background: rgba(30,58,95,.1);  color: var(--accent2); }
+.admin-user-delete {
+  background: none; border: none; cursor: pointer;
+  font-size: .9rem; opacity: .5; transition: opacity .15s;
+}
+.admin-user-delete:hover { opacity: 1; }
 </style>
 </head>
 <body class="">
@@ -3057,6 +3148,8 @@ body.dark-mode #scratch-map-svg .jvm-region { stroke: var(--border) !important; 
       <button class="modal-tab" onclick="switchTab('integrations')" id="tab-integrations" data-i18n="settingsIntegrations">Integrationen</button>
       <button class="modal-tab" onclick="switchTab('apis')" id="tab-apis">APIs & KI</button>
       <button class="modal-tab" onclick="switchTab('notifications')" id="tab-notifications" data-i18n="settingsNotifications">🔔 Alerts</button>
+      <button class="modal-tab" onclick="switchTab('security')" id="tab-security">🔐 Sicherheit</button>
+      <button class="modal-tab" onclick="switchTab('adminusers')" id="tab-adminusers" style="display:none">👥 Nutzer</button>
     </div>
     <div class="modal-body" id="panel-basic">
       <div class="modal-section">
@@ -3243,6 +3336,65 @@ body.dark-mode #scratch-map-svg .jvm-region { stroke: var(--border) !important; 
       </div>
 
     </div>
+
+    <!-- ══ PANEL: Sicherheit ══════════════════════════════ -->
+    <div class="modal-body" id="panel-security" style="display:none">
+
+      <div class="modal-section-label" style="margin-bottom:.8rem">Angemeldet als</div>
+      <div class="sec-info-row">
+        <span class="sec-info-label">E-Mail</span>
+        <span class="sec-info-value" id="sec-current-email">—</span>
+      </div>
+      <div class="sec-info-row" style="margin-bottom:1.2rem">
+        <span class="sec-info-label">Rolle</span>
+        <span class="sec-info-value" id="sec-current-role">—</span>
+      </div>
+
+      <div class="modal-section-label" style="margin-bottom:.6rem">Passwort ändern</div>
+      <div class="modal-section">
+        <input class="settings-input" id="sec-current-pw" type="password" placeholder="Aktuelles Passwort">
+      </div>
+      <div class="modal-section">
+        <input class="settings-input" id="sec-new-pw" type="password" placeholder="Neues Passwort (mind. 8 Zeichen)">
+      </div>
+      <div class="modal-section" style="margin-bottom:.6rem">
+        <input class="settings-input" id="sec-confirm-pw" type="password" placeholder="Neues Passwort bestätigen">
+      </div>
+      <div id="sec-pw-error" style="font-size:.75rem;min-height:1rem;margin-bottom:.5rem"></div>
+      <button class="btn-primary" style="width:auto;padding:.45rem 1rem;font-size:.78rem"
+              onclick="changePassword()">Passwort ändern</button>
+
+      <div style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border)">
+        <button onclick="logout()" style="display:flex;align-items:center;gap:.4rem;padding:.45rem .9rem;background:none;border:1px solid var(--border);border-radius:var(--radius);font-family:var(--sans);font-size:.78rem;cursor:pointer;color:var(--red);font-weight:600;transition:all .18s">
+          ⏻ Abmelden
+        </button>
+      </div>
+    </div>
+
+    <!-- ══ PANEL: Nutzerverwaltung (Admin) ═════════════════ -->
+    <div class="modal-body" id="panel-adminusers" style="display:none">
+
+      <div class="modal-section-label" style="margin-bottom:.8rem">Nutzer anlegen</div>
+      <div class="modal-section">
+        <input class="settings-input" id="admin-new-email" type="email" placeholder="E-Mail">
+      </div>
+      <div class="modal-section">
+        <input class="settings-input" id="admin-new-password" type="password" placeholder="Passwort (mind. 8 Zeichen)">
+      </div>
+      <div class="modal-section" style="margin-bottom:.5rem">
+        <select class="settings-input" id="admin-new-role">
+          <option value="user">user</option>
+          <option value="admin">admin</option>
+        </select>
+      </div>
+      <div id="admin-create-error" style="font-size:.75rem;color:var(--red);min-height:1rem;margin-bottom:.4rem"></div>
+      <button class="btn-primary" style="width:auto;padding:.45rem 1rem;font-size:.78rem"
+              onclick="createAdminUser()">+ Nutzer erstellen</button>
+
+      <div style="margin-top:1.5rem">
+        <div class="modal-section-label" style="margin-bottom:.6rem">Alle Nutzer</div>
+        <div id="admin-users-list"></div>
+      </div>
 
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeSettings()" data-i18n="cancel">Abbrechen</button>
