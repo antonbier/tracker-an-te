@@ -1,30 +1,13 @@
 /**
- * app/onboarding.js — Full-screen onboarding wizard
+ * app/onboarding.js — Full-screen onboarding wizard (shown only on first visit)
  *
- * A three-step full-screen experience shown on first launch (when no backend
- * URL is configured). Steps:
- *
- *   Step 1 — "Willkommen beim Abenteuer"
- *     Backend URL input + live /health check with visual feedback
- *     (spinner → green ✓ on success / red warning on failure).
- *     "Weiter" is only enabled after a successful connection.
- *
- *   Step 2 — "Deine Werkzeuge"
- *     Optional SerpAPI + Gemini key inputs with links to get them.
- *     Can be skipped — keys can always be added later in Settings.
- *
- *   Step 3 — "Alles bereit!"
- *     Confirmation screen. Final button "Lass das Abenteuer beginnen"
- *     saves URL + keys to localStorage and syncs to backend.
- *
- * On close: smooth fade-out animation via CSS class .ob-closing.
- * Completion flag: localStorage key 'ws-onboarding-done' = '1'.
+ * Nuclear approach: backdrop is REMOVED from DOM when not needed.
+ * This guarantees it can never block clicks regardless of CSS state.
  */
 
 import { setApiUrl, setObStep, obStep } from '../core/state.js';
 import { t } from '../ui/i18n.js';
 
-// Track whether step 1 connection was verified
 let connectionVerified = false;
 
 /** Show onboarding if no backend URL is set and wizard hasn't been completed. */
@@ -32,19 +15,14 @@ export function checkOnboarding() {
   const hasUrl = localStorage.getItem('apiUrl');
   const seen   = localStorage.getItem('ws-onboarding-done');
 
-  // Never show onboarding again once dismissed or completed
-  if (seen) return;
-
-  // If backend URL already configured: silently mark done, don't show overlay
-  if (hasUrl) {
-    localStorage.setItem('ws-onboarding-done', '1');
+  // Any reason to skip → remove backdrop from DOM entirely
+  if (seen || hasUrl) {
+    if (hasUrl && !seen) localStorage.setItem('ws-onboarding-done', '1');
+    _removeBd();
     return;
   }
 
-  // Show wizard on any first visit without backend URL
-  // (removed extra skip logic that was too aggressive)
-
-  // Truly first visit (empty localStorage) → show wizard
+  // Truly first visit: show wizard
   const bd = document.getElementById('onboardingBackdrop');
   if (!bd) return;
   setObStep(1);
@@ -53,38 +31,38 @@ export function checkOnboarding() {
   document.body.style.overflow = 'hidden';
 }
 
-/** Close the wizard with a fade-out animation, then save completion flag. */
+/** Remove backdrop from DOM entirely — nuclear guarantee no click blocking. */
+function _removeBd() {
+  const bd = document.getElementById('onboardingBackdrop');
+  if (bd) bd.remove();
+}
+
+/** Close the wizard and remove from DOM. */
 export function closeOnboarding() {
   const el = document.getElementById('onboardingBackdrop');
   if (!el) return;
-  // Disable pointer-events immediately — don't wait for fade-out
   el.style.pointerEvents = 'none';
   el.classList.add('ob-closing');
   setTimeout(() => {
-    el.classList.remove('open', 'ob-closing');
-    el.style.pointerEvents = '';
+    el.remove();
     document.body.style.overflow = '';
     localStorage.setItem('ws-onboarding-done', '1');
-  }, 400);
+  }, 350);
 }
 
 /**
  * Handle the "Weiter / Fertig" button click.
- * Step 1: validate URL (must have been verified via checkConnection()).
- * Step 2: optionally save API keys.
- * Step 3: save everything, sync to backend, close.
  */
 export async function obNext() {
   if (obStep === 1) {
-    // URL is optional — save it if provided but don't block on connection
     const url = document.getElementById('ob-url').value.trim().replace(/\/$/, '');
     if (url) {
       localStorage.setItem('apiUrl', url);
       const { setApiUrl } = await import('../core/state.js');
       setApiUrl(url);
-      checkConnection(); // fire-and-forget visual feedback, don't block
+      checkConnection();
     }
-    // Always allow proceeding — app works without backend (frontend-only mode)
+    // Always allow proceeding
   }
 
   if (obStep >= 3) {
@@ -102,123 +80,73 @@ export function obBack() {
   updateObStep();
 }
 
-/** Update visible panel, step indicators, button labels. */
 export function updateObStep() {
-  [1, 2, 3].forEach(i => {
-    const panel  = document.getElementById('ob-panel-' + i);
-    const stepEl = document.getElementById('ob-step-' + i);
-    if (panel)  panel.style.display = i === obStep ? 'block' : 'none';
-    if (stepEl) {
-      stepEl.classList.remove('active', 'done');
-      if (i < obStep)  stepEl.classList.add('done');
-      if (i === obStep) stepEl.classList.add('active');
-    }
-  });
-
+  for (let i = 1; i <= 3; i++) {
+    const panel = document.getElementById('ob-panel-' + i);
+    const step  = document.getElementById('ob-step-' + i);
+    const line  = document.getElementById('ob-line-' + (i - 1));
+    if (panel) panel.style.display = i === obStep ? 'block' : 'none';
+    if (step)  step.classList.toggle('active', i <= obStep);
+    if (line)  line.classList.toggle('active', i <= obStep);
+  }
   const backBtn = document.getElementById('ob-back');
   const nextBtn = document.getElementById('ob-next');
   if (backBtn) backBtn.style.display = obStep > 1 ? 'inline-flex' : 'none';
   if (nextBtn) {
-    if (obStep === 1) nextBtn.textContent = t('obNextStep') || 'Weiter →';
-    if (obStep === 2) nextBtn.textContent = t('obNextStep') || 'Weiter →';
-    if (obStep === 3) nextBtn.textContent = t('obFinish') || '🧳 Lass das Abenteuer beginnen';
+    if (obStep === 3) {
+      nextBtn.setAttribute('data-i18n', 'obFinish');
+      nextBtn.textContent = t('obFinish') || 'Lass das Abenteuer beginnen →';
+    } else {
+      nextBtn.setAttribute('data-i18n', 'obNextStep');
+      nextBtn.textContent = t('obNextStep') || 'Weiter →';
+    }
   }
-
-  // Reset connection state when returning to step 1
-  if (obStep === 1) _resetConnectionStatus();
 }
 
-/**
- * Live /health check triggered by the "Verbinden" button in step 1.
- * Shows spinner → green check on success, red warning on failure.
- */
 export async function checkConnection() {
-  const url    = document.getElementById('ob-url').value.trim().replace(/\/$/, '');
+  const url    = (document.getElementById('ob-url')?.value || '').trim().replace(/\/$/, '');
   const status = document.getElementById('ob-conn-status');
-  const nextBtn = document.getElementById('ob-next');
-
-  if (!url) { _showUrlError(t('obUrlRequired') || 'Bitte URL eingeben.'); return; }
-
-  // Show spinner
-  status.innerHTML = '<span class="ob-spinner"></span> <span class="ob-status-text">' + (t('obConnecting') || 'Verbinde…') + '</span>';
-  status.className = 'ob-conn-status ob-connecting';
-  connectionVerified = false;
-  if (nextBtn) nextBtn.disabled = true;
-
+  if (!url) return;
+  if (status) { status.textContent = '⏳ Verbinde…'; status.className = 'ob-conn-status pending'; }
   try {
-    const r = await fetch(url + '/health', { signal: AbortSignal.timeout(6000) });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    // Success
-    connectionVerified = true;
-    status.innerHTML = '✅ <span class="ob-status-text">' + (t('obConnected') || 'Verbunden!') + '</span>';
-    status.className = 'ob-conn-status ob-success';
-    if (nextBtn) nextBtn.disabled = false;
-    // Save URL immediately
-    const cleanUrl = url;
-    localStorage.setItem('apiUrl', cleanUrl);
-    setApiUrl(cleanUrl);
-  } catch (e) {
-    connectionVerified = false;
-    status.innerHTML = '❌ <span class="ob-status-text">' + (t('obConnectFailed') || 'Keine Verbindung') + ': ' + e.message + '</span>';
-    status.className = 'ob-conn-status ob-error';
-    // Don't disable next — backend is optional, user can proceed without it
-    if (nextBtn) nextBtn.disabled = false;
+    const r = await fetch(url + '/health', { signal: AbortSignal.timeout(5000) });
+    if (r.ok) {
+      connectionVerified = true;
+      if (status) { status.textContent = '✅ Verbunden!'; status.className = 'ob-conn-status success'; }
+    } else {
+      if (status) { status.textContent = '⚠️ Server antwortet nicht korrekt'; status.className = 'ob-conn-status error'; }
+    }
+  } catch(e) {
+    if (status) { status.textContent = '❌ Nicht erreichbar — trotzdem fortfahren möglich'; status.className = 'ob-conn-status error'; }
   }
-}
-
-// ── Private helpers ───────────────────────────────────────────────────────────
-
-function _resetConnectionStatus() {
-  const status  = document.getElementById('ob-conn-status');
-  const nextBtn = document.getElementById('ob-next');
-  if (status) { status.innerHTML = ''; status.className = 'ob-conn-status'; }
-  connectionVerified = false;
-  // Never disable next — backend is optional
-  if (nextBtn) nextBtn.disabled = false;
 }
 
 function _showUrlError(msg) {
-  const status = document.getElementById('ob-conn-status');
-  if (status) {
-    status.innerHTML = '⚠️ <span class="ob-status-text">' + msg + '</span>';
-    status.className = 'ob-conn-status ob-error';
-  }
-  document.getElementById('ob-url')?.focus();
+  const s = document.getElementById('ob-conn-status');
+  if (s) { s.textContent = msg; s.className = 'ob-conn-status error'; }
 }
 
 async function _finishOnboarding() {
-  // Save optional API keys from step 2
-  const serpKey   = document.getElementById('ob-serpapi')?.value.trim() || '';
-  const geminiKey = document.getElementById('ob-gemini')?.value.trim()  || '';
-  if (serpKey)   localStorage.setItem('s-serpApiKey', serpKey);
-  if (geminiKey) localStorage.setItem('s-geminiKey', geminiKey);
-
-  // Sync to backend if connected
-  const apiUrl = localStorage.getItem('apiUrl') || '';
-  if (apiUrl && (serpKey || geminiKey)) {
+  const url     = localStorage.getItem('apiUrl') || '';
+  const serpapi = document.getElementById('ob-serpapi')?.value || '';
+  const gemini  = document.getElementById('ob-gemini')?.value  || '';
+  if (serpapi) localStorage.setItem('s-serpApiKey', serpapi);
+  if (gemini)  localStorage.setItem('s-geminiKey',  gemini);
+  if (url && (serpapi || gemini)) {
     try {
-      await fetch(apiUrl + '/api/settings', {
+      await fetch(url + '/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          serpapi_key: serpKey  || null,
-          gemini_key:  geminiKey || null,
+          serpapi_key: serpapi || null,
+          gemini_key:  gemini  || null,
         }),
       });
-    } catch(e) { /* silent — keys are in localStorage as fallback */ }
+    } catch(e) { /* silent */ }
   }
-
-  // Update status dot
-  const { checkApiStatus } = await import('../core/api.js');
-  checkApiStatus();
-
-  // Hide api-notice if visible
-  const notice = document.querySelector('.api-notice');
-  if (notice) notice.classList.add('hidden');
-
   closeOnboarding();
-
-  // Load dashboard
-  const { loadDashboard } = await import('./dashboard.js');
+  const { checkApiStatus } = await import('../core/api.js');
+  const { loadDashboard }  = await import('./dashboard.js');
+  setTimeout(checkApiStatus, 300);
   loadDashboard();
 }
