@@ -1,6 +1,8 @@
 <script>
-  import { trips, budget, bucketlist } from '$lib/stores.js';
+  import { trips, budget, bucketlist, apiUrl } from '$lib/stores.js';
+  import { api } from '$lib/api.js';
   import { toast } from '$lib/toast.js';
+  import { browser } from '$app/environment';
 
   let activeTab  = $state('overview');
 
@@ -8,10 +10,15 @@
   let tripName  = $state('');
   let tripDate  = $state(new Date().toISOString().slice(0,10));
   let tripCost  = $state('');
+  let tripSource = $state('manual');
 
   // Budget
   let budgetInput = $state('');
   $effect(() => { budgetInput = $budget || ''; });
+
+  // ActualBudget sync
+  let actualSyncing = $state(false);
+  let actualResult  = $state(null); // { total, transactions }
 
   // Bucket list
   let bucketItem = $state('');
@@ -19,13 +26,42 @@
 
   function addTrip() {
     if (!tripName||!tripDate||!tripCost) { toast('Bitte alle Felder ausfüllen','error'); return; }
-    trips.update(t => [...t, { name:tripName, date:tripDate, cost:parseFloat(tripCost) }]);
-    tripName=''; tripCost='';
+    trips.update(t => [...t, { name:tripName, date:tripDate, cost:parseFloat(tripCost), source:tripSource }]);
+    tripName=''; tripCost=''; tripSource='manual';
     toast('Reise hinzugefügt','success');
   }
   function removeTrip(i) { trips.update(t => t.filter((_,idx)=>idx!==i)); }
 
   function saveBudget() { budget.set(budgetInput); toast('Budget gespeichert','success'); }
+
+  async function syncActual() {
+    if (!$apiUrl) { toast('Backend-URL fehlt','warning'); return; }
+    const url      = browser ? localStorage.getItem('s-actualUrl')      || '' : '';
+    const password = browser ? localStorage.getItem('s-actualPassword') || '' : '';
+    const file     = browser ? localStorage.getItem('s-actualFile')     || '' : '';
+    const cats     = browser ? localStorage.getItem('s-travelCategories') || '' : '';
+    if (!url || !password) {
+      toast('ActualBudget URL + Passwort fehlen → Einstellungen → Integrationen','warning');
+      return;
+    }
+    actualSyncing = true; actualResult = null;
+    try {
+      const r = await api('/api/budget/actual/transactions', {
+        method: 'POST',
+        body: JSON.stringify({
+          actual_url:   url,
+          actual_token: password,
+          actual_file:  file   || null,
+          categories:   cats   || null,
+        }),
+      });
+      actualResult = r;
+      toast(`${r.transactions?.length ?? 0} Transaktionen geladen ✓`, 'success');
+    } catch(e) {
+      toast('ActualBudget Sync fehlgeschlagen: ' + e.message, 'error');
+    }
+    actualSyncing = false;
+  }
 
   function addBucketItem() {
     if (!bucketItem) { toast('Bitte Eintrag eingeben','error'); return; }
@@ -66,7 +102,6 @@
   </div>
 
   {#if activeTab==='overview'}
-    <!-- Stats -->
     <div class="grid grid-cols-3 gap-3">
       {#each [
         { label:'Reisen', value:$trips.length, color:'var(--ws-text)' },
@@ -79,7 +114,6 @@
         </div>
       {/each}
     </div>
-    <!-- Budget bar -->
     {#if totalBudget>0}
       <div class="rounded-xl p-4 border" style="background:var(--ws-surface);border-color:var(--ws-border)">
         <div class="flex justify-between text-xs mb-2" style="color:var(--ws-muted)">
@@ -96,7 +130,6 @@
         </div>
       </div>
     {/if}
-    <!-- Recent trips -->
     {#if $trips.length > 0}
       <div class="space-y-2">
         <div class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Letzte Reisen</div>
@@ -114,7 +147,6 @@
     {/if}
 
   {:else if activeTab==='trips'}
-    <!-- Add form -->
     <div class="rounded-xl p-4 border space-y-3" style="background:var(--ws-surface);border-color:var(--ws-border)">
       <h2 class="text-sm font-semibold italic" style="font-family:var(--ws-serif);color:var(--ws-accent2)">Reise hinzufügen</h2>
       <input bind:value={tripName} placeholder="Ziel / Name"
@@ -134,7 +166,6 @@
         + Hinzufügen
       </button>
     </div>
-    <!-- Trip list -->
     {#if $trips.length===0}
       <p class="text-sm" style="color:var(--ws-muted)">Noch keine Reisen erfasst.</p>
     {:else}
@@ -156,8 +187,9 @@
     {/if}
 
   {:else if activeTab==='budget'}
+    <!-- Manuelles Budget -->
     <div class="rounded-xl p-4 border space-y-3" style="background:var(--ws-surface);border-color:var(--ws-border)">
-      <h2 class="text-sm font-semibold italic" style="font-family:var(--ws-serif);color:var(--ws-accent2)">Jahresbudget</h2>
+      <h2 class="text-sm font-semibold italic" style="font-family:var(--ws-serif);color:var(--ws-accent2)">Jahresbudget (manuell)</h2>
       <input type="number" bind:value={budgetInput} placeholder="z.B. 3000"
         class="w-full px-3 py-2 rounded-xl border text-sm"
         style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
@@ -168,8 +200,67 @@
       </button>
     </div>
 
+    <!-- ActualBudget Sync -->
+    <div class="rounded-xl p-4 border space-y-3" style="background:var(--ws-surface);border-color:var(--ws-border)">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-sm font-semibold italic" style="font-family:var(--ws-serif);color:var(--ws-accent2)">
+            ActualBudget Sync
+          </h2>
+          <p class="text-xs mt-0.5" style="color:var(--ws-muted)">
+            Reiseausgaben aus ActualBudget importieren
+          </p>
+        </div>
+        <button onclick={syncActual} disabled={actualSyncing || !$apiUrl}
+          class="px-4 py-2 rounded-xl text-sm font-semibold border transition-all disabled:opacity-40 shrink-0"
+          style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)">
+          {actualSyncing ? '⏳ Sync…' : '🔄 Synchronisieren'}
+        </button>
+      </div>
+
+      {#if !$apiUrl}
+        <p class="text-xs" style="color:var(--ws-muted)">Backend-URL in den Einstellungen konfigurieren.</p>
+      {:else}
+        <!-- Config hint -->
+        {#if !browser || !localStorage.getItem('s-actualUrl')}
+          <p class="text-xs" style="color:var(--ws-muted)">
+            ⚙️ ActualBudget URL + Passwort in Einstellungen → Integrationen eintragen.
+          </p>
+        {/if}
+      {/if}
+
+      <!-- Result -->
+      {#if actualResult}
+        <div class="rounded-xl p-3 border space-y-2" style="background:var(--ws-surface2);border-color:var(--ws-border)">
+          <div class="flex justify-between text-sm font-semibold">
+            <span>Reiseausgaben</span>
+            <span style="color:var(--ws-accent)">
+              {(actualResult.total ?? actualResult.transactions?.reduce((s,t) => s + Math.abs(t.amount ?? 0), 0) ?? 0).toFixed(2)} €
+            </span>
+          </div>
+          {#if actualResult.transactions?.length}
+            <div class="space-y-1 max-h-48 overflow-y-auto">
+              {#each actualResult.transactions.slice(0,20) as tx}
+                <div class="flex justify-between text-xs py-1 border-b" style="border-color:var(--ws-border)">
+                  <span class="truncate flex-1 mr-2" style="color:var(--ws-text)">{tx.payee_name || tx.notes || '–'}</span>
+                  <span class="font-mono shrink-0" style="color:var(--ws-muted)">{tx.date}</span>
+                  <span class="font-mono font-bold ml-2 shrink-0" style="color:var(--ws-accent2)">
+                    {Math.abs(tx.amount ?? 0).toFixed(2)} €
+                  </span>
+                </div>
+              {/each}
+              {#if actualResult.transactions.length > 20}
+                <p class="text-xs text-center pt-1" style="color:var(--ws-muted)">
+                  + {actualResult.transactions.length - 20} weitere
+                </p>
+              {/if}
+            </div>
+          {/if}
+        </div>
+      {/if}
+    </div>
+
   {:else if activeTab==='bucketlist'}
-    <!-- Add form -->
     <div class="rounded-xl p-4 border space-y-3" style="background:var(--ws-surface);border-color:var(--ws-border)">
       <h2 class="text-sm font-semibold italic" style="font-family:var(--ws-serif);color:var(--ws-accent2)">🌟 Bucket List</h2>
       <input bind:value={bucketItem} placeholder="Was möchtest du erleben?"
@@ -184,7 +275,6 @@
         + Hinzufügen
       </button>
     </div>
-    <!-- List -->
     {#if $bucketlist.length===0}
       <p class="text-sm" style="color:var(--ws-muted)">Noch keine Einträge — träume groß! 🌍</p>
     {:else}
