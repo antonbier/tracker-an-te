@@ -1,10 +1,9 @@
 <script>
   import { currentPage } from '$lib/stores.js';
-  import Dashboard from '$lib/components/pages/Dashboard.svelte';
+  import Dashboard  from '$lib/components/pages/Dashboard.svelte';
   import PriceRadar from '$lib/components/pages/PriceRadar.svelte';
-  import MyTrips from '$lib/components/pages/MyTrips.svelte';
-  import Discover from '$lib/components/pages/Discover.svelte';
-  import Journal from '$lib/components/pages/Journal.svelte';
+  import MyTrips    from '$lib/components/pages/MyTrips.svelte';
+  import Discover   from '$lib/components/pages/Discover.svelte';
 </script>
 
 {#if $currentPage === 'home'}
@@ -15,6 +14,4 @@
   <MyTrips />
 {:else if $currentPage === 'discover'}
   <Discover />
-{:else if $currentPage === 'journal'}
-  <Journal />
 {/if}
