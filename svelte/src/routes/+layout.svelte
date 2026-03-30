@@ -22,6 +22,11 @@
   onMount(async () => {
     await loadLocale($lang);
   });
+
+  // Reload locale when language changes
+  $effect(() => {
+    loadLocale($lang);
+  });
 </script>
 
 {#if !$onboardingDone && !$apiUrl}
