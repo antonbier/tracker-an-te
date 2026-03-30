@@ -40,15 +40,14 @@ export function checkOnboarding() {
     localStorage.setItem('ws-onboarding-done', '1');
     return;
   }
-
   // First visit with no backend: show the wizard
+  // But only if the onboardingBackdrop element exists and is in the DOM
+  const bd = document.getElementById('onboardingBackdrop');
+  if (!bd) return;
   setObStep(1);
   updateObStep();
-  const bd = document.getElementById('onboardingBackdrop');
-  if (bd) {
-    bd.classList.add('open');
-    document.body.style.overflow = 'hidden';
-  }
+  bd.classList.add('open');
+  document.body.style.overflow = 'hidden';
 }
 
 /** Close the wizard with a fade-out animation, then save completion flag. */
@@ -159,7 +158,8 @@ export async function checkConnection() {
     connectionVerified = false;
     status.innerHTML = '❌ <span class="ob-status-text">' + (t('obConnectFailed') || 'Keine Verbindung') + ': ' + e.message + '</span>';
     status.className = 'ob-conn-status ob-error';
-    if (nextBtn) nextBtn.disabled = true;
+    // Don't disable next — backend is optional, user can proceed without it
+    if (nextBtn) nextBtn.disabled = false;
   }
 }
 
@@ -170,8 +170,8 @@ function _resetConnectionStatus() {
   const nextBtn = document.getElementById('ob-next');
   if (status) { status.innerHTML = ''; status.className = 'ob-conn-status'; }
   connectionVerified = false;
-  // Re-enable next if URL already saved (revisiting)
-  if (nextBtn) nextBtn.disabled = !localStorage.getItem('apiUrl');
+  // Never disable next — backend is optional
+  if (nextBtn) nextBtn.disabled = false;
 }
 
 function _showUrlError(msg) {

@@ -239,11 +239,11 @@ export async function saveSettings() {
   const { checkApiStatus } = await import('../core/api.js');
   const { loadTrackers }   = await import('../app/ryanair.js');
   const { loadDashboard }  = await import('../app/dashboard.js');
-  const { checkOnboarding } = await import('../app/onboarding.js');
   setTimeout(checkApiStatus, 300);
   setTimeout(loadTrackers, 600);
   loadDashboard();
-  checkOnboarding();
+  // Mark onboarding done — user has already opened Settings, no need to show wizard
+  localStorage.setItem('ws-onboarding-done', '1');
 
   if (newUrl) {
     const notice = document.querySelector('.api-notice');
