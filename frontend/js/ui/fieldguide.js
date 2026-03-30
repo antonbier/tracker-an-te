@@ -18,6 +18,7 @@ const FG_TABS = ['start', 'radar', 'mytrips', 'discover'];
  * Applies translations to any data-i18n elements inside the panel.
  */
 export function openFieldGuide() {
+  console.log('[FieldGuide] openFieldGuide() called');
   // Apply translations to dynamically rendered content
   const { t } = window;
   if (t) {
@@ -26,7 +27,10 @@ export function openFieldGuide() {
     });
   }
   switchFieldGuideTab('start');
-  document.getElementById('fieldGuideBackdrop').classList.add('open');
+  const bd = document.getElementById('fieldGuideBackdrop');
+  console.log('[FieldGuide] backdrop element:', bd);
+  if (!bd) { console.error('[FieldGuide] fieldGuideBackdrop not found!'); return; }
+  bd.classList.add('open');
   document.body.style.overflow = 'hidden';
   // Close sidebar on mobile
   if (window.innerWidth < 900 && window.closeSidebar) window.closeSidebar();

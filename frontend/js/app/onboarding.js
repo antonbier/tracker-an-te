@@ -41,9 +41,10 @@ export function checkOnboarding() {
     return;
   }
 
-  // Any existing localStorage data = user has visited before or is on demo URL
-  // Skip wizard to prevent blocking preview deployments like here.now
-  if (localStorage.length > 0) {
+  // Check if user has any WanderSuite-specific data (theme, language prefs, etc.)
+  // This prevents the wizard from showing on demo/preview URLs
+  const hasWsData = ['theme','lang','s-timezone','s-lightMode'].some(k => localStorage.getItem(k));
+  if (hasWsData) {
     localStorage.setItem('ws-onboarding-done', '1');
     return;
   }
