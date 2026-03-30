@@ -159,3 +159,27 @@ to GitHub but **never reached the browser** — the SW kept serving old cached v
 
 **Lesson:** When using a Service Worker with pre-caching, always bump CACHE_VER
 when deploying JS changes, and be aware that static hosts may not deploy subdirectories.
+
+
+### 10. dashboard.js: _renderOverviewLinks undefined (FIXED)
+
+`dashboard.js` called `_renderOverviewLinks()` which was never defined.
+This caused a `ReferenceError` on startup (when loadDashboard runs) that
+broke the module initialization chain.
+
+Fix: removed the undefined call — it was only adding setup links which
+are already shown by `_notConfigured()`.
+
+### 11. .main-content animation creating stacking context (ROOT CAUSE — FIXED)
+
+`animation: page-in .22s ease both` on `.main-content` creates a new
+CSS stacking context. The `both` fill-mode keeps elements at `opacity:0`
+until the animation fires. Fixed-position children (modals) inherit this
+stacking context in some browsers, making them invisible.
+
+Fix: removed animation from `.main-content`, moved it to `.page.active`
+instead — so only the page content animates, not the container, and
+no stacking context is created for the modal overlays.
+
+This is the confirmed root cause of `opacity:0` on fieldGuideBackdrop
+even after classList.add('open') + !important override.

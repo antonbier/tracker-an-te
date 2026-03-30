@@ -153,7 +153,6 @@ export async function loadMyTripsDashboard() {
   if (!API_URL) {
     if (placesEl) placesEl.innerHTML = _notConfigured('statNotConnected');
     if (budgetEl) budgetEl.innerHTML = _notConfigured('statNotConnected');
-    _renderOverviewLinks(placesEl, budgetEl, false, false);
     return;
   }
 

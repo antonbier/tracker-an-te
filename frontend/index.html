@@ -205,11 +205,11 @@ body {
   margin-left:var(--nav-w);
   flex:1; min-width:0;
   padding:1.6rem 1.4rem 2rem;
-  animation: page-in .22s ease both;
+  /* animation removed — was creating stacking context affecting fixed modals */
 }
 @keyframes page-in { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
 .page { display:none; }
-.page.active { display:block; }
+.page.active { display:block; animation: page-in .22s ease; }
 
 /* ── Cards & Forms ──────────────────────────────────── */
 .card {
