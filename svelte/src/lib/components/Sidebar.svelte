@@ -18,7 +18,7 @@
       <button
         onclick={() => currentPage.set(item.id)}
         class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-left w-full"
-        class:active={$$currentPage === item.id}
+        class:active={$currentPage === item.id}
         style={$currentPage === item.id
           ? 'background:var(--ws-accent);color:#fff'
           : 'color:var(--ws-muted)'}

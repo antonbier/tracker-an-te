@@ -14,8 +14,12 @@
 {#if open}
   <!-- Backdrop -->
   <div
-    class="fixed inset-0 z-40 bg-black/40"
+    class="fixed inset-0 z-40 bg-black/40 cursor-default"
     onclick={() => open = false}
+    onkeydown={(e) => e.key === "Escape" && (open = false)}
+    role="button"
+    tabindex="-1"
+    aria-label="Schließen"
   ></div>
 
   <!-- Panel — slides in from right, z-50 above backdrop -->

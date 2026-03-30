@@ -36,7 +36,7 @@
 </script>
 
 {#if open}
-  <div class="fixed inset-0 z-40 bg-black/40" onclick={() => open = false}></div>
+  <div class="fixed inset-0 z-40 bg-black/40 cursor-default" onclick={() => open = false} onkeydown={(e) => e.key === "Escape" && (open = false)} role="button" tabindex="-1" aria-label="Schließen"></div>
 
   <div class="fixed inset-y-0 right-0 z-50 w-full max-w-md flex flex-col shadow-2xl"
     style="background:var(--ws-surface)">
