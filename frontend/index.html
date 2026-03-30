@@ -414,7 +414,7 @@ tr:hover td { background:rgba(255,255,255,.02); }
 
 /* ── Settings Modal ──────────────────────────────────── */
 /* ── Modals — generic (Field Guide, Onboarding) ──────── */
-.modal-backdrop { position:fixed; inset:0; background:rgba(26,22,18,.45); backdrop-filter:blur(6px); z-index:1100; display:flex; align-items:center; justify-content:center; padding:1rem; opacity:0; visibility: hidden; pointer-events:none; transition:opacity .22s ease; }
+.modal-backdrop { position:fixed; inset:0; background:rgba(26,22,18,.45); backdrop-filter:blur(6px); z-index:9999; display:flex; align-items:center; justify-content:center; padding:1rem; opacity:0; visibility: hidden; pointer-events:none; transition:opacity .22s ease; }
 .modal-backdrop.open { opacity:1 !important; visibility: visible !important; pointer-events:all !important; }
 .modal { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); width:100%; max-width:460px; max-height:88vh; overflow-y:auto; transform:translateY(20px) scale(.98); transition:transform .22s ease, opacity .22s ease; box-shadow:0 32px 80px rgba(0,0,0,.18), 0 2px 8px rgba(0,0,0,.06); }
 .modal-backdrop.open .modal { transform:translateY(0) scale(1); }
@@ -1760,7 +1760,7 @@ body.dark-mode #scratch-map-svg .jvm-region { stroke: var(--border) !important; 
       <button class="lang-btn" onclick="setLang('en')">EN</button>
     </div>
     <button class="btn-icon-hdr btn-settings" onclick="openSettings()" title="Einstellungen" aria-label="Settings">⚙</button>
-    <button class="btn-icon-hdr" id="btn-fieldguide" onclick="document.getElementById('fieldGuideBackdrop').classList.add('open')" title="Feldführer" aria-label="Field Guide" style="font-size:.75rem">📖</button>
+    <button class="btn-icon-hdr" onclick="document.getElementById('fieldGuideBackdrop').classList.add('open')" title="Feldführer" aria-label="Field Guide" style="font-size:.75rem">📖</button>
     <div class="status-dot" id="statusDot" title="API Status"></div>
   </div>
 </header>
@@ -3606,7 +3606,7 @@ body.dark-mode #scratch-map-svg .jvm-region { stroke: var(--border) !important; 
 </div>
 
 <!-- ── Onboarding — Full-Screen Wizard ─────────────────────── -->
-<div id="onboardingBackdrop">
+<div id="onboardingBackdrop" class="modal-backdrop open">
   <div class="ob-wrapper">
 
     <!-- Step indicators -->
