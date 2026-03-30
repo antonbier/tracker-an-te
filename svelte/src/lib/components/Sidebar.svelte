@@ -5,8 +5,9 @@
   const nav = [
     { id: 'home',        icon: '🏠', label: 'Dashboard' },
     { id: 'priceradar',  icon: '🎯', label: 'Preis-Radar' },
-    { id: 'discover',    icon: '✨', label: 'Discover' },
+    { id: 'discover',    icon: '✨', label: 'Inspiration' },
     { id: 'mytrips',     icon: '🎒', label: 'Meine Reisen' },
+    { id: 'journal',     icon: '📓', label: 'Reisetagebuch' },
   ];
 </script>
 

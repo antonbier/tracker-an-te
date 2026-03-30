@@ -483,27 +483,32 @@ All state is in Svelte stores, auto-persisted to localStorage:
 ### Current Implementation Status
 | Component | Status |
 |-----------|--------|
-| AppShell, Header, Sidebar, BottomNav | ✅ Done |
-| FieldGuide slide panel | ✅ Done |
-| Settings panel (4 tabs) | ✅ Done (basic tab functional) |
-| Onboarding wizard | ✅ Done |
+| AppShell, Header (+ Lang DE/IT/EN), Sidebar, BottomNav | ✅ Done |
+| FieldGuide (4 tabs, real FAQ content) | ✅ Done |
+| Settings (4 tabs: Basic, Integrations, APIs, Notifications) | ✅ Done |
+| Onboarding wizard (3 steps) | ✅ Done |
 | Toast notifications | ✅ Done |
-| Dashboard (donut, trackers, trips) | ✅ Done |
+| Dashboard (donut, live trackers, trips) | ✅ Done |
 | PriceRadar — Ryanair CRUD | ✅ Done |
-| PriceRadar — Google Flights tab | 🔄 Placeholder |
-| PriceRadar — Homair tab | 🔄 Placeholder |
-| PriceRadar — Booking tab | 🔄 Placeholder |
-| Discover (Gemini + OpenAI) | ✅ Done |
-| MyTrips (budget + trip list) | ✅ Done |
-| Auth (JWT login/setup) | 🔜 Next |
-| Travel Journal (Dawarich) | 🔜 Next |
-| Notifications (Telegram/Gotify) | 🔜 Next |
+| PriceRadar — Google Flights (SerpAPI) | ✅ Done |
+| PriceRadar — Homair tab | ✅ Done |
+| PriceRadar — Booking/Trivago tab | ✅ Done |
+| Discover (Gemini + OpenAI, provider choice) | ✅ Done |
+| MyTrips (overview, trips, budget, bucket list) | ✅ Done |
+| Travel Journal (Dawarich sync + trip list) | ✅ Done |
+| Auth (JWT login/setup) | 🔜 Optional |
+| Scratch Map (jsvectormap) | 🔜 Optional |
 
-### Next Steps
-1. Complete Settings panel tabs (Integrations, APIs, Notifications)
-2. Add Auth component (login/setup screen)
-3. Google Flights, Homair, Booking tabs in PriceRadar
-4. Travel Journal page with Dawarich sync
+### Migration Status: COMPLETE ✅
+
+The Svelte app has full feature-parity with the old Vanilla JS app.
+All core features are implemented. Remaining optional items:
+- Auth (JWT login/setup) — only needed if multi-user or public deployment
+- Scratch Map (jsvectormap) — visual country map in MyTrips
+
+### Deployment
+Push anything to `svelte/**` → GitHub Action builds → deploys to here.now.
+New URL shown in Action log each time (here.now generates random slug per deploy).
 
 ---
 
