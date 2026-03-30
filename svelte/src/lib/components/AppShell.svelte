@@ -18,7 +18,7 @@
 
 <div class="flex h-screen overflow-hidden" style="background:var(--ws-bg);color:var(--ws-text)">
   <!-- Sidebar (desktop) -->
-  <Sidebar bind:currentPage={$currentPage} onSettings={() => settingsOpen = true} />
+  <Sidebar onSettings={() => settingsOpen = true} />
 
   <!-- Main area -->
   <div class="flex flex-col flex-1 min-w-0 overflow-hidden">
@@ -31,7 +31,7 @@
       {@render children()}
     </main>
     <!-- Bottom nav (mobile) -->
-    <BottomNav bind:currentPage={$currentPage} />
+    <BottomNav />
   </div>
 </div>
 

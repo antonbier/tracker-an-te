@@ -1,5 +1,6 @@
 <script>
-  let { currentPage = $bindable(), onSettings } = $props();
+  import { currentPage } from '$lib/stores.js';
+  let { onSettings } = $props();
 
   const nav = [
     { id: 'home',        icon: '🏠', label: 'Dashboard' },
@@ -15,10 +16,10 @@
   <nav class="flex-1 p-3 flex flex-col gap-1 pt-4">
     {#each nav as item}
       <button
-        onclick={() => currentPage = item.id}
+        onclick={() => currentPage.set(item.id)}
         class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-left w-full"
-        class:active={currentPage === item.id}
-        style={currentPage === item.id
+        class:active={$$currentPage === item.id}
+        style={$currentPage === item.id
           ? 'background:var(--ws-accent);color:#fff'
           : 'color:var(--ws-muted)'}
       >

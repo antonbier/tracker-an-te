@@ -409,6 +409,102 @@ Work directly on `main` unless explicitly asked for a PR.
 | 2026-03-29 | **Notifications** — Telegram + Gotify, `notifications.py`, 🔔 Alerts tab in Settings, scheduler trigger |
 
 
+
+---
+
+## 🚀 Svelte Migration (Active — March 2026)
+
+### Why
+The Vanilla JS `index.html` (3300+ lines) had insurmountable CSS stacking context
+issues causing modals (Field Guide, Settings) to be invisible or unclickable.
+Multiple debugging sessions with Claude and Gemini failed to fully resolve it.
+Decision: migrate to SvelteKit + Tailwind CSS v4 to eliminate these issues at the root.
+
+### Architecture
+- **Framework:** SvelteKit 2 + Svelte 5 (Runes)
+- **Styling:** Tailwind CSS v4 (no stacking context issues, scoped styles)
+- **Build:** Vite 6, `@sveltejs/adapter-static` → `svelte/dist/`
+- **Deploy:** GitHub Action → here.now (same as old frontend)
+- **Backend:** unchanged — same FastAPI on Railway + Unraid
+
+### File Structure
+```
+svelte/
+├── package.json             # Svelte 5, SvelteKit, Tailwind v4, Vite PWA
+├── svelte.config.js         # adapter-static, SPA fallback
+├── vite.config.js           # Tailwind v4 plugin, PWA manifest
+├── src/
+│   ├── app.css              # Design tokens as CSS variables (Light/Dark)
+│   ├── app.html             # SvelteKit entry HTML
+│   ├── lib/
+│   │   ├── stores.js        # Svelte stores (persisted to localStorage)
+│   │   ├── api.js           # HTTP client with JWT injection
+│   │   ├── toast.js         # Toast notifications store
+│   │   ├── i18n.js          # Locale loader
+│   │   └── components/
+│   │       ├── AppShell.svelte   # Layout wrapper (no stacking context!)
+│   │       ├── Header.svelte     # Lang switcher, dark mode, fieldguide, settings
+│   │       ├── Sidebar.svelte    # Desktop nav (md:flex)
+│   │       ├── BottomNav.svelte  # Mobile bottom bar
+│   │       ├── Toast.svelte      # Toast notifications
+│   │       ├── FieldGuide.svelte # Slide panel from right, z-50
+│   │       ├── Settings.svelte   # 4-tab settings panel
+│   │       ├── Onboarding.svelte # 3-step wizard
+│   │       └── pages/
+│   │           ├── Dashboard.svelte   # Full: donut, trackers, trips
+│   │           ├── PriceRadar.svelte  # Ryanair CRUD + tabs for GF/Homair/Booking
+│   │           ├── MyTrips.svelte     # Budget + trip list
+│   │           └── Discover.svelte    # AI recommendations (Gemini/OpenAI)
+│   └── routes/
+│       ├── +layout.js       # ssr: false, prerender: false
+│       ├── +layout.svelte   # Onboarding gate → AppShell
+│       └── +page.svelte     # Page router (currentPage store)
+```
+
+### Svelte Stores (src/lib/stores.js)
+All state is in Svelte stores, auto-persisted to localStorage:
+- `apiUrl` — backend URL
+- `lang` — current language
+- `theme` — '' (light) or 'dark'
+- `onboardingDone` — 'ws-onboarding-done' key
+- `jwtToken` — 'ws-jwt' key
+- `currentPage` — navigation state (in-memory only)
+- `trips` — 'ws-trips' key (JSON array)
+- `budget` — 'ws-budget' key
+- `bucketlist` — 'ws-bucketlist' key
+
+### GitHub Action
+`.github/workflows/deploy-svelte.yml` triggers on push to `svelte/**`:
+1. `npm install` in `svelte/`
+2. `npm run build` → `svelte/dist/`
+3. Copy PWA icons from `frontend/icons/`
+4. Deploy `svelte/dist/` to here.now
+
+### Current Implementation Status
+| Component | Status |
+|-----------|--------|
+| AppShell, Header, Sidebar, BottomNav | ✅ Done |
+| FieldGuide slide panel | ✅ Done |
+| Settings panel (4 tabs) | ✅ Done (basic tab functional) |
+| Onboarding wizard | ✅ Done |
+| Toast notifications | ✅ Done |
+| Dashboard (donut, trackers, trips) | ✅ Done |
+| PriceRadar — Ryanair CRUD | ✅ Done |
+| PriceRadar — Google Flights tab | 🔄 Placeholder |
+| PriceRadar — Homair tab | 🔄 Placeholder |
+| PriceRadar — Booking tab | 🔄 Placeholder |
+| Discover (Gemini + OpenAI) | ✅ Done |
+| MyTrips (budget + trip list) | ✅ Done |
+| Auth (JWT login/setup) | 🔜 Next |
+| Travel Journal (Dawarich) | 🔜 Next |
+| Notifications (Telegram/Gotify) | 🔜 Next |
+
+### Next Steps
+1. Complete Settings panel tabs (Integrations, APIs, Notifications)
+2. Add Auth component (login/setup screen)
+3. Google Flights, Homair, Booking tabs in PriceRadar
+4. Travel Journal page with Dawarich sync
+
 ---
 
 ## 🐛 Active Bug: UI Blockade & Modal System (March 2026)
