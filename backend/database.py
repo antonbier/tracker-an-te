@@ -197,6 +197,13 @@ def init_db():
         except Exception:
             pass  # column already exists — expected on existing installations
 
+    # Auth tables — imported here to avoid circular deps at module level
+    try:
+        from auth_db import init_auth_tables
+        init_auth_tables()
+    except ImportError:
+        pass  # auth_db not available (e.g. running tests without it)
+
         # Migrations for existing Ryanair tables
         for col, definition in [
             ("seat_cost", "REAL NOT NULL DEFAULT 0"),
