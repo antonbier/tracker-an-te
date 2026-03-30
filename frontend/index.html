@@ -71,7 +71,6 @@ body {
   flex-direction: column;
   font-size: .95rem;
   line-height: 1.6;
-  overflow-y: auto;
 }
 
 /* ── View Transitions ───────────────────────────────── */
@@ -206,6 +205,7 @@ body {
   margin-left:var(--nav-w);
   flex:1; min-width:0;
   padding:1.6rem 1.4rem 2rem;
+  overflow-y:auto;
   /* animation removed — was creating stacking context affecting fixed modals */
 }
 @keyframes page-in { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
