@@ -71,6 +71,7 @@ body {
   flex-direction: column;
   font-size: .95rem;
   line-height: 1.6;
+  overflow-y: auto;
 }
 
 /* ── View Transitions ───────────────────────────────── */
@@ -127,7 +128,7 @@ body {
 .hamburger.open span:nth-child(3) { transform:translateY(-7px) rotate(-45deg); }
 
 /* ── App Shell ──────────────────────────────────────── */
-.app-shell { display:flex; padding-top:var(--header-h); flex:1; }
+.app-shell { display:flex; padding-top:var(--header-h); flex:1; min-height:0; }
 /* iOS safe area insets (notch / home indicator) */
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
   .bottom-nav { padding-bottom: env(safe-area-inset-bottom); }
@@ -414,8 +415,8 @@ tr:hover td { background:rgba(255,255,255,.02); }
 
 /* ── Settings Modal ──────────────────────────────────── */
 /* ── Modals — generic (Field Guide, Onboarding) ──────── */
-.modal-backdrop { position:fixed; inset:0; background:rgba(26,22,18,.45); backdrop-filter:blur(6px); z-index:9999; display:flex; align-items:center; justify-content:center; padding:1rem; opacity:0; visibility:hidden; pointer-events:none; transition:opacity .22s ease; }
-.modal-backdrop.open { opacity:1 !important; visibility: visible !important; pointer-events:all !important; }
+.modal-backdrop { position:fixed; inset:0; background:rgba(26,22,18,.45); backdrop-filter:blur(6px); z-index:9999; display:none; align-items:center; justify-content:center; padding:1rem; pointer-events:none; }
+.modal-backdrop.open { display:flex !important; pointer-events:all !important; }
 .modal { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); width:100%; max-width:460px; max-height:88vh; overflow-y:auto; transform:translateY(20px) scale(.98); transition:transform .22s ease, opacity .22s ease; box-shadow:0 32px 80px rgba(0,0,0,.18), 0 2px 8px rgba(0,0,0,.06); }
 .modal-backdrop.open .modal { transform:translateY(0) scale(1); }
 .modal-header { display:flex; align-items:center; justify-content:space-between; padding:1.1rem 1.3rem; border-bottom:1px solid var(--border); }
