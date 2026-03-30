@@ -757,7 +757,9 @@ tr:hover td { background:rgba(255,255,255,.02); }
   visibility: hidden;
 }
 #onboardingBackdrop.open {
-  opacity: 1; pointer-events: all;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: all !important;
   transition: opacity .35s ease;
 }
 #onboardingBackdrop.ob-closing {
