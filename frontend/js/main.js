@@ -221,15 +221,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   // Bind fieldguide button via addEventListener (more reliable than onclick for ES modules)
   const fgBtn = document.getElementById('btn-fieldguide');
-  if (fgBtn) {
-    fgBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      console.log('[FieldGuide] button clicked via addEventListener');
-      openFieldGuide();
-    });
-  } else {
-    console.warn('[FieldGuide] btn-fieldguide not found in DOM');
-  }
+  if (fgBtn) fgBtn.addEventListener('click', (e) => { e.stopPropagation(); openFieldGuide(); });
 
   // ── PWA: Register Service Worker ──────────────────────────────────────────
   if ('serviceWorker' in navigator) {
