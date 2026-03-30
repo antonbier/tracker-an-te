@@ -414,7 +414,7 @@ tr:hover td { background:rgba(255,255,255,.02); }
 
 /* ── Settings Modal ──────────────────────────────────── */
 /* ── Modals — generic (Field Guide, Onboarding) ──────── */
-.modal-backdrop { position:fixed; inset:0; background:rgba(26,22,18,.45); backdrop-filter:blur(6px); z-index:9999; display:flex; align-items:center; justify-content:center; padding:1rem; opacity:0; visibility: hidden; pointer-events:none; transition:opacity .22s ease; }
+.modal-backdrop, #onboardingBackdrop { position:fixed; inset:0; background:rgba(26,22,18,.45); backdrop-filter:blur(6px); z-index:9999; display:flex; align-items:center; justify-content:center; padding:1rem; opacity:0; visibility:hidden; pointer-events:none; transition:opacity .22s ease; }
 .modal-backdrop.open { opacity:1 !important; visibility: visible !important; pointer-events:all !important; }
 .modal { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); width:100%; max-width:460px; max-height:88vh; overflow-y:auto; transform:translateY(20px) scale(.98); transition:transform .22s ease, opacity .22s ease; box-shadow:0 32px 80px rgba(0,0,0,.18), 0 2px 8px rgba(0,0,0,.06); }
 .modal-backdrop.open .modal { transform:translateY(0) scale(1); }
@@ -760,7 +760,7 @@ tr:hover td { background:rgba(255,255,255,.02); }
   opacity: 1 !important;
   visibility: visible !important;
   pointer-events: all !important;
-  transition: opacity .35s ease;
+  display: flex !important;
 }
 #onboardingBackdrop.ob-closing {
   opacity: 0; pointer-events: none;
