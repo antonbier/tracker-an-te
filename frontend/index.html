@@ -94,7 +94,7 @@ body {
 ::view-transition-new(root) {
   animation-duration: 0.18s;
 }
-.header { view-transition-name: header; }
+/* view-transition-name removed - causes stacking context issues */
 .logo {
   display:flex; align-items:center; gap:.55rem;
   font-family: var(--serif);
@@ -414,7 +414,7 @@ tr:hover td { background:rgba(255,255,255,.02); }
 
 /* ── Settings Modal ──────────────────────────────────── */
 /* ── Modals — generic (Field Guide, Onboarding) ──────── */
-.modal-backdrop { position:fixed; inset:0; background:rgba(26,22,18,.45); backdrop-filter:blur(6px); z-index:500; display:flex; align-items:center; justify-content:center; padding:1rem; opacity:0; pointer-events:none; transition:opacity .22s ease; }
+.modal-backdrop { position:fixed; inset:0; background:rgba(26,22,18,.45); backdrop-filter:blur(6px); z-index:1100; display:flex; align-items:center; justify-content:center; padding:1rem; opacity:0; pointer-events:none; transition:opacity .22s ease; }
 .modal-backdrop.open { opacity:1; pointer-events:all; }
 .modal { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); width:100%; max-width:460px; max-height:88vh; overflow-y:auto; transform:translateY(20px) scale(.98); transition:transform .22s ease, opacity .22s ease; box-shadow:0 32px 80px rgba(0,0,0,.18), 0 2px 8px rgba(0,0,0,.06); }
 .modal-backdrop.open .modal { transform:translateY(0) scale(1); }
@@ -625,6 +625,7 @@ tr:hover td { background:rgba(255,255,255,.02); }
   align-items: stretch;
   justify-content: flex-end;
   padding: 0;
+  /* z-index inherited from .modal-backdrop (1100) */
 }
 #fieldGuideBackdrop .modal {
   border-radius: 0;

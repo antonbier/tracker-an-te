@@ -94,3 +94,28 @@ transition.finished.then(() => {
 - `19cf277` — pointer-events transition delay fix; visibility:hidden when closed
 - `f94d0d5` — debug logging in fieldguide; onboarding WanderSuite-specific key check
 - `d0594e2` — fieldguide button via addEventListener+stopPropagation
+
+
+### 7. z-index conflict — modal-backdrop below onboardingBackdrop (FIXED)
+
+`.modal-backdrop` (z-index: 500) was below `#onboardingBackdrop` (z-index: 1000).
+Even with `visibility:hidden` on the onboarding backdrop, it was creating a
+stacking context that prevented the Field Guide panel from appearing visually.
+
+Also: `view-transition-name: header` on `.header` was creating a new stacking
+context that interfered with fixed-position modals.
+
+**Fixes:**
+- `.modal-backdrop` z-index: 500 → **1100** (above onboarding at 1000)
+- Removed `view-transition-name: header` from `.header` CSS
+- All modals (Settings + Field Guide) now render above onboarding backdrop
+
+**z-index hierarchy (final):**
+```
+sidebar:         200
+header:          300
+bottom-nav:      400
+onboarding:     1000
+modal-backdrop: 1100  ← Settings + Field Guide
+auth-overlay:   2000
+```
