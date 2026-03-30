@@ -1,4 +1,4 @@
-// Build: 2026-03-30 11:47 UTC
+// Build: 2026-03-30 11:51 UTC
 /**
  * sw.js — WanderSuite Service Worker
  *
@@ -8,7 +8,7 @@
  * Cache version: increment CACHE_VER to force re-install on deploy.
  */
 
-const CACHE_VER  = 'v9';
+const CACHE_VER  = 'v10';
 const CACHE_NAME = 'wandersuite-' + CACHE_VER;
 
 const CACHE_SHELL = [
