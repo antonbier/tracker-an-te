@@ -35,6 +35,7 @@ export function checkOnboarding() {
 function _removeBd() {
   const bd = document.getElementById('onboardingBackdrop');
   if (bd) bd.remove();
+  document.body.style.overflow = ''; // always restore scroll
 }
 
 /** Close the wizard and remove from DOM. */
