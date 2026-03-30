@@ -43,6 +43,18 @@ export function openSettings() {
   document.getElementById('s-serpApiKey').value        = localStorage.getItem('s-serpApiKey') || '';
   document.getElementById('s-geminiKey').value         = localStorage.getItem('s-geminiKey') || '';
   document.getElementById('s-openaiKey').value         = localStorage.getItem('s-openaiKey') || '';
+  // Populate security tab with current user info
+  try {
+    const u = JSON.parse(localStorage.getItem('ws-current-user') || 'null');
+    if (u) {
+      const eEl = document.getElementById('sec-current-email');
+      const rEl = document.getElementById('sec-current-role');
+      if (eEl) eEl.textContent = u.email;
+      if (rEl) rEl.textContent = u.role;
+      const aTab = document.getElementById('tab-adminusers');
+      if (aTab) aTab.style.display = u.role === 'admin' ? 'block' : 'none';
+    }
+  } catch(e) {}
   switchTab('basic');
   document.getElementById('settingsBackdrop').classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -80,12 +92,13 @@ export function backdropClick(e) {
 }
 
 export function switchTab(tab) {
-  ['basic','integrations','apis','notifications'].forEach(id => {
+  ['basic','integrations','apis','notifications','security','adminusers'].forEach(id => {
     const panel = document.getElementById('panel-'+id);
     const tabEl = document.getElementById('tab-'+id);
     if (panel) panel.style.display = id===tab ? 'block' : 'none';
     if (tabEl) tabEl.classList.toggle('active', id===tab);
   });
+  if (tab === 'adminusers') import('../app/auth.js').then(m => m.loadAdminUsers());
 }
 
 /** Switch between Telegram / Gotify sub-tabs in the notifications panel. */
