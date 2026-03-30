@@ -408,6 +408,78 @@ Work directly on `main` unless explicitly asked for a PR.
 | 2026-03-28 | **Security Hardening** — `actual_file` in SETTING_KEYS, API keys cleared from localStorage after sync |
 | 2026-03-29 | **Notifications** — Telegram + Gotify, `notifications.py`, 🔔 Alerts tab in Settings, scheduler trigger |
 
+
+---
+
+## 🐛 Active Bug: UI Blockade & Modal System (March 2026)
+
+> This section documents an ongoing bug being debugged across multiple Claude sessions.
+> Read `BUGFIX_SESSION.md` for full commit history and technical details.
+
+### Symptoms
+- **UI Freeze:** App loads on here.now, but after ~1 second (once PWA/Service Worker activates), the entire dashboard becomes unclickable
+- **Invisible Shield:** An invisible backdrop overlay suspected of intercepting clicks
+- **Field Guide (📖):** Panel stays invisible despite JS firing correctly — `classList.add('open')` runs but panel is not visible
+- **Onboarding:** Wizard does not start even when no `backendUrl` is set (incognito)
+
+### What Has Been Tried (index.html)
+
+| Fix | Description | Result |
+|-----|-------------|--------|
+| DOM Position | Moved `fieldGuideBackdrop` + `onboardingBackdrop` to end of `<body>` | Partial |
+| CSS: display:none | Switched modals from `opacity:0` to `display:none` by default — prevents ghost click targets | Applied |
+| z-index | Raised `.modal-backdrop` z-index to `9999` | Applied |
+| Inline onclick | Field Guide button: `onclick="document.getElementById('fieldGuideBackdrop').classList.add('open')"` + `stopPropagation()` | Applied |
+| Cache busting | Main script loaded as `js/main.js?v=101` to bypass SW cache | Applied |
+| SW cache v3 | Bumped Service Worker cache version to force fresh JS fetch | Applied |
+| Removed `startViewTransition` | Disabled View Transition API in nav.js — was creating overlays | Applied |
+| Removed animation from `.main-content` | Was creating CSS stacking context affecting fixed modals | Applied |
+
+### Diagnosis Results (Browser Console)
+
+- `document.getElementById('fieldGuideBackdrop').classList.add('open')` → sets class successfully (`undefined`) but panel stays invisible
+- `window.getComputedStyle(bd).opacity` → returns `1` after activation — element is technically "visible" but not rendering visually
+- **PWA Interference:** Blockade occurs exactly when Chrome initiates PWA install prompt or Service Worker activation
+- `[FieldGuide] button clicked via addEventListener` appears in console → click IS received
+- `opacity: 0` returned even after `!important` override → parent stacking context suspected
+
+### Open Investigation Points (for next Claude session)
+
+1. **`main.js` init() logic** — Why is `onboardingBackdrop` not correctly set to `open`, or why is it immediately closed again? Check the `initAuth()` → `checkOnboarding()` timing.
+
+2. **View Transitions** — Verify `::view-transition` pseudo-elements are not leaving a transparent layer over UI. `startViewTransition` was disabled in nav.js but SW may serve cached version.
+
+3. **localStorage key name** — App uses `apiUrl` but Gemini log mentions `ws_backend_url`. Check which key `checkOnboarding()` actually reads. Mismatch = wizard never shows.
+
+4. **`fieldguide.js` — `switchFieldGuideTab('start')`** — Ensure this does not fail and block the open transition. If `fg-panel-start` element is missing, function may throw silently.
+
+5. **Nuclear option (not yet tried):** Move ALL modals to `document.body` dynamically:
+   ```javascript
+   ['fieldGuideBackdrop','onboardingBackdrop','settingsBackdrop'].forEach(id => {
+     const el = document.getElementById(id);
+     if (el) document.body.appendChild(el);
+   });
+   ```
+   This removes them from ANY stacking context entirely.
+
+6. **PWA standalone mode** — If user has the app installed as PWA, old SW may be running in the background. Test in a plain browser tab, not PWA window.
+
+### Key CSS Insight
+CSS stacking contexts (created by `animation`, `transform`, `filter`, `opacity<1`,
+`will-change`, `isolation: isolate`) affect `position:fixed` children — they become
+fixed relative to the stacking context ancestor, not the viewport.
+This is why z-index and `!important` overrides did not work.
+
+### Current Code State (after Gemini + Claude fixes)
+- `frontend/index.html` — modals at end of body, `display:none` default, z-index 9999, inline onclick on field guide button, `?v=101` cache bust
+- `frontend/sw.js` — cache version v3
+- `frontend/js/ui/nav.js` — `startViewTransition` disabled
+- `frontend/js/ui/fieldguide.js` — clean, no debug logs
+- `frontend/js/app/dashboard.js` — `_renderOverviewLinks` undefined call removed
+- `frontend/js/ui/settings.js` — `checkOnboarding()` not called after save
+
+See `BUGFIX_SESSION.md` for full commit list.
+
 ---
 
 ## Roadmap
