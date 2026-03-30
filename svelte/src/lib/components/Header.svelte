@@ -1,13 +1,7 @@
 <script>
   import { isDark, lang } from '$lib/stores.js';
-  import { loadLocale } from '$lib/i18n.js';
-
+  import { setLang } from '$lib/i18n.js';
   let { onFieldGuide, onSettings, onToggleDark } = $props();
-
-  function setLang(l) {
-    lang.set(l);
-    loadLocale(l);
-  }
 </script>
 
 <header class="flex items-center justify-between px-4 h-14 border-b shrink-0"
@@ -33,24 +27,16 @@
       {/each}
     </div>
 
-    <!-- Dark mode -->
     <button onclick={onToggleDark}
-      class="p-2 rounded-lg hover:opacity-70 transition-opacity text-base"
-      title="Dark Mode">
+      class="p-2 rounded-lg hover:opacity-70 transition-opacity text-base" title="Dark Mode">
       {$isDark ? '☀️' : '🌙'}
     </button>
-
-    <!-- Field Guide -->
     <button onclick={onFieldGuide}
-      class="p-2 rounded-lg hover:opacity-70 transition-opacity text-base"
-      title="Feldführer">
+      class="p-2 rounded-lg hover:opacity-70 transition-opacity text-base" title="Feldführer">
       📖
     </button>
-
-    <!-- Settings -->
     <button onclick={onSettings}
-      class="p-2 rounded-lg hover:opacity-70 transition-opacity text-base"
-      title="Einstellungen">
+      class="p-2 rounded-lg hover:opacity-70 transition-opacity text-base" title="Einstellungen">
       ⚙️
     </button>
   </div>
