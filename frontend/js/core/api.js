@@ -19,7 +19,11 @@ import { t } from '../ui/i18n.js';
 export async function api(path, opts = {}) {
   const base = localStorage.getItem('apiUrl') || API_URL || '';
   if (!base) throw new Error(t('missingUrl'));
-  const r = await fetch(base + path, { headers: { 'Content-Type': 'application/json' }, ...opts });
+  // Inject JWT if present
+  const token = localStorage.getItem('ws-jwt');
+  const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const r = await fetch(base + path, { ...opts, headers });
   if (!r.ok) {
     const err = await r.json().catch(() => ({ detail: r.statusText }));
     throw new Error(err.detail || `HTTP ${r.status}`);
