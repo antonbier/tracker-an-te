@@ -1,4 +1,4 @@
-import { writable, get } from 'svelte/store';
+import { writable, derived, get } from 'svelte/store';
 import { lang, apiUrl } from './stores.js';
 import { browser } from '$app/environment';
 
@@ -8,26 +8,25 @@ import it from '../locales/it.json';
 
 const allLocales = { de, en, it };
 
-// Reaktiver translations-Store — Komponenten subscriben automatisch
+// Reaktiver translations-Store
 export const translations = writable(allLocales[get(lang)] || de);
 
+// t als derived Store — Komponenten nutzen $t('key') und re-rendern automatisch
+export const t = derived(
+  translations,
+  ($tr) => (key) => $tr[key] ?? key
+);
+
 export async function loadLocale(locale) {
-  const selected = allLocales[locale] || allLocales['de'];
-  translations.set(selected);
+  translations.set(allLocales[locale] || allLocales['de']);
 }
 
-// t() als reaktive Funktion — liest direkt aus Store
-export function t(key) {
-  const tr = get(translations);
-  return tr[key] ?? key;
-}
-
-// Sprache wechseln + in Backend speichern
+// Sprache wechseln + reaktiv updaten + Backend-Sync
 export async function setLang(locale) {
   lang.set(locale);
-  await loadLocale(locale);
-  // Persist to backend if configured
-  const url = browser ? localStorage.getItem('apiUrl') || get(apiUrl) : get(apiUrl);
+  translations.set(allLocales[locale] || allLocales['de']);
+  if (!browser) return;
+  const url = localStorage.getItem('apiUrl') || get(apiUrl);
   if (url) {
     try {
       await fetch(`${url.replace(/\/$/, '')}/api/settings`, {
@@ -35,6 +34,6 @@ export async function setLang(locale) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ language: locale }),
       });
-    } catch { /* offline — localStorage is enough */ }
+    } catch { /* offline */ }
   }
 }
