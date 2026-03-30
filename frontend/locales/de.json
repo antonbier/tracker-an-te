@@ -308,5 +308,10 @@
   "thresholdActive": "Preisalarm aktiv",
   "exportCsvTitle": "Preishistorie als CSV herunterladen",
   "lineChart": "Linie",
-  "barChart": "Balken"
+  "barChart": "Balken",
+  "authLogin": "Einloggen",
+  "authSetup": "Ersteinrichtung",
+  "authLogout": "Abmelden",
+  "authSecurity": "🔐 Sicherheit",
+  "authAdminUsers": "👥 Nutzer"
 }
