@@ -20,6 +20,10 @@
 import { API_URL, currentLang, setApiUrl }               from './core/state.js';
 import { api, checkApiStatus }                            from './core/api.js';
 import { syncAllToBackend, restoreFromBackend }           from './core/persist.js';
+import { initAuth, logout, showAuthScreen, hideAuthScreen,
+         submitLogin, submitSetup, switchAuthTab,
+         loadAdminUsers, createAdminUser, deleteAdminUser,
+         changePassword }                                 from './app/auth.js';
 
 // ── UI ────────────────────────────────────────────────────────────────────────
 import { loadLocale, t, applyTranslations, setLang }     from './ui/i18n.js';
@@ -77,6 +81,17 @@ window.closeSidebar          = closeSidebar;
 window.api                   = api;
 window.checkApiStatus        = checkApiStatus;
 window.syncAllToBackend      = syncAllToBackend;
+window.restoreFromBackend    = restoreFromBackend;
+window.logout                = logout;
+window.showAuthScreen        = showAuthScreen;
+window.hideAuthScreen        = hideAuthScreen;
+window.submitLogin           = submitLogin;
+window.submitSetup           = submitSetup;
+window.switchAuthTab         = switchAuthTab;
+window.loadAdminUsers        = loadAdminUsers;
+window.createAdminUser       = createAdminUser;
+window.deleteAdminUser       = deleteAdminUser;
+window.changePassword        = changePassword;
 window.restoreFromBackend    = restoreFromBackend;
 window.t                     = t;
 window.setLang               = setLang;
@@ -176,6 +191,10 @@ window.addEventListener('DOMContentLoaded', async () => {
   const ret = new Date(today); ret.setDate(ret.getDate() + 37);
   document.getElementById('outboundDate').value = fmt(out);
   document.getElementById('returnDate').value   = fmt(ret);
+
+  // Auth gate — runs before app starts
+  const authOk = await initAuth();
+  if (!authOk) return;
 
   checkApiStatus();
   restoreFromBackend(); // cold-start: pull ws-trips/budget/bucketlist from backend if localStorage is empty
