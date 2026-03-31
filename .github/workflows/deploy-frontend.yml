@@ -1,15 +1,16 @@
-name: Deploy Frontend to here.now
+name: Deploy Frontend to here.now (DISABLED — Svelte replaces this)
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'frontend/**'
   workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type YES to deploy old Vanilla JS frontend'
+        required: true
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.confirm == 'YES' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,8 +27,3 @@ jobs:
         run: |
           bash ~/.agents/skills/here-now/scripts/publish.sh ./frontend \
             --client github-actions
-
-      - name: Show deployed URL
-        run: |
-          echo "Deployed! Check the URL in the Deploy step output above."
-          echo "To pin the URL permanently, configure the site name in here.now dashboard."
