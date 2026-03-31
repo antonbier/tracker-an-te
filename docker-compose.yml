@@ -1,8 +1,5 @@
 services:
 
-  # ─────────────────────────────────────────
-  # Backend — FastAPI + SQLite (BETA)
-  # ─────────────────────────────────────────
   backend:
     build:
       context: .
@@ -14,6 +11,11 @@ services:
       - APP_SECRET=${APP_SECRET}
       - DB_PATH=/app/data/tracker.db
       - WANDERSUITE_CHANNEL=beta
+      - AUTH_ENABLED=${AUTH_ENABLED:-false}
+      - JWT_SECRET=${JWT_SECRET:-wandersuite-dev-secret}
+      - WEBAUTHN_RP_ID=${WEBAUTHN_RP_ID:-localhost}
+      - WEBAUTHN_RP_NAME=${WEBAUTHN_RP_NAME:-WanderSuite}
+      - WEBAUTHN_ORIGIN=${WEBAUTHN_ORIGIN:-http://localhost:8767}
     volumes:
       - ${DATA_DIR:-/mnt/user/appdata/wandersuite-beta/data}:/app/data
     ports:
@@ -25,17 +27,6 @@ services:
       retries: 3
       start_period: 10s
 
-  # ─────────────────────────────────────────
-  # Frontend — Multi-Stage Build (BETA)
-  # Includes BUILD_DATE for version display.
-  #
-  # Build + start:
-  #   docker compose build --build-arg BUILD_DATE="$(date '+%Y-%m-%d %H:%M')"
-  #   docker compose up -d
-  #
-  # Or combined (recommended):
-  #   BUILD_DATE="$(date '+%Y-%m-%d %H:%M')" docker compose up -d --build
-  # ─────────────────────────────────────────
   frontend:
     build:
       context: .
