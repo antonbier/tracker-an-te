@@ -1,22 +1,23 @@
 services:
 
   # ─────────────────────────────────────────
-  # Backend — FastAPI + SQLite
+  # Backend — FastAPI + SQLite (BETA)
   # ─────────────────────────────────────────
   backend:
     build:
       context: .
       dockerfile: docker/Dockerfile
-    container_name: wandersuite-backend
+    container_name: wandersuite-beta-backend
     restart: unless-stopped
     environment:
       - TZ=${TZ:-Europe/Rome}
       - APP_SECRET=${APP_SECRET}
       - DB_PATH=/app/data/tracker.db
+      - WANDERSUITE_CHANNEL=beta
     volumes:
-      - ${DATA_DIR:-/mnt/user/appdata/wandersuite/data}:/app/data
+      - ${DATA_DIR:-/mnt/user/appdata/wandersuite-beta/data}:/app/data
     ports:
-      - "${BACKEND_PORT:-8766}:8000"   # direct API access (Swagger, Railway)
+      - "${BACKEND_PORT:-8768}:8000"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -25,21 +26,26 @@ services:
       start_period: 10s
 
   # ─────────────────────────────────────────
-  # Frontend — Multi-Stage Build
-  # Stage 1: Node 20 builds Svelte → dist/
-  # Stage 2: Nginx serves dist/ + proxies /api/ → backend
+  # Frontend — Multi-Stage Build (BETA)
+  # Includes BUILD_DATE for version display.
   #
-  # Update workflow: git pull && docker compose up -d --build
-  # Docker cache skips unchanged layers automatically.
+  # Build + start:
+  #   docker compose build --build-arg BUILD_DATE="$(date '+%Y-%m-%d %H:%M')"
+  #   docker compose up -d
+  #
+  # Or combined (recommended):
+  #   BUILD_DATE="$(date '+%Y-%m-%d %H:%M')" docker compose up -d --build
   # ─────────────────────────────────────────
   frontend:
     build:
       context: .
       dockerfile: docker/Dockerfile.frontend
-    container_name: wandersuite-frontend
+      args:
+        BUILD_DATE: ${BUILD_DATE:-unknown}
+    container_name: wandersuite-beta-frontend
     restart: unless-stopped
     depends_on:
       backend:
         condition: service_healthy
     ports:
-      - "${HOST_PORT:-8765}:80"
+      - "${HOST_PORT:-8767}:80"
