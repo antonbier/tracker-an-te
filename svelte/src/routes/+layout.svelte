@@ -2,7 +2,7 @@
   import '../app.css';
   import { onMount } from 'svelte';
   import { theme, isDark, apiUrl, onboardingDone, jwtToken, currentUser,
-           appStatus, logout, loadSettingsFromBackend } from '$lib/stores.js';
+           appStatus, loadSettingsFromBackend } from '$lib/stores.js';
   import { loadLocale } from '$lib/i18n.js';
   import { lang } from '$lib/stores.js';
   import { api } from '$lib/api.js';
@@ -13,7 +13,7 @@
   import Setup      from '$lib/components/Setup.svelte';
 
   let { children } = $props();
-  let statusLoading = $state(false);   // start false — show Onboarding immediately
+  let statusLoading = $state(false);
 
   $effect(() => {
     if ($isDark) document.documentElement.classList.add('dark');
@@ -22,38 +22,47 @@
 
   onMount(async () => {
     await loadLocale($lang);
-    // Only check status if we're past onboarding
-    if ($apiUrl && $onboardingDone) await checkStatus();
+    // Only check status if backend is configured AND onboarding is done
+    if ($apiUrl && $onboardingDone) {
+      await checkStatus();
+    }
   });
 
   $effect(() => { loadLocale($lang); });
 
   async function checkStatus() {
+    // Guard: never call without apiUrl
+    if (!$apiUrl) return;
     statusLoading = true;
     try {
       const s = await api('/api/status');
       appStatus.set(s);
     } catch {
       appStatus.set({ auth_enabled: false, needs_setup: false });
+    } finally {
+      // Always reset — even if loadSettingsFromBackend throws
+      try { await loadSettingsFromBackend($apiUrl); } catch {}
+      statusLoading = false;
     }
-    await loadSettingsFromBackend($apiUrl);
-    statusLoading = false;
   }
 
+  // Reactive: re-check when apiUrl changes AFTER onboarding
+  // But ONLY when both apiUrl and onboardingDone are set
   $effect(() => {
-    if ($apiUrl && $onboardingDone) checkStatus();
+    const url = $apiUrl;
+    const done = $onboardingDone;
+    if (url && done) checkStatus();
   });
 
   const needsOnboarding = $derived(!$onboardingDone || !$apiUrl);
-  const needsSetup = $derived(!needsOnboarding && $appStatus?.needs_setup === true);
-  const needsLogin = $derived(
+  const needsSetup  = $derived(!needsOnboarding && $appStatus?.needs_setup === true);
+  const needsLogin  = $derived(
     !needsOnboarding && !needsSetup &&
     $appStatus?.auth_enabled === true && !$jwtToken
   );
   const showApp = $derived(!needsOnboarding && !needsSetup && !needsLogin && !statusLoading);
 </script>
 
-<!-- Onboarding always renders on top via z-index:9999 in its own component -->
 {#if needsOnboarding}
   <Onboarding onDone={checkStatus} />
 {:else if statusLoading}
