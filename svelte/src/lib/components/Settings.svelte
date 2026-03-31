@@ -30,6 +30,17 @@
   let gotifyUrl     = $state('');
   let gotifyToken   = $state('');
 
+  // Per-user settings (Dawarich, ActualBudget, Home coords)
+  let myDawarichUrl   = $state('');
+  let myDawarichToken = $state('');
+  let myActualUrl     = $state('');
+  let myActualToken   = $state('');
+  let myActualFile    = $state('');
+  let myHomeLat       = $state('');
+  let myHomeLon       = $state('');
+  let myTravelCats    = $state('');
+  let mySettingsSaving = $state(false);
+
   // Account tab
   let pwCurrent  = $state('');
   let pwNew      = $state('');
@@ -57,6 +68,20 @@
       homeLat       = ls('s-homeLat');
       homeLon       = ls('s-homeLon');
       travelCats    = ls('s-travelCategories');
+      // Load per-user settings from backend
+      if ($apiUrl) {
+        try {
+          const us = await api('/api/settings/user');
+          myDawarichUrl   = us.dawarich_url   || ls('s-dawarichUrl');
+          myDawarichToken = us.dawarich_token ? '••••••••' : '';
+          myActualUrl     = us.actual_url     || ls('s-actualUrl');
+          myActualToken   = us.actual_token   ? '••••••••' : '';
+          myActualFile    = us.actual_file    || ls('s-actualFile');
+          myHomeLat       = us.home_lat       || ls('s-homeLat');
+          myHomeLon       = us.home_lon       || ls('s-homeLon');
+          myTravelCats    = us.travel_categories || ls('s-travelCategories');
+        } catch {}
+      }
       serpApiKey    = ls('s-serpApiKey');
       geminiKey     = ls('s-geminiKey');
       openaiKey     = ls('s-openaiKey');
@@ -76,6 +101,7 @@
     { id: 'integrations',  label: '🔗 Integrationen' },
     { id: 'apis',          label: '🤖 APIs & KI' },
     { id: 'notifications', label: '🔔 Alerts' },
+    { id: 'myspace',       label: '🏠 Mein Bereich' },
     ...($appStatus?.auth_enabled ? [{ id: 'account', label: '👤 Account' }] : []),
     ...($isAdmin && $appStatus?.auth_enabled ? [{ id: 'admin', label: '🛡️ Admin' }] : []),
   ]);
@@ -84,6 +110,30 @@
     testing = true; testOk = null;
     testOk = await checkApiStatus(urlInput);
     testing = false;
+  }
+
+  async function saveUserSettings() {
+    mySettingsSaving = true;
+    try {
+      const payload = {};
+      if (myDawarichUrl && myDawarichUrl !== '••••••••')   payload.dawarich_url   = myDawarichUrl;
+      if (myDawarichToken && myDawarichToken !== '••••••••') payload.dawarich_token = myDawarichToken;
+      if (myActualUrl && myActualUrl !== '••••••••')         payload.actual_url     = myActualUrl;
+      if (myActualToken && myActualToken !== '••••••••')     payload.actual_token   = myActualToken;
+      if (myActualFile)   payload.actual_file        = myActualFile;
+      if (myHomeLat)      payload.home_lat           = myHomeLat;
+      if (myHomeLon)      payload.home_lon           = myHomeLon;
+      if (myTravelCats)   payload.travel_categories  = myTravelCats;
+      // Also cache in localStorage as fallback
+      if (myDawarichUrl)  localStorage.setItem('s-dawarichUrl',      myDawarichUrl);
+      if (myHomeLat)      localStorage.setItem('s-homeLat',          myHomeLat);
+      if (myHomeLon)      localStorage.setItem('s-homeLon',          myHomeLon);
+      if (myActualFile)   localStorage.setItem('s-actualFile',       myActualFile);
+      if (myTravelCats)   localStorage.setItem('s-travelCategories', myTravelCats);
+      await api('/api/settings/user', { method: 'POST', body: JSON.stringify(payload) });
+      toast('Mein Bereich gespeichert ✓', 'success');
+    } catch(e) { toast('Fehler: ' + e.message, 'error'); }
+    mySettingsSaving = false;
   }
 
   async function save() {
@@ -311,6 +361,47 @@
             style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
         </div>
 
+      {:else if activeTab === 'myspace'}
+        <!-- Per-user settings: Dawarich + ActualBudget + Home coords -->
+        <div class="space-y-2">
+          <div class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">🧭 Dawarich</div>
+          <input bind:value={myDawarichUrl} placeholder="https://dawarich.example.com"
+            class="w-full px-3 py-2 rounded-xl border text-sm"
+            style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
+          <input bind:value={myDawarichToken} type="password" placeholder="API Token"
+            class="w-full px-3 py-2 rounded-xl border text-sm"
+            style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
+          <div class="grid grid-cols-2 gap-2">
+            <input bind:value={myHomeLat} placeholder="Lat: 46.7987" class="px-3 py-2 rounded-xl border text-sm"
+              style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
+            <input bind:value={myHomeLon} placeholder="Lon: 11.7188" class="px-3 py-2 rounded-xl border text-sm"
+              style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
+          </div>
+          <div class="text-xs" style="color:var(--ws-muted)">Home-Koordinaten für Trip-Erkennung (>50km)</div>
+        </div>
+        <hr style="border-color:var(--ws-border)"/>
+        <div class="space-y-2">
+          <div class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">💶 ActualBudget</div>
+          <input bind:value={myActualUrl} placeholder="https://actual.example.com"
+            class="w-full px-3 py-2 rounded-xl border text-sm"
+            style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
+          <input bind:value={myActualToken} type="password" placeholder="Server Password"
+            class="w-full px-3 py-2 rounded-xl border text-sm"
+            style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
+          <input bind:value={myActualFile} placeholder="Budget-Dateiname"
+            class="w-full px-3 py-2 rounded-xl border text-sm"
+            style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
+          <input bind:value={myTravelCats} placeholder="Kategorien: Holiday, Flights, Hotel"
+            class="w-full px-3 py-2 rounded-xl border text-sm"
+            style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
+        </div>
+        <!-- Save button inline for myspace tab -->
+        <button onclick={saveUserSettings} disabled={mySettingsSaving}
+          class="w-full py-2.5 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80 disabled:opacity-50"
+          style="background:linear-gradient(135deg,var(--ws-accent),#b84928);color:#fff5ec">
+          {mySettingsSaving ? '⏳ Speichern…' : '💾 Mein Bereich speichern'}
+        </button>
+
       {:else if activeTab === 'account'}
         <div class="space-y-1 mb-4">
           <div class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Angemeldet als</div>
@@ -406,7 +497,7 @@
     </div>
 
     <!-- Save button — only for non-auth tabs -->
-    {#if activeTab !== 'account' && activeTab !== 'admin'}
+    {#if activeTab !== 'account' && activeTab !== 'admin' && activeTab !== 'myspace'}
       <div class="p-4 border-t shrink-0" style="border-color:var(--ws-border)">
         <button onclick={save}
           class="w-full py-2.5 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80"
