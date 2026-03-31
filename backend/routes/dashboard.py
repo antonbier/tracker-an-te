@@ -15,7 +15,7 @@ from fastapi import APIRouter
 import logging
 
 from database import list_detected_trips
-from settings_manager import get_setting_value
+from settings_manager import get_setting_value, get_user_setting_value
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -54,7 +54,7 @@ def get_dashboard_stats():
 
     if dawarich_url and dawarich_token:
         try:
-            trips = list_detected_trips(limit=500)
+            trips = list_detected_trips(limit=500, user_id=None)
             result["visited_places"]   = len(trips)
             result["unique_countries"] = len({t.get("country") for t in trips if t.get("country")})
             result["dawarich_status"]  = "ok"
