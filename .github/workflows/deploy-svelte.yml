@@ -1,13 +1,20 @@
-name: Build & Deploy Svelte to here.now
+name: Build & Deploy Svelte to here.now (DISABLED)
+# Deployment via here.now eingestellt.
+# WanderSuite läuft on-prem auf Unraid via Docker Compose.
+# Externer Zugriff via Zoraxy Reverse Proxy + eigene Domain geplant.
+# Zum Reaktivieren: 'on: push: branches: [main]' wieder einkommentieren.
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type YES to deploy to here.now'
+        required: true
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.confirm == 'YES' }}
 
     steps:
       - name: Checkout
@@ -17,7 +24,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          # No cache — always fresh install to guarantee new chunk hashes
 
       - name: Install dependencies
         working-directory: svelte
@@ -47,6 +53,3 @@ jobs:
         run: |
           bash ~/.agents/skills/here-now/scripts/publish.sh ./svelte/dist \
             --client github-actions
-
-      - name: Show deployed URL
-        run: echo "✅ Deployed"
