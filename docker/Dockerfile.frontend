@@ -3,19 +3,16 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Install dependencies (cached layer)
 COPY svelte/package.json svelte/package-lock.json ./
 RUN npm ci
 
-# Copy source
 COPY svelte/ .
 
-# Copy PWA icons into public/ BEFORE build so Vite includes them in manifest
+# Copy PWA icons into public/ BEFORE build
 RUN mkdir -p public/icons
 COPY frontend/icons/icon-192.png public/icons/
 COPY frontend/icons/icon-512.png public/icons/
 
-# Build
 RUN npm run build
 
 # ── Stage 2: Serve ─────────────────────────────────────────────────────────────
