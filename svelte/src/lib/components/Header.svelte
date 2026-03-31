@@ -1,5 +1,5 @@
 <script>
-  import { isDark, lang } from '$lib/stores.js';
+  import { isDark, lang, appVersion } from '$lib/stores.js';
   import { setLang } from '$lib/i18n.js';
   let { onFieldGuide, onSettings, onToggleDark } = $props();
 </script>
@@ -10,6 +10,15 @@
   <div class="flex items-center gap-2">
     <span class="text-xl">🧭</span>
     <span class="font-semibold tracking-tight" style="color:var(--ws-accent)">WanderSuite</span>
+    <!-- BETA badge — only in beta branch -->
+    <span style="font-size:0.6rem;font-weight:700;letter-spacing:0.05em;padding:2px 6px;border-radius:4px;background:var(--ws-accent);color:#fff;opacity:0.85;vertical-align:middle">
+      BETA
+    </span>
+    {#if $appVersion}
+      <span style="font-size:0.6rem;font-family:monospace;color:var(--ws-muted);margin-left:2px">
+        {$appVersion}
+      </span>
+    {/if}
   </div>
 
   <div class="flex items-center gap-2">
