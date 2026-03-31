@@ -1,11 +1,14 @@
 """
-WanderSuite — Database Layer
-SQLite via sqlite3 (no ORM). All tracker types persistent.
-Encrypted settings via AES-Fernet.
+WanderSuite — Database Layer (Multi-User)
+SQLite via sqlite3. All content tables have user_id.
 
-Tables: trackers, price_snapshots, gf_trackers, gf_snapshots,
-        homair_trackers, homair_snapshots, booking_trackers,
-        booking_snapshots, detected_trips, settings
+Global tables (no user_id): settings, webauthn_credentials, webauthn_challenges
+Per-user tables:            trackers, gf_trackers, homair_trackers, booking_trackers,
+                            detected_trips, user_data
+
+Migration strategy: ADD COLUMN user_id INTEGER DEFAULT 1
+  → existing data assigned to user_id=1 (first admin)
+  → AUTH_ENABLED=false: use GUEST_USER_ID=0, sees all data
 """
 
 import sqlite3
@@ -14,7 +17,11 @@ import os
 from contextlib import contextmanager
 from datetime import datetime
 
-DB_PATH = os.environ.get("DB_PATH", "/app/data/tracker.db")  # matches Docker volume /app/data
+DB_PATH = os.environ.get("DB_PATH", "/app/data/tracker.db")
+
+# When AUTH_ENABLED=false, all requests use this virtual user ID
+# Routes pass user_id=None for guest → DB functions use 0 = see all
+GUEST_USER_ID = 0
 
 
 def get_connection() -> sqlite3.Connection:
@@ -38,13 +45,24 @@ def db():
         conn.close()
 
 
+def _user_filter(user_id: int | None) -> tuple[str, list]:
+    """
+    Returns (WHERE clause, params) for user filtering.
+    user_id=None or 0 → no filter (admin/guest sees all)
+    user_id=N        → WHERE user_id=N
+    """
+    if not user_id:
+        return ("", [])
+    return ("WHERE user_id=?", [user_id])
+
+
 def init_db():
-    """Alle Tabellen anlegen + Migrationen."""
+    """Create all tables + run safe migrations."""
     with db() as conn:
         conn.executescript("""
-            -- Ryanair Tracker
             CREATE TABLE IF NOT EXISTS trackers (
                 id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id         INTEGER NOT NULL DEFAULT 1,
                 origin          TEXT    NOT NULL,
                 destination     TEXT    NOT NULL,
                 outbound_date   TEXT    NOT NULL,
@@ -53,7 +71,7 @@ def init_db():
                 children        INTEGER NOT NULL DEFAULT 0,
                 baggage_json    TEXT    NOT NULL DEFAULT '[]',
                 seat_cost       REAL    NOT NULL DEFAULT 0,
-                threshold_price REAL             DEFAULT NULL, -- alert when price drops below this
+                threshold_price REAL             DEFAULT NULL,
                 active          INTEGER NOT NULL DEFAULT 1,
                 created_at      TEXT    NOT NULL
             );
@@ -75,9 +93,9 @@ def init_db():
                 raw_json         TEXT
             );
 
-            -- Google Flights Tracker
             CREATE TABLE IF NOT EXISTS gf_trackers (
                 id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id         INTEGER NOT NULL DEFAULT 1,
                 origin          TEXT    NOT NULL,
                 destination     TEXT    NOT NULL,
                 outbound_date   TEXT    NOT NULL,
@@ -104,9 +122,9 @@ def init_db():
                 error_message    TEXT
             );
 
-            -- Homair Tracker
             CREATE TABLE IF NOT EXISTS homair_trackers (
                 id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id             INTEGER NOT NULL DEFAULT 1,
                 region              TEXT    NOT NULL,
                 accommodation_type  TEXT    NOT NULL DEFAULT 'mobilheim-standard',
                 checkin_date        TEXT    NOT NULL,
@@ -128,9 +146,9 @@ def init_db():
                 note           TEXT
             );
 
-            -- Booking Tracker
             CREATE TABLE IF NOT EXISTS booking_trackers (
                 id             INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id        INTEGER NOT NULL DEFAULT 1,
                 destination    TEXT    NOT NULL,
                 checkin_date   TEXT    NOT NULL,
                 checkout_date  TEXT    NOT NULL,
@@ -153,16 +171,26 @@ def init_db():
                 error_message   TEXT
             );
 
-            -- Encrypted Settings
+            -- Global encrypted settings (admin only, no user_id)
             CREATE TABLE IF NOT EXISTS settings (
                 key        TEXT PRIMARY KEY,
                 value_enc  BLOB NOT NULL,
                 updated_at TEXT NOT NULL
             );
 
-            -- Dawarich detected trips
+            -- Per-user settings (dawarich, actualbudget, home coords)
+            CREATE TABLE IF NOT EXISTS user_settings (
+                user_id    INTEGER NOT NULL,
+                key        TEXT    NOT NULL,
+                value_enc  BLOB    NOT NULL,
+                updated_at TEXT    NOT NULL,
+                PRIMARY KEY (user_id, key)
+            );
+
+            -- Dawarich detected trips (per user)
             CREATE TABLE IF NOT EXISTS detected_trips (
                 id             INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id        INTEGER NOT NULL DEFAULT 1,
                 start_date     TEXT    NOT NULL,
                 end_date       TEXT    NOT NULL,
                 location_name  TEXT,
@@ -174,138 +202,200 @@ def init_db():
                 created_at     TEXT    NOT NULL
             );
 
-            -- Indexes
-            CREATE INDEX IF NOT EXISTS idx_price_snaps   ON price_snapshots(tracker_id, fetched_at DESC);
-            CREATE INDEX IF NOT EXISTS idx_gf_snaps      ON gf_snapshots(tracker_id, fetched_at DESC);
-            CREATE INDEX IF NOT EXISTS idx_homair_snaps  ON homair_snapshots(tracker_id, fetched_at DESC);
-            CREATE INDEX IF NOT EXISTS idx_booking_snaps ON booking_snapshots(tracker_id, fetched_at DESC);
-            CREATE INDEX IF NOT EXISTS idx_detected_trips ON detected_trips(start_date DESC);
-
-            -- User data: manual trips, budget, bucket list
-            -- Stored as JSON blobs keyed by name — simple but effective for client-synced data
+            -- Per-user data (trips list, budget, bucketlist)
             CREATE TABLE IF NOT EXISTS user_data (
-                key         TEXT PRIMARY KEY,
-                value       TEXT NOT NULL,
-                updated_at  TEXT DEFAULT (datetime('now'))
+                user_id    INTEGER NOT NULL DEFAULT 1,
+                key        TEXT    NOT NULL,
+                value      TEXT    NOT NULL,
+                updated_at TEXT    DEFAULT (datetime('now')),
+                PRIMARY KEY (user_id, key)
             );
         """)
-        # ── Safe migrations (additive only, idempotent) ───────────────────────
-        # SQLite: ALTER TABLE ADD COLUMN is safe to run multiple times via try/except
-        try:
-            conn.execute("ALTER TABLE trackers ADD COLUMN threshold_price REAL DEFAULT NULL")
-            conn.commit()
-        except Exception:
-            pass  # column already exists — expected on existing installations
 
-    # Auth tables — imported here to avoid circular deps at module level
-    try:
-        from auth_db import init_auth_tables
-        init_auth_tables()
-    except ImportError:
-        pass  # auth_db not available (e.g. running tests without it)
-
-        # Migrations for existing Ryanair tables
-        for col, definition in [
-            ("seat_cost", "REAL NOT NULL DEFAULT 0"),
-            ("seat_price", "REAL DEFAULT 0"),
-        ]:
+        # ── Safe migrations (idempotent ALTER TABLE) ──────────────────────────
+        migrations = [
+            ("trackers",         "user_id INTEGER NOT NULL DEFAULT 1"),
+            ("gf_trackers",      "user_id INTEGER NOT NULL DEFAULT 1"),
+            ("homair_trackers",  "user_id INTEGER NOT NULL DEFAULT 1"),
+            ("booking_trackers", "user_id INTEGER NOT NULL DEFAULT 1"),
+            ("detected_trips",   "user_id INTEGER NOT NULL DEFAULT 1"),
+            ("trackers",         "threshold_price REAL DEFAULT NULL"),
+        ]
+        for table, col_def in migrations:
+            col_name = col_def.split()[0]
             try:
-                if col == "seat_cost":
-                    conn.execute(f"ALTER TABLE trackers ADD COLUMN {col} {definition}")
-                else:
-                    conn.execute(f"ALTER TABLE price_snapshots ADD COLUMN {col} {definition}")
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {col_def}")
+                conn.commit()
             except Exception:
-                pass
+                pass  # Column already exists
 
 
-# ─── Settings (encrypted) ────────────────────────────
+# ── Settings helpers ──────────────────────────────────────────────────────────
 
 def save_setting(key: str, value: str, fernet) -> None:
-    encrypted = fernet.encrypt(value.encode())
+    enc = fernet.encrypt(value.encode())
     with db() as conn:
-        conn.execute("""
-            INSERT INTO settings (key, value_enc, updated_at)
-            VALUES (?, ?, ?)
-            ON CONFLICT(key) DO UPDATE SET value_enc=excluded.value_enc, updated_at=excluded.updated_at
-        """, (key, encrypted, datetime.utcnow().isoformat()))
-
+        conn.execute(
+            "INSERT INTO settings (key, value_enc, updated_at) VALUES (?,?,datetime('now'))"
+            " ON CONFLICT(key) DO UPDATE SET value_enc=excluded.value_enc, updated_at=excluded.updated_at",
+            (key, enc)
+        )
 
 def get_setting(key: str, fernet) -> str | None:
     with db() as conn:
         row = conn.execute("SELECT value_enc FROM settings WHERE key=?", (key,)).fetchone()
-        if not row:
-            return None
-        try:
-            return fernet.decrypt(row["value_enc"]).decode()
-        except Exception:
-            return None
-
+    if not row:
+        return None
+    try:
+        return fernet.decrypt(row[0]).decode()
+    except Exception:
+        return None
 
 def get_all_settings(fernet) -> dict:
     with db() as conn:
         rows = conn.execute("SELECT key, value_enc FROM settings").fetchall()
     result = {}
-    for row in rows:
+    for key, enc in rows:
         try:
-            result[row["key"]] = fernet.decrypt(row["value_enc"]).decode()
+            result[key] = fernet.decrypt(enc).decode()
         except Exception:
-            result[row["key"]] = ""
+            result[key] = None
     return result
 
 
-# ─── Ryanair Tracker ─────────────────────────────────
+# ── Per-user settings ─────────────────────────────────────────────────────────
 
-def create_tracker(data: dict) -> int:
+def save_user_setting(user_id: int, key: str, value: str, fernet) -> None:
+    enc = fernet.encrypt(value.encode())
+    with db() as conn:
+        conn.execute(
+            "INSERT INTO user_settings (user_id, key, value_enc, updated_at) VALUES (?,?,?,datetime('now'))"
+            " ON CONFLICT(user_id, key) DO UPDATE SET value_enc=excluded.value_enc, updated_at=excluded.updated_at",
+            (user_id, key, enc)
+        )
+
+def get_user_setting(user_id: int, key: str, fernet) -> str | None:
+    with db() as conn:
+        row = conn.execute(
+            "SELECT value_enc FROM user_settings WHERE user_id=? AND key=?",
+            (user_id, key)
+        ).fetchone()
+    if not row:
+        return None
+    try:
+        return fernet.decrypt(row[0]).decode()
+    except Exception:
+        return None
+
+def get_all_user_settings(user_id: int, fernet) -> dict:
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT key, value_enc FROM user_settings WHERE user_id=?", (user_id,)
+        ).fetchall()
+    result = {}
+    for key, enc in rows:
+        try:
+            result[key] = fernet.decrypt(enc).decode()
+        except Exception:
+            result[key] = None
+    return result
+
+
+# ── Ryanair Trackers ──────────────────────────────────────────────────────────
+
+def create_tracker(data: dict, user_id: int = 1) -> int:
     with db() as conn:
         cur = conn.execute("""
             INSERT INTO trackers
-              (origin, destination, outbound_date, return_date,
-               adults, children, baggage_json, seat_cost, active, created_at)
-            VALUES (?,?,?,?,?,?,?,?,1,?)
+              (user_id, origin, destination, outbound_date, return_date,
+               adults, children, baggage_json, seat_cost, created_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?)
         """, (
-            data["origin"].upper(), data["destination"].upper(),
+            user_id,
+            data["origin"], data["destination"],
             data["outbound_date"], data.get("return_date"),
             data.get("adults", 1), data.get("children", 0),
             json.dumps(data.get("baggage", [])),
-            data.get("seat_cost", 0.0),
+            data.get("seat_cost", 0),
             datetime.utcnow().isoformat(),
         ))
         return cur.lastrowid
 
-
-def list_trackers(active_only=True) -> list[dict]:
+def list_trackers(active_only: bool = False, user_id: int | None = None) -> list[dict]:
+    where_parts = []
+    params = []
+    if active_only:
+        where_parts.append("active=1")
+    if user_id:
+        where_parts.append("user_id=?")
+        params.append(user_id)
+    where = ("WHERE " + " AND ".join(where_parts)) if where_parts else ""
     with db() as conn:
-        sql = "SELECT * FROM trackers" + (" WHERE active=1" if active_only else "") + " ORDER BY created_at DESC"
-        rows = conn.execute(sql).fetchall()
-        result = []
-        for row in rows:
-            t = dict(row)
-            t["baggage"] = json.loads(t.pop("baggage_json", "[]"))
-            result.append(t)
-        return result
+        rows = conn.execute(
+            f"SELECT * FROM trackers {where} ORDER BY created_at DESC", params
+        ).fetchall()
+    result = []
+    for r in rows:
+        t = dict(r)
+        t["baggage"] = json.loads(t.get("baggage_json", "[]"))
+        result.append(t)
+    return result
 
-
-def get_tracker(tracker_id: int) -> dict | None:
+def get_tracker(tid: int, user_id: int | None = None) -> dict | None:
     with db() as conn:
-        row = conn.execute("SELECT * FROM trackers WHERE id=?", (tracker_id,)).fetchone()
-        if not row:
-            return None
-        t = dict(row)
-        t["baggage"] = json.loads(t.pop("baggage_json", "[]"))
-        return t
+        if user_id:
+            row = conn.execute(
+                "SELECT * FROM trackers WHERE id=? AND user_id=?", (tid, user_id)
+            ).fetchone()
+        else:
+            row = conn.execute("SELECT * FROM trackers WHERE id=?", (tid,)).fetchone()
+    if not row:
+        return None
+    t = dict(row)
+    t["baggage"] = json.loads(t.get("baggage_json", "[]"))
+    return t
 
-
-def delete_tracker(tracker_id: int) -> bool:
+def delete_tracker(tid: int, user_id: int | None = None) -> bool:
     with db() as conn:
-        return conn.execute("DELETE FROM trackers WHERE id=?", (tracker_id,)).rowcount > 0
+        if user_id:
+            return conn.execute(
+                "DELETE FROM trackers WHERE id=? AND user_id=?", (tid, user_id)
+            ).rowcount > 0
+        return conn.execute("DELETE FROM trackers WHERE id=?", (tid,)).rowcount > 0
 
-
-def toggle_tracker(tracker_id: int, active: bool) -> bool:
+def toggle_tracker(tid: int, active: bool, user_id: int | None = None) -> bool:
     with db() as conn:
-        return conn.execute("UPDATE trackers SET active=? WHERE id=?", (1 if active else 0, tracker_id)).rowcount > 0
+        if user_id:
+            return conn.execute(
+                "UPDATE trackers SET active=? WHERE id=? AND user_id=?",
+                (1 if active else 0, tid, user_id)
+            ).rowcount > 0
+        return conn.execute(
+            "UPDATE trackers SET active=? WHERE id=?", (1 if active else 0, tid)
+        ).rowcount > 0
 
+def get_latest_snapshot(tracker_id: int) -> dict | None:
+    return _get_latest("price_snapshots", tracker_id)
 
-def save_snapshot(tracker_id: int, snap: dict) -> int:
+def set_tracker_threshold(tracker_id: int, threshold: float | None, user_id: int | None = None) -> bool:
+    with db() as conn:
+        if user_id:
+            return conn.execute(
+                "UPDATE trackers SET threshold_price=? WHERE id=? AND user_id=?",
+                (threshold, tracker_id, user_id)
+            ).rowcount > 0
+        return conn.execute(
+            "UPDATE trackers SET threshold_price=? WHERE id=?", (threshold, tracker_id)
+        ).rowcount > 0
+
+def get_tracker_threshold(tracker_id: int) -> float | None:
+    with db() as conn:
+        row = conn.execute(
+            "SELECT threshold_price FROM trackers WHERE id=?", (tracker_id,)
+        ).fetchone()
+    return row[0] if row else None
+
+def save_price_snapshot(tracker_id: int, snap: dict) -> int:
     with db() as conn:
         cur = conn.execute("""
             INSERT INTO price_snapshots
@@ -314,17 +404,19 @@ def save_snapshot(tracker_id: int, snap: dict) -> int:
                baggage_fallback, status, error_message, raw_json)
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (
-            tracker_id, snap.get("fetched_at", datetime.utcnow().isoformat()),
-            snap.get("flight_price"), snap.get("baggage_price"), snap.get("seat_price", 0),
-            snap.get("total_price"), snap.get("outbound_flight"), snap.get("return_flight"),
-            snap.get("currency", "EUR"), 1 if snap.get("baggage_fallback") else 0,
+            tracker_id,
+            snap.get("fetched_at", datetime.utcnow().isoformat()),
+            snap.get("flight_price"), snap.get("baggage_price"),
+            snap.get("seat_price", 0), snap.get("total_price"),
+            snap.get("outbound_flight"), snap.get("return_flight"),
+            snap.get("currency", "EUR"),
+            1 if snap.get("baggage_fallback") else 0,
             snap.get("status", "ok"), snap.get("error_message"),
             json.dumps(snap.get("raw")) if snap.get("raw") else None,
         ))
         return cur.lastrowid
 
-
-def get_snapshots(tracker_id: int, limit=90) -> list[dict]:
+def get_price_history(tracker_id: int, limit: int = 90) -> list[dict]:
     with db() as conn:
         return [dict(r) for r in conn.execute(
             "SELECT * FROM price_snapshots WHERE tracker_id=? ORDER BY fetched_at DESC LIMIT ?",
@@ -332,49 +424,52 @@ def get_snapshots(tracker_id: int, limit=90) -> list[dict]:
         ).fetchall()]
 
 
-def get_latest_snapshot(tracker_id: int) -> dict | None:
-    with db() as conn:
-        row = conn.execute(
-            "SELECT * FROM price_snapshots WHERE tracker_id=? AND status='ok' ORDER BY fetched_at DESC LIMIT 1",
-            (tracker_id,)
-        ).fetchone()
-        return dict(row) if row else None
+# ── Google Flights ────────────────────────────────────────────────────────────
 
-
-# ─── Google Flights Tracker ──────────────────────────
-
-def create_gf_tracker(data: dict) -> int:
+def create_gf_tracker(data: dict, user_id: int = 1) -> int:
     with db() as conn:
         cur = conn.execute("""
-            INSERT INTO gf_trackers (origin, destination, outbound_date, return_date, adults, children, created_at)
-            VALUES (?,?,?,?,?,?,?)
+            INSERT INTO gf_trackers
+              (user_id, origin, destination, outbound_date, return_date,
+               adults, children, created_at)
+            VALUES (?,?,?,?,?,?,?,?)
         """, (
-            data["origin"].upper(), data["destination"].upper(),
+            user_id,
+            data["origin"], data["destination"],
             data["outbound_date"], data.get("return_date"),
             data.get("adults", 1), data.get("children", 0),
             datetime.utcnow().isoformat(),
         ))
         return cur.lastrowid
 
-
-def list_gf_trackers() -> list[dict]:
+def list_gf_trackers(user_id: int | None = None) -> list[dict]:
+    where = "WHERE user_id=?" if user_id else ""
+    params = [user_id] if user_id else []
     with db() as conn:
-        trackers = [dict(r) for r in conn.execute("SELECT * FROM gf_trackers ORDER BY created_at DESC").fetchall()]
-        for t in trackers:
-            t["latest_snapshot"] = get_gf_latest_snapshot(t["id"])
-        return trackers
+        trackers = [dict(r) for r in conn.execute(
+            f"SELECT * FROM gf_trackers {where} ORDER BY created_at DESC", params
+        ).fetchall()]
+    for t in trackers:
+        t["latest_snapshot"] = _get_latest("gf_snapshots", t["id"])
+    return trackers
 
-
-def get_gf_tracker(tid: int) -> dict | None:
+def get_gf_tracker(tid: int, user_id: int | None = None) -> dict | None:
     with db() as conn:
-        row = conn.execute("SELECT * FROM gf_trackers WHERE id=?", (tid,)).fetchone()
-        return dict(row) if row else None
+        if user_id:
+            row = conn.execute(
+                "SELECT * FROM gf_trackers WHERE id=? AND user_id=?", (tid, user_id)
+            ).fetchone()
+        else:
+            row = conn.execute("SELECT * FROM gf_trackers WHERE id=?", (tid,)).fetchone()
+    return dict(row) if row else None
 
-
-def delete_gf_tracker(tid: int) -> bool:
+def delete_gf_tracker(tid: int, user_id: int | None = None) -> bool:
     with db() as conn:
+        if user_id:
+            return conn.execute(
+                "DELETE FROM gf_trackers WHERE id=? AND user_id=?", (tid, user_id)
+            ).rowcount > 0
         return conn.execute("DELETE FROM gf_trackers WHERE id=?", (tid,)).rowcount > 0
-
 
 def save_gf_snapshot(tracker_id: int, snap: dict) -> int:
     with db() as conn:
@@ -392,8 +487,7 @@ def save_gf_snapshot(tracker_id: int, snap: dict) -> int:
         ))
         return cur.lastrowid
 
-
-def get_gf_snapshots(tracker_id: int, limit=90) -> list[dict]:
+def get_gf_history(tracker_id: int, limit: int = 30) -> list[dict]:
     with db() as conn:
         return [dict(r) for r in conn.execute(
             "SELECT * FROM gf_snapshots WHERE tracker_id=? ORDER BY fetched_at DESC LIMIT ?",
@@ -401,24 +495,17 @@ def get_gf_snapshots(tracker_id: int, limit=90) -> list[dict]:
         ).fetchall()]
 
 
-def get_gf_latest_snapshot(tracker_id: int) -> dict | None:
-    with db() as conn:
-        row = conn.execute(
-            "SELECT * FROM gf_snapshots WHERE tracker_id=? AND status='ok' ORDER BY fetched_at DESC LIMIT 1",
-            (tracker_id,)
-        ).fetchone()
-        return dict(row) if row else None
+# ── Homair ────────────────────────────────────────────────────────────────────
 
-
-# ─── Homair Tracker ──────────────────────────────────
-
-def create_homair_tracker(data: dict) -> int:
+def create_homair_tracker(data: dict, user_id: int = 1) -> int:
     with db() as conn:
         cur = conn.execute("""
             INSERT INTO homair_trackers
-              (region, accommodation_type, checkin_date, checkout_date, adults, children, created_at)
-            VALUES (?,?,?,?,?,?,?)
+              (user_id, region, accommodation_type, checkin_date, checkout_date,
+               adults, children, created_at)
+            VALUES (?,?,?,?,?,?,?,?)
         """, (
+            user_id,
             data["region"], data.get("accommodation_type", "mobilheim-standard"),
             data["checkin_date"], data["checkout_date"],
             data.get("adults", 2), data.get("children", 0),
@@ -426,30 +513,40 @@ def create_homair_tracker(data: dict) -> int:
         ))
         return cur.lastrowid
 
-
-def list_homair_trackers() -> list[dict]:
+def list_homair_trackers(user_id: int | None = None) -> list[dict]:
+    where = "WHERE user_id=?" if user_id else ""
+    params = [user_id] if user_id else []
     with db() as conn:
-        trackers = [dict(r) for r in conn.execute("SELECT * FROM homair_trackers ORDER BY created_at DESC").fetchall()]
-        for t in trackers:
-            t["latest_snapshot"] = _get_latest("homair_snapshots", t["id"])
-        return trackers
+        trackers = [dict(r) for r in conn.execute(
+            f"SELECT * FROM homair_trackers {where} ORDER BY created_at DESC", params
+        ).fetchall()]
+    for t in trackers:
+        t["latest_snapshot"] = _get_latest("homair_snapshots", t["id"])
+    return trackers
 
-
-def get_homair_tracker(tid: int) -> dict | None:
+def get_homair_tracker(tid: int, user_id: int | None = None) -> dict | None:
     with db() as conn:
-        row = conn.execute("SELECT * FROM homair_trackers WHERE id=?", (tid,)).fetchone()
-        return dict(row) if row else None
+        if user_id:
+            row = conn.execute(
+                "SELECT * FROM homair_trackers WHERE id=? AND user_id=?", (tid, user_id)
+            ).fetchone()
+        else:
+            row = conn.execute("SELECT * FROM homair_trackers WHERE id=?", (tid,)).fetchone()
+    return dict(row) if row else None
 
-
-def delete_homair_tracker(tid: int) -> bool:
+def delete_homair_tracker(tid: int, user_id: int | None = None) -> bool:
     with db() as conn:
+        if user_id:
+            return conn.execute(
+                "DELETE FROM homair_trackers WHERE id=? AND user_id=?", (tid, user_id)
+            ).rowcount > 0
         return conn.execute("DELETE FROM homair_trackers WHERE id=?", (tid,)).rowcount > 0
-
 
 def save_homair_snapshot(tracker_id: int, snap: dict) -> int:
     with db() as conn:
         cur = conn.execute("""
-            INSERT INTO homair_snapshots (tracker_id, fetched_at, total_price, currency, status, error_message, note)
+            INSERT INTO homair_snapshots
+              (tracker_id, fetched_at, total_price, currency, status, error_message, note)
             VALUES (?,?,?,?,?,?,?)
         """, (
             tracker_id, snap.get("fetched_at", datetime.utcnow().isoformat()),
@@ -459,15 +556,16 @@ def save_homair_snapshot(tracker_id: int, snap: dict) -> int:
         return cur.lastrowid
 
 
-# ─── Booking Tracker ─────────────────────────────────
+# ── Booking ───────────────────────────────────────────────────────────────────
 
-def create_booking_tracker(data: dict) -> int:
+def create_booking_tracker(data: dict, user_id: int = 1) -> int:
     with db() as conn:
         cur = conn.execute("""
             INSERT INTO booking_trackers
-              (destination, checkin_date, checkout_date, adults, rooms, source, created_at)
-            VALUES (?,?,?,?,?,?,?)
+              (user_id, destination, checkin_date, checkout_date, adults, rooms, source, created_at)
+            VALUES (?,?,?,?,?,?,?,?)
         """, (
+            user_id,
             data["destination"], data["checkin_date"], data["checkout_date"],
             data.get("adults", 2), data.get("rooms", 1),
             data.get("source", "booking"),
@@ -475,31 +573,41 @@ def create_booking_tracker(data: dict) -> int:
         ))
         return cur.lastrowid
 
-
-def list_booking_trackers() -> list[dict]:
+def list_booking_trackers(user_id: int | None = None) -> list[dict]:
+    where = "WHERE user_id=?" if user_id else ""
+    params = [user_id] if user_id else []
     with db() as conn:
-        trackers = [dict(r) for r in conn.execute("SELECT * FROM booking_trackers ORDER BY created_at DESC").fetchall()]
-        for t in trackers:
-            t["latest_snapshot"] = _get_latest("booking_snapshots", t["id"])
-        return trackers
+        trackers = [dict(r) for r in conn.execute(
+            f"SELECT * FROM booking_trackers {where} ORDER BY created_at DESC", params
+        ).fetchall()]
+    for t in trackers:
+        t["latest_snapshot"] = _get_latest("booking_snapshots", t["id"])
+    return trackers
 
-
-def get_booking_tracker(tid: int) -> dict | None:
+def get_booking_tracker(tid: int, user_id: int | None = None) -> dict | None:
     with db() as conn:
-        row = conn.execute("SELECT * FROM booking_trackers WHERE id=?", (tid,)).fetchone()
-        return dict(row) if row else None
+        if user_id:
+            row = conn.execute(
+                "SELECT * FROM booking_trackers WHERE id=? AND user_id=?", (tid, user_id)
+            ).fetchone()
+        else:
+            row = conn.execute("SELECT * FROM booking_trackers WHERE id=?", (tid,)).fetchone()
+    return dict(row) if row else None
 
-
-def delete_booking_tracker(tid: int) -> bool:
+def delete_booking_tracker(tid: int, user_id: int | None = None) -> bool:
     with db() as conn:
+        if user_id:
+            return conn.execute(
+                "DELETE FROM booking_trackers WHERE id=? AND user_id=?", (tid, user_id)
+            ).rowcount > 0
         return conn.execute("DELETE FROM booking_trackers WHERE id=?", (tid,)).rowcount > 0
-
 
 def save_booking_snapshot(tracker_id: int, snap: dict) -> int:
     with db() as conn:
         cur = conn.execute("""
             INSERT INTO booking_snapshots
-              (tracker_id, fetched_at, total_price, hotel_name, hotel_rating, currency, status, error_message)
+              (tracker_id, fetched_at, total_price, hotel_name, hotel_rating,
+               currency, status, error_message)
             VALUES (?,?,?,?,?,?,?,?)
         """, (
             tracker_id, snap.get("fetched_at", datetime.utcnow().isoformat()),
@@ -509,26 +617,13 @@ def save_booking_snapshot(tracker_id: int, snap: dict) -> int:
         return cur.lastrowid
 
 
-# ─── Helpers ─────────────────────────────────────────
+# ── Detected Trips (Dawarich) ─────────────────────────────────────────────────
 
-def _get_latest(table: str, tracker_id: int) -> dict | None:
+def save_detected_trip(trip: dict, user_id: int = 1) -> int:
     with db() as conn:
-        row = conn.execute(
-            f"SELECT * FROM {table} WHERE tracker_id=? AND status='ok' ORDER BY fetched_at DESC LIMIT 1",
-            (tracker_id,)
-        ).fetchone()
-        return dict(row) if row else None
-
-
-# ─── Detected Trips (Dawarich) ───────────────────────
-
-def save_detected_trip(trip: dict) -> int:
-    """Erkannten Trip speichern (Upsert by start_date+end_date)."""
-    with db() as conn:
-        # Check if trip already exists
         existing = conn.execute(
-            "SELECT id FROM detected_trips WHERE start_date=? AND end_date=?",
-            (trip["start_date"], trip["end_date"])
+            "SELECT id FROM detected_trips WHERE user_id=? AND start_date=? AND end_date=?",
+            (user_id, trip["start_date"], trip["end_date"])
         ).fetchone()
         if existing:
             conn.execute("""
@@ -543,9 +638,11 @@ def save_detected_trip(trip: dict) -> int:
             return existing["id"]
         cur = conn.execute("""
             INSERT INTO detected_trips
-              (start_date, end_date, location_name, country, lat, lon, nights, source, created_at)
-            VALUES (?,?,?,?,?,?,?,?,?)
+              (user_id, start_date, end_date, location_name, country,
+               lat, lon, nights, source, created_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?)
         """, (
+            user_id,
             trip["start_date"], trip["end_date"],
             trip.get("location_name"), trip.get("country"),
             trip.get("lat"), trip.get("lon"),
@@ -555,65 +652,57 @@ def save_detected_trip(trip: dict) -> int:
         ))
         return cur.lastrowid
 
-
-def list_detected_trips(limit: int = 50) -> list[dict]:
-    """Alle erkannten Trips, neueste zuerst."""
+def list_detected_trips(limit: int = 50, user_id: int | None = None) -> list[dict]:
+    where = "WHERE user_id=?" if user_id else ""
+    params = [user_id] if user_id else []
     with db() as conn:
         return [dict(r) for r in conn.execute(
-            "SELECT * FROM detected_trips ORDER BY start_date DESC LIMIT ?",
-            (limit,)
+            f"SELECT * FROM detected_trips {where} ORDER BY start_date DESC LIMIT ?",
+            params + [limit]
         ).fetchall()]
 
-
-def delete_detected_trip(trip_id: int) -> bool:
+def delete_detected_trip(trip_id: int, user_id: int | None = None) -> bool:
     with db() as conn:
+        if user_id:
+            return conn.execute(
+                "DELETE FROM detected_trips WHERE id=? AND user_id=?", (trip_id, user_id)
+            ).rowcount > 0
         return conn.execute(
             "DELETE FROM detected_trips WHERE id=?", (trip_id,)
         ).rowcount > 0
 
-# ─── Tracker Threshold ────────────────────────────────────────────────────────
 
-def set_tracker_threshold(tracker_id: int, threshold: float | None) -> bool:
-    """Set or clear the price-alert threshold for a tracker. Returns True if found."""
+# ── User Data (trips list, budget, bucketlist) ────────────────────────────────
+
+def save_user_data(key: str, value: str, user_id: int = 1) -> None:
     with db() as conn:
-        cur = conn.execute(
-            "UPDATE trackers SET threshold_price=? WHERE id=?",
-            (threshold, tracker_id)
-        )
-    return cur.rowcount > 0
-
-
-def get_tracker_threshold(tracker_id: int) -> float | None:
-    """Return the current threshold_price for a tracker, or None if not set."""
-    with db() as conn:
-        row = conn.execute(
-            "SELECT threshold_price FROM trackers WHERE id=?", (tracker_id,)
-        ).fetchone()
-    return row[0] if row else None
-
-
-# ─── User Data (trips, budget, bucket list) ───────────────────────────────────
-
-def save_user_data(key: str, value: str) -> None:
-    """Store a JSON blob for the given key (upsert)."""
-    with get_conn() as conn:
         conn.execute(
-            "INSERT INTO user_data (key, value, updated_at) VALUES (?, ?, datetime('now'))"
-            " ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at",
-            (key, value),
+            "INSERT INTO user_data (user_id, key, value, updated_at) VALUES (?,?,?,datetime('now'))"
+            " ON CONFLICT(user_id, key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at",
+            (user_id, key, value),
         )
 
-def get_user_data(key: str) -> str | None:
-    """Retrieve a stored JSON blob by key. Returns None if not found."""
-    with get_conn() as conn:
+def get_user_data(key: str, user_id: int = 1) -> str | None:
+    with db() as conn:
         row = conn.execute(
-            "SELECT value FROM user_data WHERE key=?", (key,)
+            "SELECT value FROM user_data WHERE user_id=? AND key=?", (user_id, key)
         ).fetchone()
     return row[0] if row else None
 
-def list_user_data_keys() -> list[str]:
-    """Return all stored user data keys."""
-    with get_conn() as conn:
-        rows = conn.execute("SELECT key FROM user_data ORDER BY key").fetchall()
+def list_user_data_keys(user_id: int = 1) -> list[str]:
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT key FROM user_data WHERE user_id=? ORDER BY key", (user_id,)
+        ).fetchall()
     return [r[0] for r in rows]
 
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _get_latest(table: str, tracker_id: int) -> dict | None:
+    with db() as conn:
+        row = conn.execute(
+            f"SELECT * FROM {table} WHERE tracker_id=? AND status='ok' ORDER BY fetched_at DESC LIMIT 1",
+            (tracker_id,)
+        ).fetchone()
+    return dict(row) if row else None
