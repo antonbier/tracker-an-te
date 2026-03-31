@@ -17,12 +17,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: svelte/package-lock.json
+          # No cache — always fresh install to guarantee new chunk hashes
 
       - name: Install dependencies
         working-directory: svelte
-        run: npm ci
+        run: npm install
 
       - name: Build
         working-directory: svelte
@@ -32,12 +31,9 @@ jobs:
 
       - name: Copy assets into dist
         run: |
-          # PWA icons
           mkdir -p svelte/dist/icons
           cp frontend/icons/icon-192.png svelte/dist/icons/
           cp frontend/icons/icon-512.png svelte/dist/icons/
-          # here.now cache headers
-          cp svelte/static/_headers svelte/dist/_headers 2>/dev/null || true
 
       - name: Install here.now CLI
         run: |
@@ -53,4 +49,4 @@ jobs:
             --client github-actions
 
       - name: Show deployed URL
-        run: echo "✅ Deployed — check Actions output for here.now URL"
+        run: echo "✅ Deployed"
