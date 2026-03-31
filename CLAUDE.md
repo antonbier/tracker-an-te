@@ -1,12 +1,6 @@
 # CLAUDE.md — WanderSuite AI Assistant Context (BETA branch)
 
 **⚠️ You are on the `beta` branch.**
-- New features are developed here first
-- Stable, tested features get merged into `main`
-- Never commit breaking changes without testing
-- Beta runs on ports 8767 (frontend) / 8768 (backend) on Unraid
-
-For full architecture reference see `main` branch CLAUDE.md.
 
 ---
 
@@ -17,22 +11,46 @@ For full architecture reference see `main` branch CLAUDE.md.
 | `main` | Stable, production | 8765 / 8766 | `1.0.0` |
 | `beta` | New features, testing | 8767 / 8768 | `beta-YYYY-MM-DD HH:MM` |
 
-## Workflow
+## Multi-User Architecture (beta)
 
-1. **New feature** → develop on `beta`
-2. **Test** on Unraid beta instance (`http://unraid-ip:8767`)
-3. **Merge** to `main` via PR when stable
-4. **Never** push breaking changes directly to `main`
+### Data Isolation
+| Table | Per-User | Notes |
+|-------|----------|-------|
+| `trackers` | ✅ `user_id` | each user sees own trackers |
+| `gf_trackers` | ✅ `user_id` | |
+| `homair_trackers` | ✅ `user_id` | |
+| `booking_trackers` | ✅ `user_id` | |
+| `detected_trips` | ✅ `user_id` | Dawarich per user |
+| `user_data` | ✅ `user_id` | trips list, budget, bucketlist |
+| `user_settings` | ✅ `user_id` | dawarich, actualbudget, home coords |
+| `settings` | ❌ Global | API keys (serpapi, gemini, openai), notifications |
+| `webauthn_credentials` | ✅ `user_id` | passkeys per user |
 
-## Beta-specific files (differ from main)
+### Settings Split
+- **Global (Admin):** `POST /api/settings` — SerpAPI, Gemini, OpenAI, Telegram, Gotify
+- **Per-User:** `GET/POST /api/settings/user` — Dawarich, ActualBudget, Home coords
 
-| File | Beta change |
-|------|-------------|
-| `svelte/src/lib/components/Header.svelte` | BETA badge + build date shown |
-| `docker/Dockerfile.frontend` | `ARG BUILD_DATE` passed through |
-| `docker-compose.yml` | Ports 8767/8768, container names `wandersuite-beta-*` |
-| `backend/main.py` | `WANDERSUITE_CHANNEL=beta`, version = `beta-{BUILD_DATE}` |
-| `.env.example` | Beta ports + DATA_DIR + BUILD_DATE docs |
+### AUTH_ENABLED=false (guest mode)
+- `get_current_user()` returns `GUEST_USER = {id: 0, role: "admin"}`
+- DB functions with `user_id=0` → `_uid()` returns `None` → no filter → sees all data
+- Fully backward compatible — single-user setups work without auth
+
+### User ID flow
+```
+Request → get_current_user() → {id: N}
+         ↓
+Route → _uid(user) → N or None
+         ↓
+DB function(user_id=N) → WHERE user_id=N
+                        → no filter if N=None (guest/admin)
+```
+
+## Passkey + Password Auth
+- `POST /api/auth/login` — email + password → JWT
+- `POST /api/auth/passkeys/login/begin|complete` — WebAuthn → JWT
+- `POST /api/auth/passkeys/register/begin|complete` — register passkey (logged in)
+- Requires HTTPS for WebAuthn (localhost works for testing)
+- `.env`: `WEBAUTHN_RP_ID`, `WEBAUTHN_ORIGIN`
 
 ## Build + Start (beta)
 
@@ -42,35 +60,11 @@ git pull
 BUILD_DATE="$(date '+%Y-%m-%d %H:%M')" docker compose up -d --build
 ```
 
-The build date appears in the header next to the BETA badge.
-
-## Merging beta → main
-
-```bash
-git checkout main
-git merge beta --no-ff -m "merge: <feature description>"
-# Remove beta-specific changes (Header badge, docker-compose ports, .env.example)
-# Then push
-git push origin main
-```
-
----
-
-## Stack (same as main)
-
-- **Frontend:** Svelte 5 + SvelteKit + Tailwind CSS v4
-- **Backend:** FastAPI + SQLite + APScheduler
-- **Deploy:** Docker Compose (Unraid)
-
-See `main` CLAUDE.md for full architecture, API reference, and design tokens.
-
----
-
 ## Active Development (beta)
-
-Add features being worked on here:
+- [ ] Frontend: per-user Settings tab ("Mein Bereich")
+- [ ] Frontend: PasskeyManager in Settings
 - [ ] Scratch Map (jsvectormap)
-- [ ] Mietwagen tab in Preis-Radar
 - [ ] Price history chart (Chart.js)
-- [ ] Discord webhook notifications
+- [ ] Mietwagen tab
+- [ ] Discord webhook
 - [ ] Currency toggle (EUR/USD/GBP)
