@@ -9,8 +9,6 @@ export default defineConfig({
     sveltekit(),
     SvelteKitPWA({
       registerType: 'autoUpdate',
-
-      // Inline the service worker registration — most reliable method
       injectRegister: 'inline',
 
       manifest: {
@@ -25,65 +23,44 @@ export default defineConfig({
         start_url: '/',
         lang: 'de',
         icons: [
-          {
-            src: '/icons/icon-192.png',
-            sizes: '192x192',
-            type: 'image/png',
-          },
-          {
-            src: '/icons/icon-512.png',
-            sizes: '512x512',
-            type: 'image/png',
-          },
-          {
-            // Maskable icon required for Android install prompt
-            src: '/icons/icon-512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'maskable',
-          },
-        ],
-        shortcuts: [
-          {
-            name: 'Preis-Radar',
-            short_name: 'Radar',
-            url: '/',
-            icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }],
-          },
-          {
-            name: 'Meine Reisen',
-            short_name: 'Reisen',
-            url: '/',
-            icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }],
-          },
+          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
 
       workbox: {
-        // Cache all build assets
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff2}'],
-        // SPA fallback
-        navigateFallback: '/',
+
+        // Never cache index.html — always fetch fresh so new SW activates
+        navigateFallback: null,
+
+        // Exclude API and health from SW
         navigateFallbackDenylist: [/^\/api/, /^\/health/],
-        // Never cache API calls
+
         runtimeCaching: [
           {
+            // API calls — never cache
             urlPattern: /^\/api\//,
             handler: 'NetworkOnly',
           },
           {
-            urlPattern: /^\/health/,
-            handler: 'NetworkOnly',
+            // index.html — always network first, no cache
+            urlPattern: ({ request }) => request.mode === 'navigate',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'pages',
+              networkTimeoutSeconds: 3,
+            },
           },
         ],
+
         cleanupOutdatedCaches: true,
         skipWaiting: true,
         clientsClaim: true,
       },
 
-      devOptions: {
-        enabled: false,
-      },
+      devOptions: { enabled: false },
     }),
   ],
 });
