@@ -1,5 +1,5 @@
 """
-WanderSuite — FastAPI Backend Entry Point
+WanderSuite — FastAPI Backend Entry Point (BETA)
 """
 
 import os
@@ -28,19 +28,26 @@ logger = logging.getLogger(__name__)
 
 DB_PATH = os.getenv("DB_PATH", "/app/data/tracker.db")
 TZ      = os.getenv("TZ", "Europe/Rome")
+CHANNEL = os.getenv("WANDERSUITE_CHANNEL", "stable")   # "beta" or "stable"
 
 os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 
-# Version: v.YYYY.MM.DD-HHmm (UTC, generated at startup)
-APP_VERSION = datetime.now(timezone.utc).strftime("v.%Y.%m.%d-%H%M")
-logger.info(f"WanderSuite {APP_VERSION} starting — DB: {DB_PATH}, TZ: {TZ}")
+# Beta: use BUILD_DATE from Docker ARG (set at docker compose build time)
+# Main: always "1.0.0"
+_build_date = os.getenv("BUILD_DATE", "").strip()
+if CHANNEL == "beta" and _build_date and _build_date != "unknown":
+    APP_VERSION = f"beta-{_build_date}"
+else:
+    APP_VERSION = "1.0.0"
+
+logger.info(f"WanderSuite {APP_VERSION} ({CHANNEL}) starting — DB: {DB_PATH}, TZ: {TZ}")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
     init_auth_tables()
-    logger.info(f"✅ Datenbank initialisiert — {APP_VERSION}")
+    logger.info(f"✅ DB ready — {APP_VERSION}")
 
     scheduler = BackgroundScheduler(timezone=TZ)
     scheduler.add_job(
@@ -51,7 +58,7 @@ async def lifespan(app: FastAPI):
         misfire_grace_time=3600,
     )
     scheduler.start()
-    logger.info(f"⏰ Scheduler gestartet (täglich 07:00 Uhr {TZ})")
+    logger.info(f"⏰ Scheduler started (07:00 {TZ})")
 
     yield
     scheduler.shutdown(wait=False)
@@ -87,9 +94,10 @@ app.include_router(router_admin,  prefix="/api", tags=["Admin"])
 
 @app.get("/")
 def root():
-    return {"status": "ok", "service": "WanderSuite API", "version": APP_VERSION, "db": DB_PATH, "tz": TZ}
+    return {"status": "ok", "service": "WanderSuite API",
+            "version": APP_VERSION, "channel": CHANNEL, "db": DB_PATH, "tz": TZ}
 
 
 @app.get("/health")
 def health():
-    return {"status": "healthy", "version": APP_VERSION}
+    return {"status": "healthy", "version": APP_VERSION, "channel": CHANNEL}
