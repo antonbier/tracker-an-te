@@ -1,14 +1,13 @@
 """
-WanderSuite v0.1 — REST Routes: /api/trackers
-CRUD für Tracker + manuelles Scraping triggern.
+WanderSuite — /api/trackers (Multi-User)
+Each user sees and manages only their own trackers.
+Guest (AUTH_ENABLED=false) sees all.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, field_validator
 from typing import Optional
-import re
-import traceback
-import logging
+import re, traceback, logging
 
 from database import (
     create_tracker, list_trackers, get_tracker,
@@ -16,6 +15,7 @@ from database import (
     set_tracker_threshold,
 )
 from scheduler import run_single_tracker
+from auth_jwt import get_current_user
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -41,7 +41,7 @@ class TrackerCreate(BaseModel):
     adults:        int = 1
     children:      int = 0
     baggage:       list[BaggageItem] = []
-    seat_cost:     float = 0.0          # Sitzplatz-Pauschale pro Person/Flug
+    seat_cost:     float = 0.0
 
     @field_validator("origin", "destination")
     @classmethod
@@ -54,8 +54,7 @@ class TrackerCreate(BaseModel):
     @field_validator("outbound_date", "return_date")
     @classmethod
     def valid_date(cls, v):
-        if v is None:
-            return v
+        if v is None: return v
         if not re.match(r"^\d{4}-\d{2}-\d{2}$", v):
             raise ValueError("Datum muss im Format YYYY-MM-DD sein")
         return v
@@ -63,37 +62,36 @@ class TrackerCreate(BaseModel):
     @field_validator("adults")
     @classmethod
     def min_adults(cls, v):
-        if v < 1:
-            raise ValueError("Mindestens 1 Erwachsener erforderlich")
+        if v < 1: raise ValueError("Mindestens 1 Erwachsener erforderlich")
         return v
 
-    @field_validator("seat_cost")
-    @classmethod
-    def valid_seat_cost(cls, v):
-        if v < 0:
-            raise ValueError("Sitzplatzkosten können nicht negativ sein")
-        return round(v, 2)
+
+def _uid(user: dict) -> int | None:
+    """Return user_id for DB filtering. 0 (guest) → None = no filter."""
+    uid = user.get("id", 0)
+    return uid if uid else None
 
 
 @router.get("")
-def get_all_trackers():
-    trackers = list_trackers(active_only=False)
+def get_all_trackers(user: dict = Depends(get_current_user)):
+    trackers = list_trackers(active_only=False, user_id=_uid(user))
     for t in trackers:
         t["latest_snapshot"] = get_latest_snapshot(t["id"])
     return trackers
 
 
 @router.post("", status_code=201)
-def add_tracker(data: TrackerCreate):
+def add_tracker(data: TrackerCreate, user: dict = Depends(get_current_user)):
     payload = data.model_dump()
     payload["baggage"] = [b.model_dump() for b in data.baggage]
-    tracker_id = create_tracker(payload)
+    uid = user.get("id", 1) or 1
+    tracker_id = create_tracker(payload, user_id=uid)
     return {"id": tracker_id, "message": "Tracker angelegt"}
 
 
 @router.get("/{tracker_id}")
-def get_one_tracker(tracker_id: int):
-    t = get_tracker(tracker_id)
+def get_one_tracker(tracker_id: int, user: dict = Depends(get_current_user)):
+    t = get_tracker(tracker_id, user_id=_uid(user))
     if not t:
         raise HTTPException(404, f"Tracker #{tracker_id} nicht gefunden")
     t["latest_snapshot"] = get_latest_snapshot(tracker_id)
@@ -101,52 +99,42 @@ def get_one_tracker(tracker_id: int):
 
 
 @router.delete("/{tracker_id}")
-def remove_tracker(tracker_id: int):
-    if not delete_tracker(tracker_id):
+def remove_tracker(tracker_id: int, user: dict = Depends(get_current_user)):
+    if not delete_tracker(tracker_id, user_id=_uid(user)):
         raise HTTPException(404, f"Tracker #{tracker_id} nicht gefunden")
     return {"message": "Tracker gelöscht"}
 
 
 @router.patch("/{tracker_id}/toggle")
-def toggle(tracker_id: int, active: bool):
-    if not toggle_tracker(tracker_id, active):
+def toggle(tracker_id: int, active: bool, user: dict = Depends(get_current_user)):
+    if not toggle_tracker(tracker_id, active, user_id=_uid(user)):
         raise HTTPException(404, f"Tracker #{tracker_id} nicht gefunden")
     return {"message": f"Tracker {'aktiviert' if active else 'pausiert'}"}
 
 
 class ThresholdPayload(BaseModel):
-    threshold: Optional[float] = None  # None = disable alert
+    threshold: Optional[float] = None
 
 
 @router.patch("/{tracker_id}/threshold")
-def set_threshold(tracker_id: int, data: ThresholdPayload):
-    """
-    Set or clear the price-alert threshold for a Ryanair tracker.
-    When the daily scrape finds a price at or below this value, a notification
-    is sent regardless of whether the price dropped from the previous snapshot.
-    Pass threshold=null to disable the alert.
-    """
-    t = get_tracker(tracker_id)
+def set_threshold(tracker_id: int, data: ThresholdPayload, user: dict = Depends(get_current_user)):
+    t = get_tracker(tracker_id, user_id=_uid(user))
     if not t:
         raise HTTPException(404, f"Tracker #{tracker_id} nicht gefunden")
     value = round(data.threshold, 2) if data.threshold is not None else None
-    set_tracker_threshold(tracker_id, value)
-    if value is not None:
-        msg = f"Preisalarm gesetzt: unter {value:.2f} €"
-    else:
-        msg = "Preisalarm deaktiviert"
-    return {"message": msg, "threshold_price": value}
+    set_tracker_threshold(tracker_id, value, user_id=_uid(user))
+    return {"message": f"Preisalarm {'gesetzt: unter ' + str(value) + ' €' if value else 'deaktiviert'}",
+            "threshold_price": value}
 
 
 @router.post("/{tracker_id}/scrape")
-def manual_scrape(tracker_id: int):
-    t = get_tracker(tracker_id)
+def manual_scrape(tracker_id: int, user: dict = Depends(get_current_user)):
+    t = get_tracker(tracker_id, user_id=_uid(user))
     if not t:
         raise HTTPException(404, f"Tracker #{tracker_id} nicht gefunden")
     try:
         snap = run_single_tracker(tracker_id)
         return {"message": "Scraping abgeschlossen", "snapshot": snap}
     except Exception as e:
-        tb = traceback.format_exc()
-        logger.error(f"Scraping Fehler Tracker #{tracker_id}:\n{tb}")
+        logger.error(f"Scraping Fehler Tracker #{tracker_id}:\n{traceback.format_exc()}")
         raise HTTPException(500, detail=f"{type(e).__name__}: {str(e)}")
