@@ -9,7 +9,7 @@ import logging
 import random
 import time
 
-from database import list_trackers, save_snapshot
+from database import list_trackers, save_price_snapshot as save_snapshot
 from scraper import fetch_flights
 
 logger = logging.getLogger(__name__)
