@@ -1,19 +1,20 @@
 """
-WanderSuite v1.0 — REST Routes: /api/google-flights
-SQLite-persistente Google Flights Tracker.
+WanderSuite — /api/google-flights (Multi-User)
 """
 
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, field_validator
+from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel
 from typing import Optional
-import re, logging
+import logging
+from datetime import datetime
 
 from database import (
     create_gf_tracker, list_gf_trackers, get_gf_tracker,
-    delete_gf_tracker, save_gf_snapshot, get_gf_snapshots, get_gf_latest_snapshot
+    delete_gf_tracker, save_gf_snapshot, get_gf_history,
 )
-from google_scraper import fetch_google_flights
+from google_scraper import scrape_google_flights
 from settings_manager import get_setting_value
+from auth_jwt import get_current_user
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -27,56 +28,52 @@ class GFTrackerCreate(BaseModel):
     adults:        int = 1
     children:      int = 0
 
-    @field_validator("origin", "destination")
-    @classmethod
-    def iata_upper(cls, v):
-        v = v.strip().upper()
-        if not re.match(r"^[A-Z]{3}$", v):
-            raise ValueError("IATA-Code muss genau 3 Buchstaben haben")
-        return v
 
-    @field_validator("outbound_date", "return_date")
-    @classmethod
-    def valid_date(cls, v):
-        if v is None: return v
-        if not re.match(r"^\d{4}-\d{2}-\d{2}$", v):
-            raise ValueError("Format: YYYY-MM-DD")
-        return v
+def _uid(user: dict) -> int | None:
+    uid = user.get("id", 0)
+    return uid if uid else None
 
 
 @router.get("")
-def list_trackers():
-    return list_gf_trackers()
+def list_trackers(user: dict = Depends(get_current_user)):
+    return list_gf_trackers(user_id=_uid(user))
 
 
 @router.post("", status_code=201)
-def add_tracker(data: GFTrackerCreate):
-    tid = create_gf_tracker(data.model_dump())
+def create_tracker(data: GFTrackerCreate, user: dict = Depends(get_current_user)):
+    uid = user.get("id", 1) or 1
+    tid = create_gf_tracker(data.model_dump(), user_id=uid)
     return {"id": tid, "message": "Google Flights Tracker angelegt"}
 
 
 @router.delete("/{tracker_id}")
-def del_tracker(tracker_id: int):
-    if not delete_gf_tracker(tracker_id):
+def delete_tracker(tracker_id: int, user: dict = Depends(get_current_user)):
+    if not delete_gf_tracker(tracker_id, user_id=_uid(user)):
         raise HTTPException(404, "Tracker nicht gefunden")
     return {"message": "Tracker gelöscht"}
 
 
-@router.post("/{tracker_id}/scrape")
-def scrape_tracker(tracker_id: int, api_key: str = ""):
-    tracker = get_gf_tracker(tracker_id)
-    if not tracker:
-        raise HTTPException(404, "Tracker nicht gefunden")
-    key = api_key or get_setting_value("serpapi_key") or ""
-    if not key:
-        raise HTTPException(400, "SerpAPI Key fehlt")
-    result = fetch_google_flights(tracker, key)
-    snap = result["snapshot"]
-    snap_id = save_gf_snapshot(tracker_id, snap)
-    snap["id"] = snap_id
-    return {"message": "Scraping abgeschlossen", "snapshot": snap}
-
-
 @router.get("/{tracker_id}/history")
-def get_history(tracker_id: int, limit: int = 90):
-    return get_gf_snapshots(tracker_id, limit)
+def get_history(tracker_id: int, user: dict = Depends(get_current_user)):
+    t = get_gf_tracker(tracker_id, user_id=_uid(user))
+    if not t:
+        raise HTTPException(404, "Tracker nicht gefunden")
+    return get_gf_history(tracker_id)
+
+
+@router.post("/{tracker_id}/scrape")
+def scrape(tracker_id: int, user: dict = Depends(get_current_user)):
+    t = get_gf_tracker(tracker_id, user_id=_uid(user))
+    if not t:
+        raise HTTPException(404, "Tracker nicht gefunden")
+    api_key = get_setting_value("serpapi_key")
+    if not api_key:
+        raise HTTPException(400, "SerpAPI Key nicht konfiguriert")
+    try:
+        result = scrape_google_flights(t, api_key)
+        result["fetched_at"] = datetime.utcnow().isoformat()
+        save_gf_snapshot(tracker_id, result)
+        return result
+    except Exception as e:
+        logger.error(f"GF scrape error: {e}")
+        raise HTTPException(500, str(e))
