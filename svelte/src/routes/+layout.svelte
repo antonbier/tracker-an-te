@@ -3,7 +3,7 @@
   import { onMount } from 'svelte';
   import { theme, isDark, apiUrl, onboardingDone, jwtToken, currentUser,
            appStatus, logout, loadSettingsFromBackend } from '$lib/stores.js';
-  import { loadLocale, setLang } from '$lib/i18n.js';
+  import { loadLocale } from '$lib/i18n.js';
   import { lang } from '$lib/stores.js';
   import { api } from '$lib/api.js';
   import Toast      from '$lib/components/Toast.svelte';
@@ -13,7 +13,7 @@
   import Setup      from '$lib/components/Setup.svelte';
 
   let { children } = $props();
-  let statusLoading = $state(true);
+  let statusLoading = $state(false);   // start false — show Onboarding immediately
 
   $effect(() => {
     if ($isDark) document.documentElement.classList.add('dark');
@@ -22,22 +22,20 @@
 
   onMount(async () => {
     await loadLocale($lang);
-    await checkStatus();
+    // Only check status if we're past onboarding
+    if ($apiUrl && $onboardingDone) await checkStatus();
   });
 
-  // Reaktiv: Sprache wechsel
   $effect(() => { loadLocale($lang); });
 
   async function checkStatus() {
     statusLoading = true;
-    if (!$apiUrl) { statusLoading = false; return; }
     try {
       const s = await api('/api/status');
       appStatus.set(s);
     } catch {
       appStatus.set({ auth_enabled: false, needs_setup: false });
     }
-    // Load settings + version from backend
     await loadSettingsFromBackend($apiUrl);
     statusLoading = false;
   }
@@ -47,21 +45,22 @@
   });
 
   const needsOnboarding = $derived(!$onboardingDone || !$apiUrl);
-  const needsSetup      = $derived(!needsOnboarding && $appStatus?.needs_setup === true);
-  const needsLogin      = $derived(
+  const needsSetup = $derived(!needsOnboarding && $appStatus?.needs_setup === true);
+  const needsLogin = $derived(
     !needsOnboarding && !needsSetup &&
     $appStatus?.auth_enabled === true && !$jwtToken
   );
   const showApp = $derived(!needsOnboarding && !needsSetup && !needsLogin && !statusLoading);
 </script>
 
+<!-- Onboarding always renders on top via z-index:9999 in its own component -->
 {#if needsOnboarding}
   <Onboarding onDone={checkStatus} />
 {:else if statusLoading}
-  <div class="fixed inset-0 flex items-center justify-center" style="background:var(--ws-bg)">
-    <div class="text-center">
-      <div class="text-4xl mb-3">🧭</div>
-      <p class="text-sm" style="color:var(--ws-muted)">Verbinde…</p>
+  <div style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--ws-bg)">
+    <div style="text-align:center">
+      <div style="font-size:2.5rem;margin-bottom:0.75rem">🧭</div>
+      <p style="font-size:0.875rem;color:var(--ws-muted)">Verbinde…</p>
     </div>
   </div>
 {:else if needsSetup}
