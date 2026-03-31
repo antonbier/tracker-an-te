@@ -18,6 +18,11 @@ RUN npm run build
 # ── Stage 2: Serve ─────────────────────────────────────────────────────────────
 FROM nginx:alpine AS serve
 
+# Build date injected at build time:
+# docker compose build --build-arg BUILD_DATE="$(date '+%Y-%m-%d %H:%M')"
+ARG BUILD_DATE=unknown
+ENV BUILD_DATE=${BUILD_DATE}
+
 RUN rm /etc/nginx/conf.d/default.conf
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /app/dist /usr/share/nginx/html
