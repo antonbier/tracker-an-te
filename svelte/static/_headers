@@ -1,0 +1,15 @@
+/sw.js
+  Cache-Control: no-store, no-cache, must-revalidate
+  Service-Worker-Allowed: /
+
+/registerSW.js
+  Cache-Control: no-store, no-cache, must-revalidate
+
+/manifest.webmanifest
+  Cache-Control: no-store, no-cache, must-revalidate
+
+/index.html
+  Cache-Control: no-store, no-cache, must-revalidate
+
+/
+  Cache-Control: no-store, no-cache, must-revalidate
