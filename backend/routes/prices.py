@@ -7,7 +7,7 @@ import csv
 import io
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
-from database import get_tracker, get_snapshots
+from database import get_tracker, get_price_history as get_snapshots
 
 router = APIRouter()
 
