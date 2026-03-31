@@ -1,74 +1,57 @@
 """
-WanderSuite — REST Routes: /api/userdata
-Client-side data persistence for browser-agnostic storage.
-
-Persists data that was previously localStorage-only:
-  ws-trips      — manual travel trips [{name, cost, date, source?}]
-  ws-budget     — total budget amount (string, EUR)
-  ws-bucketlist — bucket list items [{id, dest, when, emoji, added}]
-
-All values are stored as JSON strings and returned as-is.
-The frontend is responsible for JSON serialisation/deserialisation.
-
-No encryption needed — this is user preference data, not secrets.
+WanderSuite — /api/userdata (Multi-User)
+Each user has their own trips, budget, bucketlist.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
-from typing import Optional
-import logging
+import logging, json
 
 from database import save_user_data, get_user_data
+from auth_jwt import get_current_user
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-# Allowed keys — prevent arbitrary data storage
 ALLOWED_KEYS = {"ws-trips", "ws-budget", "ws-bucketlist"}
 
 
 class UserDataPayload(BaseModel):
-    value: str  # JSON string
+    value: str
+
+
+def _uid(user: dict) -> int:
+    """Return user_id. Guest (id=0) → use 1 as default bucket."""
+    return user.get("id", 1) or 1
 
 
 @router.get("/{key}")
-def get_data(key: str):
-    """
-    Retrieve stored user data by key.
-    Returns {key, value} or 404 if not found.
-    """
+def get_data(key: str, user: dict = Depends(get_current_user)):
     if key not in ALLOWED_KEYS:
-        raise HTTPException(400, f"Unknown key: {key}. Allowed: {sorted(ALLOWED_KEYS)}")
-    value = get_user_data(key)
+        raise HTTPException(400, f"Unknown key: {key}")
+    value = get_user_data(key, user_id=_uid(user))
     if value is None:
-        raise HTTPException(404, f"No data stored for key: {key}")
+        raise HTTPException(404, f"No data for key: {key}")
     return {"key": key, "value": value}
 
 
 @router.put("/{key}")
-def set_data(key: str, data: UserDataPayload):
-    """
-    Store user data for key (upsert).
-    value must be a valid JSON string.
-    """
+def set_data(key: str, data: UserDataPayload, user: dict = Depends(get_current_user)):
     if key not in ALLOWED_KEYS:
-        raise HTTPException(400, f"Unknown key: {key}. Allowed: {sorted(ALLOWED_KEYS)}")
-    import json
+        raise HTTPException(400, f"Unknown key: {key}")
     try:
-        json.loads(data.value)  # validate JSON
+        json.loads(data.value)
     except json.JSONDecodeError as e:
         raise HTTPException(422, f"value must be valid JSON: {e}")
-    save_user_data(key, data.value)
-    logger.info(f"[UserData] Saved {key} ({len(data.value)} bytes)")
+    save_user_data(key, data.value, user_id=_uid(user))
     return {"key": key, "saved": True}
 
 
 @router.get("")
-def get_all():
-    """Return all stored user data keys and values."""
+def get_all(user: dict = Depends(get_current_user)):
     result = {}
     for key in ALLOWED_KEYS:
-        value = get_user_data(key)
+        value = get_user_data(key, user_id=_uid(user))
         if value is not None:
             result[key] = value
     return result
