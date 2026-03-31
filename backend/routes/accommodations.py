@@ -1,12 +1,13 @@
 """
-WanderSuite v1.0 — REST Routes: /api/accommodations
-SQLite-persistente Homair + Booking Tracker.
+WanderSuite — /api/accommodations (Multi-User)
+Homair + Booking/Trivago trackers.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional
 import logging
+from datetime import datetime
 
 from database import (
     create_homair_tracker, list_homair_trackers, get_homair_tracker,
@@ -14,16 +15,27 @@ from database import (
     create_booking_tracker, list_booking_trackers, get_booking_tracker,
     delete_booking_tracker, save_booking_snapshot,
 )
-from homair_scraper import fetch_homair
-from booking_scraper import fetch_booking
+from homair_scraper import scrape_homair
+from booking_scraper import scrape_booking
 from settings_manager import get_setting_value
+from auth_jwt import get_current_user
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
+def _uid(user: dict) -> int | None:
+    uid = user.get("id", 0)
+    return uid if uid else None
+
+def _uid_w(user: dict) -> int:
+    return user.get("id", 1) or 1
+
+
+# ── Homair ────────────────────────────────────────────────────────────────────
+
 class HomairCreate(BaseModel):
-    region:             str = "cote-d-azur"
+    region:             str
     accommodation_type: str = "mobilheim-standard"
     checkin_date:       str
     checkout_date:      str
@@ -31,81 +43,82 @@ class HomairCreate(BaseModel):
     children:           int = 0
 
 
-class BookingCreate(BaseModel):
-    destination:   str
-    checkin_date:  str
-    checkout_date: str
-    adults:        int = 2
-    rooms:         int = 1
-    source:        str = "booking"
-
-
-# ── Homair ────────────────────────────────────────────
-
 @router.get("/homair")
-def list_homair():
-    return list_homair_trackers()
+def list_homair(user: dict = Depends(get_current_user)):
+    return list_homair_trackers(user_id=_uid(user))
 
 
 @router.post("/homair", status_code=201)
-def add_homair(data: HomairCreate):
-    tid = create_homair_tracker(data.model_dump())
+def create_homair(data: HomairCreate, user: dict = Depends(get_current_user)):
+    tid = create_homair_tracker(data.model_dump(), user_id=_uid_w(user))
     return {"id": tid, "message": "Homair Tracker angelegt"}
 
 
-@router.delete("/homair/{tid}")
-def del_homair(tid: int):
-    if not delete_homair_tracker(tid):
+@router.delete("/homair/{tracker_id}")
+def delete_homair(tracker_id: int, user: dict = Depends(get_current_user)):
+    if not delete_homair_tracker(tracker_id, user_id=_uid(user)):
         raise HTTPException(404, "Tracker nicht gefunden")
     return {"message": "Gelöscht"}
 
 
-@router.post("/homair/{tid}/scrape")
-def scrape_homair(tid: int):
-    tracker = get_homair_tracker(tid)
-    if not tracker:
+@router.post("/homair/{tracker_id}/scrape")
+def scrape_homair_tracker(tracker_id: int, user: dict = Depends(get_current_user)):
+    t = get_homair_tracker(tracker_id, user_id=_uid(user))
+    if not t:
         raise HTTPException(404, "Tracker nicht gefunden")
-    key = get_setting_value("serpapi_key") or ""
-    if not key:
-        raise HTTPException(400, "SerpAPI Key fehlt — in den Einstellungen eintragen")
-    result = fetch_homair(tracker, key)
-    if result.get("status") == "error":
-        raise HTTPException(400, result["snapshot"].get("error_message", "Scraping fehlgeschlagen"))
-    snap = result["snapshot"]
-    save_homair_snapshot(tid, snap)
-    return {"message": "Scraping abgeschlossen", "snapshot": snap}
+    api_key = get_setting_value("serpapi_key")
+    if not api_key:
+        raise HTTPException(400, "SerpAPI Key nicht konfiguriert")
+    try:
+        result = scrape_homair(t, api_key)
+        result["fetched_at"] = datetime.utcnow().isoformat()
+        save_homair_snapshot(tracker_id, result)
+        return result
+    except Exception as e:
+        raise HTTPException(500, str(e))
 
 
-# ── Booking ───────────────────────────────────────────
+# ── Booking ───────────────────────────────────────────────────────────────────
+
+class BookingCreate(BaseModel):
+    destination:  str
+    checkin_date: str
+    checkout_date: str
+    adults:       int = 2
+    rooms:        int = 1
+    source:       str = "booking"
+
 
 @router.get("/booking")
-def list_booking():
-    return list_booking_trackers()
+def list_booking(user: dict = Depends(get_current_user)):
+    return list_booking_trackers(user_id=_uid(user))
 
 
 @router.post("/booking", status_code=201)
-def add_booking(data: BookingCreate):
-    tid = create_booking_tracker(data.model_dump())
+def create_booking(data: BookingCreate, user: dict = Depends(get_current_user)):
+    tid = create_booking_tracker(data.model_dump(), user_id=_uid_w(user))
     return {"id": tid, "message": "Booking Tracker angelegt"}
 
 
-@router.delete("/booking/{tid}")
-def del_booking(tid: int):
-    if not delete_booking_tracker(tid):
+@router.delete("/booking/{tracker_id}")
+def delete_booking(tracker_id: int, user: dict = Depends(get_current_user)):
+    if not delete_booking_tracker(tracker_id, user_id=_uid(user)):
         raise HTTPException(404, "Tracker nicht gefunden")
     return {"message": "Gelöscht"}
 
 
-@router.post("/booking/{tid}/scrape")
-def scrape_booking(tid: int, api_key: str = ""):
-    tracker = get_booking_tracker(tid)
-    if not tracker:
+@router.post("/booking/{tracker_id}/scrape")
+def scrape_booking_tracker(tracker_id: int, user: dict = Depends(get_current_user)):
+    t = get_booking_tracker(tracker_id, user_id=_uid(user))
+    if not t:
         raise HTTPException(404, "Tracker nicht gefunden")
-    key = api_key or get_setting_value("serpapi_key") or ""
-    if not key:
-        raise HTTPException(400, "SerpAPI Key fehlt")
-    result = fetch_booking(tracker, key)
-    snap = result["snapshot"]
-    save_booking_snapshot(tid, snap)
-    return {"message": "Scraping abgeschlossen", "snapshot": snap}
-
+    api_key = get_setting_value("serpapi_key")
+    if not api_key:
+        raise HTTPException(400, "SerpAPI Key nicht konfiguriert")
+    try:
+        result = scrape_booking(t, api_key)
+        result["fetched_at"] = datetime.utcnow().isoformat()
+        save_booking_snapshot(tracker_id, result)
+        return result
+    except Exception as e:
+        raise HTTPException(500, str(e))
