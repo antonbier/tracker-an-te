@@ -3,6 +3,7 @@
   import { toast } from '$lib/toast.js';
   import { checkApiStatus, api } from '$lib/api.js';
   import { browser } from '$app/environment';
+  import PasskeyManager from './PasskeyManager.svelte';
 
   let { open = $bindable(false) } = $props();
 
@@ -341,6 +342,10 @@
             {pwLoading ? '⏳…' : '🔑 Passwort ändern'}
           </button>
         </div>
+
+      <!-- Passkeys -->
+      <hr style="border-color:var(--ws-border)"/>
+      <PasskeyManager userId={$currentUser?.id} />
 
       {:else if activeTab === 'admin'}
         <!-- User list -->
