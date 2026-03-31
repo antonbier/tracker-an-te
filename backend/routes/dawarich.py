@@ -1,17 +1,18 @@
 """
-WanderSuite — REST Routes: /api/dawarich
-Trip Sync + Reisetagebuch + Debug.
+WanderSuite — /api/dawarich (Multi-User)
+Each user has their own Dawarich config + detected trips.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional
-import logging
+import logging, math
 
 from dawarich import sync_trips, fetch_points, normalize_point
-from database import list_detected_trips, delete_detected_trip
-from settings_manager import get_setting_value
+from database import list_detected_trips, delete_detected_trip, save_detected_trip
+from settings_manager import get_user_setting_value, get_setting_value
 from countries import get_visited_country_codes
+from auth_jwt import get_current_user
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -26,105 +27,58 @@ class SyncRequest(BaseModel):
     end_date:       Optional[str] = None
 
 
+def _uid(user: dict) -> int | None:
+    uid = user.get("id", 0)
+    return uid if uid else None
+
+
 @router.post("/sync")
-def sync(data: SyncRequest):
-    url   = data.dawarich_url   or get_setting_value("dawarich_url")   or ""
-    token = data.dawarich_token or get_setting_value("dawarich_token") or ""
+def sync(data: SyncRequest, user: dict = Depends(get_current_user)):
+    uid = user.get("id", 1) or 1
+
+    # Per-user settings take priority, fall back to global
+    url   = data.dawarich_url   or get_user_setting_value(uid, "dawarich_url")   or get_setting_value("dawarich_url")   or ""
+    token = data.dawarich_token or get_user_setting_value(uid, "dawarich_token") or get_setting_value("dawarich_token") or ""
 
     if not url or not token:
-        raise HTTPException(400, "Dawarich URL und Token fehlen")
+        raise HTTPException(400, "Dawarich URL und Token fehlen — in Einstellungen → Mein Bereich konfigurieren")
 
     try:
-        # Priorität: Request → Server-Settings → Fehler
         lat = data.home_lat
         lon = data.home_lon
-        if lat is None or lon is None or (isinstance(lat, float) and lat != lat):  # NaN check
-            lat = float(get_setting_value("home_lat") or 0)
-            lon = float(get_setting_value("home_lon") or 0)
+        if lat is None or lon is None:
+            lat = float(get_user_setting_value(uid, "home_lat") or get_setting_value("home_lat") or 0)
+            lon = float(get_user_setting_value(uid, "home_lon") or get_setting_value("home_lon") or 0)
     except (ValueError, TypeError):
         raise HTTPException(400, "Ungültige Home-Koordinaten")
 
-    import math
     if math.isnan(lat) or math.isnan(lon) or (lat == 0 and lon == 0):
-        raise HTTPException(400, "Home-Koordinaten fehlen — in den Einstellungen eintragen")
+        raise HTTPException(400, "Home-Koordinaten fehlen — in Einstellungen → Mein Bereich eintragen")
 
     result = sync_trips(
-        base_url=url, token=token,
-        home_lat=lat, home_lon=lon,
-        start_date=data.start_date,
-        end_date=data.end_date,
+        base_url=url, token=token, home_lat=lat, home_lon=lon,
+        start_date=data.start_date, end_date=data.end_date,
+        user_id=uid,
     )
 
     if "error" in result:
         raise HTTPException(400, result["error"])
-
-    # trips_saved immer zurückgeben (auch wenn 0)
     result.setdefault("trips_saved", 0)
     return result
 
 
-@router.post("/debug")
-def debug_points(data: SyncRequest):
-    """
-    Debug-Endpoint: Zeigt die ersten 5 Roh-Punkte von Dawarich
-    und wie sie normalisiert werden — hilft bei Format-Problemen.
-    """
-    url   = data.dawarich_url   or get_setting_value("dawarich_url")   or ""
-    token = data.dawarich_token or get_setting_value("dawarich_token") or ""
-
-    if not url or not token:
-        raise HTTPException(400, "Dawarich URL und Token fehlen")
-
-    try:
-        # Nur erste Seite laden (schnell)
-        raw = fetch_points(url, token, page_size=10)
-    except Exception as e:
-        raise HTTPException(400, str(e))
-
-    # Zeige Rohformat + Normalisierung
-    samples = raw[:5]
-    normalized = []
-    for p in samples:
-        n = normalize_point(p)
-        normalized.append({
-            "raw_keys":   list(p.keys()),
-            "raw_sample": {k: p[k] for k in list(p.keys())[:8]},
-            "normalized": n,
-        })
-
-    return {
-        "total_points": len(raw),
-        "samples": normalized,
-    }
-
-
 @router.get("/trips")
-def get_trips(limit: int = 50):
-    return list_detected_trips(limit=limit)
+def get_trips(limit: int = 50, user: dict = Depends(get_current_user)):
+    return list_detected_trips(limit=limit, user_id=_uid(user))
 
 
 @router.get("/countries")
-def get_countries():
-    """
-    Returns ISO-2 country codes of visited countries derived from
-    detected_trips in the local DB. Used by the Scratch Map frontend.
-
-    Response:
-        configured:    bool   — whether Dawarich URL+token are configured
-        country_codes: list   — ISO-2 codes, e.g. ["DE", "IT", "FR"]
-        countries:     list   — full country names (Nominatim output), e.g. ["Italy"]
-        trip_count:    int    — total detected trips in local DB
-
-    Country names are mapped to ISO-2 via backend/countries.py (100+ entries,
-    covers DE/EN/IT locale names from Nominatim reverse geocoding).
-    Used by frontend scratchmap.js → jsvectormap to highlight visited countries.
-    """
-    return get_visited_country_codes()
+def get_countries(user: dict = Depends(get_current_user)):
+    return get_visited_country_codes(user_id=_uid(user))
 
 
 @router.delete("/trips/{trip_id}")
-def delete_trip(trip_id: int):
-    if not delete_detected_trip(trip_id):
+def delete_trip(trip_id: int, user: dict = Depends(get_current_user)):
+    if not delete_detected_trip(trip_id, user_id=_uid(user)):
         raise HTTPException(404, "Trip nicht gefunden")
     return {"message": "Trip gelöscht"}
-
