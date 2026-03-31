@@ -15,8 +15,8 @@ from database import (
     create_booking_tracker, list_booking_trackers, get_booking_tracker,
     delete_booking_tracker, save_booking_snapshot,
 )
-from homair_scraper import scrape_homair
-from booking_scraper import scrape_booking
+from homair_scraper import fetch_homair as scrape_homair
+from booking_scraper import fetch_booking as scrape_booking
 from settings_manager import get_setting_value
 from auth_jwt import get_current_user
 
