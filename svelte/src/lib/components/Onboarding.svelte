@@ -22,46 +22,74 @@
   function skip() { onboardingDone.set('1'); onDone?.(); }
 </script>
 
-<div class="fixed inset-0 flex items-center justify-center p-4" style="background:var(--ws-bg)">
-  <div class="w-full max-w-sm">
-    <div class="text-center mb-8">
-      <div class="text-5xl mb-3">🧭</div>
-      <h1 class="text-2xl font-bold" style="color:var(--ws-accent)">WanderSuite</h1>
-      <p class="text-sm mt-1" style="color:var(--ws-muted)">Schritt {step} von 3</p>
+<!--
+  z-index: 9999 + pointer-events: all explizit gesetzt
+  isolation: isolate verhindert dass parent stacking contexts interferen
+-->
+<div
+  style="position:fixed;inset:0;z-index:9999;pointer-events:all;isolation:isolate;background:var(--ws-bg);display:flex;align-items:center;justify-content:center;padding:1rem"
+>
+  <div style="width:100%;max-width:24rem">
+    <div style="text-align:center;margin-bottom:2rem">
+      <div style="font-size:3rem;margin-bottom:0.75rem">🧭</div>
+      <h1 style="font-size:1.5rem;font-weight:700;color:var(--ws-accent)">WanderSuite</h1>
+      <p style="font-size:0.875rem;margin-top:0.25rem;color:var(--ws-muted)">Schritt {step} von 3</p>
     </div>
-    <div class="h-1 rounded-full mb-8" style="background:var(--ws-border)">
-      <div class="h-1 rounded-full transition-all" style="background:var(--ws-accent);width:{(step/3)*100}%"></div>
+
+    <div style="height:4px;border-radius:9999px;margin-bottom:2rem;background:var(--ws-border)">
+      <div style="height:4px;border-radius:9999px;background:var(--ws-accent);width:{(step/3)*100}%;transition:width .3s ease"></div>
     </div>
 
     {#if step === 1}
-      <h2 class="font-semibold text-lg mb-1">{$t('onboardingConnectTitle')}</h2>
-      <p class="text-sm mb-4" style="color:var(--ws-muted)">{$t('onboardingConnectDesc')}</p>
-      <input type="url" bind:value={urlInput} placeholder="https://dein-backend.railway.app"
-        class="w-full px-4 py-3 rounded-xl border text-sm mb-3"
-        style="background:var(--ws-surface);border-color:var(--ws-border);color:var(--ws-text)"/>
-      {#if error}<p class="text-sm text-red-500 mb-3">{error}</p>{/if}
-      <button onclick={checkUrl} disabled={checking || !urlInput}
-        class="w-full py-3 rounded-xl text-sm font-semibold mb-3 transition-opacity disabled:opacity-50"
-        style="background:var(--ws-surface2);color:var(--ws-text)">
+      <h2 style="font-size:1.125rem;font-weight:600;margin-bottom:0.25rem">{$t('onboardingConnectTitle')}</h2>
+      <p style="font-size:0.875rem;margin-bottom:1rem;color:var(--ws-muted)">{$t('onboardingConnectDesc')}</p>
+      <input
+        type="url"
+        bind:value={urlInput}
+        placeholder="https://dein-backend.railway.app"
+        style="width:100%;padding:0.75rem 1rem;border-radius:0.75rem;border:1px solid var(--ws-border);background:var(--ws-surface);color:var(--ws-text);font-size:0.875rem;margin-bottom:0.75rem;box-sizing:border-box;pointer-events:all"
+      />
+      {#if error}<p style="font-size:0.875rem;color:#dc2626;margin-bottom:0.75rem">{error}</p>{/if}
+      <button
+        onclick={checkUrl}
+        disabled={checking || !urlInput}
+        style="width:100%;padding:0.75rem;border-radius:0.75rem;font-size:0.875rem;font-weight:600;margin-bottom:0.75rem;background:var(--ws-surface2);color:var(--ws-text);border:none;cursor:pointer;pointer-events:all;opacity:{checking||!urlInput?0.5:1}"
+      >
         {checking ? $t('onboardingTesting') : $t('onboardingTest')}
       </button>
-      <button onclick={next} disabled={!connected}
-        class="w-full py-3 rounded-xl text-sm font-semibold text-white transition-opacity"
-        style="background:var(--ws-accent);opacity:{connected?1:0.4}">
+      <button
+        onclick={next}
+        disabled={!connected}
+        style="width:100%;padding:0.75rem;border-radius:0.75rem;font-size:0.875rem;font-weight:600;color:#fff;background:var(--ws-accent);border:none;cursor:pointer;pointer-events:all;opacity:{connected?1:0.4}"
+      >
         {$t('onboardingNext')}
       </button>
+
     {:else if step === 2}
-      <h2 class="font-semibold text-lg mb-1">{$t('onboardingApisTitle')}</h2>
-      <p class="text-sm mb-4" style="color:var(--ws-muted)">{$t('onboardingApisDesc')}</p>
-      <button onclick={next} class="w-full py-3 rounded-xl text-sm font-semibold text-white"
-        style="background:var(--ws-accent)">{$t('onboardingNext')}</button>
+      <h2 style="font-size:1.125rem;font-weight:600;margin-bottom:0.25rem">{$t('onboardingApisTitle')}</h2>
+      <p style="font-size:0.875rem;margin-bottom:1rem;color:var(--ws-muted)">{$t('onboardingApisDesc')}</p>
+      <button
+        onclick={next}
+        style="width:100%;padding:0.75rem;border-radius:0.75rem;font-size:0.875rem;font-weight:600;color:#fff;background:var(--ws-accent);border:none;cursor:pointer;pointer-events:all"
+      >
+        {$t('onboardingNext')}
+      </button>
+
     {:else}
-      <h2 class="font-semibold text-lg mb-1">{$t('onboardingDoneTitle')}</h2>
-      <p class="text-sm mb-6" style="color:var(--ws-muted)">{$t('onboardingDoneDesc')}</p>
-      <button onclick={finish} class="w-full py-3 rounded-xl text-sm font-semibold text-white"
-        style="background:var(--ws-accent)">{$t('onboardingStart')}</button>
+      <h2 style="font-size:1.125rem;font-weight:600;margin-bottom:0.25rem">{$t('onboardingDoneTitle')}</h2>
+      <p style="font-size:0.875rem;margin-bottom:1.5rem;color:var(--ws-muted)">{$t('onboardingDoneDesc')}</p>
+      <button
+        onclick={finish}
+        style="width:100%;padding:0.75rem;border-radius:0.75rem;font-size:0.875rem;font-weight:600;color:#fff;background:var(--ws-accent);border:none;cursor:pointer;pointer-events:all"
+      >
+        {$t('onboardingStart')}
+      </button>
     {/if}
-    <button onclick={skip} class="w-full text-center text-xs mt-4 py-2" style="color:var(--ws-muted)">
+
+    <button
+      onclick={skip}
+      style="width:100%;text-align:center;font-size:0.75rem;margin-top:1rem;padding:0.5rem;color:var(--ws-muted);background:none;border:none;cursor:pointer;pointer-events:all"
+    >
       {$t('onboardingSkip')}
     </button>
   </div>
