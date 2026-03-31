@@ -57,6 +57,21 @@
   let newRole      = $state('user');
   let adminError   = $state('');
 
+  async function loadUserSettings() {
+    if (!$apiUrl) return;
+    try {
+      const us = await api('/api/settings/user');
+      myDawarichUrl   = us.dawarich_url        || ls('s-dawarichUrl');
+      myDawarichToken = us.dawarich_token       ? '••••••••' : '';
+      myActualUrl     = us.actual_url           || ls('s-actualUrl');
+      myActualToken   = us.actual_token         ? '••••••••' : '';
+      myActualFile    = us.actual_file          || ls('s-actualFile');
+      myHomeLat       = us.home_lat             || ls('s-homeLat');
+      myHomeLon       = us.home_lon             || ls('s-homeLon');
+      myTravelCats    = us.travel_categories    || ls('s-travelCategories');
+    } catch {}
+  }
+
   $effect(() => {
     if (open) {
       urlInput      = $apiUrl;
@@ -68,20 +83,8 @@
       homeLat       = ls('s-homeLat');
       homeLon       = ls('s-homeLon');
       travelCats    = ls('s-travelCategories');
-      // Load per-user settings from backend
-      if ($apiUrl) {
-        try {
-          const us = await api('/api/settings/user');
-          myDawarichUrl   = us.dawarich_url   || ls('s-dawarichUrl');
-          myDawarichToken = us.dawarich_token ? '••••••••' : '';
-          myActualUrl     = us.actual_url     || ls('s-actualUrl');
-          myActualToken   = us.actual_token   ? '••••••••' : '';
-          myActualFile    = us.actual_file    || ls('s-actualFile');
-          myHomeLat       = us.home_lat       || ls('s-homeLat');
-          myHomeLon       = us.home_lon       || ls('s-homeLon');
-          myTravelCats    = us.travel_categories || ls('s-travelCategories');
-        } catch {}
-      }
+      // Load per-user settings async (non-blocking)
+      loadUserSettings();
       serpApiKey    = ls('s-serpApiKey');
       geminiKey     = ls('s-geminiKey');
       openaiKey     = ls('s-openaiKey');
