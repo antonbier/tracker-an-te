@@ -12,7 +12,7 @@ from database import (
     create_gf_tracker, list_gf_trackers, get_gf_tracker,
     delete_gf_tracker, save_gf_snapshot, get_gf_history,
 )
-from google_scraper import scrape_google_flights
+from google_scraper import fetch_google_flights as scrape_google_flights
 from settings_manager import get_setting_value
 from auth_jwt import get_current_user
 
