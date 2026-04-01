@@ -1,6 +1,7 @@
 <script>
   import { apiUrl, theme, isDark, lang, currentUser, jwtToken, appStatus, isAdmin, logout } from '$lib/stores.js';
   import { toast } from '$lib/toast.js';
+  import { t } from '$lib/i18n.js';
   import { checkApiStatus, api } from '$lib/api.js';
   import { browser } from '$app/environment';
   import PasskeyManager from './PasskeyManager.svelte';
@@ -100,13 +101,13 @@
 
   // Dynamic tabs — show account/admin only when auth is enabled
   const tabs = $derived([
-    { id: 'basic',         label: '⚙️ Allgemein' },
-    { id: 'integrations',  label: '🔗 Integrationen' },
-    { id: 'apis',          label: '🤖 APIs & KI' },
-    { id: 'notifications', label: '🔔 Alerts' },
-    { id: 'myspace',       label: '🏠 Mein Bereich' },
-    ...($appStatus?.auth_enabled ? [{ id: 'account', label: '👤 Account' }] : []),
-    ...($isAdmin && $appStatus?.auth_enabled ? [{ id: 'admin', label: '🛡️ Admin' }] : []),
+    { id: 'basic',         label: $t('settingsBasic') },
+    { id: 'integrations',  label: $t('settingsIntegrations') },
+    { id: 'apis',          label: $t('settingsApis') },
+    { id: 'notifications', label: $t('settingsNotifications') },
+    { id: 'myspace',       label: '🏠 ' + $t('settingsAccount').replace('👤 ','') },
+    ...($appStatus?.auth_enabled ? [{ id: 'account', label: $t('settingsAccount') }] : []),
+    ...($isAdmin && $appStatus?.auth_enabled ? [{ id: 'admin', label: $t('settingsAdmin') }] : []),
   ]);
 
   async function testConnection() {
@@ -234,7 +235,7 @@
     style="background:var(--ws-surface)">
 
     <div class="flex items-center justify-between px-5 py-4 border-b" style="border-color:var(--ws-border)">
-      <h2 class="font-semibold text-lg">Einstellungen</h2>
+      <h2 class="font-semibold text-lg">{$t('settings')}</h2>
       <button onclick={() => open = false} class="p-1.5 rounded-lg hover:opacity-60">✕</button>
     </div>
 
@@ -254,7 +255,7 @@
 
       {#if activeTab === 'basic'}
         <div>
-          <label class="text-xs font-bold uppercase tracking-wider block mb-1" style="color:var(--ws-muted)">Backend URL</label>
+          <label class="text-xs font-bold uppercase tracking-wider block mb-1" style="color:var(--ws-muted)">{$t('settingsBackendUrl')}</label>
           <input type="url" bind:value={urlInput} placeholder="http://192.168.1.51:8765"
             class="w-full px-3 py-2 rounded-xl border text-sm"
             style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
@@ -262,19 +263,19 @@
             <button onclick={testConnection} disabled={testing}
               class="px-4 py-1.5 rounded-xl text-xs border transition-opacity hover:opacity-70 disabled:opacity-40"
               style="border-color:var(--ws-border);color:var(--ws-muted)">
-              {testing ? '⏳ Testen…' : '🔗 Verbinden'}
+              {testing ? $t('settingsTesting') : $t('settingsConnect')}
             </button>
             {#if testOk === true}
-              <span class="text-xs font-medium" style="color:var(--ws-green)">✓ Verbunden</span>
+              <span class="text-xs font-medium" style="color:var(--ws-green)">{$t('settingsConnected')}</span>
             {:else if testOk === false}
-              <span class="text-xs font-medium" style="color:#dc2626">✗ Nicht erreichbar</span>
+              <span class="text-xs font-medium" style="color:#dc2626">{$t('settingsNotReachable')}</span>
             {/if}
           </div>
         </div>
         <div>
-          <label class="text-xs font-bold uppercase tracking-wider block mb-2" style="color:var(--ws-muted)">Darstellung</label>
+          <label class="text-xs font-bold uppercase tracking-wider block mb-2" style="color:var(--ws-muted)">{$t('settingsTheme')}</label>
           <div class="flex gap-2">
-            {#each [{ val: '', label: '☀️ Hell' }, { val: 'dark', label: '🌙 Dunkel' }] as opt}
+            {#each [{ val: '', label: $t('settingsLight') }, { val: 'dark', label: $t('settingsDark') }] as opt}
               <button onclick={() => theme.set(opt.val)}
                 class="flex-1 py-2 rounded-xl text-sm border transition-all"
                 style={$theme === opt.val
@@ -301,7 +302,7 @@
             <input bind:value={homeLon} placeholder="Lon: 11.7188" class="px-3 py-2 rounded-xl border text-sm"
               style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
           </div>
-          <div class="text-xs" style="color:var(--ws-muted)">Home-Koordinaten für Trip-Erkennung (>50km)</div>
+          <div class="text-xs" style="color:var(--ws-muted)">{$t('settingsHomeCoordsHint')}</div>
         </div>
         <hr style="border-color:var(--ws-border)"/>
         <div class="space-y-2">
@@ -380,7 +381,7 @@
             <input bind:value={myHomeLon} placeholder="Lon: 11.7188" class="px-3 py-2 rounded-xl border text-sm"
               style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
           </div>
-          <div class="text-xs" style="color:var(--ws-muted)">Home-Koordinaten für Trip-Erkennung (>50km)</div>
+          <div class="text-xs" style="color:var(--ws-muted)">{$t('settingsHomeCoordsHint')}</div>
         </div>
         <hr style="border-color:var(--ws-border)"/>
         <div class="space-y-2">
@@ -402,19 +403,19 @@
         <button onclick={saveUserSettings} disabled={mySettingsSaving}
           class="w-full py-2.5 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80 disabled:opacity-50"
           style="background:linear-gradient(135deg,var(--ws-accent),#b84928);color:#fff5ec">
-          {mySettingsSaving ? '⏳ Speichern…' : '💾 Mein Bereich speichern'}
+          {mySettingsSaving ? '⏳ Speichern…' : '💾 ' + $t('settingsSave')}
         </button>
 
       {:else if activeTab === 'account'}
         <div class="space-y-1 mb-4">
-          <div class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Angemeldet als</div>
+          <div class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">{$t('settingsLoggedInAs')}</div>
           <div class="px-3 py-2 rounded-xl text-sm font-medium" style="background:var(--ws-surface2);color:var(--ws-text)">
             {$currentUser?.email} <span class="text-xs ml-1" style="color:var(--ws-muted)">({$currentUser?.role})</span>
           </div>
         </div>
         <hr style="border-color:var(--ws-border)"/>
         <div class="space-y-3">
-          <div class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Passwort ändern</div>
+          <div class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">{$t('settingsChangePassword')}</div>
           <input type="password" bind:value={pwCurrent} placeholder="Aktuelles Passwort"
             class="w-full px-3 py-2 rounded-xl border text-sm"
             style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
@@ -433,7 +434,7 @@
           <button onclick={changePassword} disabled={pwLoading}
             class="w-full py-2.5 rounded-xl text-sm font-semibold border transition-opacity disabled:opacity-50"
             style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)">
-            {pwLoading ? '⏳…' : '🔑 Passwort ändern'}
+            {pwLoading ? '⏳…' : $t('settingsChangePasswordBtn')}
           </button>
         </div>
 
@@ -444,7 +445,7 @@
       {:else if activeTab === 'admin'}
         <!-- User list -->
         <div class="space-y-2">
-          <div class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Benutzer</div>
+          <div class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">{$t('settingsUsers')}</div>
           {#if adminLoading}
             <p class="text-xs" style="color:var(--ws-muted)">Lade…</p>
           {:else}
@@ -468,7 +469,7 @@
         <hr style="border-color:var(--ws-border)"/>
         <!-- Create user -->
         <div class="space-y-2">
-          <div class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Neuen User erstellen</div>
+          <div class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">{$t('settingsCreateUser')}</div>
           <input bind:value={newEmail} type="email" placeholder="E-Mail"
             class="w-full px-3 py-2 rounded-xl border text-sm"
             style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
@@ -492,7 +493,7 @@
           <button onclick={createUser}
             class="w-full py-2.5 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80"
             style="background:linear-gradient(135deg,var(--ws-accent),#b84928);color:#fff5ec">
-            + User erstellen
+            {$t('settingsCreateUserBtn')}
           </button>
         </div>
       {/if}
@@ -505,7 +506,7 @@
         <button onclick={save}
           class="w-full py-2.5 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80"
           style="background:linear-gradient(135deg,var(--ws-accent),#b84928);color:#fff5ec">
-          Speichern
+          {$t('settingsSave')}
         </button>
       </div>
     {/if}
