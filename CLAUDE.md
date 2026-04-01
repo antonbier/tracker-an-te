@@ -455,6 +455,64 @@ body = {'message': msg, 'content': base64_content, 'branch': 'beta', 'sha': sha}
 
 ---
 
+## MyTrips — Letzte Änderungen (April 2026)
+
+### Jahr-Switcher
+- Zeigt immer **genau 3 Jahre**: `selectedYear-1 | selectedYear | selectedYear+1`
+- `‹` / `›` dekrementieren/inkrementieren `selectedYear` direkt
+- Kein `availableYears`-Paginierung mehr — einfacher, robuster
+
+### Header Badges (4 Stück)
+- `✈️ X geplant` → klickbar → Tab `trips`
+- `✅ Y vergangen` → klickbar → Tab `journal`
+- `🌟 Z wünsche` → klickbar → Tab `bucketlist`
+- `W gesamt` → read-only
+
+### Donut-Chart (SVG/conic-gradient)
+- Kein externes Chart-Package — reines CSS `conic-gradient`
+- Segmente: Vergangen (dunkelgrün `#2d6a4f`) | Geplant (hellgrün `#86efac`) | Verfügbar (grau) | Überschuss (rot)
+- Legende-Buttons wechseln Tab (kein Auto-Filter)
+- `auto_cost` (automatisch zugeordnet) wird in Kosten eingerechnet
+
+### Reisechronik — Sync-Logik
+
+#### Reihenfolge (nummeriert)
+1. **Jahresbudget** (ganz oben links)
+2. **Manuell erfassen** (Formular)
+3. **💡 Tipp-Banner** (optimale Sync-Reihenfolge erklären)
+4. **1. Dawarich Sync** (grüner Balken links) — mit `force_full` Checkbox
+5. **2. ActualBudget Sync** (blauer Balken links) — mit `🔗 Kosten automatisch zuordnen` Button
+
+#### force_full (Dawarich)
+- Checkbox: "Gelöschte Reisen erzwingen (Full Sync)"
+- Sendet `force_full: true` an `/api/dawarich/sync`
+- Backend: `unignore_detected_trips()` → setzt `ignored=0` für alle Dawarich-Trips
+
+#### Auto-Cost (ActualBudget → Dawarich-Trips)
+- Erscheint nach erfolgreichem ActualBudget Sync
+- Button: `🔗 Kosten automatisch zuordnen`
+- Endpoint: `POST /api/trips/auto-cost`
+- Logik: Transaktionen deren `date` im `[trip.start_date, trip.end_date]` liegt → werden dem Trip als `auto_cost` zugeordnet
+- In Timeline: `(auto)` Badge wenn `cost==null` aber `auto_cost` vorhanden
+
+#### Soft-Delete (Dawarich-Trips)
+- Löschen setzt `ignored=1` in DB (kein echter DELETE)
+- Beim nächsten Sync wird ignorierte Trips übersprungen
+- `force_full=true` → resettet alle `ignored=1` auf `ignored=0`
+- Manuelle Trips: echter DELETE
+
+### Settings — Auth-Abhängigkeit
+- `auth_enabled=false` → Tab **Integrationen** sichtbar (global, single-user)
+- `auth_enabled=true`  → Tab **Mein Bereich** sichtbar (per-user, verschlüsselt)
+- Beide Tabs haben Info-Banner mit Erklärung
+- Beide speichern verschlüsselt in DB via `settings_manager`
+
+### ScratchMap — Lokaler Import
+- `jsvectormap` aus `node_modules` (npm, kein CDN)
+- `import { default as jsVectorMap } from 'jsvectormap'`
+- `import 'jsvectormap/dist/maps/world.js'`
+- CSS via `<svelte:head><style>@import 'jsvectormap/dist/css/jsvectormap.min.css'</style></svelte:head>`
+
 ## Open / Next Steps
 
 ### Erledigt (diese Session)
@@ -498,6 +556,10 @@ body = {'message': msg, 'content': base64_content, 'branch': 'beta', 'sha': sha}
 - [ ] Mietwagen tab in PriceRadar
 - [ ] Discord webhook notifications
 - [ ] Currency toggle (EUR/USD/GBP)
+- [x] Donut-Chart für Budget (conic-gradient)
+- [x] Auto-Cost: ActualBudget → Dawarich-Trips
+- [x] Soft-Delete mit ignored-Flag
+- [x] Settings auth-abhängige Tabs
 - [ ] HSTS header in Zoraxy setzen
 - [ ] Scratch Map: planned-Trips Koordinaten via Geocoding befüllen
 
