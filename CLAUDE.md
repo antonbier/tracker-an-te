@@ -1,42 +1,31 @@
 # CLAUDE.md — WanderSuite AI Assistant Context (BETA branch)
 
 **⚠️ You are on the `beta` branch.**
-New features are developed here, tested, then merged into `main`.
+New features developed here. Tested → merged into `main`.
 
 ---
 
 ## Repository
-`antonbier/tracker-an-te` — GitHub token required for all API operations.
+
+**Repo:** `antonbier/tracker-an-te`
+**Stack:** Svelte 5 + SvelteKit · FastAPI · SQLite · Docker Compose
+**Unraid path:** `/mnt/user/appdata/wandersuite-beta/`
 
 ---
 
 ## Branch Strategy
 
-| Branch | Purpose | Ports (Unraid) | Version |
-|--------|---------|----------------|---------|
+| Branch | Purpose | Ports | Version |
+|--------|---------|-------|---------|
 | `main` | Stable, production | 8765 / 8766 | `1.0.0` |
 | `beta` | New features, testing | 8767 / 8768 | `beta-YYYY-MM-DD HH:MM` |
 
 ---
 
-## Stack
+## Deployment — Unraid (Beta)
 
-- **Frontend:** Svelte 5 + SvelteKit + Tailwind CSS v4 → `svelte/`
-- **Backend:** FastAPI + SQLite + APScheduler → `backend/`
-- **Deploy:** Docker Compose (Unraid on-prem)
-- **Reverse Proxy:** Zoraxy on Unraid (HTTPS + external access)
-
----
-
-## Deployment — Unraid (beta)
-
-### Verzeichnis
-```
-/mnt/user/appdata/wandersuite-beta/
-```
-
-### Erstinstallation
 ```bash
+# Initial setup
 mkdir -p /mnt/user/appdata/wandersuite-beta
 cd /mnt/user/appdata/wandersuite-beta
 git clone https://github.com/antonbier/tracker-an-te .
@@ -44,212 +33,245 @@ git checkout beta
 cp .env.example .env
 nano .env
 mkdir -p data
+
+# Build + start
 BUILD_DATE="$(date '+%Y-%m-%d %H:%M')" docker compose up -d --build
+
+# Update
+git pull && BUILD_DATE="$(date '+%Y-%m-%d %H:%M')" docker compose up -d --build
 ```
 
-### Update
-```bash
-cd /mnt/user/appdata/wandersuite-beta
-git pull
-BUILD_DATE="$(date '+%Y-%m-%d %H:%M')" docker compose up -d --build
+---
+
+## Network Architecture
+
+```
+Internet
+  │
+  └─► Zoraxy Reverse Proxy (Unraid)
+        │
+        ├─► Frontend :8767 (Nginx + Svelte SPA)
+        │     └─► /api/* → backend:8000 (internal Docker network)
+        │
+        └─► Backend :8768 (FastAPI — Swagger, direct API access)
+              ⚠️  Backend currently NOT exposed externally via Zoraxy
+              → Only frontend is publicly accessible
+              → Backend reachable internally at http://unraid-ip:8768
+              → /api/* calls go through Nginx proxy on port 8767
 ```
 
-### .env (beta)
+### ⚠️ Open Issue: Backend URL in Onboarding
+
+**Problem:** The frontend is accessed externally via Zoraxy (HTTPS domain).
+The backend is NOT exposed externally. This means:
+
+- Users accessing via external domain must set Backend URL to the **external frontend URL**
+  (e.g. `https://wandersuite.deinedomain.de`) — Nginx proxies `/api/*` internally
+- Users on local network can use `http://192.168.1.51:8768` directly
+
+**Recommended fix:** Add Zoraxy proxy rule for backend port 8768 on a subdomain
+or path, e.g. `https://wandersuite.deinedomain.de/api/` → `backend:8768`
+(already handled by Nginx internally — so frontend URL works as backend URL too!)
+
+**Solution for users:** In Onboarding wizard, enter the **same URL as the frontend**:
+`https://wandersuite.deinedomain.de` — Nginx handles `/api/` routing internally.
+
+---
+
+## .env Configuration
+
 ```env
 HOST_PORT=8767
 BACKEND_PORT=8768
 TZ=Europe/Rome
 DATA_DIR=/mnt/user/appdata/wandersuite-beta/data
 APP_SECRET=<generate: python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())">
+
+# Authentication
 AUTH_ENABLED=true
 JWT_SECRET=<generate: python3 -c "import secrets; print(secrets.token_hex(32))">
-WEBAUTHN_RP_ID=<deine-domain.de>
+
+# WebAuthn / Passkeys (set when Zoraxy + domain is ready)
+WEBAUTHN_RP_ID=wandersuite.deinedomain.de
 WEBAUTHN_RP_NAME=WanderSuite
-WEBAUTHN_ORIGIN=https://<deine-domain.de>
+WEBAUTHN_ORIGIN=https://wandersuite.deinedomain.de
 ```
 
 ---
 
-## Aktueller Stand (Session-Ende)
+## Auth System
 
-### ✅ Läuft
-- Beta läuft auf Unraid (:8767 Frontend, :8768 Backend)
-- Frontend ist von außen über Zoraxy Reverse Proxy erreichbar (HTTPS)
-- Docker Multi-Stage Build funktioniert (Node 20 → Nginx)
-- BETA Badge + Build-Datum im Header
-- Security Headers in nginx.conf (CSP, X-Frame-Options, X-Content-Type, Referrer-Policy, CORP, COOP)
+### Status
+- ✅ Password login (email + bcrypt)
+- ✅ JWT tokens (30-day expiry)
+- ✅ Setup screen (first admin account)
+- ✅ Admin panel (create/delete users)
+- ✅ Passkey/WebAuthn backend routes
+- ✅ Passkey UI (Login.svelte + PasskeyManager.svelte)
+- ⚠️  Passkeys require HTTPS — works when Zoraxy + domain configured
 
-### ⚠️ Offen / Nächste Schritte
-1. **Backend extern erreichbar machen**
-   - Backend läuft intern auf Port 8768, ist aber von außen nicht erreichbar
-   - Lösung: In Zoraxy einen zweiten Proxy-Eintrag anlegen für Backend-Port 8768
-   - ODER: Nginx als einziger Eintrag nach außen, /api/ wird intern weitergeleitet (bevorzugt)
-   - **Bevorzugte Lösung:** Nur Frontend (8767) nach außen exponieren — Nginx proxied /api/ intern zu backend:8000
-   - Backend-URL im Onboarding dann auf die externe Frontend-URL setzen (z.B. https://wandersuite.deine-domain.de)
-   - Kein separater Backend-Zugriff von außen nötig
-
-2. **Auth testen**
-   - AUTH_ENABLED=true ist gesetzt, aber /api/status gibt noch false zurück
-   - Problem war: AUTH_ENABLED fehlte in docker-compose.yml environment → bereits gefixt
-   - Nach git pull + docker compose down + docker compose up -d sollte /api/status {"auth_enabled":true,"needs_setup":true} zurückgeben
-   - Dann: Onboarding → Backend-URL = https://wandersuite.deine-domain.de → Setup-Screen erscheint
-
-3. **Passkeys testen**
-   - Erst wenn HTTPS läuft und Backend erreichbar ist
-   - WEBAUTHN_RP_ID = domain ohne https:// (z.B. wandersuite.deine-domain.de)
-   - WEBAUTHN_ORIGIN = https://wandersuite.deine-domain.de
-   - Nach Login: Settings → Account → Passkey hinzufügen
-
-4. **HSTS in Zoraxy setzen**
-   - Nginx kann HSTS nicht setzen (nur HTTP intern)
-   - In Zoraxy Custom Header hinzufügen:
-     `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload`
-
----
-
-## Architektur (Netzwerk)
-
+### Flow
 ```
-Internet
-  │
-  └─► Zoraxy Reverse Proxy (Unraid, Port 443)
-        │   HTTPS terminiert hier
-        │   HSTS Header hier setzen
-        │
-        └─► wandersuite-beta-frontend (Nginx :8767)
-              │
-              ├─► /* ──────────► Svelte SPA (dist/)
-              └─► /api/* ──────► wandersuite-beta-backend:8000 (intern)
-                                  kein externer Port nötig!
+GET /api/status → { auth_enabled, needs_setup }
+  ↓
+needs_setup=true  → Setup screen (create first admin)
+needs_setup=false → Login screen
+  ↓ JWT stored in localStorage
+App loads
 ```
-
-**Wichtig:** Nur Port 8767 (Frontend/Nginx) muss nach außen erreichbar sein.
-Das Backend ist intern über Docker-Netzwerk erreichbar (backend:8000).
-Nginx proxied /api/ automatisch weiter.
-
----
-
-## Multi-User Architektur
-
-### Data Isolation
-| Table | Per-User | Notes |
-|-------|----------|-------|
-| `trackers` | ✅ `user_id` | jeder sieht nur eigene |
-| `gf_trackers` | ✅ `user_id` | |
-| `homair_trackers` | ✅ `user_id` | |
-| `booking_trackers` | ✅ `user_id` | |
-| `detected_trips` | ✅ `user_id` | Dawarich pro User |
-| `user_data` | ✅ `user_id` | trips, budget, bucketlist |
-| `user_settings` | ✅ `user_id` | dawarich, actualbudget, coords |
-| `settings` | ❌ Global | API keys, notifications (Admin) |
-| `webauthn_credentials` | ✅ `user_id` | Passkeys pro User |
-
-### Settings Split
-- **Global (Admin):** `POST /api/settings` — SerpAPI, Gemini, OpenAI, Telegram, Gotify
-- **Per-User:** `GET/POST /api/settings/user` — Dawarich, ActualBudget, Home-Koordinaten
-
-### AUTH_ENABLED=false (Guest Mode)
-- `get_current_user()` → `GUEST_USER = {id: 0, role: "admin"}`
-- DB-Funktionen mit `user_id=0` → kein Filter → sieht alle Daten
-- Vollständig rückwärtskompatibel
-
----
-
-## Auth & Passkeys
 
 ### Endpoints
 ```
-POST /api/auth/setup                     — Ersten Admin erstellen (needs_setup=true)
-POST /api/auth/login                     — Email + Passwort → JWT
-POST /api/auth/passkeys/register/begin   — Passkey-Registrierung starten (eingeloggt)
-POST /api/auth/passkeys/register/complete — Passkey speichern
-POST /api/auth/passkeys/login/begin      — Passkey-Login starten
-POST /api/auth/passkeys/login/complete   — Passkey verifizieren → JWT
-GET  /api/auth/passkeys                  — Meine Passkeys auflisten
-DELETE /api/auth/passkeys/{id}           — Passkey löschen
-GET  /api/status                         — {auth_enabled, needs_setup}
-```
-
-### Frontend Gate (+layout.svelte)
-```
-kein apiUrl/onboarding → Onboarding
-  ↓
-GET /api/status → needs_setup=true → Setup (ersten Admin erstellen)
-  ↓
-auth_enabled=true + kein JWT → Login (Passkey oder Passwort)
-  ↓
-App
+GET  /api/status                          — public
+POST /api/auth/setup                      — first admin (public)
+POST /api/auth/login                      — password login (public)
+GET  /api/auth/me                         — current user (auth)
+POST /api/auth/change-password            — (auth)
+POST /api/auth/passkeys/register/begin    — (auth, HTTPS only)
+POST /api/auth/passkeys/register/complete — (auth, HTTPS only)
+POST /api/auth/passkeys/login/begin       — (public, HTTPS only)
+POST /api/auth/passkeys/login/complete    — (public, HTTPS only)
+GET  /api/auth/passkeys                   — list my passkeys (auth)
+DELETE /api/auth/passkeys/{id}            — delete passkey (auth)
+GET  /api/admin/users                     — admin only
+POST /api/admin/users                     — admin only
+DELETE /api/admin/users/{id}              — admin only
 ```
 
 ---
 
-## Bekannte Bugs / Import-Fixes (Multi-User Refactoring)
+## Multi-User Architecture
 
-Beim Multi-User Refactoring wurden Funktionen umbenannt. Bereits gefixt mit Aliases:
-- `save_snapshot` → `save_price_snapshot` (scheduler.py)
-- `get_snapshots` → `get_price_history` (routes/prices.py)
-- `scrape_google_flights` → `fetch_google_flights` (routes/google_flights.py)
-- `scrape_homair` → `fetch_homair` (routes/accommodations.py)
-- `scrape_booking` → `fetch_booking` (routes/accommodations.py)
+### Data Isolation
+| Table | Scope | Notes |
+|-------|-------|-------|
+| `trackers` | Per-user | `user_id` column |
+| `gf_trackers` | Per-user | |
+| `homair_trackers` | Per-user | |
+| `booking_trackers` | Per-user | |
+| `detected_trips` | Per-user | Dawarich per user |
+| `user_data` | Per-user | trips, budget, bucketlist |
+| `user_settings` | Per-user | dawarich, actualbudget, home coords |
+| `settings` | Global (admin) | API keys, notifications |
+| `webauthn_credentials` | Per-user | passkeys |
 
-Falls weitere ImportError auftauchen: Fehlermeldung zeigt immer den genauen Namen.
-Fix-Pattern: `from module import real_name as expected_name`
+### Settings Split
+- **Global** `GET/POST /api/settings` — SerpAPI, Gemini, OpenAI, Telegram, Gotify
+- **Per-user** `GET/POST /api/settings/user` — Dawarich, ActualBudget, Home coords
+
+### AUTH_ENABLED=false (guest mode)
+- Returns `GUEST_USER = {id: 0, role: "admin"}`
+- DB functions with `user_id=0` → no filter → sees all data
+- Fully backward compatible
 
 ---
 
 ## Security Headers (nginx.conf)
-Bereits implementiert:
-- ✅ Content-Security-Policy
-- ✅ X-Content-Type-Options: nosniff
-- ✅ X-Frame-Options: SAMEORIGIN
-- ✅ Referrer-Policy: strict-origin-when-cross-origin
-- ✅ Cross-Origin-Resource-Policy: same-origin
-- ✅ Cross-Origin-Opener-Policy: same-origin (required for WebAuthn)
-- ⏳ HSTS → muss in Zoraxy als Custom Header gesetzt werden
+
+Currently set:
+- `X-Content-Type-Options: nosniff`
+- `X-Frame-Options: SAMEORIGIN`
+- `Referrer-Policy: strict-origin-when-cross-origin`
+- `Content-Security-Policy: default-src 'self' ...`
+- `Cross-Origin-Resource-Policy: same-origin`
+- `Cross-Origin-Opener-Policy: same-origin` (required for WebAuthn)
+
+**TODO — set in Zoraxy:**
+- `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload`
+
+Mozilla Observatory score: ~30/100 before headers fix.
+After nginx.conf update + HSTS in Zoraxy: should reach ~90/100.
 
 ---
 
-## Beta-spezifische Dateien (differ from main)
+## Beta-Specific Files (differ from main)
 
-| Datei | Beta-Änderung |
-|-------|---------------|
-| `Header.svelte` | BETA Badge + Build-Datum |
-| `docker/Dockerfile.frontend` | ARG BUILD_DATE |
-| `docker/nginx.conf` | Security Headers |
-| `docker-compose.yml` | Ports 8767/8768, AUTH_ENABLED, JWT_SECRET, WEBAUTHN_* |
-| `backend/main.py` | version = beta-{BUILD_DATE}, CHANNEL=beta |
-| `backend/database.py` | user_id auf allen Content-Tabellen |
-| `backend/auth_db.py` | webauthn_credentials + challenges Tabellen |
-| `backend/routes/passkey.py` | WebAuthn Endpoints |
-| `backend/settings_manager.py` | Global vs. Per-User Settings |
-| `.env.example` | Beta-Ports + AUTH + WEBAUTHN vars |
+| File | Beta change |
+|------|-------------|
+| `Header.svelte` | BETA badge + build date |
+| `docker/Dockerfile.frontend` | `ARG BUILD_DATE` |
+| `docker-compose.yml` | Ports 8767/8768, auth env vars |
+| `backend/main.py` | `WANDERSUITE_CHANNEL=beta` |
+| `.env.example` | Beta ports + auth + WebAuthn |
 
 ---
 
-## Roadmap (beta)
+## File Structure
 
-### In Arbeit
-- [ ] Backend via Zoraxy extern erreichbar (nur /api/ über Nginx-Proxy)
-- [ ] Auth-Flow vollständig testen (Setup → Login → Passkey)
+```
+wandersuite/
+├── svelte/src/
+│   ├── lib/
+│   │   ├── stores.js          ← all state, loadSettingsFromBackend()
+│   │   ├── api.js             ← HTTP client with JWT injection
+│   │   ├── i18n.js            ← reactive t() derived store
+│   │   └── components/
+│   │       ├── AppShell.svelte
+│   │       ├── Header.svelte  ← BETA badge + version
+│   │       ├── Sidebar.svelte ← logout button when auth enabled
+│   │       ├── Login.svelte   ← passkey + password fallback
+│   │       ├── Setup.svelte   ← first admin account
+│   │       ├── Settings.svelte ← 6 tabs incl. Mein Bereich + Admin
+│   │       ├── PasskeyManager.svelte
+│   │       └── pages/
+│   │           ├── Dashboard.svelte
+│   │           ├── PriceRadar.svelte
+│   │           ├── MyTrips.svelte   ← journal tab included
+│   │           └── Discover.svelte
+│   └── routes/
+│       ├── +layout.svelte     ← gate: onboarding → setup → login → app
+│       └── +page.svelte
+├── backend/
+│   ├── main.py                ← APP_VERSION, CHANNEL
+│   ├── database.py            ← all tables with user_id
+│   ├── auth_db.py             ← users + webauthn_credentials
+│   ├── auth_jwt.py            ← JWT + GUEST_USER
+│   ├── settings_manager.py   ← global + per-user settings
+│   ├── dawarich.py            ← sync_trips(user_id=)
+│   └── routes/
+│       ├── auth.py            ← login, setup, admin
+│       ├── passkey.py         ← WebAuthn endpoints
+│       ├── settings.py        ← /api/settings + /api/settings/user
+│       ├── trackers.py        ← user_id aware
+│       ├── google_flights.py  ← user_id aware
+│       ├── accommodations.py  ← user_id aware
+│       ├── userdata.py        ← per user_id
+│       └── dawarich.py        ← per user_id
+├── docker/
+│   ├── Dockerfile             ← backend
+│   ├── Dockerfile.frontend    ← multi-stage node→nginx
+│   └── nginx.conf             ← security headers + /api/ proxy
+└── docker-compose.yml         ← all env vars incl. AUTH_ENABLED
 
-### Geplant
-- [ ] Scratch Map (jsvectormap) in Meine Reisen
-- [ ] Preisverlauf Chart (Chart.js) in PriceRadar
-- [ ] Mietwagen-Tab in Preis-Radar
-- [ ] Discord Webhook Notifications
-- [ ] Currency Toggle (EUR/USD/GBP)
-- [ ] Skeleton Loaders
-
-### Merge → main (wenn stabil)
-- Multi-User Architektur
-- Passkey Auth
-- Security Headers
+```
 
 ---
 
-## GitHub API Workflow (für Claude)
-Immer SHA holen vor dem Schreiben. Direkt auf `beta` Branch arbeiten.
+## GitHub API Workflow (Claude's method)
+Always fetch SHA before writing. Work on `beta` branch.
 ```python
+# GET SHA
 url = f'https://api.github.com/repos/{REPO}/contents/{path}?ref=beta'
+# PUT to update
 body = {'message': msg, 'content': base64_content, 'branch': 'beta', 'sha': sha}
 ```
+
+---
+
+## Open / Next Steps
+
+### In Progress
+- [ ] Backend URL clarification in Onboarding (use frontend URL = same as backend via Nginx proxy)
+- [ ] Passkey testing (needs HTTPS via Zoraxy)
+- [ ] HSTS header in Zoraxy
+
+### Roadmap (beta)
+- [ ] Scratch Map (jsvectormap) in MyTrips
+- [ ] Price history chart (Chart.js) in PriceRadar
+- [ ] Mietwagen tab in PriceRadar
+- [ ] Discord webhook notifications
+- [ ] Currency toggle (EUR/USD/GBP)
+
+### Phase 3 (future)
+- [ ] Multi-user data separation fully tested
+- [ ] Merge stable features to `main`
