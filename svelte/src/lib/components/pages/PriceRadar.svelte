@@ -4,6 +4,7 @@
   import { apiUrl } from '$lib/stores.js';
   import { toast } from '$lib/toast.js';
   import { browser } from '$app/environment';
+  import { t } from '$lib/i18n.js';
 
   let activeTab = $state('ryanair');
 
@@ -38,8 +39,8 @@
     ryLoading = false;
   }
   async function addRyanair() {
-    if (!ryOrigin||!ryDest||!ryOut) { toast('Pflichtfelder ausfüllen','error'); return; }
-    if (!$apiUrl) { toast('Backend-URL fehlt','warning'); return; }
+    if (!ryOrigin||!ryDest||!ryOut) { toast($t('radarRequired') || 'Pflichtfelder ausfüllen','error'); return; }
+    if (!$apiUrl) { toast($t('radarNoBackend'),'warning'); return; }
     ryAdding=true;
     try {
       await api('/api/trackers',{method:'POST',body:JSON.stringify({
@@ -86,10 +87,10 @@
     gfLoading=false;
   }
   async function addGF() {
-    if (!gfOrigin||!gfDest||!gfOut) { toast('Pflichtfelder ausfüllen','error'); return; }
-    if (!$apiUrl) { toast('Backend-URL fehlt','warning'); return; }
+    if (!gfOrigin||!gfDest||!gfOut) { toast($t('radarRequired') || 'Pflichtfelder ausfüllen','error'); return; }
+    if (!$apiUrl) { toast($t('radarNoBackend'),'warning'); return; }
     const serpKey = browser ? localStorage.getItem('s-serpApiKey')||'' : '';
-    if (!serpKey) { toast('SerpAPI Key fehlt — in Einstellungen eintragen','warning'); return; }
+    if (!serpKey) { toast($t('radarNoKey'),'warning'); return; }
     gfAdding=true;
     try {
       await api('/api/google-flights',{method:'POST',body:JSON.stringify({
@@ -153,7 +154,7 @@
   }
   async function addHM() {
     if (!hmIn||!hmOut2) { toast('Datum fehlt','error'); return; }
-    if (!$apiUrl) { toast('Backend-URL fehlt','warning'); return; }
+    if (!$apiUrl) { toast($t('radarNoBackend'),'warning'); return; }
     hmAdding=true;
     try {
       await api('/api/accommodations/homair',{method:'POST',body:JSON.stringify({
@@ -198,10 +199,10 @@
     bkLoading=false;
   }
   async function addBK() {
-    if (!bkDest||!bkIn||!bkOut2) { toast('Pflichtfelder ausfüllen','error'); return; }
-    if (!$apiUrl) { toast('Backend-URL fehlt','warning'); return; }
+    if (!bkDest||!bkIn||!bkOut2) { toast($t('radarRequired') || 'Pflichtfelder ausfüllen','error'); return; }
+    if (!$apiUrl) { toast($t('radarNoBackend'),'warning'); return; }
     const serpKey = browser ? localStorage.getItem('s-serpApiKey')||'' : '';
-    if (!serpKey) { toast('SerpAPI Key fehlt — in Einstellungen eintragen','warning'); return; }
+    if (!serpKey) { toast($t('radarNoKey'),'warning'); return; }
     bkAdding=true;
     try {
       await api('/api/accommodations/booking',{method:'POST',body:JSON.stringify({
@@ -244,16 +245,16 @@
   // ── Shared UI helpers ─────────────────────────────────────────────────
   const inputCls = 'w-full px-3 py-2 rounded-xl border text-sm';
   const inputStyle = 'background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)';
-  const tabs = [
-    { id:'ryanair',  label:'🟠 Ryanair' },
-    { id:'gflights', label:'🔵 Google Flights' },
-    { id:'homair',   label:'⛺ Homair' },
-    { id:'booking',  label:'🏨 Booking' },
-  ];
+  const tabs = $derived([
+    { id:'ryanair',  label:'🟠 ' + $t('radarRyanair') },
+    { id:'gflights', label:'🔵 ' + $t('radarGoogle') },
+    { id:'homair',   label:'⛺ ' + $t('radarHomair') },
+    { id:'booking',  label:'🏨 ' + $t('radarBooking') },
+  ]);
 </script>
 
 <div class="space-y-4">
-  <h1 class="text-2xl font-bold italic" style="font-family:var(--ws-serif)">🎯 Preis-Radar</h1>
+  <h1 class="text-2xl font-bold italic" style="font-family:var(--ws-serif)">{$t('navRadar')}</h1>
 
   <!-- Tab bar -->
   <div class="flex gap-1.5 overflow-x-auto pb-1">
@@ -273,14 +274,14 @@
   <div class="grid md:grid-cols-2 gap-4">
     <!-- Form -->
     <div class="rounded-xl p-4 border space-y-3" style="background:var(--ws-surface);border-color:var(--ws-border)">
-      <h2 class="text-sm font-semibold italic" style="font-family:var(--ws-serif);color:var(--ws-accent2)">Neuen Tracker anlegen</h2>
+      <h2 class="text-sm font-semibold italic" style="font-family:var(--ws-serif);color:var(--ws-accent2)">{$t('dashStartTracker').replace('+','')} — Ryanair</h2>
       <div class="grid grid-cols-2 gap-2">
         <div>
-          <label class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Von</label>
+          <label class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">{$t('radarFrom') || 'Von'}</label>
           <input bind:value={ryOrigin} maxlength="3" placeholder="BGY" class="{inputCls} mt-1 font-mono uppercase" style={inputStyle}/>
         </div>
         <div>
-          <label class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Nach</label>
+          <label class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">{$t('radarTo') || 'Nach'}</label>
           <input bind:value={ryDest} maxlength="3" placeholder="DUB" class="{inputCls} mt-1 font-mono uppercase" style={inputStyle}/>
         </div>
       </div>
@@ -333,14 +334,14 @@
       <button onclick={addRyanair} disabled={ryAdding}
         class="w-full py-2.5 rounded-xl font-semibold text-sm transition-opacity hover:opacity-80 disabled:opacity-50"
         style="background:linear-gradient(135deg,var(--ws-accent),#b84928);color:#fff5ec">
-        {ryAdding ? '⏳…' : '+ Tracker starten'}
+        {$t('loading').includes('…') ? '⏳…' : '+ Tracker'}
       </button>
     </div>
     <!-- List -->
     <div class="space-y-3">
-      <h2 class="text-sm font-semibold italic" style="font-family:var(--ws-serif);color:var(--ws-accent2)">Aktive Tracker</h2>
-      {#if ryLoading}<p class="text-xs" style="color:var(--ws-muted)">Lade…</p>
-      {:else if ryTrackers.length===0}<p class="text-xs" style="color:var(--ws-muted)">Noch keine Tracker.</p>
+      <h2 class="text-sm font-semibold italic" style="font-family:var(--ws-serif);color:var(--ws-accent2)">{$t('dashActiveTrackers')}</h2>
+      {#if ryLoading}<p class="text-xs" style="color:var(--ws-muted)">{$t('loading')}</p>
+      {:else if ryTrackers.length===0}<p class="text-xs" style="color:var(--ws-muted)">{$t('dashNoTrackers')}</p>
       {:else}
         {#each ryTrackers as tr}
           {@const s=tr.latest_snapshot}
@@ -373,14 +374,14 @@
   {:else if activeTab==='gflights'}
   <div class="grid md:grid-cols-2 gap-4">
     <div class="rounded-xl p-4 border space-y-3" style="background:var(--ws-surface);border-color:var(--ws-border)">
-      <h2 class="text-sm font-semibold italic" style="font-family:var(--ws-serif);color:var(--ws-accent2)">Google Flights Tracker</h2>
+      <h2 class="text-sm font-semibold italic" style="font-family:var(--ws-serif);color:var(--ws-accent2)">Google Flights</h2>
       <div class="grid grid-cols-2 gap-2">
         <div>
-          <label class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Von</label>
+          <label class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">{$t('radarFrom') || 'Von'}</label>
           <input bind:value={gfOrigin} maxlength="3" placeholder="MUC" class="{inputCls} mt-1 font-mono uppercase" style={inputStyle}/>
         </div>
         <div>
-          <label class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Nach</label>
+          <label class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">{$t('radarTo') || 'Nach'}</label>
           <input bind:value={gfDest} maxlength="3" placeholder="JFK" class="{inputCls} mt-1 font-mono uppercase" style={inputStyle}/>
         </div>
       </div>
@@ -411,12 +412,12 @@
       <button onclick={addGF} disabled={gfAdding}
         class="w-full py-2.5 rounded-xl font-semibold text-sm transition-opacity hover:opacity-80 disabled:opacity-50"
         style="background:linear-gradient(135deg,var(--ws-accent),#b84928);color:#fff5ec">
-        {gfAdding ? '⏳…' : '+ Tracker starten'}
+        {$t('loading').includes('…') ? '⏳…' : '+ Tracker'}
       </button>
-      <p class="text-xs" style="color:var(--ws-muted)">⚙ SerpAPI Key in Einstellungen → APIs</p>
+      <p class="text-xs" style="color:var(--ws-muted)">{$t('radarNoKey').replace('— in Einstellungen eintragen','').trim() || '⚙ SerpAPI Key erforderlich'}</p>
     </div>
     <div class="space-y-3">
-      <h2 class="text-sm font-semibold italic" style="font-family:var(--ws-serif);color:var(--ws-accent2)">Aktive Tracker</h2>
+      <h2 class="text-sm font-semibold italic" style="font-family:var(--ws-serif);color:var(--ws-accent2)">{$t('dashActiveTrackers')}</h2>
       {#if gfLoading}<p class="text-xs" style="color:var(--ws-muted)">Lade…</p>
       {:else if gfTrackers.length===0}<p class="text-xs" style="color:var(--ws-muted)">Noch keine GF-Tracker.</p>
       {:else}
@@ -491,11 +492,11 @@
       <button onclick={addHM} disabled={hmAdding}
         class="w-full py-2.5 rounded-xl font-semibold text-sm disabled:opacity-50"
         style="background:linear-gradient(135deg,var(--ws-accent),#b84928);color:#fff5ec">
-        {hmAdding?'⏳…':'+ Tracker starten'}
+        {$t('loading').includes('…') ? '⏳…' : '+ Tracker'}
       </button>
     </div>
     <div class="space-y-3">
-      <h2 class="text-sm font-semibold italic" style="font-family:var(--ws-serif);color:var(--ws-accent2)">Aktive Tracker</h2>
+      <h2 class="text-sm font-semibold italic" style="font-family:var(--ws-serif);color:var(--ws-accent2)">{$t('dashActiveTrackers')}</h2>
       {#if hmLoading}<p class="text-xs" style="color:var(--ws-muted)">Lade…</p>
       {:else if hmTrackers.length===0}<p class="text-xs" style="color:var(--ws-muted)">Noch keine Homair Tracker.</p>
       {:else}
@@ -567,12 +568,12 @@
       <button onclick={addBK} disabled={bkAdding}
         class="w-full py-2.5 rounded-xl font-semibold text-sm disabled:opacity-50"
         style="background:linear-gradient(135deg,var(--ws-accent),#b84928);color:#fff5ec">
-        {bkAdding?'⏳…':'+ Tracker starten'}
+        {$t('loading').includes('…') ? '⏳…' : '+ Tracker'}
       </button>
-      <p class="text-xs" style="color:var(--ws-muted)">⚙ SerpAPI Key in Einstellungen → APIs</p>
+      <p class="text-xs" style="color:var(--ws-muted)">{$t('radarNoKey').replace('— in Einstellungen eintragen','').trim() || '⚙ SerpAPI Key erforderlich'}</p>
     </div>
     <div class="space-y-3">
-      <h2 class="text-sm font-semibold italic" style="font-family:var(--ws-serif);color:var(--ws-accent2)">Aktive Tracker</h2>
+      <h2 class="text-sm font-semibold italic" style="font-family:var(--ws-serif);color:var(--ws-accent2)">{$t('dashActiveTrackers')}</h2>
       {#if bkLoading}<p class="text-xs" style="color:var(--ws-muted)">Lade…</p>
       {:else if bkTrackers.length===0}<p class="text-xs" style="color:var(--ws-muted)">Noch keine Booking Tracker.</p>
       {:else}
