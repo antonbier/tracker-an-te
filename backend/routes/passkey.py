@@ -50,7 +50,6 @@ ORIGIN  = os.getenv("WEBAUTHN_ORIGIN", f"http://localhost:8765")
 # ── Register ──────────────────────────────────────────────────────────────────
 
 class RegisterBeginPayload(BaseModel):
-    email: str
     device_name: str = "Passkey"
 
 
