@@ -169,5 +169,7 @@
   "radarDest": "Destination / Hotel",
   "radarRooms": "Rooms",
   "radarSource": "Source",
-  "radarStart": "+ Start tracker"
+  "radarStart": "+ Start tracker",
+  "radarBaggage": "Baggage",
+  "radarSeat": "Seat €/person/flight"
 }
