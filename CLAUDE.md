@@ -261,7 +261,7 @@ body = {'message': msg, 'content': base64_content, 'branch': 'beta', 'sha': sha}
 ## Open / Next Steps
 
 ### In Progress
-- [ ] Backend URL clarification in Onboarding (use frontend URL = same as backend via Nginx proxy)
+- [x] Backend URL clarification in Onboarding (window.location.origin prefilled)
 - [ ] Passkey testing (needs HTTPS via Zoraxy)
 - [ ] HSTS header in Zoraxy
 
