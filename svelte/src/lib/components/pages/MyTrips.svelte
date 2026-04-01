@@ -133,8 +133,9 @@
   }
 
   // ── Dawarich Sync ──────────────────────────────────────────────────────────
-  let syncing  = $state(false);
-  let syncInfo = $state('');
+  let syncing    = $state(false);
+  let syncInfo   = $state('');
+  let forceFull  = $state(false);  // Checkbox: gelöschte Reisen erzwingen
 
   async function syncJournal() {
     if (!$apiUrl) { toast('Backend-URL fehlt', 'warning'); return; }
@@ -144,20 +145,48 @@
     const lon   = parseFloat(browser ? localStorage.getItem('s-homeLon') || '0' : '0');
     syncing = true; syncInfo = '';
     try {
-      const body = (url && token)
-        ? JSON.stringify({ dawarich_url:url, dawarich_token:token, home_lat:lat||null, home_lon:lon||null })
-        : '{}';
+      const body = JSON.stringify({
+        dawarich_url: url || undefined,
+        dawarich_token: token || undefined,
+        home_lat: lat || null,
+        home_lon: lon || null,
+        force_full: forceFull,
+      });
       const r = await api('/api/dawarich/sync', { method: 'POST', body });
       if (r.trips_detected===0 && r.points_loaded===0) {
         syncInfo = 'Keine GPS-Punkte — Einstellungen prüfen';
         toast('Keine Punkte geladen', 'warning');
       } else {
-        syncInfo = `${r.points_loaded} Punkte · ${r.trips_detected} erkannt`;
+        syncInfo = `${r.points_loaded} Punkte · ${r.trips_detected} erkannt · ${r.trips_saved} gespeichert`;
         toast(`${r.trips_detected} Reisen erkannt ✓`, 'success');
       }
       await loadJournal();
     } catch (e) { toast('Sync-Fehler: ' + e.message, 'error'); }
     syncing = false;
+  }
+
+  // Auto-Cost: ActualBudget Transaktionen → Trips zuordnen
+  let autoCostRunning = $state(false);
+  let autoCostResult  = $state(null);
+
+  async function runAutoCost() {
+    if (!$apiUrl) { toast('Backend-URL fehlt', 'warning'); return; }
+    const url      = browser ? localStorage.getItem('s-actualUrl')      || '' : '';
+    const password = browser ? localStorage.getItem('s-actualPassword')  || '' : '';
+    const file     = browser ? localStorage.getItem('s-actualFile')      || '' : '';
+    const cats     = browser ? localStorage.getItem('s-travelCategories') || '' : '';
+    if (!url || !password) { toast('ActualBudget URL + Passwort fehlen → Einstellungen', 'warning'); return; }
+    autoCostRunning = true; autoCostResult = null;
+    try {
+      const r = await api('/api/trips/auto-cost', {
+        method: 'POST',
+        body: JSON.stringify({ actual_url:url, actual_token:password, actual_file:file||null, categories:cats||null }),
+      });
+      autoCostResult = r;
+      toast(`${r.trips_updated} Reisen mit Kosten verknüpft ✓`, 'success');
+      await loadJournal();
+    } catch (e) { toast('Auto-Cost Fehler: ' + e.message, 'error'); }
+    autoCostRunning = false;
   }
 
   // ── ActualBudget Sync ─────────────────────────────────────────────────────
@@ -296,7 +325,7 @@
              text-stone-400 hover:text-orange-600 hover:border-orange-300 transition-all shadow-sm
              disabled:opacity-40 disabled:cursor-not-allowed">
       {#if globalSyncing}
-        <span class="animate-spin text-sm">⏳</span>
+        <span class="animate-spin text-base">⏳</span>
       {:else}
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
           stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -306,36 +335,43 @@
       {/if}
     </button>
 
-    <!-- Jahr-Switcher: max 4 sichtbar, navigierbar -->
+    <!-- Jahr-Switcher: genau 3 Jahre (letztes · aktuelles · nächstes) -->
     <div class="flex items-center gap-0.5 bg-white border border-stone-200 rounded-full px-1 py-1 shadow-sm">
-      <button
-        onclick={() => { yearPageStart = Math.min(yearPageStart + YEARS_PER_PAGE, availableYears().length - YEARS_PER_PAGE); }}
-        disabled={yearPageStart + YEARS_PER_PAGE >= availableYears().length}
-        class="w-7 h-7 rounded-full flex items-center justify-center text-stone-400 hover:text-orange-600 hover:bg-orange-50 transition-all disabled:opacity-30 text-sm">‹</button>
-      {#each visibleYears() as y}
-        <button onclick={() => selectedYear=y}
+      <button onclick={() => selectedYear--}
+        class="w-7 h-7 rounded-full flex items-center justify-center text-stone-400
+               hover:text-orange-600 hover:bg-orange-50 transition-all text-sm">‹</button>
+      {#each [selectedYear - 1, selectedYear, selectedYear + 1] as y}
+        <button onclick={() => selectedYear = y}
           class="px-3 py-1 rounded-full text-sm font-semibold transition-all"
-          class:bg-orange-600={selectedYear===y} class:text-white={selectedYear===y}
-          class:text-stone-500={selectedYear!==y} class:hover:bg-stone-100={selectedYear!==y}>
+          class:bg-orange-600={selectedYear === y}
+          class:text-white={selectedYear === y}
+          class:text-stone-500={selectedYear !== y}
+          class:hover:bg-stone-100={selectedYear !== y}>
           {y}
         </button>
       {/each}
-      <button
-        onclick={() => { yearPageStart = Math.max(0, yearPageStart - YEARS_PER_PAGE); }}
-        disabled={yearPageStart <= 0}
-        class="w-7 h-7 rounded-full flex items-center justify-center text-stone-400 hover:text-orange-600 hover:bg-orange-50 transition-all disabled:opacity-30 text-sm">›</button>
+      <button onclick={() => selectedYear++}
+        class="w-7 h-7 rounded-full flex items-center justify-center text-stone-400
+               hover:text-orange-600 hover:bg-orange-50 transition-all text-sm">›</button>
     </div>
 
-    <!-- Badges: geplant + gesamt (gesamt = upcoming + chronik) -->
-    <div class="flex gap-2">
-      {#if upcomingCount > 0}
-        <button onclick={() => activeTab='trips'}
-          class="text-xs font-medium px-2.5 py-1 rounded-full border border-orange-200 text-orange-600 bg-orange-50 hover:bg-orange-100 transition-colors">
-          ✈️ {upcomingCount} geplant
-        </button>
-      {/if}
+    <!-- 4 Badges -->
+    <div class="flex flex-wrap gap-1.5">
+      <button onclick={() => activeTab='trips'}
+        class="text-xs font-medium px-2.5 py-1 rounded-full border transition-colors
+               {upcomingCount > 0 ? 'border-orange-200 text-orange-600 bg-orange-50 hover:bg-orange-100' : 'border-stone-200 text-stone-400 bg-white'}">
+        ✈️ {upcomingCount} Geplant
+      </button>
+      <button onclick={() => activeTab='journal'}
+        class="text-xs font-medium px-2.5 py-1 rounded-full border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors">
+        ✅ {journalTrips.length} Vergangen
+      </button>
+      <button onclick={() => activeTab='bucketlist'}
+        class="text-xs font-medium px-2.5 py-1 rounded-full border border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100 transition-colors">
+        🌟 {$bucketlist.filter(b=>!b.done).length} Wunschziele
+      </button>
       <div class="text-xs font-medium px-2.5 py-1 rounded-full border border-stone-200 text-stone-500 bg-white">
-        {totalCount} gesamt
+        {totalCount} Gesamt
       </div>
     </div>
   </div>
@@ -397,27 +433,58 @@
       </div>
     </div>
 
-    <!-- Budget-Progress -->
+    <!-- Budget Donut-Chart -->
     {#if yearBudget > 0}
-      <div class={card}>
-        <div class="flex justify-between text-xs text-stone-500 mb-2">
-          <span>Budget-Fortschritt {selectedYear}</span>
-          <span class="font-semibold {pctYear>85?'text-red-500':'text-stone-700'}">{pctYear.toFixed(0)}%</span>
-        </div>
-        <div class="h-2.5 rounded-full bg-stone-100 overflow-hidden">
-          <div class="h-full rounded-full transition-all duration-500"
-            style="width:{pctYear}%;background:{pctYear>85?'#ef4444':pctYear>60?'#f97316':'#059669'}"></div>
-        </div>
-        <div class="flex justify-between text-xs text-stone-400 mt-2">
-          <span>{totalSpentYear.toFixed(2)} € ausgegeben</span>
-          <span>{yearBudget.toFixed(2)} € gesamt</span>
-        </div>
-        {#if journalSpentYear > 0 || tripsSpentYear > 0}
-          <div class="flex gap-4 mt-3 pt-3 border-t border-stone-100 text-xs text-stone-400">
-            <span>📓 Vergangen: <strong class="text-stone-600">{journalSpentYear.toFixed(2)} €</strong></span>
-            <span>✈️ Geplant: <strong class="text-stone-600">{tripsSpentYear.toFixed(2)} €</strong></span>
+      {@const overBudget = totalSpentYear > yearBudget}
+      {@const pastDeg    = Math.min(360, (journalSpentYear / yearBudget) * 360)}
+      {@const plannedDeg = Math.min(360 - pastDeg, (tripsSpentYear / yearBudget) * 360)}
+      {@const freeDeg    = Math.max(0, 360 - pastDeg - plannedDeg)}
+      {@const conicStop1 = pastDeg.toFixed(1)}
+      {@const conicStop2 = (pastDeg + plannedDeg).toFixed(1)}
+      {@const conicGrad  = overBudget
+        ? `conic-gradient(#ef4444 0deg, #ef4444 360deg)`
+        : `conic-gradient(#2d6a4f 0deg ${conicStop1}deg, #86efac ${conicStop1}deg ${conicStop2}deg, #e5e7eb ${conicStop2}deg 360deg)`}
+      <div class="{card} flex items-center gap-6">
+        <!-- Donut -->
+        <div class="relative shrink-0" style="width:96px;height:96px">
+          <div class="w-24 h-24 rounded-full" style="background:{conicGrad}"></div>
+          <!-- Loch -->
+          <div class="absolute inset-0 flex items-center justify-center">
+            <div class="w-14 h-14 rounded-full bg-white flex flex-col items-center justify-center">
+              <span class="text-xs font-bold {overBudget?'text-red-500':'text-stone-700'}">
+                {overBudget ? 'Über' : pctYear.toFixed(0)+'%'}
+              </span>
+              {#if overBudget}
+                <span class="text-[10px] text-red-400">Budget!</span>
+              {/if}
+            </div>
           </div>
-        {/if}
+        </div>
+        <!-- Legende -->
+        <div class="flex-1 space-y-2 text-sm">
+          <button onclick={() => activeTab='journal'}
+            class="flex items-center gap-2 w-full hover:opacity-70 transition-opacity text-left">
+            <span class="w-3 h-3 rounded-full shrink-0" style="background:#2d6a4f"></span>
+            <span class="text-stone-600">Vergangen</span>
+            <span class="ml-auto font-semibold text-stone-800">{journalSpentYear.toFixed(2)} €</span>
+          </button>
+          <button onclick={() => activeTab='trips'}
+            class="flex items-center gap-2 w-full hover:opacity-70 transition-opacity text-left">
+            <span class="w-3 h-3 rounded-full shrink-0" style="background:#86efac"></span>
+            <span class="text-stone-600">Geplant</span>
+            <span class="ml-auto font-semibold text-stone-800">{tripsSpentYear.toFixed(2)} €</span>
+          </button>
+          <div class="flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full shrink-0 bg-stone-200"></span>
+            <span class="text-stone-400">Frei</span>
+            <span class="ml-auto font-semibold {overBudget?'text-red-500':'text-emerald-600'}">
+              {overBudget ? '–'+(totalSpentYear-yearBudget).toFixed(2)+' €' : remainingYear.toFixed(2)+' €'}
+            </span>
+          </div>
+          <div class="text-xs text-stone-400 pt-1 border-t border-stone-100">
+            Budget {selectedYear}: {yearBudget.toFixed(0)} €
+          </div>
+        </div>
       </div>
     {/if}
 
@@ -610,10 +677,20 @@
       <!-- 1/3 Links: Formular + Budget + ActualBudget -->
       <div class="lg:col-span-1 space-y-4">
 
+        <!-- 0. Jahresbudget ganz oben -->
+        <div class={card}>
+          <h3 class="text-sm font-semibold text-stone-700 mb-3">💶 Jahresbudget {selectedYear}</h3>
+          <input type="number" bind:value={budgetInput} placeholder="z.B. 4000" class="{inp} mb-3" />
+          <button onclick={saveBudget} disabled={budgetSaving}
+            class="{btn} disabled:opacity-50" style="background:linear-gradient(135deg,#c4622d,#b84928)">
+            {budgetSaving ? '⏳…' : 'Speichern'}
+          </button>
+        </div>
+
         <!-- Manuell erfassen -->
         <div class={card}>
-          <h3 class="text-sm font-semibold text-stone-700 mb-1">➕ Reise erfassen</h3>
-          <p class="text-xs text-stone-400 mb-3">Manuell eintragen — kein Dawarich nötig.</p>
+          <h3 class="text-sm font-semibold text-stone-700 mb-1">➕ Reise manuell erfassen</h3>
+          <p class="text-xs text-stone-400 mb-3">Ohne Dawarich — direkt eintragen.</p>
           <div class="space-y-2.5">
             <input bind:value={mName}    placeholder="Ort / Name *"       class={inp} />
             <div class="grid grid-cols-2 gap-2">
@@ -635,22 +712,15 @@
           </div>
         </div>
 
-        <!-- Jahresbudget (hier, wo echte Kosten anfallen) -->
-        <div class={card}>
-          <h3 class="text-sm font-semibold text-stone-700 mb-3">💶 Jahresbudget {selectedYear}</h3>
-          <input type="number" bind:value={budgetInput} placeholder="z.B. 4000" class="{inp} mb-3" />
-          <button onclick={saveBudget} disabled={budgetSaving}
-            class="{btn} disabled:opacity-50" style="background:linear-gradient(135deg,#c4622d,#b84928)">
-            {budgetSaving ? '⏳…' : 'Speichern'}
-          </button>
-        </div>
-
-        <!-- ActualBudget Sync -->
-        <div class={card}>
-          <h3 class="text-sm font-semibold text-stone-700 mb-1">{$t('mytripsActualSync')}</h3>
+        <!-- 2. ActualBudget Sync -->
+        <div class="{card} border-l-4 border-l-orange-400">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="w-5 h-5 rounded-full bg-orange-100 text-orange-700 text-xs font-bold flex items-center justify-center shrink-0">2</span>
+            <h3 class="text-sm font-semibold text-stone-700">{$t('mytripsActualSync')}</h3>
+          </div>
           <p class="text-xs text-stone-400 mb-2">{$t('mytripsActualDesc')}</p>
 
-          <!-- Hilfe: Budget-Dateiname finden -->
+          <!-- Hilfe: Dateiname -->
           {#if !actualFiles.length}
             <details class="mb-3">
               <summary class="text-xs text-stone-400 cursor-pointer hover:text-orange-500 transition-colors">
@@ -659,10 +729,9 @@
               <div class="mt-2 p-3 rounded-lg bg-stone-50 border border-stone-200 text-xs text-stone-500 space-y-2">
                 <p>Der Dateiname ist der interne Name deines Budgets in ActualBudget.</p>
                 <ol class="list-decimal list-inside space-y-1">
-                  <li>ActualBudget öffnen</li>
-                  <li>Oben links auf den Budget-Namen klicken</li>
-                  <li>Die angezeigte ID aus der URL kopieren (z.B. <code class="font-mono bg-white px-1 rounded">My-Budget-abc123</code>)</li>
-                  <li>Oder: Button unten klicken → Dateien werden automatisch aufgelistet</li>
+                  <li>ActualBudget öffnen → Budget-Namen oben links anklicken</li>
+                  <li>ID aus der URL kopieren (z.B. <code class="font-mono bg-white px-1 rounded">My-Budget-abc123</code>)</li>
+                  <li>Oder: Button unten → Dateien automatisch auflisten</li>
                 </ol>
                 <button onclick={listActualFiles} disabled={actualFilesLoading||!$apiUrl}
                   class="w-full mt-1 py-1.5 px-3 rounded-lg border border-stone-200 text-stone-600 hover:border-orange-300 hover:text-orange-600 transition-all disabled:opacity-40 text-xs font-medium">
@@ -672,7 +741,6 @@
             </details>
           {/if}
 
-          <!-- Gefundene Dateien -->
           {#if actualFiles.length}
             <div class="mb-3 p-2 rounded-lg bg-emerald-50 border border-emerald-200">
               <p class="text-xs font-semibold text-emerald-700 mb-1">Verfügbare Budget-Dateien:</p>
@@ -683,25 +751,41 @@
             </div>
           {/if}
 
-          <div class="flex gap-2">
+          <div class="space-y-2">
+            <!-- Schritt A: Transaktionen laden -->
             <button onclick={syncActual} disabled={actualSyncing||!$apiUrl}
-              class="flex-1 py-2 px-4 rounded-lg text-sm font-semibold border border-stone-200 bg-stone-50 text-stone-700 hover:border-orange-300 hover:text-orange-600 transition-all disabled:opacity-40">
-              {actualSyncing ? '⏳ Sync…' : '🔄 Synchronisieren'}
+              class="w-full py-2 px-4 rounded-lg text-sm font-semibold border border-stone-200 bg-stone-50 text-stone-700 hover:border-orange-300 hover:text-orange-600 transition-all disabled:opacity-40">
+              {actualSyncing ? '⏳ Lade Transaktionen…' : '🔄 Transaktionen laden'}
+            </button>
+            <!-- Schritt B: Auto-Zuordnung zu Trips -->
+            <button onclick={runAutoCost} disabled={autoCostRunning||!$apiUrl}
+              class="w-full py-2 px-4 rounded-lg text-sm font-semibold border border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100 transition-all disabled:opacity-40">
+              {autoCostRunning ? '⏳ Kosten werden zugeordnet…' : '🔗 Kosten automatisch zuordnen'}
             </button>
           </div>
 
-          {#if actualResult?.error}
-            <div class="mt-2 p-2 rounded-lg bg-red-50 border border-red-200 text-xs text-red-600">
-              ⚠️ {actualResult.error}
-              {#if actualResult.error.includes('file') || actualResult.error.includes('Datei')}
-                <br>→ Budget-Dateiname in <strong>Einstellungen → Mein Bereich</strong> prüfen
+          {#if autoCostResult}
+            <div class="mt-2 p-2.5 rounded-lg {autoCostResult.trips_updated > 0 ? 'bg-emerald-50 border border-emerald-200' : 'bg-stone-50 border border-stone-200'} text-xs">
+              {#if autoCostResult.trips_updated > 0}
+                <p class="font-semibold text-emerald-700">✓ {autoCostResult.trips_updated} Reisen aktualisiert — {autoCostResult.total_assigned.toFixed(2)} € zugeordnet</p>
+                {#each autoCostResult.details.slice(0,5) as d}
+                  <div class="mt-1 text-emerald-600">📍 {d.trip_name} ({d.period}): {d.auto_cost.toFixed(2)} € ({d.transactions} Tx)</div>
+                {/each}
+              {:else}
+                <p class="text-stone-400">Keine Transaktionen konnten Reisen zugeordnet werden.</p>
               {/if}
             </div>
           {/if}
 
+          {#if actualResult?.error}
+            <div class="mt-2 p-2 rounded-lg bg-red-50 border border-red-200 text-xs text-red-600">
+              ⚠️ {actualResult.error}
+            </div>
+          {/if}
+
           {#if actualResult?.transactions?.length}
-            <div class="mt-3 pt-3 border-t border-stone-100 space-y-1 max-h-40 overflow-y-auto">
-              {#each actualResult.transactions.slice(0,12) as tx}
+            <div class="mt-3 pt-3 border-t border-stone-100 space-y-1 max-h-36 overflow-y-auto">
+              {#each actualResult.transactions.slice(0,10) as tx}
                 <div class="flex justify-between text-xs py-1 border-b border-stone-50">
                   <span class="truncate flex-1 mr-2 text-stone-600">{tx.payee_name||tx.notes||'–'}</span>
                   <span class="font-mono font-bold text-orange-600 shrink-0">{Math.abs(tx.amount??0).toFixed(2)} €</span>
@@ -711,16 +795,33 @@
           {/if}
         </div>
 
-        <!-- Dawarich Sync -->
-        <div class={card}>
-          <h3 class="text-sm font-semibold text-stone-700 mb-1">🧭 Dawarich Sync</h3>
-          <p class="text-xs text-stone-400 mb-3">GPS-Reisen automatisch erkennen.</p>
+        <!-- 1. Dawarich Sync -->
+        <div class="{card} border-l-4 border-l-emerald-400">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold flex items-center justify-center shrink-0">1</span>
+            <h3 class="text-sm font-semibold text-stone-700">🧭 Dawarich Sync</h3>
+          </div>
+          <p class="text-xs text-stone-400 mb-3">GPS-Aufenthalte laden und Reisen automatisch erkennen.</p>
+
+          <!-- Tipp -->
+          <div class="mb-3 p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-700">
+            💡 <strong>Tipp:</strong> Führe erst diesen Sync aus — dann können im Schritt 2 die Kosten automatisch den erkannten Reisen zugeordnet werden.
+          </div>
+
           <button onclick={syncJournal} disabled={syncing||!$apiUrl}
-            class="w-full py-2 px-4 rounded-lg text-sm font-semibold border border-stone-200 bg-stone-50 text-stone-700 hover:border-orange-300 hover:text-orange-600 transition-all disabled:opacity-50">
-            {syncing ? '⏳ Sync…' : '🧭 Synchronisieren'}
+            class="w-full py-2 px-4 rounded-lg text-sm font-semibold border border-stone-200 bg-stone-50 text-stone-700 hover:border-emerald-400 hover:text-emerald-700 transition-all disabled:opacity-50">
+            {syncing ? '⏳ Sync läuft…' : '🧭 Synchronisieren'}
           </button>
+
+          <!-- force_full Checkbox -->
+          <label class="flex items-center gap-2 mt-2 cursor-pointer">
+            <input type="checkbox" bind:checked={forceFull}
+              class="w-3.5 h-3.5 rounded border-stone-300 accent-orange-600" />
+            <span class="text-xs text-stone-400">Gelöschte Reisen erzwingen (Full Sync)</span>
+          </label>
+
           {#if syncInfo}
-            <p class="text-xs text-stone-400 mt-2">ℹ️ {syncInfo}</p>
+            <p class="text-xs text-stone-400 mt-2 pt-2 border-t border-stone-100">ℹ️ {syncInfo}</p>
           {/if}
         </div>
       </div>
@@ -786,10 +887,12 @@
                       <button onclick={() => saveCost(trip)} class="px-3 py-1.5 rounded-lg text-xs font-semibold text-white shrink-0" style="background:#c4622d">✓</button>
                       <button onclick={() => editingCost=null} class="px-2 py-1.5 rounded-lg text-xs border border-stone-200 text-stone-400 shrink-0">✕</button>
                     {:else}
-                      <button onclick={() => { editingCost=trip.id; costDraft=trip.cost!=null?String(trip.cost):''; }}
+                      {@const displayCost = trip.cost != null ? trip.cost : trip.auto_cost}
+                      {@const isAutoCost  = trip.cost == null && trip.auto_cost != null}
+                      <button onclick={() => { editingCost=trip.id; costDraft=displayCost!=null?String(displayCost):''; }}
                         class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs border transition-colors
-                               {trip.cost!=null?'border-orange-200 bg-orange-50 text-orange-600 font-semibold':'border-stone-200 text-stone-400 hover:border-orange-200 hover:text-orange-500'}">
-                        💶 {trip.cost!=null ? parseFloat(trip.cost).toFixed(2)+' €' : 'Kosten hinterlegen'}
+                               {displayCost!=null?'border-orange-200 bg-orange-50 text-orange-600 font-semibold':'border-stone-200 text-stone-400 hover:border-orange-200 hover:text-orange-500'}">
+                        💶 {displayCost!=null ? parseFloat(displayCost).toFixed(2)+' €'+(isAutoCost?' 🔗':'') : 'Kosten hinterlegen'}
                       </button>
                     {/if}
                     <div class="flex gap-1.5 ml-auto">
