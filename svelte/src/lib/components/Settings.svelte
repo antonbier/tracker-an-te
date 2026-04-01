@@ -331,7 +331,7 @@
           <hr style="border-color:var(--ws-border)"/>
         {/if}
         <div class="space-y-2">
-          <div class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Dawarich
+          <div class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Dawarich</div>
           <input bind:value={dawarichUrl} placeholder="https://dawarich.example.com"
             class="w-full px-3 py-2 rounded-xl border text-sm"
             style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
