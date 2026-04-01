@@ -4,8 +4,9 @@
   import { t } from '$lib/i18n.js';
 
   let { onDone } = $props();
+  import { browser } from '$app/environment';
   let step      = $state(1);
-  let urlInput  = $state('');
+  let urlInput  = $state(browser ? window.location.origin : '');
   let checking  = $state(false);
   let connected = $state(false);
   let error     = $state('');
