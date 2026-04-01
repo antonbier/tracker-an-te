@@ -18,20 +18,18 @@
   ];
   const DEMO_PLANNED = [{ lat: 51.51, lng: -0.13, name: 'London (geplant)', type: 'planned' }];
   const DEMO_BUCKET  = [
-    { lat: 35.68,  lng: 139.65,  name: 'Tokyo',        type: 'bucket' },
-    { lat: -13.16, lng: -72.54,  name: 'Machu Picchu',  type: 'bucket' },
+    { lat: 35.68,  lng: 139.65, name: 'Tokyo',        type: 'bucket' },
+    { lat: -13.16, lng: -72.54, name: 'Machu Picchu',  type: 'bucket' },
   ];
 
   onMount(async () => {
     let destroyed = false;
-
-    // Kleines Delay damit der Container gerendert ist
-    await new Promise(r => setTimeout(r, 100));
+    await new Promise(r => setTimeout(r, 120));
     if (!mapEl || destroyed) { loading = false; return; }
 
     try {
-      // Lokaler Import — kein CDN, kein Netzwerk nötig
-      const jsVectorMap = (await import('jsvectormap')).default;
+      // Lokale Imports — kein CDN, kein Netzwerk-Fehler möglich
+      const { default: jsVectorMap } = await import('jsvectormap');
       await import('jsvectormap/dist/maps/world.js');
 
       if (destroyed) return;
@@ -77,7 +75,7 @@
         },
       });
 
-      // Marker-Farben per DOM patchen
+      // Marker-Farben per DOM patchen (zuverlässiger als style-Prop)
       setTimeout(() => {
         if (destroyed) return;
         mapEl.querySelectorAll('.jvm-markers circle, .jvm-marker').forEach((c, i) => {
@@ -88,7 +86,7 @@
       loading = false;
     } catch (e) {
       console.error('[ScratchMap]', e);
-      loadErr = 'Karte konnte nicht initialisiert werden.';
+      loadErr = 'Karte konnte nicht initialisiert werden: ' + e.message;
       loading = false;
     }
 
@@ -101,10 +99,7 @@
 </script>
 
 <svelte:head>
-  <!-- jsvectormap CSS — aus node_modules via Vite -->
-  <style>
-    @import 'jsvectormap/dist/css/jsvectormap.min.css';
-  </style>
+  <style>@import 'jsvectormap/dist/css/jsvectormap.min.css';</style>
 </svelte:head>
 
 <div class="relative w-full rounded-xl overflow-hidden border border-stone-200 bg-stone-50" style="height:300px">
