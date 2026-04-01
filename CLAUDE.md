@@ -55,12 +55,10 @@ Internet
         │
         └─► Backend :8768 (FastAPI — Swagger, direct API access)
               ⚠️  Backend NOT exposed externally via Zoraxy
-              → Only frontend is publicly accessible
               → /api/* calls go through Nginx proxy on port 8767
 ```
 
-**Backend URL für User:** Im Onboarding-Wizard die **frontend URL** eintragen
-(z.B. `https://wandersuite.deinedomain.de`) — Nginx proxied `/api/*` intern.
+**Backend URL für User:** Im Onboarding-Wizard die **frontend URL** eintragen.
 `window.location.origin` wird automatisch als Vorschlag vorausgefüllt.
 
 ---
@@ -79,9 +77,8 @@ AUTH_ENABLED=true
 JWT_SECRET=<generate: python3 -c "import secrets; print(secrets.token_hex(32))">
 
 # WebAuthn / Passkeys
-# Wenn gesetzt, werden diese Werte direkt verwendet (Priorität 1).
-# Wenn nicht gesetzt (= localhost), leitet das Backend rp_id + origin
-# automatisch aus dem HTTP Origin-Header ab (funktioniert hinter Zoraxy ohne Konfiguration).
+# Wenn gesetzt → direkt verwenden. Wenn nicht gesetzt (= localhost) →
+# rp_id + origin werden automatisch aus HTTP Origin-Header abgeleitet.
 WEBAUTHN_RP_ID=wandersuite.deinedomain.de
 WEBAUTHN_RP_NAME=WanderSuite
 WEBAUTHN_ORIGIN=https://wandersuite.deinedomain.de
@@ -96,49 +93,17 @@ WEBAUTHN_ORIGIN=https://wandersuite.deinedomain.de
 - ✅ JWT tokens (30-day expiry)
 - ✅ Setup screen (first admin account)
 - ✅ Admin panel (create/delete users)
-- ✅ Passkey/WebAuthn backend routes
-- ✅ Passkey UI (Login.svelte + PasskeyManager.svelte)
-- ✅ Passkeys funktionieren hinter Zoraxy (HTTPS + Origin-Header auto-detection)
+- ✅ Passkeys funktionieren hinter Zoraxy (Origin-Header auto-detection)
 
 ### Passkey — rp_id / Origin Logik (`backend/routes/passkey.py`)
 
 `_get_rp(request)` wird bei jedem Passkey-Call aufgerufen:
 
 1. **Env-Vars explizit gesetzt** (`WEBAUTHN_RP_ID != "localhost"`) → direkt verwenden
-2. **Origin-Header** (Browser sendet ihn bei jedem POST automatisch) → `hostname` als `rp_id`, `scheme://netloc` als `origin`
+2. **Origin-Header** (Browser sendet bei jedem POST) → `hostname` als `rp_id`
 3. **Fallback** → Env-Vars (localhost defaults)
 
-⚠️ **Wichtig:** Nie `x-forwarded-host` für rp_id verwenden — dieser Header kann leer sein
-und ergibt dann `"http://"` → `urlparse` → `hostname=None` → falscher Fallback.
-Der `origin`-Header ist zuverlässig und reicht vollständig.
-
-### Flow
-```
-GET /api/status → { auth_enabled, needs_setup }
-  ↓
-needs_setup=true  → Setup screen (create first admin)
-needs_setup=false → Login screen
-  ↓ JWT stored in localStorage
-App loads
-```
-
-### Endpoints
-```
-GET  /api/status                          — public
-POST /api/auth/setup                      — first admin (public)
-POST /api/auth/login                      — password login (public)
-GET  /api/auth/me                         — current user (auth)
-POST /api/auth/change-password            — (auth)
-POST /api/auth/passkeys/register/begin    — (auth, HTTPS only)
-POST /api/auth/passkeys/register/complete — (auth, HTTPS only)
-POST /api/auth/passkeys/login/begin       — (public, HTTPS only)
-POST /api/auth/passkeys/login/complete    — (public, HTTPS only)
-GET  /api/auth/passkeys                   — list my passkeys (auth)
-DELETE /api/auth/passkeys/{id}            — delete passkey (auth)
-GET  /api/admin/users                     — admin only
-POST /api/admin/users                     — admin only
-DELETE /api/admin/users/{id}              — admin only
-```
+⚠️ Nie `x-forwarded-host` für rp_id verwenden — kann leer sein → `"http://"` → bug.
 
 ---
 
@@ -147,57 +112,128 @@ DELETE /api/admin/users/{id}              — admin only
 **Dateien:** `svelte/src/locales/de.json`, `en.json`, `it.json`
 **Store:** `svelte/src/lib/i18n.js` — reaktiver `t`-Store, `$t('key')` in Komponenten
 
-### Abgedeckte Bereiche (alle übersetzt in DE/EN/IT)
-- Navigation, Settings-Tabs, alle Labels + Buttons in Settings
-- Dashboard, MyTrips (inkl. Tabs), PriceRadar (inkl. Tabs + alle Formular-Labels)
-- Discover, Onboarding, Login, Setup
-- Radar-spezifische Keys: `radarFrom`, `radarTo`, `radarDate`, `radarReturn`,
-  `radarAdults`, `radarChildren`, `radarBaggage`, `radarSeat`, `radarRegion`,
-  `radarType`, `radarCheckin`, `radarCheckout`, `radarDest`, `radarRooms`,
-  `radarSource`, `radarStart`, `radarNewTracker`, `radarActiveTrackers`,
-  `radarNoKey`, `radarNoBackend`, `radarRequired`
-- Settings: `settingsMyspace`, alle Account/Admin-Strings
-- Discover: `discoverProvider`, `discoverQuery`, `discoverPlaceholder`,
-  `discoverBtn`, `discoverLoading`
+Alle Bereiche vollständig übersetzt (DE/EN/IT):
+Navigation, Settings, Dashboard, MyTrips, PriceRadar, Discover, Onboarding, Login, Setup.
 
-### Regel
-Immer alle 3 Locale-Dateien gleichzeitig updaten wenn neue Keys hinzukommen.
-Tabs nie hardcodiert — immer `$derived([...])` mit `$t('key')`.
+**Regel:** Immer alle 3 Locale-Dateien gleichzeitig updaten. Tabs nie hardcodiert.
 
 ---
 
 ## PWA / Favicon
 
 - `svelte/static/favicon.svg` — oranges Rund-Rechteck (#D95D39) mit Kompassrose
-- `svelte/static/manifest.webmanifest` — PWA-Manifest (name, theme_color, icons)
+- `svelte/static/manifest.webmanifest` — PWA-Manifest
 - `svelte/static/icons/icon-192.png` + `icon-512.png` — generiert mit Pillow
-- `svelte/src/app.html` — verlinkt favicon.svg + manifest
 
 ---
 
-## Settings — Mein Bereich (myspace Tab)
+## MyTrips — Architektur & UX
 
-- Per-user Einstellungen (Dawarich, ActualBudget, Home-Koordinaten)
-- **Geocoding:** Ortsname eingeben + 📍 Button → Nominatim (OpenStreetMap) → lat/lon wird automatisch befüllt. Enter-Taste triggert ebenfalls Suche.
-- **ActualBudget Dateiname:** Hilfetext direkt im Feld + im FieldGuide (Tab "Reisen") erklärt:
-  Budget-Name oben links in ActualBudget anklicken → ID aus der URL entnehmen
+### Tab-Reihenfolge (strikt)
+| # | ID | Label |
+|---|----|----|
+| 1 | `overview` | 📊 Übersicht |
+| 2 | `trips` | ✈️ Geplante Reisen |
+| 3 | `journal` | 📓 Reisechronik |
+| 4 | `bucketlist` | 🌟 Bucket List |
+
+### Grid-Layout (alle Tabs außer Übersicht)
+`grid grid-cols-1 lg:grid-cols-3 gap-5`
+- `lg:col-span-1` — Formular / Aktionen (links)
+- `lg:col-span-2` — Liste / Timeline (rechts)
+
+### Globaler Sync-Button (Header)
+- Rund, Icon-only (SVG Refresh-Icon), neben dem Titel
+- Triggert `syncJournal()` + `syncActual()` nacheinander
+- State: `globalSyncing` → zeigt Spin-Indikator
+
+### Jahr-Switcher
+- Zeigt nur Jahre mit Daten + aktuelles Jahr
+- `availableYears()` als `$derived` — sammelt aus `$trips`, `journalTrips`, `budgetByYear`
+- Alle Views **strikt** nach `selectedYear` gefiltert (kein Year-Leak zwischen Tabs)
+
+### Badge-Logik (Header oben rechts)
+- `upcomingCount` = `$trips.filter(dateStart >= today).length`
+- `totalCount` = `upcomingCount + journalTrips.length`
+- Anzeige: `✈️ X geplant` (klickbar → Tab `trips`) + `Y gesamt`
+
+### Übersicht-Tab Stats-Karte
+Erste Stat-Karte ist **geteilt** (kein einzelner Wert):
+- Links: `X Vergangen` → klickbar → `activeTab = 'journal'`
+- Rechts: `Y Geplant` → klickbar → `activeTab = 'trips'`
+
+### Übersicht-Tab Listen
+- **Nächste Abenteuer** (upcoming, aufsteigend sortiert, max. 4)
+- **Letzte Erinnerungen** (journalYear, absteigend sortiert, max. 4)
+- Beide mit "X weitere →" Link zum entsprechenden Tab
+
+### Budget
+- Pro Jahr im Backend gespeichert: `PUT /api/trips/budget` `{ year, amount }`
+- `GET /api/trips/budget` → `{ "2024": 3000, "2025": 4500 }`
+- Legacy-Fallback: liest alten `ws-budget` Wert für aktuelles Jahr
+- Budget-Input **in der Reisechronik** (wo echte Kosten anfallen)
+
+### ActualBudget Sync
+- **In der Reisechronik** (Tab 3), nicht in Geplante Reisen
+- Importiert vergangene Transaktionen aus ActualBudget
+
+### Dawarich Sync
+- In der Reisechronik (linke Spalte, unter dem Formular)
+- Lädt GPS-Trips vom Dawarich-Server, erkennt Übernacht-Reisen
+
+### Reisechronik (Tab 3) — Datenquellen
+- **Dawarich-Trips** (source=`dawarich`): automatisch erkannt, orange Timeline-Dot
+- **Manuelle Einträge** (source=`manual`): violetter Timeline-Dot, `manuell`-Badge
+- Alle in `/api/trips` gespeichert (Backend, pro User)
+- Inline-Kosten-Editor: Klick auf "💶 Kosten hinterlegen" → Input → Enter/✓
+
+---
+
+## ScratchMap.svelte
+
+**Props:**
+- `journalTrips` — Chronik-Trips (Dawarich + manuell)
+- `plannedTrips` — geplante Trips (aus localStorage `trips`-Store)
+- `selectedYear` — aktuell gewähltes Jahr
+
+**Marker-Typen & Farben:**
+| Typ | Quelle | Farbe | Symbol |
+|-----|--------|-------|--------|
+| `visited` | journalTrips, Jahr gefiltert | `#2d6a4f` grün | ● |
+| `planned` | plannedTrips, Jahr gefiltert | `#2563eb` blau | ● |
+| `bucket` | $bucketlist (kein Jahresfilter) | `#c4622d` orange | ● |
+
+**Jahr-Filter:** visited + planned werden nach `selectedYear` gefiltert.
+Bucket List hat kein fixes Jahr → immer angezeigt.
+
+**Ladelogik:** Container immer im DOM (kein conditional rendering).
+Sequenzieller CDN-Load: CSS → jsvectormap.min.js → world.js (mit 80ms delay zwischen den Schritten).
+`setTimeout(..., 120)` vor Init damit Container gerendert ist.
+
+**Fallback-Demos** wenn keine echten Daten vorhanden:
+- Demo visited: Salzburg, Rom, Paris
+- Demo planned: London
+- Demo bucket: Tokyo, Machu Picchu
+
+---
+
+## Backend API — /api/trips (neu)
+
+| Method | Path | Beschreibung |
+|--------|------|-------------|
+| GET | `/api/trips` | Alle Trips (dawarich + manual), pro User |
+| POST | `/api/trips` | Manuellen Trip anlegen |
+| PATCH | `/api/trips/{id}/cost` | Kosten eines Trips updaten |
+| DELETE | `/api/trips/{id}` | Trip löschen |
+| GET | `/api/trips/budget` | Budget nach Jahr `{"2024":3000}` |
+| PUT | `/api/trips/budget` | Budget für Jahr setzen `{year, amount}` |
+
+**DB-Migration:** `detected_trips` hat neue Spalten `cost REAL` und `notes TEXT`.
+`source` unterscheidet `dawarich` vs `manual` (eigener Duplicate-Check pro Source).
 
 ---
 
 ## Multi-User Architecture
-
-### Data Isolation
-| Table | Scope | Notes |
-|-------|-------|-------|
-| `trackers` | Per-user | `user_id` column |
-| `gf_trackers` | Per-user | |
-| `homair_trackers` | Per-user | |
-| `booking_trackers` | Per-user | |
-| `detected_trips` | Per-user | Dawarich per user |
-| `user_data` | Per-user | trips, budget, bucketlist |
-| `user_settings` | Per-user | dawarich, actualbudget, home coords |
-| `settings` | Global (admin) | API keys, notifications |
-| `webauthn_credentials` | Per-user | passkeys |
 
 ### Settings Split
 - **Global** `GET/POST /api/settings` — SerpAPI, Gemini, OpenAI, Telegram, Gotify
@@ -205,35 +241,19 @@ Tabs nie hardcodiert — immer `$derived([...])` mit `$t('key')`.
 
 ### AUTH_ENABLED=false (guest mode)
 - Returns `GUEST_USER = {id: 0, role: "admin"}`
-- DB functions with `user_id=0` → no filter → sees all data
 - Fully backward compatible
 
 ---
 
 ## Security Headers (nginx.conf)
 
-Currently set:
 - `X-Content-Type-Options: nosniff`
 - `X-Frame-Options: SAMEORIGIN`
-- `Referrer-Policy: strict-origin-when-cross-origin`
 - `Content-Security-Policy: default-src 'self' ...`
-- `Cross-Origin-Resource-Policy: same-origin`
 - `Cross-Origin-Opener-Policy: same-origin` (required for WebAuthn)
 
 **TODO — set in Zoraxy:**
 - `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload`
-
----
-
-## Beta-Specific Files (differ from main)
-
-| File | Beta change |
-|------|-------------|
-| `Header.svelte` | BETA badge + build date |
-| `docker/Dockerfile.frontend` | `ARG BUILD_DATE` |
-| `docker-compose.yml` | Ports 8767/8768, auth env vars |
-| `backend/main.py` | `WANDERSUITE_CHANNEL=beta` |
-| `.env.example` | Beta ports + auth + WebAuthn |
 
 ---
 
@@ -243,57 +263,57 @@ Currently set:
 wandersuite/
 ├── svelte/src/
 │   ├── lib/
-│   │   ├── stores.js          ← all state, loadSettingsFromBackend()
+│   │   ├── stores.js          ← all state
 │   │   ├── api.js             ← HTTP client with JWT injection
 │   │   ├── i18n.js            ← reactive t() derived store
 │   │   └── components/
 │   │       ├── AppShell.svelte
 │   │       ├── Header.svelte  ← BETA badge + version
-│   │       ├── Sidebar.svelte ← logout button when auth enabled
-│   │       ├── Login.svelte   ← passkey + password fallback
-│   │       ├── Setup.svelte   ← first admin account
+│   │       ├── Sidebar.svelte
+│   │       ├── Login.svelte
+│   │       ├── Setup.svelte
 │   │       ├── Settings.svelte ← tabs: basic/integrations/apis/notifications/myspace/account/admin
 │   │       ├── PasskeyManager.svelte
-│   │       ├── FieldGuide.svelte ← ActualBudget filename docs
+│   │       ├── FieldGuide.svelte
+│   │       ├── ScratchMap.svelte ← jsvectormap, 3 Marker-Typen, Jahr-Filter
 │   │       └── pages/
 │   │           ├── Dashboard.svelte
-│   │           ├── PriceRadar.svelte  ← vollständig i18n
-│   │           ├── MyTrips.svelte     ← tabs i18n, journal tab included
-│   │           └── Discover.svelte    ← vollständig i18n
+│   │           ├── PriceRadar.svelte
+│   │           ├── MyTrips.svelte ← Tabs: overview/trips/journal/bucketlist
+│   │           └── Discover.svelte
 │   ├── locales/
 │   │   ├── de.json
 │   │   ├── en.json
 │   │   └── it.json
 │   └── routes/
-│       ├── +layout.svelte     ← gate: onboarding → setup → login → app
+│       ├── +layout.svelte
 │       └── +page.svelte
 ├── svelte/static/
 │   ├── favicon.svg
 │   ├── manifest.webmanifest
-│   └── icons/
-│       ├── icon-192.png
-│       └── icon-512.png
+│   └── icons/icon-192.png, icon-512.png
 ├── backend/
-│   ├── main.py                ← APP_VERSION, CHANNEL
-│   ├── database.py            ← all tables with user_id
-│   ├── auth_db.py             ← users + webauthn_credentials
-│   ├── auth_jwt.py            ← JWT + GUEST_USER
-│   ├── settings_manager.py    ← global + per-user settings
-│   ├── dawarich.py            ← sync_trips(user_id=)
+│   ├── main.py
+│   ├── database.py            ← detected_trips mit cost/notes/source
+│   ├── auth_db.py
+│   ├── auth_jwt.py
+│   ├── settings_manager.py
+│   ├── dawarich.py
 │   └── routes/
-│       ├── auth.py            ← login, setup, admin
-│       ├── passkey.py         ← WebAuthn, _get_rp() auto-detection
-│       ├── settings.py        ← /api/settings + /api/settings/user
-│       ├── trackers.py        ← user_id aware
-│       ├── google_flights.py  ← user_id aware
-│       ├── accommodations.py  ← user_id aware
-│       ├── userdata.py        ← per user_id
-│       └── dawarich.py        ← per user_id
+│       ├── auth.py
+│       ├── passkey.py         ← _get_rp() auto-detection
+│       ├── settings.py
+│       ├── trips.py           ← /api/trips unified endpoint
+│       ├── trackers.py
+│       ├── google_flights.py
+│       ├── accommodations.py
+│       ├── userdata.py
+│       └── dawarich.py
 ├── docker/
-│   ├── Dockerfile             ← backend
-│   ├── Dockerfile.frontend    ← multi-stage node→nginx
-│   └── nginx.conf             ← security headers + /api/ proxy
-└── docker-compose.yml         ← all env vars incl. AUTH_ENABLED
+│   ├── Dockerfile
+│   ├── Dockerfile.frontend
+│   └── nginx.conf
+└── docker-compose.yml
 ```
 
 ---
@@ -301,9 +321,7 @@ wandersuite/
 ## GitHub API Workflow (Claude's method)
 Always fetch SHA before writing. Work on `beta` branch.
 ```python
-# GET SHA
 url = f'https://api.github.com/repos/{REPO}/contents/{path}?ref=beta'
-# PUT to update
 body = {'message': msg, 'content': base64_content, 'branch': 'beta', 'sha': sha}
 ```
 
@@ -311,27 +329,29 @@ body = {'message': msg, 'content': base64_content, 'branch': 'beta', 'sha': sha}
 
 ## Open / Next Steps
 
-### Erledigt (diese Session)
-- [x] Onboarding: `window.location.origin` als Backend-URL Vorschlag
-- [x] Passkeys: `email` aus `RegisterBeginPayload` entfernt (kommt aus JWT)
-- [x] Passkeys: `_get_rp()` leitet `rp_id` + `origin` aus HTTP `Origin`-Header ab — funktioniert hinter Zoraxy ohne .env-Konfiguration
-- [x] Passkeys: `attestation="none"` (String) entfernt — py-webauthn erwartet Enum oder Default
-- [x] i18n: Settings-Tabs, alle Labels + Buttons vollständig übersetzt (DE/EN/IT)
-- [x] i18n: PriceRadar — Tabs, alle Formular-Labels, Section-Header, Buttons
-- [x] i18n: MyTrips — Tabs auf `$t()` umgestellt
-- [x] i18n: Discover — alle Labels + Buttons
-- [x] Favicon: `favicon.svg` + `manifest.webmanifest` + `icon-192.png` + `icon-512.png`
-- [x] Settings Mein Bereich: Geocoding-Suche für Home-Koordinaten (Nominatim)
-- [x] Settings Mein Bereich: ActualBudget mit Icon-Badge + Hilfetext für Dateiname
-- [x] FieldGuide: Schritt-für-Schritt Erklärung ActualBudget Dateiname
+### Erledigt
+- [x] Passkeys: rp_id auto-detection via Origin-Header
+- [x] i18n: alle Bereiche DE/EN/IT
+- [x] Favicon + PWA (manifest, icons)
+- [x] Settings: Geocoding für Home-Koordinaten (Nominatim)
+- [x] MyTrips: komplettes UX-Redesign
+  - [x] Tab-Reihenfolge: Übersicht → Geplant → Chronik → Bucket List
+  - [x] Globaler Sync-Button (Dawarich + ActualBudget)
+  - [x] Jahres-Switcher mit striktem Filter
+  - [x] Budget pro Jahr im Backend
+  - [x] Reisechronik: manuelle Einträge + inline Kosten-Editor
+  - [x] ActualBudget + Budget-Input in Reisechronik
+  - [x] Split-Stats (Vergangen/Geplant, klickbar)
+  - [x] ScratchMap: 3 Marker-Typen (visited/planned/bucket)
+  - [x] Nächste Abenteuer + Letzte Erinnerungen im Übersicht-Tab
 
 ### Roadmap (beta)
-- [ ] Scratch Map (jsvectormap) in MyTrips
+- [ ] Scratch Map: Geocoding für planned-Trips (lat/lon aus Ortsname)
 - [ ] Price history chart (Chart.js) in PriceRadar
 - [ ] Mietwagen tab in PriceRadar
 - [ ] Discord webhook notifications
 - [ ] Currency toggle (EUR/USD/GBP)
-- [ ] HSTS header in Zoraxy setzen
+- [ ] HSTS header in Zoraxy
 
 ### Phase 3 (future)
 - [ ] Multi-user data separation fully tested
