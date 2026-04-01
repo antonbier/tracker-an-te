@@ -141,5 +141,16 @@
   "radarRyanair": "Ryanair",
   "radarGoogle": "Google Flights",
   "radarHomair": "Homair",
-  "radarBooking": "Booking"
+  "radarBooking": "Booking",
+  "discoverProvider": "KI-Anbieter",
+  "discoverQuery": "Was suchst du?",
+  "discoverPlaceholder": "z.B. Strand, warmes Wetter, günstig, Oktober...",
+  "discoverBtn": "🌍 Reiseideen generieren",
+  "discoverLoading": "🌍 KI denkt nach…",
+  "settingsMyspace": "🏠 Mein Bereich",
+  "settingsActualHint": "💡 Dateiname: Budget-Name oben links → ID aus der URL",
+  "geocodeSearch": "Heimatort suchen",
+  "radarInspirations": "✨ Inspirationen",
+  "radarNoKey": "SerpAPI Key fehlt — in Einstellungen eintragen",
+  "radarNoBackend": "Backend-URL fehlt"
 }
