@@ -22,6 +22,7 @@ from routes import (
 from routes import notifications as notifications_route
 from routes.auth import router_status, router_auth, router_admin
 from routes import dawarich as dawarich_route
+from routes import trips as trips_route
 from routes import passkey as passkey_route
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -83,6 +84,7 @@ app.include_router(budget.router,              prefix="/api/budget",           t
 app.include_router(discover.router,            prefix="/api/discover",         tags=["Discover"])
 app.include_router(settings_route.router,      prefix="/api/settings",         tags=["Settings"])
 app.include_router(dawarich_route.router,      prefix="/api/dawarich",         tags=["Dawarich"])
+app.include_router(trips_route.router,         prefix="/api/trips",            tags=["Trips"])
 app.include_router(dashboard_route.router,     prefix="/api/dashboard",        tags=["Dashboard"])
 app.include_router(userdata_route.router,      prefix="/api/userdata",         tags=["UserData"])
 app.include_router(notifications_route.router, prefix="/api/notifications",    tags=["Notifications"])
