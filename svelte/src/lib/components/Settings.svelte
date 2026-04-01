@@ -41,6 +41,27 @@
   let myHomeLon       = $state('');
   let myTravelCats    = $state('');
   let mySettingsSaving = $state(false);
+  let myHomeSearch  = $state('');
+  let myGeoLoading  = $state(false);
+  let myGeoResult   = $state('');
+
+  async function geocodeHome() {
+    if (!myHomeSearch.trim()) return;
+    myGeoLoading = true; myGeoResult = '';
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(myHomeSearch)}&format=json&limit=1`;
+      const r = await fetch(url, { headers: { 'Accept-Language': 'de' } });
+      const data = await r.json();
+      if (data.length > 0) {
+        myHomeLat = parseFloat(data[0].lat).toFixed(6);
+        myHomeLon = parseFloat(data[0].lon).toFixed(6);
+        myGeoResult = `✓ ${data[0].display_name.split(',').slice(0,2).join(',')}`;
+      } else {
+        myGeoResult = '✗ Ort nicht gefunden';
+      }
+    } catch { myGeoResult = '✗ Fehler bei Geocoding'; }
+    myGeoLoading = false;
+  }
 
   // Account tab
   let pwCurrent  = $state('');
@@ -375,6 +396,20 @@
           <input bind:value={myDawarichToken} type="password" placeholder="API Token"
             class="w-full px-3 py-2 rounded-xl border text-sm"
             style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
+          <div class="flex gap-2">
+            <input bind:value={myHomeSearch} placeholder="Heimatort suchen (z.B. Bruneck)"
+              class="flex-1 px-3 py-2 rounded-xl border text-sm"
+              style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"
+              onkeydown={(e) => e.key === 'Enter' && geocodeHome()}/>
+            <button onclick={geocodeHome} disabled={myGeoLoading}
+              class="px-3 py-2 rounded-xl border text-sm transition-opacity hover:opacity-70 disabled:opacity-40"
+              style="border-color:var(--ws-border);color:var(--ws-muted)">
+              {myGeoLoading ? '⏳' : '📍'}
+            </button>
+          </div>
+          {#if myGeoResult}
+            <div class="text-xs px-1" style="color:{myGeoResult.startsWith('✓') ? 'var(--ws-green)' : '#dc2626'}">{myGeoResult}</div>
+          {/if}
           <div class="grid grid-cols-2 gap-2">
             <input bind:value={myHomeLat} placeholder="Lat: 46.7987" class="px-3 py-2 rounded-xl border text-sm"
               style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
