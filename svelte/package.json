@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@sveltejs/kit": "^2.5.0",
+    "jsvectormap": "^1.5.3",
     "svelte": "^5.0.0"
   },
   "devDependencies": {
