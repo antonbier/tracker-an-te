@@ -222,6 +222,9 @@ def init_db():
             ("trackers",         "threshold_price REAL DEFAULT NULL"),
             ("detected_trips",   "cost REAL DEFAULT NULL"),
             ("detected_trips",   "notes TEXT DEFAULT NULL"),
+            ("detected_trips",   "ignored INTEGER NOT NULL DEFAULT 0"),
+            ("detected_trips",   "auto_cost REAL DEFAULT NULL"),
+            ("detected_trips",   "auto_cost_txs TEXT DEFAULT NULL"),
         ]
         for table, col_def in migrations:
             col_name = col_def.split()[0]
@@ -657,9 +660,16 @@ def save_detected_trip(trip: dict, user_id: int = 1) -> int:
         ))
         return cur.lastrowid
 
-def list_detected_trips(limit: int = 50, user_id: int | None = None) -> list[dict]:
-    where = "WHERE user_id=?" if user_id else ""
-    params = [user_id] if user_id else []
+def list_detected_trips(limit: int = 200, user_id: int | None = None,
+                           include_ignored: bool = False) -> list[dict]:
+    parts = []
+    params = []
+    if user_id:
+        parts.append("user_id=?")
+        params.append(user_id)
+    if not include_ignored:
+        parts.append("(ignored IS NULL OR ignored=0)")
+    where = ("WHERE " + " AND ".join(parts)) if parts else ""
     with db() as conn:
         return [dict(r) for r in conn.execute(
             f"SELECT * FROM detected_trips {where} ORDER BY start_date DESC LIMIT ?",
@@ -678,14 +688,56 @@ def update_detected_trip_cost(trip_id: int, cost: float | None, user_id: int | N
         ).rowcount > 0
 
 
-def delete_detected_trip(trip_id: int, user_id: int | None = None) -> bool:
+def delete_detected_trip(trip_id: int, user_id: int | None = None,
+                             hard: bool = False) -> bool:
+    """Soft-delete: setzt ignored=1. hard=True löscht wirklich (für manuelle Einträge)."""
+    with db() as conn:
+        # Manuelle Einträge wirklich löschen, Dawarich-Trips nur ignorieren
+        row = conn.execute("SELECT source FROM detected_trips WHERE id=?", (trip_id,)).fetchone()
+        is_manual = row and row[0] == "manual"
+        if hard or is_manual:
+            if user_id:
+                return conn.execute(
+                    "DELETE FROM detected_trips WHERE id=? AND user_id=?", (trip_id, user_id)
+                ).rowcount > 0
+            return conn.execute("DELETE FROM detected_trips WHERE id=?", (trip_id,)).rowcount > 0
+        else:
+            # Soft-delete: ignored=1
+            if user_id:
+                return conn.execute(
+                    "UPDATE detected_trips SET ignored=1 WHERE id=? AND user_id=?", (trip_id, user_id)
+                ).rowcount > 0
+            return conn.execute(
+                "UPDATE detected_trips SET ignored=1 WHERE id=?", (trip_id,)
+            ).rowcount > 0
+
+
+def unignore_detected_trips(user_id: int | None = None) -> int:
+    """Full Sync: alle ignorierten Trips wieder aktivieren."""
     with db() as conn:
         if user_id:
             return conn.execute(
-                "DELETE FROM detected_trips WHERE id=? AND user_id=?", (trip_id, user_id)
+                "UPDATE detected_trips SET ignored=0 WHERE user_id=? AND source='dawarich'",
+                (user_id,)
+            ).rowcount
+        return conn.execute(
+            "UPDATE detected_trips SET ignored=0 WHERE source='dawarich'"
+        ).rowcount
+
+
+def update_trip_auto_cost(trip_id: int, auto_cost: float | None,
+                          txs_json: str | None = None,
+                          user_id: int | None = None) -> bool:
+    """Automatisch zugeordnete Kosten aus ActualBudget speichern."""
+    with db() as conn:
+        if user_id:
+            return conn.execute(
+                "UPDATE detected_trips SET auto_cost=?, auto_cost_txs=? WHERE id=? AND user_id=?",
+                (auto_cost, txs_json, trip_id, user_id)
             ).rowcount > 0
         return conn.execute(
-            "DELETE FROM detected_trips WHERE id=?", (trip_id,)
+            "UPDATE detected_trips SET auto_cost=?, auto_cost_txs=? WHERE id=?",
+            (auto_cost, txs_json, trip_id)
         ).rowcount > 0
 
 
