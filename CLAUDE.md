@@ -273,6 +273,7 @@ CDN: `https://cdn.jsdelivr.net/npm/jsvectormap@1.5.3/dist/`
 |--------|------|-------------|
 | POST | `/api/budget/actual/transactions` | Frontend-kompatibler Sync-Endpoint |
 | POST | `/api/budget/actual/list-files` | Verfügbare Budget-Dateien auflisten |
+| POST | `/api/trips/auto-cost` | ActualBudget Tx → Trips zuordnen (Datum-Overlap) |
 | POST | `/api/budget/actual/expenses` | Interne Variante (base_url/password/budget_file) |
 | POST | `/api/budget/actual/files` | Alte Variante |
 | POST | `/api/budget/actual/debug` | Debug: Transaktionen + Konten anzeigen |
@@ -469,7 +470,18 @@ body = {'message': msg, 'content': base64_content, 'branch': 'beta', 'sha': sha}
   - [x] Reisechronik: manuelle Einträge (`source=manual`)
   - [x] Inline-Kosten-Editor in der Chronik (`PATCH /api/trips/{id}/cost`)
   - [x] ActualBudget + Budget-Input in Reisechronik (nicht in Geplante Reisen)
-  - [x] Stats 4-Karten: Vergangen/Geplant/Wunschziele/Ausgegeben (alle 3 klickbar)
+  - [x] Stats 4-Karten: Vergangen/Geplant/Wunschziele/Ausgegaben (alle 3 klickbar)
+  - [x] Donut-Chart (SVG conic-gradient): Vergangen dunkelgrün / Geplant hellgrün / Frei grau / Überzogen rot
+  - [x] Donut-Legende: Vergangen → Tab Chronik, Geplant → Tab Geplante Reisen
+- [x] Jahr-Switcher: genau 3 Jahre (letztes/aktuelles/nächstes), Pfeile direkt selectedYear ±1
+- [x] 4 Badges im Header: ✈️ Geplant | ✅ Vergangen | 🌟 Wunschziele | Gesamt (alle klickbar)
+- [x] Reisechronik: nummerierte Sync-Karten (1. Dawarich, 2. ActualBudget) mit Amber-Tipp
+- [x] Dawarich: force_full Checkbox → ignorierte Trips reaktivieren
+- [x] Soft-Delete: Dawarich-Trips setzen ignored=1 statt echter Delete; beim Sync übersprungen
+- [x] Auto-Cost: /api/trips/auto-cost — Datum-Overlap ActualBudget Tx → Trips zuordnen
+  - auto_cost_txs JSON gespeichert, Anzeige in Timeline mit 🔗-Marker
+- [x] Settings: Auth-abhängige Integrationen (auth=true → Mein Bereich; auth=false → Integrationen)
+- [x] ScratchMap: jsvectormap als npm-Dependency (kein CDN mehr)
   - [x] Nächste Abenteuer + Letzte Erinnerungen im Übersicht-Tab
   - [x] ScratchMap: 3 Marker-Typen (visited grün / planned blau / bucket orange)
 - [x] ScratchMap: robuste CDN-Ladestrategie (poll + sequenziell)
