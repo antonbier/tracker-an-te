@@ -169,5 +169,7 @@
   "radarDest": "Zielort / Hotel",
   "radarRooms": "Zimmer",
   "radarSource": "Quelle",
-  "radarStart": "+ Tracker starten"
+  "radarStart": "+ Tracker starten",
+  "radarBaggage": "Gepäck",
+  "radarSeat": "Sitzplatz €/Person/Flug"
 }
