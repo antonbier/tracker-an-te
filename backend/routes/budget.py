@@ -132,7 +132,7 @@ def get_transactions_alias(data: TransactionsRequest):
         budget_file = files[0].get("name", "")
         logger.info(f"[ActualBudget] Kein Dateiname angegeben, nutze erste Datei: {budget_file}")
 
-    result = get_travel_expenses(base_url, password, budget_file, cats, dt.date.today().year)
+    result = get_travel_expenses(base_url, password, budget_file, cats, year=None)
     if "error" in result:
         return {"error": result["error"], "transactions": [], "budget_file_used": budget_file}
 
