@@ -4,17 +4,17 @@
 
   let { journalTrips = [], plannedTrips = [], selectedYear = new Date().getFullYear() } = $props();
 
-  let mapEl     = $state(null);
-  let loading   = $state(true);
-  let loadErr   = $state('');
-  let geocoding = $state(false);
-  let map       = null;
-  let jsVMClass = null;   // jsvectormap Klasse — einmal laden, dann wiederverwenden
-  let initTimer = null;
+  let mapEl      = $state(null);
+  let loading    = $state(true);
+  let loadErr    = $state('');
+  let geocoding  = $state(false);
+  let debugInfo  = $state('');
+  let map        = null;
+  let jsVMClass  = null;
+  let initTimer  = null;
 
   const COLORS = { visited: '#2d6a4f', planned: '#2563eb', bucket: '#c4622d' };
 
-  // ── Geocoding-Cache (sessionStorage) ───────────────────────────────────────
   function getCached(name) {
     try { const v = sessionStorage.getItem(`ws-geo:${name}`); return v ? JSON.parse(v) : null; }
     catch { return null; }
@@ -26,7 +26,7 @@
     if (!name?.trim()) return null;
     const cached = getCached(name);
     if (cached) return cached;
-    await new Promise(r => setTimeout(r, 1100)); // Nominatim: 1 req/s
+    await new Promise(r => setTimeout(r, 1100));
     try {
       const res = await fetch(
         `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(name)}&format=json&limit=1`,
@@ -42,66 +42,62 @@
     return null;
   }
 
-  // ── Karte aufbauen ─────────────────────────────────────────────────────────
   async function initMap() {
     if (!mapEl) return;
-
-    // Alte Karte zerstören
     try { map?.destroy?.(); } catch {}
     map = null;
+    loading = true;
+    loadErr = '';
 
-    // jsvectormap nur einmal laden
     if (!jsVMClass) {
       const mod = await import('jsvectormap');
       jsVMClass = mod.default;
       await import('jsvectormap/dist/maps/world.js');
-      await new Promise(r => setTimeout(r, 80)); // world.js registrieren lassen
+      await new Promise(r => setTimeout(r, 100));
     }
 
-    const yr = String(selectedYear);
-
-    // ── Visited: Dawarich-Trips mit lat/lon ───────────────────────────────
+    // ── Visited: ALLE Dawarich-Trips (kein Jahresfilter — Weltkarte zeigt alles) ──
     const visited = journalTrips
-      .filter(t => t.lat && t.lon && (t.start_date || '').slice(0, 4) === yr)
+      .filter(t => t.lat && t.lon)
       .map(t => ({
         lat: +t.lat, lng: +t.lon, type: 'visited',
         name: [t.location_name, t.country].filter(Boolean).join(', ') || `${t.lat},${t.lon}`,
       }));
 
-    // ── Planned: geplante Trips — Ortsname geocodieren ────────────────────
-    const plannedBase = plannedTrips
-      .filter(t => (t.dateStart || t.date || '').slice(0, 4) === yr);
-
-    const planned = plannedBase.filter(t => t.lat && t.lng)
-      .map(t => ({ lat: +t.lat, lng: +t.lng, type: 'planned', name: t.name }));
-
-    const plannedNeedGeo = plannedBase.filter(t => !t.lat || !t.lng);
-
-    // ── Bucket: Wunschziele ───────────────────────────────────────────────
-    const bucketBase = ($bucketlist ?? []).filter(b => !b.done);
-    const bucket = bucketBase.filter(b => b.lat && (b.lng || b.lon))
-      .map(b => ({ lat: +b.lat, lng: +(b.lng || b.lon), type: 'bucket', name: b.dest || b.item }));
-
-    const bucketNeedGeo = bucketBase.filter(b => !b.lat || !(b.lng || b.lon));
-
-    // Geocoding wenn nötig
-    if (plannedNeedGeo.length || bucketNeedGeo.length) {
-      geocoding = true;
-      for (const t of plannedNeedGeo) {
+    // ── Planned: nur selectedYear (Zukunft ist jahresbezogen) ────────────────
+    const yr = String(selectedYear);
+    const plannedBase = plannedTrips.filter(t =>
+      (t.dateStart || t.date || '').slice(0, 4) === yr
+    );
+    const planned = [];
+    for (const t of plannedBase) {
+      if (t.lat && (t.lng || t.lon)) {
+        planned.push({ lat: +t.lat, lng: +(t.lng || t.lon), type: 'planned', name: t.name });
+      } else if (t.name) {
         const c = await geocode(t.name);
         if (c) planned.push({ ...c, type: 'planned', name: t.name });
       }
-      for (const b of bucketNeedGeo) {
-        const name = b.dest || b.item;
-        const c = await geocode(name);
-        if (c) bucket.push({ ...c, type: 'bucket', name });
-      }
-      geocoding = false;
     }
 
-    const allMarkers = [...visited, ...planned, ...bucket];
+    // ── Bucket: alle Wunschziele ──────────────────────────────────────────────
+    const bucket = [];
+    for (const b of ($bucketlist ?? []).filter(b => !b.done)) {
+      if (b.lat && (b.lng || b.lon)) {
+        bucket.push({ lat: +b.lat, lng: +(b.lng||b.lon), type: 'bucket', name: b.dest||b.item });
+      } else {
+        const name = b.dest || b.item;
+        if (name) {
+          geocoding = true;
+          const c = await geocode(name);
+          if (c) bucket.push({ ...c, type: 'bucket', name });
+        }
+      }
+    }
+    geocoding = false;
 
-    // Karte bauen (auch wenn keine Marker — zeigt wenigstens die Weltkarte)
+    const allMarkers = [...visited, ...planned, ...bucket];
+    debugInfo = `${visited.length} besucht · ${planned.length} geplant · ${bucket.length} wunsch`;
+
     map = new jsVMClass({
       selector: mapEl,
       map: 'world',
@@ -122,7 +118,6 @@
       },
     });
 
-    // Marker-Farben patchen
     setTimeout(() => {
       mapEl?.querySelectorAll('.jvm-markers circle, .jvm-marker').forEach((c, i) => {
         c.setAttribute('fill', COLORS[allMarkers[i]?.type ?? 'visited']);
@@ -132,19 +127,14 @@
     loading = false;
   }
 
-  // ── $effect: neu zeichnen wenn Props sich ändern ──────────────────────────
-  // journalTrips.length als Trigger — ändert sich wenn Daten geladen werden
   $effect(() => {
-    // Abhängigkeiten registrieren
+    // Reaktive Abhängigkeiten
     const _jt = journalTrips.length;
     const _pt = plannedTrips.length;
-    const _bl = $bucketlist.length;
     const _yr = selectedYear;
     const _el = mapEl;
+    if (!_el) return;
 
-    if (!_el) return; // Container noch nicht im DOM
-
-    // Debounce: kurz warten damit nicht bei jedem Rendering-Tick neu gezeichnet wird
     clearTimeout(initTimer);
     initTimer = setTimeout(() => {
       initMap().catch(e => {
@@ -152,7 +142,7 @@
         loadErr = e.message;
         loading = false;
       });
-    }, 200);
+    }, 300);
   });
 
   onDestroy(() => {
@@ -180,7 +170,7 @@
   {#if geocoding}
     <div class="absolute top-2 right-2 bg-white/90 border border-stone-200 rounded-lg
                 px-2.5 py-1.5 text-xs text-stone-500 shadow-sm flex items-center gap-1.5">
-      <span class="animate-pulse">📍</span> Orte werden geocodiert…
+      <span class="animate-pulse">📍</span> Orte geocodieren…
     </div>
   {/if}
 
@@ -203,6 +193,9 @@
       <span class="flex items-center gap-1.5 text-stone-600">
         <span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#c4622d"></span>Wunschziel
       </span>
+      {#if debugInfo}
+        <span class="text-stone-300 ml-1">{debugInfo}</span>
+      {/if}
     </div>
   {/if}
 </div>
