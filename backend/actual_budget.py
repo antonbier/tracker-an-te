@@ -81,10 +81,8 @@ def get_travel_expenses(
     year: int | None = None,
 ) -> dict:
     import datetime as dt
-    if not year:
-        year = dt.date.today().year
-
-    year_prefix = str(year)
+    # year=None → alle Jahre laden (kein Filter)
+    year_prefix = str(year) if year else None
     category_names_lower = [c.strip().lower() for c in category_names if c.strip()]
 
     try:
@@ -102,8 +100,8 @@ def get_travel_expenses(
 
                 date_str = _normalize_date(tx.date)
 
-                # Jahresfilter
-                if not date_str.startswith(year_prefix):
+                # Jahresfilter (nur wenn year explizit gesetzt)
+                if year_prefix and not date_str.startswith(year_prefix):
                     continue
 
                 cat_name = tx.category.name if tx.category else ""
