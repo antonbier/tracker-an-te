@@ -1,22 +1,12 @@
 """
 WanderSuite — WebAuthn / Passkey Routes
-
-Endpoints:
-  POST /api/auth/passkey/register/begin     → generate registration options
-  POST /api/auth/passkey/register/complete  → verify + save credential
-  POST /api/auth/passkey/login/begin        → generate authentication options
-  POST /api/auth/passkey/login/complete     → verify + return JWT
-  GET  /api/auth/passkeys                   → list my passkeys
-  DELETE /api/auth/passkeys/{id}            → delete a passkey
-
-Requires HTTPS in production (WebAuthn spec).
-For local testing: works on localhost only.
 """
 
 import os
 import json
 import base64
 import logging
+from urllib.parse import urlparse
 from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel
 
@@ -39,12 +29,39 @@ from auth_jwt import create_token, get_current_user, AUTH_ENABLED
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-# RP = Relying Party (your app)
-RP_ID   = os.getenv("WEBAUTHN_RP_ID", "localhost")
-RP_NAME = os.getenv("WEBAUTHN_RP_NAME", "WanderSuite")
-# Origin must match exactly what the browser sees
-# e.g. https://wandersuite.example.com or http://localhost:8765
-ORIGIN  = os.getenv("WEBAUTHN_ORIGIN", f"http://localhost:8765")
+_RP_ID_ENV   = os.getenv("WEBAUTHN_RP_ID",   "localhost")
+_RP_NAME_ENV = os.getenv("WEBAUTHN_RP_NAME",  "WanderSuite")
+_ORIGIN_ENV  = os.getenv("WEBAUTHN_ORIGIN",   "http://localhost:8767")
+
+
+def _get_rp(request: Request):
+    """
+    Derive RP_ID and ORIGIN from the HTTP request if env vars are still at defaults.
+    This allows zero-config usage behind a reverse proxy.
+    """
+    # If explicitly configured (not default), always use env vars
+    if _RP_ID_ENV != "localhost":
+        return _RP_ID_ENV, _RP_NAME_ENV, _ORIGIN_ENV
+
+    # Try to get the real origin from headers set by Zoraxy / Nginx
+    origin_header = (
+        request.headers.get("origin") or
+        request.headers.get("x-forwarded-proto", "http") + "://" +
+        request.headers.get("x-forwarded-host", "") or
+        request.headers.get("referer", "")
+    )
+
+    if origin_header:
+        parsed = urlparse(origin_header)
+        hostname = parsed.hostname or "localhost"
+        # Strip "www." prefix for RP_ID
+        rp_id = hostname.lstrip("www.")
+        # Reconstruct clean origin (scheme + host, no path)
+        origin = f"{parsed.scheme}://{parsed.netloc}" if parsed.netloc else _ORIGIN_ENV
+        logger.info(f"[Passkey] Auto-derived rp_id={rp_id} origin={origin}")
+        return rp_id, _RP_NAME_ENV, origin
+
+    return _RP_ID_ENV, _RP_NAME_ENV, _ORIGIN_ENV
 
 
 # ── Register ──────────────────────────────────────────────────────────────────
@@ -54,11 +71,10 @@ class RegisterBeginPayload(BaseModel):
 
 
 @router.post("/register/begin")
-def register_begin(data: RegisterBeginPayload, current_user: dict = Depends(get_current_user)):
-    """
-    Start passkey registration for the currently logged-in user.
-    Returns PublicKeyCredentialCreationOptions for the browser.
-    """
+def register_begin(data: RegisterBeginPayload, request: Request, current_user: dict = Depends(get_current_user)):
+    """Start passkey registration for the currently logged-in user."""
+    rp_id, rp_name, origin = _get_rp(request)
+
     user = get_user_by_id(current_user["id"])
     if not user:
         raise HTTPException(404, "User nicht gefunden.")
@@ -67,8 +83,8 @@ def register_begin(data: RegisterBeginPayload, current_user: dict = Depends(get_
 
     try:
         options = webauthn.generate_registration_options(
-            rp_id=RP_ID,
-            rp_name=RP_NAME,
+            rp_id=rp_id,
+            rp_name=rp_name,
             user_id=user_id_bytes,
             user_name=user["email"],
             user_display_name=user["email"],
@@ -85,10 +101,10 @@ def register_begin(data: RegisterBeginPayload, current_user: dict = Depends(get_
         logger.error(f"[Passkey] generate_registration_options failed: {e}")
         raise HTTPException(500, f"Passkey-Optionen konnten nicht generiert werden: {e}")
 
-    # Store challenge for verification
     challenge_b64 = base64.b64encode(options.challenge).decode()
     save_challenge(challenge_b64, "register", current_user["id"])
 
+    logger.info(f"[Passkey] register/begin — user={user['email']} rp_id={rp_id} origin={origin}")
     return json.loads(webauthn.options_to_json(options))
 
 
@@ -98,10 +114,10 @@ class RegisterCompletePayload(BaseModel):
 
 
 @router.post("/register/complete")
-def register_complete(data: RegisterCompletePayload, current_user: dict = Depends(get_current_user)):
+def register_complete(data: RegisterCompletePayload, request: Request, current_user: dict = Depends(get_current_user)):
     """Verify registration response and save the passkey."""
+    rp_id, _, origin = _get_rp(request)
 
-    # Recover challenge
     raw_challenge = data.credential.get("response", {}).get("clientDataJSON", "")
     try:
         client_data = json.loads(base64.b64decode(raw_challenge + "=="))
@@ -119,11 +135,11 @@ def register_complete(data: RegisterCompletePayload, current_user: dict = Depend
         verification = webauthn.verify_registration_response(
             credential=data.credential,
             expected_challenge=base64.b64decode(challenge_b64),
-            expected_rp_id=RP_ID,
-            expected_origin=ORIGIN,
+            expected_rp_id=rp_id,
+            expected_origin=origin,
         )
     except Exception as e:
-        logger.warning(f"[Passkey] Registration verification failed: {e}")
+        logger.warning(f"[Passkey] Registration verification failed (rp_id={rp_id} origin={origin}): {e}")
         raise HTTPException(400, f"Passkey-Verifizierung fehlgeschlagen: {e}")
 
     cred_id = base64.b64encode(verification.credential_id).decode()
@@ -146,18 +162,17 @@ def register_complete(data: RegisterCompletePayload, current_user: dict = Depend
 # ── Login ─────────────────────────────────────────────────────────────────────
 
 @router.post("/login/begin")
-def login_begin():
-    """
-    Start passkey authentication (no email needed — discoverable credentials).
-    Returns PublicKeyCredentialRequestOptions for the browser.
-    """
+def login_begin(request: Request):
+    """Start passkey authentication — discoverable credentials."""
     if not AUTH_ENABLED:
         raise HTTPException(400, "AUTH_ENABLED=false.")
 
+    rp_id, _, origin = _get_rp(request)
+
     options = webauthn.generate_authentication_options(
-        rp_id=RP_ID,
+        rp_id=rp_id,
         user_verification=UserVerificationRequirement.PREFERRED,
-        allow_credentials=[],  # empty = discoverable / resident key
+        allow_credentials=[],
     )
 
     challenge_b64 = base64.b64encode(options.challenge).decode()
@@ -171,12 +186,13 @@ class LoginCompletePayload(BaseModel):
 
 
 @router.post("/login/complete")
-def login_complete(data: LoginCompletePayload):
+def login_complete(data: LoginCompletePayload, request: Request):
     """Verify authentication response and return JWT."""
     if not AUTH_ENABLED:
         raise HTTPException(400, "AUTH_ENABLED=false.")
 
-    # Extract challenge from clientDataJSON
+    rp_id, _, origin = _get_rp(request)
+
     try:
         raw = data.credential.get("response", {}).get("clientDataJSON", "")
         client_data = json.loads(base64.b64decode(raw + "=="))
@@ -190,9 +206,7 @@ def login_complete(data: LoginCompletePayload):
     if not stored:
         raise HTTPException(400, "Challenge ungültig oder abgelaufen.")
 
-    # Look up credential
     cred_id = data.credential.get("id", "")
-    # WebAuthn IDs are base64url — normalize to base64
     try:
         cred_id_bytes = base64.urlsafe_b64decode(cred_id + "==")
         cred_id_b64   = base64.b64encode(cred_id_bytes).decode()
@@ -208,8 +222,8 @@ def login_complete(data: LoginCompletePayload):
         verification  = webauthn.verify_authentication_response(
             credential=data.credential,
             expected_challenge=base64.b64decode(challenge_b64),
-            expected_rp_id=RP_ID,
-            expected_origin=ORIGIN,
+            expected_rp_id=rp_id,
+            expected_origin=origin,
             credential_public_key=pub_key_bytes,
             credential_current_sign_count=stored_cred["sign_count"],
         )
@@ -217,7 +231,6 @@ def login_complete(data: LoginCompletePayload):
         logger.warning(f"[Passkey] Auth verification failed: {e}")
         raise HTTPException(401, f"Passkey-Authentifizierung fehlgeschlagen: {e}")
 
-    # Update sign count (replay attack protection)
     update_sign_count(cred_id_b64, verification.new_sign_count)
 
     token = create_token(stored_cred["user_id"], stored_cred["email"], stored_cred["role"])
