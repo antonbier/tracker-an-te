@@ -120,15 +120,20 @@
     }
   });
 
-  // Dynamic tabs — show account/admin only when auth is enabled
+  // Dynamic tabs:
+  // - auth_enabled=true  → "Mein Bereich" statt "Integrationen" (Dawarich/ActualBudget per-user)
+  // - auth_enabled=false → "Integrationen" (global, kein User-Kontext nötig)
+  const authEnabled = $derived(!!$appStatus?.auth_enabled);
   const tabs = $derived([
     { id: 'basic',         label: $t('settingsBasic') },
-    { id: 'integrations',  label: $t('settingsIntegrations') },
+    // Integrationen nur wenn auth deaktiviert (single-user mode)
+    ...(!authEnabled ? [{ id: 'integrations', label: $t('settingsIntegrations') }] : []),
     { id: 'apis',          label: $t('settingsApis') },
     { id: 'notifications', label: $t('settingsNotifications') },
-    { id: 'myspace',       label: $t('settingsMyspace') },
-    ...($appStatus?.auth_enabled ? [{ id: 'account', label: $t('settingsAccount') }] : []),
-    ...($isAdmin && $appStatus?.auth_enabled ? [{ id: 'admin', label: $t('settingsAdmin') }] : []),
+    // Mein Bereich nur wenn auth aktiviert (pro User konfigurierbar)
+    ...(authEnabled ? [{ id: 'myspace', label: $t('settingsMyspace') }] : []),
+    ...(authEnabled ? [{ id: 'account', label: $t('settingsAccount') }] : []),
+    ...($isAdmin && authEnabled ? [{ id: 'admin', label: $t('settingsAdmin') }] : []),
   ]);
 
   async function testConnection() {
