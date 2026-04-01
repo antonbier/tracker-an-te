@@ -64,7 +64,7 @@
     } catch(e) { toast(e.message,'error'); }
   }
   async function deleteRy(id) {
-    if (!confirm('Löschen?')) return;
+    if (!confirm($t('delete') + '?')) return;
     await api(`/api/trackers/${id}`,{method:'DELETE'});
     await loadRyanair();
   }
@@ -115,7 +115,7 @@
     } catch(e) { toast(e.message,'error'); }
   }
   async function deleteGF(id) {
-    if (!confirm('Löschen?')) return;
+    if (!confirm($t('delete') + '?')) return;
     await api(`/api/google-flights/${id}`,{method:'DELETE'});
     await loadGF();
   }
@@ -176,7 +176,7 @@
     } catch(e) { toast(e.message,'error'); }
   }
   async function deleteHM(id) {
-    if (!confirm('Löschen?')) return;
+    if (!confirm($t('delete') + '?')) return;
     await api(`/api/accommodations/homair/${id}`,{method:'DELETE'});
     await loadHM();
   }
@@ -226,7 +226,7 @@
     } catch(e) { toast(e.message,'error'); }
   }
   async function deleteBK(id) {
-    if (!confirm('Löschen?')) return;
+    if (!confirm($t('delete') + '?')) return;
     await api(`/api/accommodations/booking/${id}`,{method:'DELETE'});
     await loadBK();
   }
@@ -359,7 +359,7 @@
             <div class="flex gap-2 mt-2">
               <button onclick={() => scrapeRy(tr.id)}
                 class="flex-1 py-1.5 rounded-lg text-xs border hover:border-[var(--ws-accent)] transition-colors"
-                style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)">⟳ Jetzt</button>
+                style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)">⟳</button>
               <button onclick={() => deleteRy(tr.id)}
                 class="px-3 py-1.5 rounded-lg text-xs border transition-colors"
                 style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)">✕</button>
@@ -418,8 +418,8 @@
     </div>
     <div class="space-y-3">
       <h2 class="text-sm font-semibold italic" style="font-family:var(--ws-serif);color:var(--ws-accent2)">{$t('dashActiveTrackers')}</h2>
-      {#if gfLoading}<p class="text-xs" style="color:var(--ws-muted)">Lade…</p>
-      {:else if gfTrackers.length===0}<p class="text-xs" style="color:var(--ws-muted)">Noch keine GF-Tracker.</p>
+      {#if gfLoading}<p class="text-xs" style="color:var(--ws-muted)">{$t('loading')}</p>
+      {:else if gfTrackers.length===0}<p class="text-xs" style="color:var(--ws-muted)">{$t('dashNoTrackers')}</p>
       {:else}
         {#each gfTrackers as tr}
           {@const s=tr.latest_snapshot}
@@ -437,7 +437,7 @@
             <div class="flex gap-2 mt-2">
               <button onclick={() => scrapeGF(tr.id)}
                 class="flex-1 py-1.5 rounded-lg text-xs border transition-colors"
-                style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)">⟳ Jetzt</button>
+                style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)">⟳</button>
               <button onclick={() => deleteGF(tr.id)}
                 class="px-3 py-1.5 rounded-lg text-xs border transition-colors"
                 style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)">✕</button>
@@ -452,7 +452,7 @@
   {:else if activeTab==='homair'}
   <div class="grid md:grid-cols-2 gap-4">
     <div class="rounded-xl p-4 border space-y-3" style="background:var(--ws-surface);border-color:var(--ws-border)">
-      <h2 class="text-sm font-semibold italic" style="font-family:var(--ws-serif);color:var(--ws-accent2)">Homair Camping Tracker</h2>
+      <h2 class="text-sm font-semibold italic" style="font-family:var(--ws-serif);color:var(--ws-accent2)">⛺ Homair</h2>
       <div>
         <label class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Region</label>
         <select bind:value={hmRegion} class="{inputCls} mt-1" style={inputStyle}>
@@ -497,8 +497,8 @@
     </div>
     <div class="space-y-3">
       <h2 class="text-sm font-semibold italic" style="font-family:var(--ws-serif);color:var(--ws-accent2)">{$t('dashActiveTrackers')}</h2>
-      {#if hmLoading}<p class="text-xs" style="color:var(--ws-muted)">Lade…</p>
-      {:else if hmTrackers.length===0}<p class="text-xs" style="color:var(--ws-muted)">Noch keine Homair Tracker.</p>
+      {#if hmLoading}<p class="text-xs" style="color:var(--ws-muted)">{$t('loading')}</p>
+      {:else if hmTrackers.length===0}<p class="text-xs" style="color:var(--ws-muted)">{$t('dashNoTrackers')}</p>
       {:else}
         {#each hmTrackers as tr}
           {@const s=tr.latest_snapshot}
@@ -514,7 +514,7 @@
             <div class="flex gap-2 mt-2">
               <button onclick={() => scrapeHM(tr.id)}
                 class="flex-1 py-1.5 rounded-lg text-xs border transition-colors"
-                style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)">⟳ Jetzt</button>
+                style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)">⟳</button>
               <button onclick={() => deleteHM(tr.id)}
                 class="px-3 py-1.5 rounded-lg text-xs border"
                 style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)">✕</button>
@@ -529,7 +529,7 @@
   {:else if activeTab==='booking'}
   <div class="grid md:grid-cols-2 gap-4">
     <div class="rounded-xl p-4 border space-y-3" style="background:var(--ws-surface);border-color:var(--ws-border)">
-      <h2 class="text-sm font-semibold italic" style="font-family:var(--ws-serif);color:var(--ws-accent2)">Booking / Trivago Tracker</h2>
+      <h2 class="text-sm font-semibold italic" style="font-family:var(--ws-serif);color:var(--ws-accent2)">🏨 Booking / Trivago</h2>
       <div>
         <label class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Quelle</label>
         <select bind:value={bkSource} class="{inputCls} mt-1" style={inputStyle}>
@@ -574,8 +574,8 @@
     </div>
     <div class="space-y-3">
       <h2 class="text-sm font-semibold italic" style="font-family:var(--ws-serif);color:var(--ws-accent2)">{$t('dashActiveTrackers')}</h2>
-      {#if bkLoading}<p class="text-xs" style="color:var(--ws-muted)">Lade…</p>
-      {:else if bkTrackers.length===0}<p class="text-xs" style="color:var(--ws-muted)">Noch keine Booking Tracker.</p>
+      {#if bkLoading}<p class="text-xs" style="color:var(--ws-muted)">{$t('loading')}</p>
+      {:else if bkTrackers.length===0}<p class="text-xs" style="color:var(--ws-muted)">{$t('dashNoTrackers')}</p>
       {:else}
         {#each bkTrackers as tr}
           {@const s=tr.latest_snapshot}
@@ -592,7 +592,7 @@
             <div class="flex gap-2 mt-2">
               <button onclick={() => scrapeBK(tr.id)}
                 class="flex-1 py-1.5 rounded-lg text-xs border transition-colors"
-                style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)">⟳ Jetzt</button>
+                style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)">⟳</button>
               <button onclick={() => deleteBK(tr.id)}
                 class="px-3 py-1.5 rounded-lg text-xs border"
                 style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)">✕</button>
