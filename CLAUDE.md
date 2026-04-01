@@ -58,8 +58,8 @@ Internet
               → /api/* calls go through Nginx proxy on port 8767
 ```
 
-**Backend URL für User:** Im Onboarding-Wizard die **frontend URL** eintragen.
-`window.location.origin` wird automatisch als Vorschlag vorausgefüllt.
+**Backend URL:** Im Onboarding-Wizard die **frontend URL** eintragen.
+`window.location.origin` wird automatisch vorausgefüllt.
 
 ---
 
@@ -78,7 +78,7 @@ JWT_SECRET=<generate: python3 -c "import secrets; print(secrets.token_hex(32))">
 
 # WebAuthn / Passkeys
 # Wenn gesetzt → direkt verwenden. Wenn nicht gesetzt (= localhost) →
-# rp_id + origin werden automatisch aus HTTP Origin-Header abgeleitet.
+# rp_id + origin automatisch aus HTTP Origin-Header abgeleitet.
 WEBAUTHN_RP_ID=wandersuite.deinedomain.de
 WEBAUTHN_RP_NAME=WanderSuite
 WEBAUTHN_ORIGIN=https://wandersuite.deinedomain.de
@@ -97,13 +97,12 @@ WEBAUTHN_ORIGIN=https://wandersuite.deinedomain.de
 
 ### Passkey — rp_id / Origin Logik (`backend/routes/passkey.py`)
 
-`_get_rp(request)` wird bei jedem Passkey-Call aufgerufen:
-
+`_get_rp(request)` Priorität:
 1. **Env-Vars explizit gesetzt** (`WEBAUTHN_RP_ID != "localhost"`) → direkt verwenden
-2. **Origin-Header** (Browser sendet bei jedem POST) → `hostname` als `rp_id`
-3. **Fallback** → Env-Vars (localhost defaults)
+2. **HTTP Origin-Header** (Browser sendet bei jedem POST) → `hostname` als `rp_id`
+3. **Fallback** → localhost defaults
 
-⚠️ Nie `x-forwarded-host` für rp_id verwenden — kann leer sein → `"http://"` → bug.
+⚠️ Nie `x-forwarded-host` verwenden — kann leer sein → `"http://"` → bug.
 
 ---
 
@@ -112,18 +111,30 @@ WEBAUTHN_ORIGIN=https://wandersuite.deinedomain.de
 **Dateien:** `svelte/src/locales/de.json`, `en.json`, `it.json`
 **Store:** `svelte/src/lib/i18n.js` — reaktiver `t`-Store, `$t('key')` in Komponenten
 
-Alle Bereiche vollständig übersetzt (DE/EN/IT):
-Navigation, Settings, Dashboard, MyTrips, PriceRadar, Discover, Onboarding, Login, Setup.
+Vollständig übersetzt (DE/EN/IT): Navigation, Settings, Dashboard, MyTrips,
+PriceRadar (alle Labels + Formular-Felder), Discover, Onboarding, Login, Setup.
 
-**Regel:** Immer alle 3 Locale-Dateien gleichzeitig updaten. Tabs nie hardcodiert.
+**Regel:** Immer alle 3 Locale-Dateien gleichzeitig updaten. Tabs nie hardcodiert —
+immer `$derived([...])` mit `$t('key')`.
 
 ---
 
 ## PWA / Favicon
 
 - `svelte/static/favicon.svg` — oranges Rund-Rechteck (#D95D39) mit Kompassrose
-- `svelte/static/manifest.webmanifest` — PWA-Manifest
+- `svelte/static/manifest.webmanifest` — PWA-Manifest (name, theme_color, icons)
 - `svelte/static/icons/icon-192.png` + `icon-512.png` — generiert mit Pillow
+- `svelte/src/app.html` — verlinkt favicon.svg + manifest
+
+---
+
+## Settings — Mein Bereich (myspace Tab)
+
+- Per-user Einstellungen: Dawarich, ActualBudget, Home-Koordinaten
+- **Geocoding:** Ortsname eingeben + 📍 → Nominatim → lat/lon automatisch befüllt
+- **ActualBudget Dateiname:** Hilfetext + Schritt-für-Schritt im FieldGuide (Tab Reisen)
+  - Budget-Name oben links anklicken → ID aus der URL entnehmen
+  - Oder: `/api/budget/actual/list-files` aufrufen → listet alle verfügbaren Dateien
 
 ---
 
@@ -131,113 +142,200 @@ Navigation, Settings, Dashboard, MyTrips, PriceRadar, Discover, Onboarding, Logi
 
 ### Tab-Reihenfolge (strikt)
 | # | ID | Label |
-|---|----|----|
+|---|----|-------|
 | 1 | `overview` | 📊 Übersicht |
 | 2 | `trips` | ✈️ Geplante Reisen |
 | 3 | `journal` | 📓 Reisechronik |
 | 4 | `bucketlist` | 🌟 Bucket List |
 
-### Grid-Layout (alle Tabs außer Übersicht)
+### Grid-Layout (Tabs 2–4)
 `grid grid-cols-1 lg:grid-cols-3 gap-5`
-- `lg:col-span-1` — Formular / Aktionen (links)
-- `lg:col-span-2` — Liste / Timeline (rechts)
+- `lg:col-span-1` — Formular / Aktionen (links, 1/3)
+- `lg:col-span-2` — Liste / Timeline (rechts, 2/3)
 
-### Globaler Sync-Button (Header)
-- Rund, Icon-only (SVG Refresh-Icon), neben dem Titel
-- Triggert `syncJournal()` + `syncActual()` nacheinander
-- State: `globalSyncing` → zeigt Spin-Indikator
+### Header-Elemente
+- **Titel** `🎒 Meine Reisen`
+- **Globaler Sync-Button** — rund, SVG-Icon, triggert `syncJournal()` + `syncActual()` nacheinander, `globalSyncing` State
+- **Jahres-Switcher** — max. **4 Jahre** gleichzeitig sichtbar, `‹ ›` blättern seitenweise
+  - `availableYears()` als `$derived` — sammelt aus `$trips`, `journalTrips`, `budgetByYear`
+  - `yearPageStart` State + `visibleYears()` für Pagination
+  - `$effect` passt Page automatisch an wenn `selectedYear` sich ändert
+  - Alle Views **strikt** nach `selectedYear` gefiltert
+- **Badges** — `✈️ X geplant` (klickbar → Tab `trips`) + `Y gesamt`
+  - `upcomingCount` = `$trips.filter(dateStart >= today).length`
+  - `totalCount` = `upcomingCount + journalTrips.length`
 
-### Jahr-Switcher
-- Zeigt nur Jahre mit Daten + aktuelles Jahr
-- `availableYears()` als `$derived` — sammelt aus `$trips`, `journalTrips`, `budgetByYear`
-- Alle Views **strikt** nach `selectedYear` gefiltert (kein Year-Leak zwischen Tabs)
+### Übersicht-Tab (Tab 1)
 
-### Badge-Logik (Header oben rechts)
-- `upcomingCount` = `$trips.filter(dateStart >= today).length`
-- `totalCount` = `upcomingCount + journalTrips.length`
-- Anzeige: `✈️ X geplant` (klickbar → Tab `trips`) + `Y gesamt`
+**Stats-Grid** — 4 Karten, 2×2 Grid (`grid-cols-2 sm:grid-cols-4`):
+| Karte | Inhalt | Klick-Ziel |
+|-------|--------|-----------|
+| ✅ Vergangen | `journalYear.length` | → Tab `journal` |
+| ✈️ Geplant | `upcomingCount` | → Tab `trips` |
+| 🌟 Wunschziele | `$bucketlist.filter(!done).length` | → Tab `bucketlist` |
+| 💸 Ausgegeben | `totalSpentYear` + verbleibendes Budget | — |
 
-### Übersicht-Tab Stats-Karte
-Erste Stat-Karte ist **geteilt** (kein einzelner Wert):
-- Links: `X Vergangen` → klickbar → `activeTab = 'journal'`
-- Rechts: `Y Geplant` → klickbar → `activeTab = 'trips'`
+Alle 3 Reise-Karten haben Hover-Effekt + `→ Tab-Name` Subtitle.
 
-### Übersicht-Tab Listen
-- **Nächste Abenteuer** (upcoming, aufsteigend sortiert, max. 4)
-- **Letzte Erinnerungen** (journalYear, absteigend sortiert, max. 4)
-- Beide mit "X weitere →" Link zum entsprechenden Tab
+**Budget-Progressbar** — zeigt `totalSpentYear` vs `yearBudget`, farbkodiert.
+Aufschlüsselung: `📓 Vergangen: X € · ✈️ Geplant: Y €`
 
-### Budget
-- Pro Jahr im Backend gespeichert: `PUT /api/trips/budget` `{ year, amount }`
-- `GET /api/trips/budget` → `{ "2024": 3000, "2025": 4500 }`
-- Legacy-Fallback: liest alten `ws-budget` Wert für aktuelles Jahr
-- Budget-Input **in der Reisechronik** (wo echte Kosten anfallen)
+**ScratchMap** — Weltkarte mit Pins (siehe unten)
 
-### ActualBudget Sync
-- **In der Reisechronik** (Tab 3), nicht in Geplante Reisen
-- Importiert vergangene Transaktionen aus ActualBudget
+**Listen:**
+- **Nächste Abenteuer** (upcoming, aufsteigend sortiert, max. 4 + "X weitere →")
+- **Letzte Erinnerungen** (`journalYear`, absteigend, max. 4 + "X weitere →")
 
-### Dawarich Sync
-- In der Reisechronik (linke Spalte, unter dem Formular)
-- Lädt GPS-Trips vom Dawarich-Server, erkennt Übernacht-Reisen
+### Geplante Reisen (Tab 2)
 
-### Reisechronik (Tab 3) — Datenquellen
-- **Dawarich-Trips** (source=`dawarich`): automatisch erkannt, orange Timeline-Dot
-- **Manuelle Einträge** (source=`manual`): violetter Timeline-Dot, `manuell`-Badge
-- Alle in `/api/trips` gespeichert (Backend, pro User)
-- Inline-Kosten-Editor: Klick auf "💶 Kosten hinterlegen" → Input → Enter/✓
+**Links (1/3):**
+- Smart Reise-Planer Card (Coming Soon Badge)
+- Formular: Name, Von/Bis Datum, Kosten → speichert in localStorage `trips`-Store
+
+**Rechts (2/3):**
+- Budget-Progressbar für `selectedYear`
+- `✈️ Nächste Abenteuer` — upcoming (alle, kein Jahresfilter für Tab-Anzeige)
+- `✅ Vergangen (manuell)` — past (alle localStorage-Trips die in der Vergangenheit liegen)
+
+⚠️ **Kein ActualBudget Sync** in diesem Tab — gehört in Reisechronik.
+
+### Reisechronik (Tab 3)
+
+**Links (1/3):**
+- **Manuell erfassen** — Name*, Von*, Bis, Land, Kosten → `POST /api/trips` mit `source=manual`
+- **💶 Jahresbudget {Jahr}** — Input → `PUT /api/trips/budget { year, amount }`
+- **ActualBudget Sync** — `POST /api/budget/actual/transactions`
+  - Hilfe-Panel (`<details>`) mit Schritt-für-Schritt Anleitung
+  - `📂 Verfügbare Dateien anzeigen` → `POST /api/budget/actual/list-files` → zeigt alle Budget-Dateien
+  - Auto-Fallback: wenn `actual_file` leer → erste verfügbare Datei verwenden
+  - Fehler werden inline angezeigt mit Hinweis auf Einstellungen
+- **Dawarich Sync** — `POST /api/dawarich/sync`
+
+**Rechts (2/3): Timeline**
+- Gefiltert nach `selectedYear` (strikt auf `start_date.slice(0,4)`)
+- Dawarich-Trips: orange Timeline-Dot
+- Manuelle Einträge: violetter Dot + `manuell`-Badge
+- **Inline-Kosten-Editor** pro Eintrag: `💶 Kosten hinterlegen` → Input → Enter/✓ → `PATCH /api/trips/{id}/cost`
+
+### Budget-Logik
+- Pro Jahr im Backend: `GET/PUT /api/trips/budget`
+- Response: `{ "2024": 3000, "2025": 4500 }`
+- Legacy-Fallback: liest alten `ws-budget` Wert
+- `yearBudget = budgetByYear[selectedYear]`
+- `totalSpentYear = journalSpentYear + tripsSpentYear`
+  - `journalSpentYear` = Summe aller `journalYear[].cost`
+  - `tripsSpentYear` = Summe aller `$trips` für `selectedYear`
 
 ---
 
 ## ScratchMap.svelte
 
 **Props:**
-- `journalTrips` — Chronik-Trips (Dawarich + manuell)
-- `plannedTrips` — geplante Trips (aus localStorage `trips`-Store)
+- `journalTrips` — alle Chronik-Trips (Dawarich + manuell)
+- `plannedTrips` — geplante Trips (aus `$trips` Store)
 - `selectedYear` — aktuell gewähltes Jahr
 
 **Marker-Typen & Farben:**
-| Typ | Quelle | Farbe | Symbol |
-|-----|--------|-------|--------|
-| `visited` | journalTrips, Jahr gefiltert | `#2d6a4f` grün | ● |
-| `planned` | plannedTrips, Jahr gefiltert | `#2563eb` blau | ● |
-| `bucket` | $bucketlist (kein Jahresfilter) | `#c4622d` orange | ● |
+| Typ | Quelle | Farbe | Jahresfilter |
+|-----|--------|-------|-------------|
+| `visited` | journalTrips mit lat/lon | `#2d6a4f` grün | ja |
+| `planned` | plannedTrips mit lat/lon | `#2563eb` blau | ja |
+| `bucket` | `$bucketlist` mit lat/lon | `#c4622d` orange | nein |
 
-**Jahr-Filter:** visited + planned werden nach `selectedYear` gefiltert.
-Bucket List hat kein fixes Jahr → immer angezeigt.
+**Fallback-Demos** wenn keine echten Daten: Salzburg/Rom/Paris (visited), London (planned), Tokyo/Machu Picchu (bucket)
 
-**Ladelogik:** Container immer im DOM (kein conditional rendering).
-Sequenzieller CDN-Load: CSS → jsvectormap.min.js → world.js (mit 80ms delay zwischen den Schritten).
-`setTimeout(..., 120)` vor Init damit Container gerendert ist.
+**Ladelogik (robust):**
+1. Container **immer im DOM** — kein `{#if}` conditional rendering
+2. `setTimeout(..., 150)` vor Init (Container braucht gerenderte Größe)
+3. Sequenziell: CSS → `jsvectormap.min.js` → **poll** bis `window.jsVectorMap` verfügbar → `world.js` → 150ms pause
+4. Polling: `setInterval` prüft alle 100ms, Timeout nach 2s
+5. Marker-Farben per DOM-Patching (`c.setAttribute('fill', COLORS[type])`) nach 300ms
+6. `destroyed`-Flag verhindert Race Conditions beim Unmount
 
-**Fallback-Demos** wenn keine echten Daten vorhanden:
-- Demo visited: Salzburg, Rom, Paris
-- Demo planned: London
-- Demo bucket: Tokyo, Machu Picchu
+CDN: `https://cdn.jsdelivr.net/npm/jsvectormap@1.5.3/dist/`
 
 ---
 
-## Backend API — /api/trips (neu)
+## Backend API — Vollständige Übersicht
 
+### /api/trips (routes/trips.py)
 | Method | Path | Beschreibung |
 |--------|------|-------------|
-| GET | `/api/trips` | Alle Trips (dawarich + manual), pro User |
-| POST | `/api/trips` | Manuellen Trip anlegen |
-| PATCH | `/api/trips/{id}/cost` | Kosten eines Trips updaten |
+| GET | `/api/trips` | Alle Trips (dawarich + manual), pro User, sortiert nach start_date |
+| POST | `/api/trips` | Manuellen Trip anlegen (`source=manual`) |
+| PATCH | `/api/trips/{id}/cost` | Kosten eines Trips updaten `{ cost: float\|null }` |
 | DELETE | `/api/trips/{id}` | Trip löschen |
 | GET | `/api/trips/budget` | Budget nach Jahr `{"2024":3000}` |
-| PUT | `/api/trips/budget` | Budget für Jahr setzen `{year, amount}` |
+| PUT | `/api/trips/budget` | Budget für Jahr setzen `{ year: int, amount: float }` |
 
-**DB-Migration:** `detected_trips` hat neue Spalten `cost REAL` und `notes TEXT`.
-`source` unterscheidet `dawarich` vs `manual` (eigener Duplicate-Check pro Source).
+### /api/budget (routes/budget.py)
+| Method | Path | Beschreibung |
+|--------|------|-------------|
+| POST | `/api/budget/actual/transactions` | Frontend-kompatibler Sync-Endpoint |
+| POST | `/api/budget/actual/list-files` | Verfügbare Budget-Dateien auflisten |
+| POST | `/api/budget/actual/expenses` | Interne Variante (base_url/password/budget_file) |
+| POST | `/api/budget/actual/files` | Alte Variante |
+| POST | `/api/budget/actual/debug` | Debug: Transaktionen + Konten anzeigen |
+
+**`/actual/transactions` Feldmapping:**
+- Frontend sendet: `actual_url`, `actual_token`, `actual_file`, `categories`
+- Backend mappt auf: `base_url`, `password`, `budget_file`, `category_names`
+- Auto-Fallback: wenn `actual_file` leer → erste verfügbare Datei
+
+### /api/auth / /api/auth/passkeys
+Siehe Auth-Sektion oben.
+
+### /api/settings / /api/settings/user
+- Global (Admin): SerpAPI, Gemini, OpenAI, Telegram, Gotify, language
+- Per-user: dawarich_url/token, actual_url/token/file, home_lat/lon, travel_categories
+
+### /api/dawarich
+- `POST /api/dawarich/sync` — GPS-Trips aus Dawarich laden + detected_trips befüllen
+- `GET /api/dawarich/trips` — Liste der erkannten Trips
+
+---
+
+## Datenbank — detected_trips
+
+Tabelle für alle Reisen (Dawarich + manuell):
+
+```sql
+CREATE TABLE detected_trips (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id        INTEGER NOT NULL DEFAULT 1,
+    start_date     TEXT NOT NULL,
+    end_date       TEXT NOT NULL,
+    location_name  TEXT,
+    country        TEXT,
+    lat            REAL,
+    lon            REAL,
+    nights         INTEGER NOT NULL DEFAULT 1,
+    source         TEXT NOT NULL DEFAULT 'dawarich',  -- 'dawarich' | 'manual'
+    cost           REAL DEFAULT NULL,                    -- nachträglich editierbar
+    notes          TEXT DEFAULT NULL,
+    created_at     TEXT NOT NULL
+);
+```
+
+Duplicate-Check: `WHERE user_id=? AND start_date=? AND end_date=? AND source=?`
+→ Dawarich-Trips werden bei erneutem Sync aktualisiert, manuelle nie überschrieben.
 
 ---
 
 ## Multi-User Architecture
 
-### Settings Split
-- **Global** `GET/POST /api/settings` — SerpAPI, Gemini, OpenAI, Telegram, Gotify
-- **Per-user** `GET/POST /api/settings/user` — Dawarich, ActualBudget, Home coords
+### Data Isolation
+| Table | Scope | Notes |
+|-------|-------|-------|
+| `trackers` | Per-user | `user_id` column |
+| `gf_trackers` | Per-user | |
+| `homair_trackers` | Per-user | |
+| `booking_trackers` | Per-user | |
+| `detected_trips` | Per-user | Dawarich + manual, cost/notes editierbar |
+| `user_data` | Per-user | ws-trips, ws-bucketlist, ws-budget-years |
+| `user_settings` | Per-user | dawarich, actualbudget, home coords |
+| `settings` | Global (admin) | API keys, notifications |
+| `webauthn_credentials` | Per-user | passkeys |
 
 ### AUTH_ENABLED=false (guest mode)
 - Returns `GUEST_USER = {id: 0, role: "admin"}`
@@ -249,7 +347,9 @@ Sequenzieller CDN-Load: CSS → jsvectormap.min.js → world.js (mit 80ms delay 
 
 - `X-Content-Type-Options: nosniff`
 - `X-Frame-Options: SAMEORIGIN`
+- `Referrer-Policy: strict-origin-when-cross-origin`
 - `Content-Security-Policy: default-src 'self' ...`
+- `Cross-Origin-Resource-Policy: same-origin`
 - `Cross-Origin-Opener-Policy: same-origin` (required for WebAuthn)
 
 **TODO — set in Zoraxy:**
@@ -263,47 +363,49 @@ Sequenzieller CDN-Load: CSS → jsvectormap.min.js → world.js (mit 80ms delay 
 wandersuite/
 ├── svelte/src/
 │   ├── lib/
-│   │   ├── stores.js          ← all state
-│   │   ├── api.js             ← HTTP client with JWT injection
-│   │   ├── i18n.js            ← reactive t() derived store
+│   │   ├── stores.js              ← all state (trips, budget, bucketlist, apiUrl, ...)
+│   │   ├── api.js                 ← HTTP client with JWT injection
+│   │   ├── i18n.js                ← reactive t() derived store
 │   │   └── components/
 │   │       ├── AppShell.svelte
-│   │       ├── Header.svelte  ← BETA badge + version
-│   │       ├── Sidebar.svelte
-│   │       ├── Login.svelte
-│   │       ├── Setup.svelte
-│   │       ├── Settings.svelte ← tabs: basic/integrations/apis/notifications/myspace/account/admin
+│   │       ├── Header.svelte      ← BETA badge + version
+│   │       ├── Sidebar.svelte     ← logout when auth enabled
+│   │       ├── Login.svelte       ← passkey + password fallback
+│   │       ├── Setup.svelte       ← first admin account
+│   │       ├── Settings.svelte    ← tabs: basic/integrations/apis/notifications/myspace/account/admin
 │   │       ├── PasskeyManager.svelte
-│   │       ├── FieldGuide.svelte
-│   │       ├── ScratchMap.svelte ← jsvectormap, 3 Marker-Typen, Jahr-Filter
+│   │       ├── FieldGuide.svelte  ← ActualBudget filename docs
+│   │       ├── ScratchMap.svelte  ← jsvectormap, 3 Marker-Typen, Jahr-Filter, robust CDN load
 │   │       └── pages/
 │   │           ├── Dashboard.svelte
-│   │           ├── PriceRadar.svelte
-│   │           ├── MyTrips.svelte ← Tabs: overview/trips/journal/bucketlist
-│   │           └── Discover.svelte
+│   │           ├── PriceRadar.svelte   ← vollständig i18n, alle Tabs
+│   │           ├── MyTrips.svelte      ← Tabs: overview/trips/journal/bucketlist
+│   │           └── Discover.svelte     ← vollständig i18n
 │   ├── locales/
 │   │   ├── de.json
 │   │   ├── en.json
 │   │   └── it.json
 │   └── routes/
-│       ├── +layout.svelte
+│       ├── +layout.svelte         ← gate: onboarding → setup → login → app
 │       └── +page.svelte
 ├── svelte/static/
 │   ├── favicon.svg
 │   ├── manifest.webmanifest
 │   └── icons/icon-192.png, icon-512.png
 ├── backend/
-│   ├── main.py
-│   ├── database.py            ← detected_trips mit cost/notes/source
+│   ├── main.py                    ← APP_VERSION, alle Router registriert
+│   ├── database.py                ← detected_trips: cost/notes/source Spalten
 │   ├── auth_db.py
 │   ├── auth_jwt.py
-│   ├── settings_manager.py
+│   ├── settings_manager.py        ← global + per-user settings
+│   ├── actual_budget.py           ← actualpy wrapper: get_travel_expenses, list_budget_files
 │   ├── dawarich.py
 │   └── routes/
 │       ├── auth.py
-│       ├── passkey.py         ← _get_rp() auto-detection
+│       ├── passkey.py             ← _get_rp() auto-detection via Origin-Header
 │       ├── settings.py
-│       ├── trips.py           ← /api/trips unified endpoint
+│       ├── trips.py               ← /api/trips unified endpoint + /api/trips/budget
+│       ├── budget.py              ← /api/budget/actual/* incl. /transactions + /list-files
 │       ├── trackers.py
 │       ├── google_flights.py
 │       ├── accommodations.py
@@ -321,37 +423,71 @@ wandersuite/
 ## GitHub API Workflow (Claude's method)
 Always fetch SHA before writing. Work on `beta` branch.
 ```python
+# GET SHA
 url = f'https://api.github.com/repos/{REPO}/contents/{path}?ref=beta'
+# PUT to update
 body = {'message': msg, 'content': base64_content, 'branch': 'beta', 'sha': sha}
 ```
 
 ---
 
+## Bekannte Quirks & Fallen
+
+### ActualBudget
+- Frontend sendet `actual_url`/`actual_token`/`actual_file` — Backend `/actual/transactions` mappt diese
+- Wenn `actual_file` leer → erste verfügbare Datei wird automatisch verwendet
+- Dateiname ≠ Budget-Name in der UI — es ist die **interne ID** (aus URL kopieren)
+- Debug-Endpoint: `POST /api/budget/actual/debug` mit `base_url`/`password`/`budget_file`
+
+### here.now / CDN-Caching
+- here.now generiert bei jedem Deploy eine neue zufällige URL → manuell im Dashboard pinnen
+- CDN cached aggressiv nach URL-Pfad → bei gleichem Chunk-Hash kein Cache-Bust
+
+### jsvectormap CDN-Load
+- `world.js` braucht `window.jsVectorMap` global → strikt sequenziell laden
+- `Promise.all` schlägt fehl weil `world.js` parallel geladen nichts findet
+- Lösung: CSS → core → **poll bis bereit** → world.js → 150ms pause → init
+
+### Svelte 5 / $derived
+- `$derived(() => { ... })` gibt eine Funktion zurück → im Template mit `()` aufrufen: `availableYears()`
+- `$state` Arrays/Objects: immer neu zuweisen statt mutieren: `arr = [...arr, item]`
+
+---
+
 ## Open / Next Steps
 
-### Erledigt
-- [x] Passkeys: rp_id auto-detection via Origin-Header
-- [x] i18n: alle Bereiche DE/EN/IT
-- [x] Favicon + PWA (manifest, icons)
-- [x] Settings: Geocoding für Home-Koordinaten (Nominatim)
+### Erledigt (diese Session)
+- [x] Passkeys: rp_id auto-detection via Origin-Header (kein x-forwarded-host)
+- [x] Passkeys: `attestation="none"` String entfernt (py-webauthn erwartet Default)
+- [x] i18n: alle Bereiche DE/EN/IT vollständig
+- [x] PriceRadar: alle Formular-Labels, Tabs, Buttons i18n
 - [x] MyTrips: komplettes UX-Redesign
   - [x] Tab-Reihenfolge: Übersicht → Geplant → Chronik → Bucket List
-  - [x] Globaler Sync-Button (Dawarich + ActualBudget)
-  - [x] Jahres-Switcher mit striktem Filter
-  - [x] Budget pro Jahr im Backend
-  - [x] Reisechronik: manuelle Einträge + inline Kosten-Editor
-  - [x] ActualBudget + Budget-Input in Reisechronik
-  - [x] Split-Stats (Vergangen/Geplant, klickbar)
-  - [x] ScratchMap: 3 Marker-Typen (visited/planned/bucket)
+  - [x] Jahres-Switcher: max. 4 Jahre sichtbar, `‹ ›` navigierbar
+  - [x] Globaler Sync-Button (Dawarich + ActualBudget nacheinander)
+  - [x] Budget pro Jahr im Backend (`/api/trips/budget`)
+  - [x] Reisechronik: manuelle Einträge (`source=manual`)
+  - [x] Inline-Kosten-Editor in der Chronik (`PATCH /api/trips/{id}/cost`)
+  - [x] ActualBudget + Budget-Input in Reisechronik (nicht in Geplante Reisen)
+  - [x] Stats 4-Karten: Vergangen/Geplant/Wunschziele/Ausgegeben (alle 3 klickbar)
   - [x] Nächste Abenteuer + Letzte Erinnerungen im Übersicht-Tab
+  - [x] ScratchMap: 3 Marker-Typen (visited grün / planned blau / bucket orange)
+- [x] ScratchMap: robuste CDN-Ladestrategie (poll + sequenziell)
+- [x] ActualBudget 404 Fix: `/actual/transactions` Endpoint mit Feldname-Mapping
+- [x] ActualBudget: `📂 Dateien auflisten` Button + Hilfe-Panel in der UI
+- [x] Favicon: `favicon.svg` + `manifest.webmanifest` + `icon-192.png` + `icon-512.png`
+- [x] Settings Mein Bereich: Geocoding-Suche für Home-Koordinaten (Nominatim)
+- [x] FieldGuide: ActualBudget Dateiname Schritt-für-Schritt Erklärung
+- [x] Onboarding: `window.location.origin` als Backend-URL Vorschlag
 
 ### Roadmap (beta)
-- [ ] Scratch Map: Geocoding für planned-Trips (lat/lon aus Ortsname)
+- [ ] ScratchMap: Geocoding für planned-Trips (lat/lon aus Ortsname automatisch)
 - [ ] Price history chart (Chart.js) in PriceRadar
 - [ ] Mietwagen tab in PriceRadar
 - [ ] Discord webhook notifications
 - [ ] Currency toggle (EUR/USD/GBP)
-- [ ] HSTS header in Zoraxy
+- [ ] HSTS header in Zoraxy setzen
+- [ ] Scratch Map: planned-Trips Koordinaten via Geocoding befüllen
 
 ### Phase 3 (future)
 - [ ] Multi-user data separation fully tested
