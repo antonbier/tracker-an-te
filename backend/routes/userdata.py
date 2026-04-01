@@ -13,7 +13,7 @@ from auth_jwt import get_current_user
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-ALLOWED_KEYS = {"ws-trips", "ws-budget", "ws-bucketlist"}
+ALLOWED_KEYS = {"ws-trips", "ws-budget", "ws-bucketlist", "ws-budget-years"}
 
 
 class UserDataPayload(BaseModel):
