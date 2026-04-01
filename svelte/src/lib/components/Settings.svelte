@@ -309,8 +309,24 @@
         </div>
 
       {:else if activeTab === 'integrations'}
+        {#if $appStatus?.auth_enabled}
+          <!-- Auth aktiv: Benutzer soll "Mein Bereich" verwenden -->
+          <div class="rounded-xl p-4 border" style="background:rgba(196,98,45,.06);border-color:var(--ws-border)">
+            <div class="text-sm font-semibold mb-1" style="color:var(--ws-accent)">🔐 Auth ist aktiv</div>
+            <p class="text-xs" style="color:var(--ws-muted)">
+              Da die Authentifizierung aktiviert ist, werden Dawarich und ActualBudget
+              pro Benutzer konfiguriert. Bitte wechsle in den Tab
+              <button onclick={() => activeTab='myspace'} class="underline font-semibold" style="color:var(--ws-accent)">🏠 Mein Bereich</button>
+              um deine persönlichen Integrationen einzustellen.
+            </p>
+            <p class="text-xs mt-2" style="color:var(--ws-muted)">
+              Die globalen Integrationsfelder hier gelten als Fallback für alle Benutzer ohne eigene Konfiguration.
+            </p>
+          </div>
+          <hr style="border-color:var(--ws-border)"/>
+        {/if}
         <div class="space-y-2">
-          <div class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Dawarich</div>
+          <div class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Dawarich
           <input bind:value={dawarichUrl} placeholder="https://dawarich.example.com"
             class="w-full px-3 py-2 rounded-xl border text-sm"
             style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
@@ -388,6 +404,19 @@
         </div>
 
       {:else if activeTab === 'myspace'}
+        {#if !$appStatus?.auth_enabled}
+          <!-- Auth deaktiviert: globale Integrationen werden genutzt -->
+          <div class="rounded-xl p-4 border" style="background:rgba(42,92,69,.06);border-color:var(--ws-border)">
+            <div class="text-sm font-semibold mb-1" style="color:var(--ws-green)">ℹ️ Auth ist deaktiviert</div>
+            <p class="text-xs" style="color:var(--ws-muted)">
+              Die Einstellungen hier gelten nur wenn Authentifizierung aktiv ist.
+              Im Gast-Modus werden die globalen Werte aus dem Tab
+              <button onclick={() => activeTab='integrations'} class="underline font-semibold" style="color:var(--ws-accent)">🔗 Integrationen</button>
+              verwendet.
+            </p>
+          </div>
+          <hr style="border-color:var(--ws-border)"/>
+        {/if}
         <!-- Per-user settings: Dawarich + ActualBudget + Home coords -->
         <div class="space-y-2">
           <div class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">🧭 Dawarich</div>
