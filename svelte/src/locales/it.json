@@ -152,5 +152,22 @@
   "geocodeSearch": "Cerca luogo di residenza",
   "radarInspirations": "✨ Ispirazioni",
   "radarNoKey": "Chiave SerpAPI mancante — aggiungila nelle impostazioni",
-  "radarNoBackend": "URL backend mancante"
+  "radarNoBackend": "URL backend mancante",
+  "radarFrom": "Da",
+  "radarTo": "A",
+  "radarDate": "Data",
+  "radarReturn": "Ritorno (opt.)",
+  "radarAdults": "Adulti",
+  "radarChildren": "Bambini",
+  "radarRequired": "Compilare i campi obbligatori",
+  "radarNewTracker": "Nuovo tracker",
+  "radarActiveTrackers": "Tracker attivi",
+  "radarRegion": "Regione",
+  "radarType": "Tipo alloggio",
+  "radarCheckin": "Arrivo",
+  "radarCheckout": "Partenza",
+  "radarDest": "Destinazione / Hotel",
+  "radarRooms": "Camere",
+  "radarSource": "Fonte",
+  "radarStart": "+ Avvia tracker"
 }
