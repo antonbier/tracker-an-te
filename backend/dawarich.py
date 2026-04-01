@@ -112,8 +112,13 @@ def _reverse_geocode(lat: float, lon: float) -> tuple[str, str]:
 
 def sync_trips(base_url: str, token: str, home_lat: float, home_lon: float,
                start_date: Optional[str] = None, end_date: Optional[str] = None,
-               user_id: int = 1) -> dict:
-    from database import save_detected_trip
+               user_id: int = 1, force_full: bool = False) -> dict:
+    from database import save_detected_trip, list_detected_trips, unignore_detected_trips
+
+    # Full Sync: alle ignorierten Trips zurücksetzen
+    if force_full:
+        n = unignore_detected_trips(user_id=user_id)
+        logger.info(f"[Dawarich] Full sync: {n} ignorierte Trips reaktiviert")
 
     points_raw = fetch_points(base_url, token, start_date, end_date)
     if not points_raw:
@@ -147,8 +152,23 @@ def sync_trips(base_url: str, token: str, home_lat: float, home_lon: float,
     # Filter: min 1 overnight (2 days)
     trips = [g for g in groups if len(g) >= 2]
 
+    # Ignorierte Trips laden damit wir sie überspringen können
+    ignored_keys: set[tuple] = set()
+    if not force_full:
+        all_trips = list_detected_trips(limit=5000, user_id=user_id, include_ignored=True)
+        for t in all_trips:
+            if t.get("ignored"):
+                ignored_keys.add((t["start_date"], t["end_date"]))
+        if ignored_keys:
+            logger.info(f"[Dawarich] {len(ignored_keys)} ignorierte Trips werden übersprungen")
+
     saved = 0
     for g in trips:
+        key = (g[0], g[-1])
+        if key in ignored_keys:
+            logger.debug(f"[Dawarich] Trip {key} übersprungen (ignored)")
+            continue
+
         pts = []
         for d in g:
             pts.extend(by_date[d])
