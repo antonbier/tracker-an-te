@@ -126,7 +126,7 @@
     { id: 'integrations',  label: $t('settingsIntegrations') },
     { id: 'apis',          label: $t('settingsApis') },
     { id: 'notifications', label: $t('settingsNotifications') },
-    { id: 'myspace',       label: '🏠 ' + $t('settingsAccount').replace('👤 ','') },
+    { id: 'myspace',       label: $t('settingsMyspace') },
     ...($appStatus?.auth_enabled ? [{ id: 'account', label: $t('settingsAccount') }] : []),
     ...($isAdmin && $appStatus?.auth_enabled ? [{ id: 'admin', label: $t('settingsAdmin') }] : []),
   ]);
