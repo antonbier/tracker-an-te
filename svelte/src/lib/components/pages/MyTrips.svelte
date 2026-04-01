@@ -4,29 +4,29 @@
   import { toast } from '$lib/toast.js';
   import { browser } from '$app/environment';
   import { t } from '$lib/i18n.js';
-  import { onMount } from 'svelte';
   import ScratchMap from '$lib/components/ScratchMap.svelte';
 
   let activeTab = $state('overview');
 
-  // ── Trip form ────────────────────────────────────────────────────────
-  let tripName = $state('');
-  let tripDate = $state(new Date().toISOString().slice(0, 10));
-  let tripCost = $state('');
+  // ── Trip form ──────────────────────────────────────────────────────────
+  let tripName      = $state('');
+  let tripDateStart = $state(new Date().toISOString().slice(0, 10));
+  let tripDateEnd   = $state('');
+  let tripCost      = $state('');
 
-  // ── Budget ───────────────────────────────────────────────────────────
+  // ── Budget ─────────────────────────────────────────────────────────────
   let budgetInput = $state('');
   $effect(() => { budgetInput = $budget || ''; });
 
-  // ── ActualBudget sync ────────────────────────────────────────────────
+  // ── ActualBudget ───────────────────────────────────────────────────────
   let actualSyncing = $state(false);
   let actualResult  = $state(null);
 
-  // ── Bucket list ──────────────────────────────────────────────────────
+  // ── Bucket list ────────────────────────────────────────────────────────
   let bucketItem = $state('');
   let bucketDest = $state('');
 
-  // ── Journal (Dawarich) ───────────────────────────────────────────────
+  // ── Journal (Dawarich) ─────────────────────────────────────────────────
   let journalTrips = $state([]);
   let journalLoad  = $state(false);
   let syncing      = $state(false);
@@ -69,17 +69,22 @@
   }
 
   async function deleteJournalTrip(id) {
-    if (!confirm($t('delete') + '?')) return;
-    try { await api(`/api/dawarich/trips/${id}`, { method: 'DELETE' }); toast('Trip gelöscht', 'success'); }
+    if (!confirm('Eintrag löschen?')) return;
+    try { await api(`/api/dawarich/trips/${id}`, { method: 'DELETE' }); toast('Gelöscht ✓', 'success'); }
     catch (e) { toast(e.message, 'error'); }
     await loadJournal();
   }
 
-  // ── Trips ─────────────────────────────────────────────────────────────
+  // ── Trips ──────────────────────────────────────────────────────────────
   function addTrip() {
-    if (!tripName || !tripDate || !tripCost) { toast('Bitte alle Felder ausfüllen', 'error'); return; }
-    trips.update(l => [...l, { name: tripName, date: tripDate, cost: parseFloat(tripCost) }]);
-    tripName = ''; tripCost = '';
+    if (!tripName || !tripDateStart || !tripCost) { toast('Bitte Pflichtfelder ausfüllen', 'error'); return; }
+    trips.update(l => [...l, {
+      name:      tripName,
+      dateStart: tripDateStart,
+      dateEnd:   tripDateEnd || tripDateStart,
+      cost:      parseFloat(tripCost),
+    }]);
+    tripName = ''; tripCost = ''; tripDateEnd = '';
     toast($t('toastTripAdded'), 'success');
   }
   function removeTrip(i) { trips.update(l => l.filter((_, idx) => idx !== i)); }
@@ -105,7 +110,7 @@
     actualSyncing = false;
   }
 
-  // ── Bucket list ───────────────────────────────────────────────────────
+  // ── Bucket list ────────────────────────────────────────────────────────
   function addBucketItem() {
     if (!bucketItem) { toast('Bitte Eintrag eingeben', 'error'); return; }
     bucketlist.update(l => [...l, { item: bucketItem, dest: bucketDest, done: false, created: new Date().toISOString().slice(0, 10) }]);
@@ -115,21 +120,25 @@
   function toggleBucket(i) { bucketlist.update(l => l.map((x, idx) => idx === i ? { ...x, done: !x.done } : x)); }
   function removeBucket(i) { bucketlist.update(l => l.filter((_, idx) => idx !== i)); }
 
-  // ── Derived ───────────────────────────────────────────────────────────
+  // ── Derived ────────────────────────────────────────────────────────────
   const totalBudget = $derived(parseFloat($budget) || 0);
   const totalSpent  = $derived($trips.reduce((s, t) => s + (parseFloat(t.cost) || 0), 0));
   const remaining   = $derived(Math.max(0, totalBudget - totalSpent));
   const pct         = $derived(totalBudget > 0 ? Math.min(100, (totalSpent / totalBudget) * 100) : 0);
   const today       = new Date().toISOString().slice(0, 10);
 
-  const tabs = $derived([
-    { id: 'overview',   label: '📊 ' + $t('mytripsOverview').replace(/^📊\s*/,'') },
-    { id: 'trips',      label: '🧳 ' + $t('mytripsTrips').replace(/^[^\s]+\s*/,'') },
-    { id: 'bucketlist', label: '🗺️ ' + $t('mytripsBucketlist').replace(/^[^\s]+\s*/,'') },
-    { id: 'journal',    label: '📓 ' + $t('navJournal').replace(/^[^\s]+\s*/,'') },
-  ]);
+  // Trips: zukünftige vs vergangene (sortiert nach Startdatum)
+  const sortedTrips    = $derived([...$trips].sort((a, b) => (b.dateStart || b.date || '').localeCompare(a.dateStart || a.date || '')));
+  const upcomingTrips  = $derived(sortedTrips.filter(t => (t.dateStart || t.date || '') >= today));
+  const pastTrips      = $derived(sortedTrips.filter(t => (t.dateStart || t.date || '') < today));
 
-  // Input class helper
+  const tabs = [
+    { id: 'overview',   label: '📊 Übersicht' },
+    { id: 'trips',      label: '✈️ Geplante Reisen' },
+    { id: 'bucketlist', label: '🌟 Bucket List' },
+    { id: 'journal',    label: '📓 Reisechronik' },
+  ];
+
   const inp = 'bg-stone-50 border border-stone-200 text-stone-800 text-sm rounded-lg focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 p-2.5 w-full outline-none transition-all';
   const card = 'bg-white border border-stone-200 rounded-xl shadow-sm p-5';
   const btnPrimary = 'w-full py-2.5 px-4 rounded-lg text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-[.98]';
@@ -157,26 +166,24 @@
         class:bg-white={activeTab !== tab.id}
         class:text-stone-500={activeTab !== tab.id}
         class:border-stone-200={activeTab !== tab.id}
-        class:hover:border-stone-300={activeTab !== tab.id}
       >
         {tab.label}
       </button>
     {/each}
   </div>
 
-  <!-- ═══════════════════════════════════════════════════════════════════
+  <!-- ══════════════════════════════════════════════════════
        TAB 1 — ÜBERSICHT
-  ════════════════════════════════════════════════════════════════════ -->
+  ══════════════════════════════════════════════════════ -->
   {#if activeTab === 'overview'}
 
-    <!-- Stats-Karten -->
     <div class="grid grid-cols-3 gap-3">
       {#each [
-        { label: $t('mytripsStatsTrips'),     value: $trips.length,                                icon: '✈️', color: 'text-stone-800' },
-        { label: $t('mytripsStatsSpent'),     value: totalSpent.toFixed(2) + ' €',                icon: '💸', color: 'text-orange-600' },
+        { label: $t('mytripsStatsTrips'),     value: $trips.length,     icon: '✈️', color: 'text-stone-800' },
+        { label: $t('mytripsStatsSpent'),     value: totalSpent.toFixed(2) + ' €', icon: '💸', color: 'text-orange-600' },
         { label: $t('mytripsStatsRemaining'), value: totalBudget > 0 ? remaining.toFixed(2) + ' €' : '–', icon: '💰', color: 'text-emerald-700' },
       ] as s}
-        <div class={card + ' text-center'}>
+        <div class="{card} text-center">
           <div class="text-2xl mb-1">{s.icon}</div>
           <div class="text-xs font-medium text-stone-400 mb-0.5 uppercase tracking-wide">{s.label}</div>
           <div class="text-lg font-bold {s.color}" style="font-family:var(--ws-serif)">{s.value}</div>
@@ -184,7 +191,6 @@
       {/each}
     </div>
 
-    <!-- Budget-Fortschritt -->
     {#if totalBudget > 0}
       <div class={card}>
         <div class="flex justify-between text-xs text-stone-500 mb-2">
@@ -202,11 +208,11 @@
       </div>
     {/if}
 
-    <!-- Scratch Map -->
-    <div class={card + ' !p-4'}>
+    <!-- Karte -->
+    <div class="{card} !p-4">
       <div class="flex items-center justify-between mb-3">
         <h2 class="text-sm font-semibold text-stone-700">🗺️ Meine Reisekarte</h2>
-        <span class="text-xs text-stone-400">{$trips.length + journalTrips.length} Orte</span>
+        <span class="text-xs text-stone-400">{journalTrips.length} erkannte Orte</span>
       </div>
       <ScratchMap {journalTrips} />
     </div>
@@ -216,12 +222,14 @@
       <div class={card}>
         <h2 class="text-sm font-semibold text-stone-700 mb-3">{$t('mytripsRecentTrips')}</h2>
         <div class="space-y-2">
-          {#each [...$trips].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 4) as tr}
+          {#each sortedTrips.slice(0, 4) as tr}
+            {@const start = tr.dateStart || tr.date || ''}
+            {@const end   = tr.dateEnd   || ''}
             <div class="flex items-center gap-3 py-2 border-b border-stone-100 last:border-0">
-              <span class="text-lg">{tr.date >= today ? '✈️' : '✅'}</span>
+              <span class="text-lg">{start >= today ? '✈️' : '✅'}</span>
               <div class="flex-1 min-w-0">
                 <div class="text-sm font-semibold text-stone-800 truncate" style="font-family:var(--ws-serif)">{tr.name}</div>
-                <div class="text-xs text-stone-400 font-mono">{tr.date}</div>
+                <div class="text-xs text-stone-400 font-mono">{start}{end && end !== start ? ' → ' + end : ''}</div>
               </div>
               <div class="text-sm font-bold text-orange-600 font-mono shrink-0">{parseFloat(tr.cost).toFixed(2)} €</div>
             </div>
@@ -230,22 +238,20 @@
       </div>
     {/if}
 
-  <!-- ═══════════════════════════════════════════════════════════════════
-       TAB 2 — REISEN & BUDGET
-  ════════════════════════════════════════════════════════════════════ -->
+  <!-- ══════════════════════════════════════════════════════
+       TAB 2 — GEPLANTE REISEN
+  ══════════════════════════════════════════════════════ -->
   {:else if activeTab === 'trips'}
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
-      <!-- ── Linke Spalte ── -->
+      <!-- Linke Spalte -->
       <div class="lg:col-span-1 space-y-4">
 
-        <!-- Smart Reise-Planer (Coming Soon) -->
-        <div class="{card} border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50 relative overflow-hidden">
-          <div class="absolute top-3 right-3">
-            <span class="text-[10px] font-bold uppercase tracking-wider bg-orange-600 text-white px-2 py-0.5 rounded-full">
-              Bald verfügbar
-            </span>
-          </div>
+        <!-- Smart Reise-Planer -->
+        <div class="bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-200 rounded-xl shadow-sm p-5 relative overflow-hidden">
+          <span class="absolute top-3 right-3 text-[10px] font-bold uppercase tracking-wider bg-orange-600 text-white px-2 py-0.5 rounded-full">
+            Bald verfügbar
+          </span>
           <div class="text-xl mb-2">✨</div>
           <h3 class="font-bold text-stone-800 text-sm mb-1" style="font-family:var(--ws-serif)">Smart Reise-Planer</h3>
           <p class="text-xs text-stone-500 leading-relaxed">
@@ -255,26 +261,52 @@
 
         <!-- Jahresbudget -->
         <div class={card}>
-          <h3 class="text-sm font-semibold text-stone-700 mb-3">💶 {$t('mytripsBudgetManual')}</h3>
-          <input type="number" bind:value={budgetInput}
-            placeholder={$t('mytripsBudgetPlaceholder')}
-            class={inp + ' mb-3'} />
-          <button onclick={saveBudget}
-            class={btnPrimary}
-            style="background:linear-gradient(135deg,#c4622d,#b84928)">
+          <h3 class="text-sm font-semibold text-stone-700 mb-3">💶 Jahresbudget</h3>
+          <input type="number" bind:value={budgetInput} placeholder={$t('mytripsBudgetPlaceholder')} class="{inp} mb-3" />
+          <button onclick={saveBudget} class={btnPrimary} style="background:linear-gradient(135deg,#c4622d,#b84928)">
             {$t('mytripsBudgetSave')}
           </button>
         </div>
 
+        <!-- Neue Reise hinzufügen -->
+        <div class={card}>
+          <h3 class="text-sm font-semibold text-stone-700 mb-3">➕ {$t('mytripsAddTrip')}</h3>
+          <div class="space-y-2.5">
+            <input bind:value={tripName} placeholder={$t('mytripsDestPlaceholder')} class={inp} />
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="text-xs text-stone-400 mb-1 block">Von</label>
+                <input type="date" bind:value={tripDateStart} class={inp} />
+              </div>
+              <div>
+                <label class="text-xs text-stone-400 mb-1 block">Bis (opt.)</label>
+                <input type="date" bind:value={tripDateEnd} class={inp} />
+              </div>
+            </div>
+            <input type="number" bind:value={tripCost} placeholder={$t('mytripsCostPlaceholder')} class={inp} />
+            <button onclick={addTrip} class={btnPrimary} style="background:linear-gradient(135deg,#c4622d,#b84928)">
+              {$t('mytripsAddBtn')}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Rechte Spalte -->
+      <div class="lg:col-span-2 space-y-4">
+
         <!-- ActualBudget Sync -->
         <div class={card}>
-          <h3 class="text-sm font-semibold text-stone-700 mb-1">{$t('mytripsActualSync')}</h3>
-          <p class="text-xs text-stone-400 mb-3">{$t('mytripsActualDesc')}</p>
-          <button onclick={syncActual} disabled={actualSyncing || !$apiUrl}
-            class={btnPrimary + ' disabled:opacity-40'}
-            style="background:linear-gradient(135deg,#c4622d,#b84928)">
-            {actualSyncing ? $t('mytripsActualSyncing') : $t('mytripsActualBtn')}
-          </button>
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <h3 class="text-sm font-semibold text-stone-700">{$t('mytripsActualSync')}</h3>
+              <p class="text-xs text-stone-400 mt-0.5">{$t('mytripsActualDesc')}</p>
+            </div>
+            <button onclick={syncActual} disabled={actualSyncing || !$apiUrl}
+              class="shrink-0 px-4 py-2 rounded-lg text-sm font-semibold border border-stone-200 bg-stone-50
+                     text-stone-700 hover:border-orange-300 hover:text-orange-600 transition-all disabled:opacity-40">
+              {actualSyncing ? '⏳ Sync…' : '🔄 Synchronisieren'}
+            </button>
+          </div>
           {#if actualResult}
             <div class="mt-3 pt-3 border-t border-stone-100">
               <div class="flex justify-between text-xs font-semibold text-stone-700 mb-2">
@@ -297,25 +329,6 @@
           {/if}
         </div>
 
-        <!-- Neue Reise hinzufügen -->
-        <div class={card}>
-          <h3 class="text-sm font-semibold text-stone-700 mb-3">➕ {$t('mytripsAddTrip')}</h3>
-          <div class="space-y-2.5">
-            <input bind:value={tripName} placeholder={$t('mytripsDestPlaceholder')} class={inp} />
-            <input type="date" bind:value={tripDate} class={inp} />
-            <input type="number" bind:value={tripCost} placeholder={$t('mytripsCostPlaceholder')} class={inp} />
-            <button onclick={addTrip}
-              class={btnPrimary}
-              style="background:linear-gradient(135deg,#c4622d,#b84928)">
-              {$t('mytripsAddBtn')}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- ── Rechte Spalte ── -->
-      <div class="lg:col-span-2 space-y-4">
-
         <!-- Budget Progress -->
         {#if totalBudget > 0}
           <div class={card}>
@@ -334,64 +347,81 @@
           </div>
         {/if}
 
-        <!-- Reise-Liste -->
+        <!-- Geplante Reisen -->
         <div class={card}>
           <h3 class="text-sm font-semibold text-stone-700 mb-3">
-            ✈️ Alle Reisen
-            <span class="ml-1.5 text-xs font-normal text-stone-400">({$trips.length})</span>
+            ✈️ Geplante Reisen
+            <span class="ml-1.5 text-xs font-normal text-stone-400">({upcomingTrips.length})</span>
           </h3>
-          {#if $trips.length === 0}
-            <div class="text-center py-10 text-stone-400">
-              <div class="text-4xl mb-2">✈️</div>
-              <p class="text-sm">{$t('mytripsEmpty')}</p>
-            </div>
+          {#if upcomingTrips.length === 0}
+            <p class="text-sm text-stone-400 py-4 text-center">Keine geplanten Reisen.</p>
           {:else}
             <div class="space-y-2">
-              {#each [...$trips].sort((a, b) => b.date.localeCompare(a.date)) as tr, i}
-                <div class="flex items-center gap-3 p-3 rounded-lg bg-stone-50 border border-stone-100
-                            hover:border-stone-200 transition-colors group">
-                  <div class="w-8 h-8 rounded-full flex items-center justify-center text-base shrink-0"
-                    style="background:{tr.date >= today ? '#fff7ed' : '#f0fdf4'}">
-                    {tr.date >= today ? '✈️' : '✅'}
-                  </div>
+              {#each upcomingTrips as tr, i}
+                {@const start = tr.dateStart || tr.date || ''}
+                {@const end   = tr.dateEnd || ''}
+                {@const idx   = $trips.indexOf(tr)}
+                <div class="flex items-center gap-3 p-3 rounded-lg bg-orange-50 border border-orange-100 hover:border-orange-200 transition-colors group">
+                  <div class="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-base shrink-0">✈️</div>
                   <div class="flex-1 min-w-0">
                     <div class="text-sm font-semibold text-stone-800 truncate" style="font-family:var(--ws-serif)">{tr.name}</div>
-                    <div class="text-xs text-stone-400 font-mono">{tr.date}</div>
+                    <div class="text-xs text-stone-400 font-mono">{start}{end && end !== start ? ' → ' + end : ''}</div>
                   </div>
-                  <div class="text-base font-bold text-orange-600 font-mono shrink-0">{parseFloat(tr.cost).toFixed(2)} €</div>
-                  <button onclick={() => removeTrip(i)}
-                    class="opacity-0 group-hover:opacity-100 transition-opacity text-stone-400 hover:text-red-500 ml-1 text-xs px-1.5 py-1 rounded border border-stone-200 hover:border-red-200">
-                    ✕
-                  </button>
+                  <div class="text-sm font-bold text-orange-600 font-mono shrink-0">{parseFloat(tr.cost).toFixed(2)} €</div>
+                  <button onclick={() => removeTrip(idx)}
+                    class="opacity-0 group-hover:opacity-100 transition-opacity text-stone-400 hover:text-red-500 text-xs px-1.5 py-1 rounded border border-stone-200 hover:border-red-200">✕</button>
                 </div>
               {/each}
             </div>
-            <!-- Summe -->
+          {/if}
+        </div>
+
+        <!-- Vergangene Reisen -->
+        {#if pastTrips.length > 0}
+          <div class={card}>
+            <h3 class="text-sm font-semibold text-stone-700 mb-3">
+              ✅ Vergangene Reisen
+              <span class="ml-1.5 text-xs font-normal text-stone-400">({pastTrips.length})</span>
+            </h3>
+            <div class="space-y-2">
+              {#each pastTrips as tr}
+                {@const start = tr.dateStart || tr.date || ''}
+                {@const end   = tr.dateEnd || ''}
+                {@const idx   = $trips.indexOf(tr)}
+                <div class="flex items-center gap-3 p-3 rounded-lg bg-stone-50 border border-stone-100 hover:border-stone-200 transition-colors group">
+                  <div class="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center text-base shrink-0">✅</div>
+                  <div class="flex-1 min-w-0">
+                    <div class="text-sm font-semibold text-stone-800 truncate" style="font-family:var(--ws-serif)">{tr.name}</div>
+                    <div class="text-xs text-stone-400 font-mono">{start}{end && end !== start ? ' → ' + end : ''}</div>
+                  </div>
+                  <div class="text-sm font-bold text-stone-500 font-mono shrink-0">{parseFloat(tr.cost).toFixed(2)} €</div>
+                  <button onclick={() => removeTrip(idx)}
+                    class="opacity-0 group-hover:opacity-100 transition-opacity text-stone-400 hover:text-red-500 text-xs px-1.5 py-1 rounded border border-stone-200 hover:border-red-200">✕</button>
+                </div>
+              {/each}
+            </div>
             <div class="mt-3 pt-3 border-t border-stone-100 flex justify-between text-sm font-semibold">
               <span class="text-stone-500">Gesamt</span>
               <span class="text-orange-600 font-mono">{totalSpent.toFixed(2)} €</span>
             </div>
-          {/if}
-        </div>
+          </div>
+        {/if}
+
       </div>
     </div>
 
-  <!-- ═══════════════════════════════════════════════════════════════════
+  <!-- ══════════════════════════════════════════════════════
        TAB 3 — BUCKET LIST
-  ════════════════════════════════════════════════════════════════════ -->
+  ══════════════════════════════════════════════════════ -->
   {:else if activeTab === 'bucketlist'}
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
-
-      <!-- Formular -->
       <div class="lg:col-span-1">
         <div class={card}>
           <h3 class="text-sm font-semibold text-stone-700 mb-3">🌟 {$t('mytripsBucketAdd')}</h3>
           <div class="space-y-2.5">
             <input bind:value={bucketItem} placeholder={$t('mytripsBucketItemPlaceholder')} class={inp} />
             <input bind:value={bucketDest} placeholder={$t('mytripsBucketDestPlaceholder')} class={inp} />
-            <button onclick={addBucketItem}
-              class={btnPrimary}
-              style="background:linear-gradient(135deg,#c4622d,#b84928)">
+            <button onclick={addBucketItem} class={btnPrimary} style="background:linear-gradient(135deg,#c4622d,#b84928)">
               {$t('mytripsAddBtn')}
             </button>
           </div>
@@ -402,41 +432,27 @@
           {/if}
         </div>
       </div>
-
-      <!-- Grid der Wunschziele -->
       <div class="lg:col-span-2">
         {#if $bucketlist.length === 0}
-          <div class={card + ' text-center py-14'}>
+          <div class="{card} text-center py-14">
             <div class="text-5xl mb-3">🌍</div>
             <p class="text-sm text-stone-400">{$t('mytripsBucketEmpty')}</p>
           </div>
         {:else}
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {#each $bucketlist as item, i}
-              <div class="group relative {card} transition-all hover:shadow-md"
-                class:opacity-50={item.done}>
-                <!-- Done-Toggle -->
+              <div class="group relative {card} transition-all hover:shadow-md" class:opacity-50={item.done}>
                 <button onclick={() => toggleBucket(i)}
                   class="absolute top-4 right-4 w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs transition-all"
                   style="border-color:{item.done?'#059669':'#d1d5db'};background:{item.done?'#059669':'transparent'};color:white">
                   {item.done ? '✓' : ''}
                 </button>
-                <!-- Delete -->
                 <button onclick={() => removeBucket(i)}
-                  class="absolute top-4 right-12 w-6 h-6 rounded-full border border-stone-200 flex items-center
-                         justify-center text-xs text-stone-400 hover:text-red-500 hover:border-red-200
-                         opacity-0 group-hover:opacity-100 transition-all">
-                  ✕
-                </button>
+                  class="absolute top-4 right-12 w-6 h-6 rounded-full border border-stone-200 flex items-center justify-center
+                         text-xs text-stone-400 hover:text-red-500 hover:border-red-200 opacity-0 group-hover:opacity-100 transition-all">✕</button>
                 <div class="text-2xl mb-2">🌟</div>
-                <div class="text-sm font-semibold text-stone-800 pr-12"
-                  style="font-family:var(--ws-serif)"
-                  class:line-through={item.done}>
-                  {item.item}
-                </div>
-                {#if item.dest}
-                  <div class="text-xs text-stone-400 mt-1">📍 {item.dest}</div>
-                {/if}
+                <div class="text-sm font-semibold text-stone-800 pr-14" style="font-family:var(--ws-serif)" class:line-through={item.done}>{item.item}</div>
+                {#if item.dest}<div class="text-xs text-stone-400 mt-1">📍 {item.dest}</div>{/if}
                 <div class="text-xs text-stone-300 mt-2 font-mono">{item.created}</div>
               </div>
             {/each}
@@ -445,29 +461,24 @@
       </div>
     </div>
 
-  <!-- ═══════════════════════════════════════════════════════════════════
-       TAB 4 — REISETAGEBUCH (Dawarich)
-  ════════════════════════════════════════════════════════════════════ -->
+  <!-- ══════════════════════════════════════════════════════
+       TAB 4 — REISECHRONIK (Dawarich)
+  ══════════════════════════════════════════════════════ -->
   {:else if activeTab === 'journal'}
-
-    <!-- Header -->
     <div class="flex items-center justify-between">
       <div>
-        <h2 class="text-base font-semibold text-stone-800">{$t('journalTitle')}</h2>
-        <p class="text-xs text-stone-400 mt-0.5">{journalTrips.length} Reisen erkannt</p>
+        <h2 class="text-base font-semibold text-stone-800">📓 Reisechronik</h2>
+        <p class="text-xs text-stone-400 mt-0.5">{journalTrips.length} vergangene Reisen erkannt</p>
       </div>
       <button onclick={syncJournal} disabled={syncing}
         class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border border-stone-200 bg-white
                text-stone-700 hover:border-orange-300 hover:text-orange-600 transition-all disabled:opacity-50 shadow-sm">
-        <span>{syncing ? '⏳' : '🧭'}</span>
-        {syncing ? $t('journalSyncing') : $t('journalSync')}
+        {syncing ? '⏳ Sync…' : '🧭 Synchronisieren'}
       </button>
     </div>
 
     {#if syncInfo}
-      <div class="text-xs px-4 py-2.5 rounded-lg bg-stone-50 border border-stone-200 text-stone-500">
-        ℹ️ {syncInfo}
-      </div>
+      <div class="text-xs px-4 py-2.5 rounded-lg bg-stone-50 border border-stone-200 text-stone-500">ℹ️ {syncInfo}</div>
     {/if}
 
     {#if !$apiUrl}
@@ -477,9 +488,7 @@
       </div>
     {:else if journalLoad}
       <div class="space-y-3">
-        {#each [1,2,3] as _}
-          <div class="h-20 rounded-xl bg-stone-100 animate-pulse"></div>
-        {/each}
+        {#each [1,2,3] as _}<div class="h-20 rounded-xl bg-stone-100 animate-pulse"></div>{/each}
       </div>
     {:else if journalTrips.length === 0}
       <div class="{card} text-center py-12">
@@ -493,28 +502,19 @@
         </button>
       </div>
     {:else}
-      <!-- Timeline -->
-      <div class="relative space-y-0 pl-6">
-        <!-- Vertikale Linie -->
+      <div class="relative pl-6">
         <div class="absolute left-2.5 top-2 bottom-2 w-0.5 bg-stone-200 rounded-full"></div>
-
-        {#each journalTrips as trip, idx}
+        {#each journalTrips as trip}
           {@const loc = [trip.location_name, trip.country].filter(Boolean).join(', ') || `${trip.lat}, ${trip.lon}`}
           {@const mapsUrl = `https://www.google.com/maps?q=${trip.lat},${trip.lon}`}
           <div class="relative pb-4">
-            <!-- Dot -->
             <div class="absolute -left-6 top-4 w-4 h-4 rounded-full border-2 border-white shadow-sm z-10"
               style="background:linear-gradient(135deg,#c4622d,#b84928)"></div>
-
             <div class="{card} ml-2 hover:shadow-md transition-shadow">
               <div class="flex items-start justify-between gap-3">
                 <div class="flex-1 min-w-0">
-                  <div class="font-bold text-stone-800 truncate" style="font-family:var(--ws-serif)">
-                    📍 {loc}
-                  </div>
-                  <div class="text-xs text-stone-400 font-mono mt-0.5">
-                    {trip.start_date} → {trip.end_date}
-                  </div>
+                  <div class="font-bold text-stone-800 truncate" style="font-family:var(--ws-serif)">📍 {loc}</div>
+                  <div class="text-xs text-stone-400 font-mono mt-0.5">{trip.start_date} → {trip.end_date}</div>
                 </div>
                 <span class="shrink-0 px-2.5 py-1 rounded-full text-xs font-bold"
                   style="background:rgba(196,98,45,.1);color:#c4622d">
