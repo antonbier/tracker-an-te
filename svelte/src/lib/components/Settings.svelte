@@ -421,7 +421,10 @@
         </div>
         <hr style="border-color:var(--ws-border)"/>
         <div class="space-y-2">
-          <div class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">💶 ActualBudget</div>
+          <div class="flex items-center gap-2 mb-1">
+            <span class="text-base">💶</span>
+            <div class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">ActualBudget</div>
+          </div>
           <input bind:value={myActualUrl} placeholder="https://actual.example.com"
             class="w-full px-3 py-2 rounded-xl border text-sm"
             style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
