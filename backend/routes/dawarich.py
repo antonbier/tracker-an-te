@@ -25,6 +25,7 @@ class SyncRequest(BaseModel):
     home_lon:       Optional[float] = None
     start_date:     Optional[str] = None
     end_date:       Optional[str] = None
+    force_full:     bool = False  # True = ignorierte Trips zurücksetzen
 
 
 def _uid(user: dict) -> int | None:
@@ -36,7 +37,6 @@ def _uid(user: dict) -> int | None:
 def sync(data: SyncRequest, user: dict = Depends(get_current_user)):
     uid = user.get("id", 1) or 1
 
-    # Per-user settings take priority, fall back to global
     url   = data.dawarich_url   or get_user_setting_value(uid, "dawarich_url")   or get_setting_value("dawarich_url")   or ""
     token = data.dawarich_token or get_user_setting_value(uid, "dawarich_token") or get_setting_value("dawarich_token") or ""
 
@@ -58,7 +58,7 @@ def sync(data: SyncRequest, user: dict = Depends(get_current_user)):
     result = sync_trips(
         base_url=url, token=token, home_lat=lat, home_lon=lon,
         start_date=data.start_date, end_date=data.end_date,
-        user_id=uid,
+        user_id=uid, force_full=data.force_full,
     )
 
     if "error" in result:
@@ -68,8 +68,8 @@ def sync(data: SyncRequest, user: dict = Depends(get_current_user)):
 
 
 @router.get("/trips")
-def get_trips(limit: int = 50, user: dict = Depends(get_current_user)):
-    return list_detected_trips(limit=limit, user_id=_uid(user))
+def get_trips(limit: int = 200, user: dict = Depends(get_current_user)):
+    return list_detected_trips(limit=limit, user_id=_uid(user), include_ignored=False)
 
 
 @router.get("/countries")
@@ -79,6 +79,7 @@ def get_countries(user: dict = Depends(get_current_user)):
 
 @router.delete("/trips/{trip_id}")
 def delete_trip(trip_id: int, user: dict = Depends(get_current_user)):
+    """Soft-delete: Dawarich-Trips werden ignoriert, manuelle wirklich gelöscht."""
     if not delete_detected_trip(trip_id, user_id=_uid(user)):
         raise HTTPException(404, "Trip nicht gefunden")
     return {"message": "Trip gelöscht"}
