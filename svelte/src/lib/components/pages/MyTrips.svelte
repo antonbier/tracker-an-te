@@ -122,13 +122,13 @@
   const pct         = $derived(totalBudget>0?Math.min(100,(totalSpent/totalBudget)*100):0);
   const today       = new Date().toISOString().slice(0,10);
 
-  const tabs = [
-    { id:'overview',   label:'📊 Übersicht' },
-    { id:'trips',      label:'✈️ Reisen' },
-    { id:'budget',     label:'💶 Budget' },
-    { id:'bucketlist', label:'🌟 Bucket List' },
-    { id:'journal',    label:'📓 Tagebuch' },
-  ];
+  const tabs = $derived([
+    { id:'overview',   label:$t('mytripsOverview') },
+    { id:'trips',      label:$t('mytripsTrips') },
+    { id:'budget',     label:$t('mytripsBudget') },
+    { id:'bucketlist', label:$t('mytripsBucketlist') },
+    { id:'journal',    label:$t('navJournal') },
+  ]);
 </script>
 
 <div class="space-y-4">
