@@ -54,27 +54,14 @@ Internet
         │     └─► /api/* → backend:8000 (internal Docker network)
         │
         └─► Backend :8768 (FastAPI — Swagger, direct API access)
-              ⚠️  Backend currently NOT exposed externally via Zoraxy
+              ⚠️  Backend NOT exposed externally via Zoraxy
               → Only frontend is publicly accessible
-              → Backend reachable internally at http://unraid-ip:8768
               → /api/* calls go through Nginx proxy on port 8767
 ```
 
-### ⚠️ Open Issue: Backend URL in Onboarding
-
-**Problem:** The frontend is accessed externally via Zoraxy (HTTPS domain).
-The backend is NOT exposed externally. This means:
-
-- Users accessing via external domain must set Backend URL to the **external frontend URL**
-  (e.g. `https://wandersuite.deinedomain.de`) — Nginx proxies `/api/*` internally
-- Users on local network can use `http://192.168.1.51:8768` directly
-
-**Recommended fix:** Add Zoraxy proxy rule for backend port 8768 on a subdomain
-or path, e.g. `https://wandersuite.deinedomain.de/api/` → `backend:8768`
-(already handled by Nginx internally — so frontend URL works as backend URL too!)
-
-**Solution for users:** In Onboarding wizard, enter the **same URL as the frontend**:
-`https://wandersuite.deinedomain.de` — Nginx handles `/api/` routing internally.
+**Backend URL für User:** Im Onboarding-Wizard die **frontend URL** eintragen
+(z.B. `https://wandersuite.deinedomain.de`) — Nginx proxied `/api/*` intern.
+`window.location.origin` wird automatisch als Vorschlag vorausgefüllt.
 
 ---
 
@@ -91,7 +78,10 @@ APP_SECRET=<generate: python3 -c "from cryptography.fernet import Fernet; print(
 AUTH_ENABLED=true
 JWT_SECRET=<generate: python3 -c "import secrets; print(secrets.token_hex(32))">
 
-# WebAuthn / Passkeys (set when Zoraxy + domain is ready)
+# WebAuthn / Passkeys
+# Wenn gesetzt, werden diese Werte direkt verwendet (Priorität 1).
+# Wenn nicht gesetzt (= localhost), leitet das Backend rp_id + origin
+# automatisch aus dem HTTP Origin-Header ab (funktioniert hinter Zoraxy ohne Konfiguration).
 WEBAUTHN_RP_ID=wandersuite.deinedomain.de
 WEBAUTHN_RP_NAME=WanderSuite
 WEBAUTHN_ORIGIN=https://wandersuite.deinedomain.de
@@ -108,7 +98,19 @@ WEBAUTHN_ORIGIN=https://wandersuite.deinedomain.de
 - ✅ Admin panel (create/delete users)
 - ✅ Passkey/WebAuthn backend routes
 - ✅ Passkey UI (Login.svelte + PasskeyManager.svelte)
-- ⚠️  Passkeys require HTTPS — works when Zoraxy + domain configured
+- ✅ Passkeys funktionieren hinter Zoraxy (HTTPS + Origin-Header auto-detection)
+
+### Passkey — rp_id / Origin Logik (`backend/routes/passkey.py`)
+
+`_get_rp(request)` wird bei jedem Passkey-Call aufgerufen:
+
+1. **Env-Vars explizit gesetzt** (`WEBAUTHN_RP_ID != "localhost"`) → direkt verwenden
+2. **Origin-Header** (Browser sendet ihn bei jedem POST automatisch) → `hostname` als `rp_id`, `scheme://netloc` als `origin`
+3. **Fallback** → Env-Vars (localhost defaults)
+
+⚠️ **Wichtig:** Nie `x-forwarded-host` für rp_id verwenden — dieser Header kann leer sein
+und ergibt dann `"http://"` → `urlparse` → `hostname=None` → falscher Fallback.
+Der `origin`-Header ist zuverlässig und reicht vollständig.
 
 ### Flow
 ```
@@ -137,6 +139,48 @@ GET  /api/admin/users                     — admin only
 POST /api/admin/users                     — admin only
 DELETE /api/admin/users/{id}              — admin only
 ```
+
+---
+
+## i18n System
+
+**Dateien:** `svelte/src/locales/de.json`, `en.json`, `it.json`
+**Store:** `svelte/src/lib/i18n.js` — reaktiver `t`-Store, `$t('key')` in Komponenten
+
+### Abgedeckte Bereiche (alle übersetzt in DE/EN/IT)
+- Navigation, Settings-Tabs, alle Labels + Buttons in Settings
+- Dashboard, MyTrips (inkl. Tabs), PriceRadar (inkl. Tabs + alle Formular-Labels)
+- Discover, Onboarding, Login, Setup
+- Radar-spezifische Keys: `radarFrom`, `radarTo`, `radarDate`, `radarReturn`,
+  `radarAdults`, `radarChildren`, `radarBaggage`, `radarSeat`, `radarRegion`,
+  `radarType`, `radarCheckin`, `radarCheckout`, `radarDest`, `radarRooms`,
+  `radarSource`, `radarStart`, `radarNewTracker`, `radarActiveTrackers`,
+  `radarNoKey`, `radarNoBackend`, `radarRequired`
+- Settings: `settingsMyspace`, alle Account/Admin-Strings
+- Discover: `discoverProvider`, `discoverQuery`, `discoverPlaceholder`,
+  `discoverBtn`, `discoverLoading`
+
+### Regel
+Immer alle 3 Locale-Dateien gleichzeitig updaten wenn neue Keys hinzukommen.
+Tabs nie hardcodiert — immer `$derived([...])` mit `$t('key')`.
+
+---
+
+## PWA / Favicon
+
+- `svelte/static/favicon.svg` — oranges Rund-Rechteck (#D95D39) mit Kompassrose
+- `svelte/static/manifest.webmanifest` — PWA-Manifest (name, theme_color, icons)
+- `svelte/static/icons/icon-192.png` + `icon-512.png` — generiert mit Pillow
+- `svelte/src/app.html` — verlinkt favicon.svg + manifest
+
+---
+
+## Settings — Mein Bereich (myspace Tab)
+
+- Per-user Einstellungen (Dawarich, ActualBudget, Home-Koordinaten)
+- **Geocoding:** Ortsname eingeben + 📍 Button → Nominatim (OpenStreetMap) → lat/lon wird automatisch befüllt. Enter-Taste triggert ebenfalls Suche.
+- **ActualBudget Dateiname:** Hilfetext direkt im Feld + im FieldGuide (Tab "Reisen") erklärt:
+  Budget-Name oben links in ActualBudget anklicken → ID aus der URL entnehmen
 
 ---
 
@@ -179,9 +223,6 @@ Currently set:
 **TODO — set in Zoraxy:**
 - `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload`
 
-Mozilla Observatory score: ~30/100 before headers fix.
-After nginx.conf update + HSTS in Zoraxy: should reach ~90/100.
-
 ---
 
 ## Beta-Specific Files (differ from main)
@@ -211,26 +252,37 @@ wandersuite/
 │   │       ├── Sidebar.svelte ← logout button when auth enabled
 │   │       ├── Login.svelte   ← passkey + password fallback
 │   │       ├── Setup.svelte   ← first admin account
-│   │       ├── Settings.svelte ← 6 tabs incl. Mein Bereich + Admin
+│   │       ├── Settings.svelte ← tabs: basic/integrations/apis/notifications/myspace/account/admin
 │   │       ├── PasskeyManager.svelte
+│   │       ├── FieldGuide.svelte ← ActualBudget filename docs
 │   │       └── pages/
 │   │           ├── Dashboard.svelte
-│   │           ├── PriceRadar.svelte
-│   │           ├── MyTrips.svelte   ← journal tab included
-│   │           └── Discover.svelte
+│   │           ├── PriceRadar.svelte  ← vollständig i18n
+│   │           ├── MyTrips.svelte     ← tabs i18n, journal tab included
+│   │           └── Discover.svelte    ← vollständig i18n
+│   ├── locales/
+│   │   ├── de.json
+│   │   ├── en.json
+│   │   └── it.json
 │   └── routes/
 │       ├── +layout.svelte     ← gate: onboarding → setup → login → app
 │       └── +page.svelte
+├── svelte/static/
+│   ├── favicon.svg
+│   ├── manifest.webmanifest
+│   └── icons/
+│       ├── icon-192.png
+│       └── icon-512.png
 ├── backend/
 │   ├── main.py                ← APP_VERSION, CHANNEL
 │   ├── database.py            ← all tables with user_id
 │   ├── auth_db.py             ← users + webauthn_credentials
 │   ├── auth_jwt.py            ← JWT + GUEST_USER
-│   ├── settings_manager.py   ← global + per-user settings
+│   ├── settings_manager.py    ← global + per-user settings
 │   ├── dawarich.py            ← sync_trips(user_id=)
 │   └── routes/
 │       ├── auth.py            ← login, setup, admin
-│       ├── passkey.py         ← WebAuthn endpoints
+│       ├── passkey.py         ← WebAuthn, _get_rp() auto-detection
 │       ├── settings.py        ← /api/settings + /api/settings/user
 │       ├── trackers.py        ← user_id aware
 │       ├── google_flights.py  ← user_id aware
@@ -242,7 +294,6 @@ wandersuite/
 │   ├── Dockerfile.frontend    ← multi-stage node→nginx
 │   └── nginx.conf             ← security headers + /api/ proxy
 └── docker-compose.yml         ← all env vars incl. AUTH_ENABLED
-
 ```
 
 ---
@@ -260,10 +311,19 @@ body = {'message': msg, 'content': base64_content, 'branch': 'beta', 'sha': sha}
 
 ## Open / Next Steps
 
-### In Progress
-- [x] Backend URL clarification in Onboarding (window.location.origin prefilled)
-- [ ] Passkey testing (needs HTTPS via Zoraxy)
-- [ ] HSTS header in Zoraxy
+### Erledigt (diese Session)
+- [x] Onboarding: `window.location.origin` als Backend-URL Vorschlag
+- [x] Passkeys: `email` aus `RegisterBeginPayload` entfernt (kommt aus JWT)
+- [x] Passkeys: `_get_rp()` leitet `rp_id` + `origin` aus HTTP `Origin`-Header ab — funktioniert hinter Zoraxy ohne .env-Konfiguration
+- [x] Passkeys: `attestation="none"` (String) entfernt — py-webauthn erwartet Enum oder Default
+- [x] i18n: Settings-Tabs, alle Labels + Buttons vollständig übersetzt (DE/EN/IT)
+- [x] i18n: PriceRadar — Tabs, alle Formular-Labels, Section-Header, Buttons
+- [x] i18n: MyTrips — Tabs auf `$t()` umgestellt
+- [x] i18n: Discover — alle Labels + Buttons
+- [x] Favicon: `favicon.svg` + `manifest.webmanifest` + `icon-192.png` + `icon-512.png`
+- [x] Settings Mein Bereich: Geocoding-Suche für Home-Koordinaten (Nominatim)
+- [x] Settings Mein Bereich: ActualBudget mit Icon-Badge + Hilfetext für Dateiname
+- [x] FieldGuide: Schritt-für-Schritt Erklärung ActualBudget Dateiname
 
 ### Roadmap (beta)
 - [ ] Scratch Map (jsvectormap) in MyTrips
@@ -271,6 +331,7 @@ body = {'message': msg, 'content': base64_content, 'branch': 'beta', 'sha': sha}
 - [ ] Mietwagen tab in PriceRadar
 - [ ] Discord webhook notifications
 - [ ] Currency toggle (EUR/USD/GBP)
+- [ ] HSTS header in Zoraxy setzen
 
 ### Phase 3 (future)
 - [ ] Multi-user data separation fully tested
