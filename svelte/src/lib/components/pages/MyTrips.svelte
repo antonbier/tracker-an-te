@@ -6,8 +6,7 @@
   import { t } from '$lib/i18n.js';
   import ScratchMap from '$lib/components/ScratchMap.svelte';
 
-  // ── Tabs (strenge Reihenfolge) ────────────────────────────────────────────
-  // 1 Übersicht · 2 Geplante Reisen · 3 Reisechronik · 4 Bucket List
+  // ── Tabs ─────────────────────────────────────────────────────────────────
   let activeTab = $state('overview');
   const tabs = [
     { id: 'overview',   label: '📊 Übersicht'       },
@@ -16,37 +15,31 @@
     { id: 'bucketlist', label: '🌟 Bucket List'     },
   ];
 
-  // ── Jahr-Switcher ──────────────────────────────────────────────────────────
+  // ── Jahr-Switcher: immer genau 3 Jahre (vorjahr | aktuell | nächstes) ─────
   const currentYear = new Date().getFullYear();
   let selectedYear  = $state(currentYear);
 
-  const availableYears = $derived(() => {
+  // Alle Jahre mit Daten + Fenster um selectedYear
+  const allYearsWithData = $derived(() => {
     const s = new Set([currentYear]);
     $trips.forEach(t => { const y = +((t.dateStart||t.date||'').slice(0,4)); if(y>2000) s.add(y); });
     journalTrips.forEach(t => { const y = +((t.start_date||'').slice(0,4)); if(y>2000) s.add(y); });
     Object.keys(budgetByYear).forEach(y => s.add(+y));
-    return [...s].sort((a,b) => b-a);
+    return [...s].sort((a,b) => a-b); // aufsteigend für Navigation
   });
 
-  // Jahres-Switcher: max 4 Jahre sichtbar, navigierbar per Pfeile
-  const YEARS_PER_PAGE = 4;
-  let yearPageStart = $state(0); // Index in availableYears()
+  // 3 sichtbare Jahre: selectedYear-1, selectedYear, selectedYear+1
+  // aber begrenzt auf vorhandene Jahre + ±1 Jahr für Navigation
+  const visibleYears = $derived(() => [selectedYear - 1, selectedYear, selectedYear + 1]);
 
-  // Wenn selectedYear sich ändert, Page so anpassen dass Jahr sichtbar ist
-  $effect(() => {
-    const ay = availableYears();
-    const idx = ay.indexOf(selectedYear);
-    if (idx < yearPageStart || idx >= yearPageStart + YEARS_PER_PAGE) {
-      yearPageStart = Math.max(0, Math.min(idx, ay.length - YEARS_PER_PAGE));
-    }
-  });
+  function prevYear() {
+    selectedYear = selectedYear - 1;
+  }
+  function nextYear() {
+    selectedYear = selectedYear + 1;
+  }
 
-  const visibleYears = $derived(() => {
-    const ay = availableYears();
-    return ay.slice(yearPageStart, yearPageStart + YEARS_PER_PAGE);
-  });
-
-  // ── Budget (Backend) ───────────────────────────────────────────────────────
+  // ── Budget (Backend) ──────────────────────────────────────────────────────
   let budgetByYear = $state({});
   let budgetInput  = $state('');
   let budgetSaving = $state(false);
@@ -92,7 +85,7 @@
   }
 
   async function deleteJournalTrip(id) {
-    if (!confirm('Eintrag löschen?')) return;
+    if (!confirm('Eintrag löschen? (Dawarich-Trips werden beim nächsten Sync übersprungen)')) return;
     try { await api(`/api/trips/${id}`, { method: 'DELETE' }); toast('Gelöscht ✓', 'success'); }
     catch (e) { toast(e.message, 'error'); }
     await loadJournal();
@@ -108,7 +101,7 @@
     editingCost = null;
   }
 
-  // ── Manueller Chronik-Eintrag ──────────────────────────────────────────────
+  // ── Manueller Chronik-Eintrag ─────────────────────────────────────────────
   let mName    = $state('');
   let mStart   = $state(new Date().toISOString().slice(0,10));
   let mEnd     = $state('');
@@ -132,10 +125,10 @@
     mAdding = false;
   }
 
-  // ── Dawarich Sync ──────────────────────────────────────────────────────────
-  let syncing    = $state(false);
-  let syncInfo   = $state('');
-  let forceFull  = $state(false);  // Checkbox: gelöschte Reisen erzwingen
+  // ── Dawarich Sync ─────────────────────────────────────────────────────────
+  let syncing   = $state(false);
+  let syncInfo  = $state('');
+  let forceFull = $state(false);  // Checkbox: gelöschte Reisen erzwingen
 
   async function syncJournal() {
     if (!$apiUrl) { toast('Backend-URL fehlt', 'warning'); return; }
@@ -145,13 +138,10 @@
     const lon   = parseFloat(browser ? localStorage.getItem('s-homeLon') || '0' : '0');
     syncing = true; syncInfo = '';
     try {
-      const body = JSON.stringify({
-        dawarich_url: url || undefined,
-        dawarich_token: token || undefined,
-        home_lat: lat || null,
-        home_lon: lon || null,
-        force_full: forceFull,
-      });
+      const body = (url && token)
+        ? JSON.stringify({ dawarich_url:url, dawarich_token:token,
+            home_lat:lat||null, home_lon:lon||null, force_full: forceFull })
+        : JSON.stringify({ force_full: forceFull });
       const r = await api('/api/dawarich/sync', { method: 'POST', body });
       if (r.trips_detected===0 && r.points_loaded===0) {
         syncInfo = 'Keine GPS-Punkte — Einstellungen prüfen';
@@ -165,35 +155,13 @@
     syncing = false;
   }
 
-  // Auto-Cost: ActualBudget Transaktionen → Trips zuordnen
-  let autoCostRunning = $state(false);
-  let autoCostResult  = $state(null);
-
-  async function runAutoCost() {
-    if (!$apiUrl) { toast('Backend-URL fehlt', 'warning'); return; }
-    const url      = browser ? localStorage.getItem('s-actualUrl')      || '' : '';
-    const password = browser ? localStorage.getItem('s-actualPassword')  || '' : '';
-    const file     = browser ? localStorage.getItem('s-actualFile')      || '' : '';
-    const cats     = browser ? localStorage.getItem('s-travelCategories') || '' : '';
-    if (!url || !password) { toast('ActualBudget URL + Passwort fehlen → Einstellungen', 'warning'); return; }
-    autoCostRunning = true; autoCostResult = null;
-    try {
-      const r = await api('/api/trips/auto-cost', {
-        method: 'POST',
-        body: JSON.stringify({ actual_url:url, actual_token:password, actual_file:file||null, categories:cats||null }),
-      });
-      autoCostResult = r;
-      toast(`${r.trips_updated} Reisen mit Kosten verknüpft ✓`, 'success');
-      await loadJournal();
-    } catch (e) { toast('Auto-Cost Fehler: ' + e.message, 'error'); }
-    autoCostRunning = false;
-  }
-
   // ── ActualBudget Sync ─────────────────────────────────────────────────────
-  let actualSyncing     = $state(false);
-  let actualResult      = $state(null);
-  let actualFiles       = $state([]);   // verfügbare Budget-Dateien
+  let actualSyncing      = $state(false);
+  let actualResult       = $state(null);
+  let actualFiles        = $state([]);
   let actualFilesLoading = $state(false);
+  let autoCostRunning    = $state(false);
+  let autoCostResult     = $state(null);
 
   async function listActualFiles() {
     if (!$apiUrl) { toast('Backend-URL fehlt', 'warning'); return; }
@@ -203,8 +171,7 @@
     actualFilesLoading = true;
     try {
       const r = await api('/api/budget/actual/list-files', {
-        method: 'POST',
-        body: JSON.stringify({ actual_url: url, actual_token: token }),
+        method: 'POST', body: JSON.stringify({ actual_url: url, actual_token: token }),
       });
       actualFiles = r.files || [];
       if (!actualFiles.length) toast('Keine Budget-Dateien gefunden', 'warning');
@@ -230,16 +197,37 @@
     actualSyncing = false;
   }
 
-  // Globaler Sync: Dawarich + ActualBudget nacheinander
+  // Auto-Cost: Transaktionen automatisch den Reisen zuordnen
+  async function runAutoCost() {
+    if (!$apiUrl) { toast('Backend-URL fehlt', 'warning'); return; }
+    const url      = browser ? localStorage.getItem('s-actualUrl')        || '' : '';
+    const password = browser ? localStorage.getItem('s-actualPassword')   || '' : '';
+    const file     = browser ? localStorage.getItem('s-actualFile')       || '' : '';
+    const cats     = browser ? localStorage.getItem('s-travelCategories') || '' : '';
+    if (!url || !password) { toast('ActualBudget URL + Passwort fehlen → Einstellungen', 'warning'); return; }
+    autoCostRunning = true; autoCostResult = null;
+    try {
+      const r = await api('/api/trips/auto-cost', { method: 'POST',
+        body: JSON.stringify({ actual_url:url, actual_token:password, actual_file:file||null, categories:cats||null }),
+      });
+      autoCostResult = r;
+      toast(`${r.trips_updated} Reisen mit ${r.total_assigned?.toFixed(2)} € verknüpft ✓`, 'success');
+      await loadJournal();
+    } catch (e) { toast('Auto-Cost Fehler: ' + e.message, 'error'); }
+    autoCostRunning = false;
+  }
+
+  // Globaler Sync
   let globalSyncing = $state(false);
   async function globalSync() {
     globalSyncing = true;
     await syncJournal();
     await syncActual();
+    await runAutoCost();
     globalSyncing = false;
   }
 
-  // ── Geplante Trips (localStorage) ─────────────────────────────────────────
+  // ── Geplante Trips (localStorage) ────────────────────────────────────────
   let tripName      = $state('');
   let tripDateStart = $state(new Date().toISOString().slice(0,10));
   let tripDateEnd   = $state('');
@@ -253,7 +241,7 @@
   }
   function removeTrip(i) { trips.update(l => l.filter((_,idx)=>idx!==i)); }
 
-  // ── Bucket list ────────────────────────────────────────────────────────────
+  // ── Bucket list ───────────────────────────────────────────────────────────
   let bucketItem = $state('');
   let bucketDest = $state('');
   function addBucketItem() {
@@ -265,20 +253,17 @@
   function toggleBucket(i) { bucketlist.update(l => l.map((x,idx)=>idx===i?{...x,done:!x.done}:x)); }
   function removeBucket(i) { bucketlist.update(l => l.filter((_,idx)=>idx!==i)); }
 
-  // ── Derived ────────────────────────────────────────────────────────────────
+  // ── Derived ───────────────────────────────────────────────────────────────
   const today = new Date().toISOString().slice(0,10);
+  const yr    = $derived(String(selectedYear));
 
-  // Journal gefiltert nach Jahr (strikt)
-  const journalYear = $derived(
-    journalTrips.filter(t => (t.start_date||'').slice(0,4) === String(selectedYear))
-  );
-
-  // Chronik-Kosten für Jahr
+  const journalYear      = $derived(journalTrips.filter(t => (t.start_date||'').slice(0,4) === yr));
   const journalSpentYear = $derived(
-    journalYear.filter(t => t.cost != null).reduce((s,t) => s+(parseFloat(t.cost)||0), 0)
+    journalYear
+      .filter(t => (t.cost ?? t.auto_cost) != null)
+      .reduce((s,t) => s + (parseFloat(t.cost ?? t.auto_cost) || 0), 0)
   );
 
-  // Geplante Trips: alle (kein Jahresfilter für "geplant" Tab — zeige alle zukünftigen)
   const upcomingTrips = $derived(
     [...$trips]
       .filter(t => (t.dateStart||t.date||'') >= today)
@@ -289,23 +274,39 @@
       .filter(t => (t.dateStart||t.date||'') < today)
       .sort((a,b) => (b.dateStart||b.date||'').localeCompare(a.dateStart||a.date||''))
   );
-
-  // Trips für selectedYear (Kosten)
   const tripsSpentYear = $derived(
     $trips
-      .filter(t => (t.dateStart||t.date||'').slice(0,4) === String(selectedYear))
+      .filter(t => (t.dateStart||t.date||'').slice(0,4) === yr)
       .reduce((s,t) => s+(parseFloat(t.cost)||0), 0)
   );
 
   const totalSpentYear = $derived(journalSpentYear + tripsSpentYear);
   const remainingYear  = $derived(Math.max(0, yearBudget - totalSpentYear));
   const pctYear        = $derived(yearBudget > 0 ? Math.min(100,(totalSpentYear/yearBudget)*100) : 0);
+  const overBudget     = $derived(yearBudget > 0 && totalSpentYear > yearBudget);
 
-  // Badges: Gesamt = geplante (upcoming) + alle Chronik-Einträge
+  // Donut-Chart Segmente (conic-gradient)
+  // Vergangen (dunkelgrün) | Geplant (hellgrün) | Übrig (grau) / Überschuss (rot)
+  const donutGradient = $derived(() => {
+    if (yearBudget <= 0) return 'conic-gradient(#e2e8f0 0deg 360deg)';
+    const pastDeg    = Math.min(360, (journalSpentYear / yearBudget) * 360);
+    const plannedDeg = Math.min(360 - pastDeg, (tripsSpentYear / yearBudget) * 360);
+    const overDeg    = overBudget
+      ? Math.min(360, ((totalSpentYear - yearBudget) / yearBudget) * 360)
+      : 0;
+    const restDeg    = 360 - pastDeg - plannedDeg - overDeg;
+    let grad = '';
+    let cur = 0;
+    if (pastDeg > 0)    { grad += `#2d6a4f ${cur}deg ${cur+pastDeg}deg,`;    cur += pastDeg; }
+    if (plannedDeg > 0) { grad += `#86efac ${cur}deg ${cur+plannedDeg}deg,`; cur += plannedDeg; }
+    if (overDeg > 0)    { grad += `#ef4444 ${cur}deg ${cur+overDeg}deg,`;    cur += overDeg; }
+    if (restDeg > 0)    { grad += `#e2e8f0 ${cur}deg ${cur+restDeg}deg,`;    cur += restDeg; }
+    return `conic-gradient(${grad.slice(0,-1)})`;
+  });
+
   const totalCount    = $derived(upcomingTrips.length + journalTrips.length);
   const upcomingCount = $derived(upcomingTrips.length);
 
-  // Style-Helfer
   const inp  = 'bg-stone-50 border border-stone-200 text-stone-800 text-sm rounded-lg focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 p-2.5 w-full outline-none transition-all';
   const card = 'bg-white border border-stone-200 rounded-xl shadow-sm p-5';
   const btn  = 'w-full py-2.5 px-4 rounded-lg text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-[.98]';
@@ -313,19 +314,18 @@
 
 <div class="space-y-5">
 
-  <!-- ── Header ───────────────────────────────────────────────────────────── -->
+  <!-- ── Header ──────────────────────────────────────────────────────────── -->
   <div class="flex flex-wrap items-center gap-3">
-
     <h1 class="text-2xl font-bold mr-auto" style="font-family:var(--ws-serif)">{$t('mytripsTitle')}</h1>
 
-    <!-- Globaler Sync-Button -->
+    <!-- Globaler Sync -->
     <button onclick={globalSync} disabled={globalSyncing || !$apiUrl}
-      title="Dawarich + ActualBudget synchronisieren"
+      title="Dawarich + ActualBudget + Auto-Cost synchronisieren"
       class="w-9 h-9 rounded-full border border-stone-200 bg-white flex items-center justify-center
              text-stone-400 hover:text-orange-600 hover:border-orange-300 transition-all shadow-sm
              disabled:opacity-40 disabled:cursor-not-allowed">
       {#if globalSyncing}
-        <span class="animate-spin text-base">⏳</span>
+        <span class="text-sm" style="display:inline-block;animation:spin 1s linear infinite">⟳</span>
       {:else}
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
           stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -335,51 +335,49 @@
       {/if}
     </button>
 
-    <!-- Jahr-Switcher: genau 3 Jahre (letztes · aktuelles · nächstes) -->
-    <div class="flex items-center gap-0.5 bg-white border border-stone-200 rounded-full px-1 py-1 shadow-sm">
-      <button onclick={() => selectedYear--}
-        class="w-7 h-7 rounded-full flex items-center justify-center text-stone-400
-               hover:text-orange-600 hover:bg-orange-50 transition-all text-sm">‹</button>
-      {#each [selectedYear - 1, selectedYear, selectedYear + 1] as y}
-        <button onclick={() => selectedYear = y}
-          class="px-3 py-1 rounded-full text-sm font-semibold transition-all"
+    <!-- Jahr-Switcher: genau 3 Jahre -->
+    <div class="flex items-center bg-white border border-stone-200 rounded-full shadow-sm overflow-hidden">
+      <button onclick={prevYear}
+        class="w-8 h-8 flex items-center justify-center text-stone-400 hover:text-orange-600 hover:bg-orange-50 transition-all text-sm font-bold">‹</button>
+      {#each visibleYears() as y}
+        <button onclick={() => { selectedYear = y; }}
+          class="px-3 h-8 text-sm font-semibold transition-all border-x border-stone-100"
           class:bg-orange-600={selectedYear === y}
           class:text-white={selectedYear === y}
           class:text-stone-500={selectedYear !== y}
-          class:hover:bg-stone-100={selectedYear !== y}>
+          class:hover:bg-stone-50={selectedYear !== y}>
           {y}
         </button>
       {/each}
-      <button onclick={() => selectedYear++}
-        class="w-7 h-7 rounded-full flex items-center justify-center text-stone-400
-               hover:text-orange-600 hover:bg-orange-50 transition-all text-sm">›</button>
+      <button onclick={nextYear}
+        class="w-8 h-8 flex items-center justify-center text-stone-400 hover:text-orange-600 hover:bg-orange-50 transition-all text-sm font-bold">›</button>
     </div>
 
     <!-- 4 Badges -->
-    <div class="flex flex-wrap gap-1.5">
+    <div class="flex gap-1.5 flex-wrap">
       <button onclick={() => activeTab='trips'}
-        class="text-xs font-medium px-2.5 py-1 rounded-full border transition-colors
+        class="text-xs font-medium px-2 py-1 rounded-full border transition-colors
                {upcomingCount > 0 ? 'border-orange-200 text-orange-600 bg-orange-50 hover:bg-orange-100' : 'border-stone-200 text-stone-400 bg-white'}">
-        ✈️ {upcomingCount} Geplant
+        ✈️ {upcomingCount} geplant
       </button>
       <button onclick={() => activeTab='journal'}
-        class="text-xs font-medium px-2.5 py-1 rounded-full border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors">
-        ✅ {journalTrips.length} Vergangen
+        class="text-xs font-medium px-2 py-1 rounded-full border border-stone-200 text-stone-500 bg-white hover:border-stone-300 transition-colors">
+        ✅ {journalYear.length} vergangen
       </button>
       <button onclick={() => activeTab='bucketlist'}
-        class="text-xs font-medium px-2.5 py-1 rounded-full border border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100 transition-colors">
-        🌟 {$bucketlist.filter(b=>!b.done).length} Wunschziele
+        class="text-xs font-medium px-2 py-1 rounded-full border border-stone-200 text-stone-500 bg-white hover:border-stone-300 transition-colors">
+        🌟 {$bucketlist.filter(b=>!b.done).length} wünsche
       </button>
-      <div class="text-xs font-medium px-2.5 py-1 rounded-full border border-stone-200 text-stone-500 bg-white">
-        {totalCount} Gesamt
+      <div class="text-xs font-medium px-2 py-1 rounded-full border border-stone-200 text-stone-400 bg-white">
+        {totalCount} gesamt
       </div>
     </div>
   </div>
 
-  <!-- ── Tabs ──────────────────────────────────────────────────────────────── -->
+  <!-- ── Tabs ─────────────────────────────────────────────────────────────── -->
   <div class="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
     {#each tabs as tab}
-      <button onclick={() => activeTab=tab.id}
+      <button onclick={() => activeTab = tab.id}
         class="px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all border"
         class:bg-orange-600={activeTab===tab.id} class:text-white={activeTab===tab.id}
         class:border-orange-600={activeTab===tab.id} class:bg-white={activeTab!==tab.id}
@@ -394,10 +392,8 @@
   ══════════════════════════════════════════════════════ -->
   {#if activeTab === 'overview'}
 
-    <!-- Stats: 2x2 Grid — Vergangen/Geplant/BucketList/Budget -->
+    <!-- 4 Stats-Karten -->
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-
-      <!-- Vergangen → klick → Reisechronik -->
       <button onclick={() => activeTab='journal'}
         class="{card} text-center hover:border-orange-200 hover:shadow-md transition-all group cursor-pointer">
         <div class="text-2xl mb-1">✅</div>
@@ -405,8 +401,6 @@
         <div class="text-xl font-bold text-stone-800 group-hover:text-orange-600 transition-colors" style="font-family:var(--ws-serif)">{journalYear.length}</div>
         <div class="text-[10px] text-stone-300 mt-1">→ Chronik</div>
       </button>
-
-      <!-- Geplant → klick → Geplante Reisen -->
       <button onclick={() => activeTab='trips'}
         class="{card} text-center hover:border-orange-200 hover:shadow-md transition-all group cursor-pointer">
         <div class="text-2xl mb-1">✈️</div>
@@ -414,8 +408,6 @@
         <div class="text-xl font-bold text-stone-800 group-hover:text-orange-600 transition-colors" style="font-family:var(--ws-serif)">{upcomingCount}</div>
         <div class="text-[10px] text-stone-300 mt-1">→ Geplante Reisen</div>
       </button>
-
-      <!-- Bucket List → klick → Bucket List -->
       <button onclick={() => activeTab='bucketlist'}
         class="{card} text-center hover:border-orange-200 hover:shadow-md transition-all group cursor-pointer">
         <div class="text-2xl mb-1">🌟</div>
@@ -423,66 +415,59 @@
         <div class="text-xl font-bold text-stone-800 group-hover:text-orange-600 transition-colors" style="font-family:var(--ws-serif)">{$bucketlist.filter(b=>!b.done).length}</div>
         <div class="text-[10px] text-stone-300 mt-1">→ Bucket List</div>
       </button>
-
-      <!-- Ausgegeben -->
       <div class="{card} text-center">
         <div class="text-2xl mb-1">💸</div>
         <div class="text-xs font-medium text-stone-400 mb-0.5 uppercase tracking-wide">{$t('mytripsStatsSpent')}</div>
         <div class="text-xl font-bold text-orange-600" style="font-family:var(--ws-serif)">{totalSpentYear.toFixed(2)} €</div>
-        {#if yearBudget > 0}<div class="text-[10px] text-stone-300 mt-1">{remainingYear.toFixed(0)} € frei</div>{/if}
+        {#if yearBudget > 0}<div class="text-[10px] {overBudget ? 'text-red-400' : 'text-stone-300'} mt-1">{overBudget ? '⚠️ überschritten' : remainingYear.toFixed(0) + ' € frei'}</div>{/if}
       </div>
     </div>
 
-    <!-- Budget Donut-Chart -->
+    <!-- Donut-Chart Budget -->
     {#if yearBudget > 0}
-      {@const overBudget = totalSpentYear > yearBudget}
-      {@const pastDeg    = Math.min(360, (journalSpentYear / yearBudget) * 360)}
-      {@const plannedDeg = Math.min(360 - pastDeg, (tripsSpentYear / yearBudget) * 360)}
-      {@const freeDeg    = Math.max(0, 360 - pastDeg - plannedDeg)}
-      {@const conicStop1 = pastDeg.toFixed(1)}
-      {@const conicStop2 = (pastDeg + plannedDeg).toFixed(1)}
-      {@const conicGrad  = overBudget
-        ? `conic-gradient(#ef4444 0deg, #ef4444 360deg)`
-        : `conic-gradient(#2d6a4f 0deg ${conicStop1}deg, #86efac ${conicStop1}deg ${conicStop2}deg, #e5e7eb ${conicStop2}deg 360deg)`}
-      <div class="{card} flex items-center gap-6">
-        <!-- Donut -->
-        <div class="relative shrink-0" style="width:96px;height:96px">
-          <div class="w-24 h-24 rounded-full" style="background:{conicGrad}"></div>
-          <!-- Loch -->
-          <div class="absolute inset-0 flex items-center justify-center">
-            <div class="w-14 h-14 rounded-full bg-white flex flex-col items-center justify-center">
-              <span class="text-xs font-bold {overBudget?'text-red-500':'text-stone-700'}">
-                {overBudget ? 'Über' : pctYear.toFixed(0)+'%'}
-              </span>
-              {#if overBudget}
-                <span class="text-[10px] text-red-400">Budget!</span>
-              {/if}
+      <div class="{card}">
+        <div class="flex items-center gap-6">
+          <!-- Donut -->
+          <div class="relative shrink-0 w-24 h-24">
+            <div class="w-24 h-24 rounded-full" style="background:{donutGradient()}"></div>
+            <!-- Loch -->
+            <div class="absolute inset-3 rounded-full bg-white flex flex-col items-center justify-center">
+              <span class="text-xs font-bold {overBudget ? 'text-red-500' : 'text-stone-700'}">{pctYear.toFixed(0)}%</span>
+              <span class="text-[9px] text-stone-400">{selectedYear}</span>
             </div>
           </div>
-        </div>
-        <!-- Legende -->
-        <div class="flex-1 space-y-2 text-sm">
-          <button onclick={() => activeTab='journal'}
-            class="flex items-center gap-2 w-full hover:opacity-70 transition-opacity text-left">
-            <span class="w-3 h-3 rounded-full shrink-0" style="background:#2d6a4f"></span>
-            <span class="text-stone-600">Vergangen</span>
-            <span class="ml-auto font-semibold text-stone-800">{journalSpentYear.toFixed(2)} €</span>
-          </button>
-          <button onclick={() => activeTab='trips'}
-            class="flex items-center gap-2 w-full hover:opacity-70 transition-opacity text-left">
-            <span class="w-3 h-3 rounded-full shrink-0" style="background:#86efac"></span>
-            <span class="text-stone-600">Geplant</span>
-            <span class="ml-auto font-semibold text-stone-800">{tripsSpentYear.toFixed(2)} €</span>
-          </button>
-          <div class="flex items-center gap-2">
-            <span class="w-3 h-3 rounded-full shrink-0 bg-stone-200"></span>
-            <span class="text-stone-400">Frei</span>
-            <span class="ml-auto font-semibold {overBudget?'text-red-500':'text-emerald-600'}">
-              {overBudget ? '–'+(totalSpentYear-yearBudget).toFixed(2)+' €' : remainingYear.toFixed(2)+' €'}
-            </span>
-          </div>
-          <div class="text-xs text-stone-400 pt-1 border-t border-stone-100">
-            Budget {selectedYear}: {yearBudget.toFixed(0)} €
+
+          <!-- Legende -->
+          <div class="flex-1 space-y-2 text-xs">
+            <button onclick={() => activeTab='journal'}
+              class="flex items-center gap-2 w-full text-left hover:opacity-70 transition-opacity group">
+              <span class="w-3 h-3 rounded-sm shrink-0" style="background:#2d6a4f"></span>
+              <span class="text-stone-600 group-hover:text-stone-800">Vergangen</span>
+              <span class="ml-auto font-mono font-semibold text-stone-700">{journalSpentYear.toFixed(2)} €</span>
+            </button>
+            <button onclick={() => activeTab='trips'}
+              class="flex items-center gap-2 w-full text-left hover:opacity-70 transition-opacity group">
+              <span class="w-3 h-3 rounded-sm shrink-0" style="background:#86efac"></span>
+              <span class="text-stone-600 group-hover:text-stone-800">Geplant</span>
+              <span class="ml-auto font-mono font-semibold text-stone-700">{tripsSpentYear.toFixed(2)} €</span>
+            </button>
+            {#if overBudget}
+              <div class="flex items-center gap-2">
+                <span class="w-3 h-3 rounded-sm shrink-0" style="background:#ef4444"></span>
+                <span class="text-red-500 font-semibold">Überschuss</span>
+                <span class="ml-auto font-mono font-semibold text-red-500">{(totalSpentYear - yearBudget).toFixed(2)} €</span>
+              </div>
+            {:else}
+              <div class="flex items-center gap-2">
+                <span class="w-3 h-3 rounded-sm shrink-0" style="background:#e2e8f0"></span>
+                <span class="text-stone-400">Verfügbar</span>
+                <span class="ml-auto font-mono text-stone-400">{remainingYear.toFixed(2)} €</span>
+              </div>
+            {/if}
+            <div class="pt-1 border-t border-stone-100 flex justify-between font-semibold text-stone-600">
+              <span>Budget gesamt</span>
+              <span class="font-mono">{yearBudget.toFixed(2)} €</span>
+            </div>
           </div>
         </div>
       </div>
@@ -501,8 +486,7 @@
     {#if upcomingTrips.length > 0}
       <div class={card}>
         <h2 class="text-sm font-semibold text-stone-700 mb-3">
-          ✈️ Nächste Abenteuer
-          <span class="ml-1 text-xs font-normal text-stone-400">({upcomingTrips.length})</span>
+          ✈️ Nächste Abenteuer <span class="ml-1 text-xs font-normal text-stone-400">({upcomingTrips.length})</span>
         </h2>
         <div class="space-y-2">
           {#each upcomingTrips.slice(0,4) as tr}
@@ -518,9 +502,7 @@
             </div>
           {/each}
           {#if upcomingTrips.length > 4}
-            <button onclick={() => activeTab='trips'} class="text-xs text-orange-600 hover:underline pt-1">
-              + {upcomingTrips.length-4} weitere →
-            </button>
+            <button onclick={() => activeTab='trips'} class="text-xs text-orange-600 hover:underline pt-1">+ {upcomingTrips.length-4} weitere →</button>
           {/if}
         </div>
       </div>
@@ -538,22 +520,20 @@
             {@const name  = tr.location_name||tr.name||'–'}
             {@const start = tr.start_date||''}
             {@const end   = tr.end_date||''}
-            {@const cost  = tr.cost!=null ? parseFloat(tr.cost) : null}
+            {@const cost  = tr.cost ?? tr.auto_cost}
             <div class="flex items-center gap-3 py-2 border-b border-stone-100 last:border-0">
               <span class="text-lg">{tr.source==='manual'?'✍️':'📍'}</span>
               <div class="flex-1 min-w-0">
                 <div class="text-sm font-semibold text-stone-800 truncate" style="font-family:var(--ws-serif)">{name}</div>
                 <div class="text-xs text-stone-400 font-mono">{start}{end&&end!==start?' → '+end:''}</div>
               </div>
-              {#if cost!=null}
-                <div class="text-sm font-bold text-stone-500 font-mono shrink-0">{cost.toFixed(2)} €</div>
+              {#if cost != null}
+                <div class="text-sm font-bold text-stone-500 font-mono shrink-0">{parseFloat(cost).toFixed(2)} €</div>
               {/if}
             </div>
           {/each}
           {#if journalYear.length > 4}
-            <button onclick={() => activeTab='journal'} class="text-xs text-orange-600 hover:underline pt-1">
-              + {journalYear.length-4} weitere →
-            </button>
+            <button onclick={() => activeTab='journal'} class="text-xs text-orange-600 hover:underline pt-1">+ {journalYear.length-4} weitere →</button>
           {/if}
         </div>
       </div>
@@ -564,8 +544,6 @@
   ══════════════════════════════════════════════════════ -->
   {:else if activeTab === 'trips'}
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
-
-      <!-- 1/3 Links -->
       <div class="lg:col-span-1 space-y-4">
 
         <!-- Smart Planer -->
@@ -597,10 +575,7 @@
         </div>
       </div>
 
-      <!-- 2/3 Rechts -->
       <div class="lg:col-span-2 space-y-4">
-
-        <!-- Budget Progress -->
         {#if yearBudget > 0}
           <div class={card}>
             <div class="flex items-center justify-between mb-2">
@@ -618,7 +593,6 @@
           </div>
         {/if}
 
-        <!-- Geplante -->
         <div class={card}>
           <h3 class="text-sm font-semibold text-stone-700 mb-3">✈️ Nächste Abenteuer <span class="ml-1 text-xs font-normal text-stone-400">({upcomingTrips.length})</span></h3>
           {#if upcomingTrips.length === 0}
@@ -643,7 +617,6 @@
           {/if}
         </div>
 
-        <!-- Vergangene (manuelle aus localStorage) -->
         {#if pastTrips.length > 0}
           <div class={card}>
             <h3 class="text-sm font-semibold text-stone-700 mb-3">✅ Vergangen (manuell) <span class="ml-1 text-xs font-normal text-stone-400">({pastTrips.length})</span></h3>
@@ -674,10 +647,10 @@
   {:else if activeTab === 'journal'}
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
-      <!-- 1/3 Links: Formular + Budget + ActualBudget -->
+      <!-- 1/3 Links -->
       <div class="lg:col-span-1 space-y-4">
 
-        <!-- 0. Jahresbudget ganz oben -->
+        <!-- Jahresbudget — ganz oben -->
         <div class={card}>
           <h3 class="text-sm font-semibold text-stone-700 mb-3">💶 Jahresbudget {selectedYear}</h3>
           <input type="number" bind:value={budgetInput} placeholder="z.B. 4000" class="{inp} mb-3" />
@@ -689,10 +662,10 @@
 
         <!-- Manuell erfassen -->
         <div class={card}>
-          <h3 class="text-sm font-semibold text-stone-700 mb-1">➕ Reise manuell erfassen</h3>
-          <p class="text-xs text-stone-400 mb-3">Ohne Dawarich — direkt eintragen.</p>
+          <h3 class="text-sm font-semibold text-stone-700 mb-1">➕ Reise erfassen</h3>
+          <p class="text-xs text-stone-400 mb-3">Manuell eintragen — kein Dawarich nötig.</p>
           <div class="space-y-2.5">
-            <input bind:value={mName}    placeholder="Ort / Name *"       class={inp} />
+            <input bind:value={mName}    placeholder="Ort / Name *" class={inp} />
             <div class="grid grid-cols-2 gap-2">
               <div>
                 <label class="text-xs text-stone-400 mb-1 block">Von *</label>
@@ -700,7 +673,7 @@
               </div>
               <div>
                 <label class="text-xs text-stone-400 mb-1 block">Bis</label>
-                <input type="date" bind:value={mEnd}   class={inp} />
+                <input type="date" bind:value={mEnd} class={inp} />
               </div>
             </div>
             <input bind:value={mCountry} placeholder="Land (optional)" class={inp} />
@@ -712,38 +685,61 @@
           </div>
         </div>
 
-        <!-- 2. ActualBudget Sync -->
-        <div class="{card} border-l-4 border-l-orange-400">
+        <!-- Tipp-Banner -->
+        <div class="rounded-xl p-3 bg-amber-50 border border-amber-200 text-xs text-amber-800">
+          <div class="font-semibold mb-1">💡 Tipp: Optimale Reihenfolge</div>
+          <p class="leading-relaxed">Synchronisiere zuerst <strong>Dawarich</strong>, dann <strong>ActualBudget</strong>. So können Ausgaben automatisch den erkannten Reisen zugeordnet werden — ohne manuelle Eingabe.</p>
+        </div>
+
+        <!-- 1. Dawarich Sync -->
+        <div class="{card} border-l-4 border-l-emerald-400">
           <div class="flex items-center gap-2 mb-1">
-            <span class="w-5 h-5 rounded-full bg-orange-100 text-orange-700 text-xs font-bold flex items-center justify-center shrink-0">2</span>
+            <span class="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold flex items-center justify-center shrink-0">1</span>
+            <h3 class="text-sm font-semibold text-stone-700">Dawarich Sync</h3>
+          </div>
+          <p class="text-xs text-stone-400 mb-3 ml-7">GPS-Reisen automatisch erkennen und importieren.</p>
+
+          <!-- Force Full Checkbox -->
+          <label class="flex items-center gap-2 text-xs text-stone-500 mb-3 ml-7 cursor-pointer">
+            <input type="checkbox" bind:checked={forceFull}
+              class="rounded border-stone-300 text-orange-500 focus:ring-orange-400" />
+            Gelöschte Reisen erzwingen (Full Sync)
+          </label>
+
+          <button onclick={syncJournal} disabled={syncing||!$apiUrl}
+            class="w-full py-2 px-4 rounded-lg text-sm font-semibold border border-stone-200 bg-stone-50
+                   text-stone-700 hover:border-emerald-300 hover:text-emerald-700 transition-all disabled:opacity-50">
+            {syncing ? '⏳ Sync…' : '🧭 Synchronisieren'}
+          </button>
+          {#if syncInfo}
+            <p class="text-xs text-stone-400 mt-2 ml-1">ℹ️ {syncInfo}</p>
+          {/if}
+        </div>
+
+        <!-- 2. ActualBudget Sync -->
+        <div class="{card} border-l-4 border-l-blue-400">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="w-5 h-5 rounded-full bg-blue-100 text-blue-700 text-xs font-bold flex items-center justify-center shrink-0">2</span>
             <h3 class="text-sm font-semibold text-stone-700">{$t('mytripsActualSync')}</h3>
           </div>
-          <p class="text-xs text-stone-400 mb-2">{$t('mytripsActualDesc')}</p>
+          <p class="text-xs text-stone-400 mb-3 ml-7">{$t('mytripsActualDesc')}</p>
 
-          <!-- Hilfe: Dateiname -->
           {#if !actualFiles.length}
-            <details class="mb-3">
-              <summary class="text-xs text-stone-400 cursor-pointer hover:text-orange-500 transition-colors">
-                💡 Budget-Dateiname unbekannt?
-              </summary>
+            <details class="mb-3 ml-7">
+              <summary class="text-xs text-stone-400 cursor-pointer hover:text-orange-500 transition-colors">💡 Budget-Dateiname unbekannt?</summary>
               <div class="mt-2 p-3 rounded-lg bg-stone-50 border border-stone-200 text-xs text-stone-500 space-y-2">
-                <p>Der Dateiname ist der interne Name deines Budgets in ActualBudget.</p>
-                <ol class="list-decimal list-inside space-y-1">
-                  <li>ActualBudget öffnen → Budget-Namen oben links anklicken</li>
-                  <li>ID aus der URL kopieren (z.B. <code class="font-mono bg-white px-1 rounded">My-Budget-abc123</code>)</li>
-                  <li>Oder: Button unten → Dateien automatisch auflisten</li>
-                </ol>
+                <p>In ActualBudget: oben links Budget-Name anklicken → ID aus der URL kopieren</p>
                 <button onclick={listActualFiles} disabled={actualFilesLoading||!$apiUrl}
-                  class="w-full mt-1 py-1.5 px-3 rounded-lg border border-stone-200 text-stone-600 hover:border-orange-300 hover:text-orange-600 transition-all disabled:opacity-40 text-xs font-medium">
-                  {actualFilesLoading ? '⏳…' : '📂 Verfügbare Dateien anzeigen'}
+                  class="w-full py-1.5 px-3 rounded-lg border border-stone-200 text-stone-600 hover:border-orange-300 hover:text-orange-600 transition-all disabled:opacity-40 text-xs font-medium">
+                  {actualFilesLoading ? '⏳…' : '📂 Dateien anzeigen'}
                 </button>
               </div>
             </details>
           {/if}
 
           {#if actualFiles.length}
-            <div class="mb-3 p-2 rounded-lg bg-emerald-50 border border-emerald-200">
-              <p class="text-xs font-semibold text-emerald-700 mb-1">Verfügbare Budget-Dateien:</p>
+            <div class="mb-3 ml-7 p-2 rounded-lg bg-emerald-50 border border-emerald-200">
+              <p class="text-xs font-semibold text-emerald-700 mb-1">Budget-Dateien:</p>
               {#each actualFiles as f}
                 <div class="text-xs font-mono text-emerald-600 truncate">📄 {f.name}</div>
               {/each}
@@ -751,31 +747,11 @@
             </div>
           {/if}
 
-          <div class="space-y-2">
-            <!-- Schritt A: Transaktionen laden -->
-            <button onclick={syncActual} disabled={actualSyncing||!$apiUrl}
-              class="w-full py-2 px-4 rounded-lg text-sm font-semibold border border-stone-200 bg-stone-50 text-stone-700 hover:border-orange-300 hover:text-orange-600 transition-all disabled:opacity-40">
-              {actualSyncing ? '⏳ Lade Transaktionen…' : '🔄 Transaktionen laden'}
-            </button>
-            <!-- Schritt B: Auto-Zuordnung zu Trips -->
-            <button onclick={runAutoCost} disabled={autoCostRunning||!$apiUrl}
-              class="w-full py-2 px-4 rounded-lg text-sm font-semibold border border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100 transition-all disabled:opacity-40">
-              {autoCostRunning ? '⏳ Kosten werden zugeordnet…' : '🔗 Kosten automatisch zuordnen'}
-            </button>
-          </div>
-
-          {#if autoCostResult}
-            <div class="mt-2 p-2.5 rounded-lg {autoCostResult.trips_updated > 0 ? 'bg-emerald-50 border border-emerald-200' : 'bg-stone-50 border border-stone-200'} text-xs">
-              {#if autoCostResult.trips_updated > 0}
-                <p class="font-semibold text-emerald-700">✓ {autoCostResult.trips_updated} Reisen aktualisiert — {autoCostResult.total_assigned.toFixed(2)} € zugeordnet</p>
-                {#each autoCostResult.details.slice(0,5) as d}
-                  <div class="mt-1 text-emerald-600">📍 {d.trip_name} ({d.period}): {d.auto_cost.toFixed(2)} € ({d.transactions} Tx)</div>
-                {/each}
-              {:else}
-                <p class="text-stone-400">Keine Transaktionen konnten Reisen zugeordnet werden.</p>
-              {/if}
-            </div>
-          {/if}
+          <button onclick={syncActual} disabled={actualSyncing||!$apiUrl}
+            class="w-full py-2 px-4 rounded-lg text-sm font-semibold border border-stone-200 bg-stone-50
+                   text-stone-700 hover:border-blue-300 hover:text-blue-700 transition-all disabled:opacity-40">
+            {actualSyncing ? '⏳ Sync…' : '🔄 Synchronisieren'}
+          </button>
 
           {#if actualResult?.error}
             <div class="mt-2 p-2 rounded-lg bg-red-50 border border-red-200 text-xs text-red-600">
@@ -784,49 +760,33 @@
           {/if}
 
           {#if actualResult?.transactions?.length}
-            <div class="mt-3 pt-3 border-t border-stone-100 space-y-1 max-h-36 overflow-y-auto">
+            <div class="mt-3 pt-3 border-t border-stone-100 space-y-1 max-h-32 overflow-y-auto">
               {#each actualResult.transactions.slice(0,10) as tx}
-                <div class="flex justify-between text-xs py-1 border-b border-stone-50">
+                <div class="flex justify-between text-xs py-0.5">
                   <span class="truncate flex-1 mr-2 text-stone-600">{tx.payee_name||tx.notes||'–'}</span>
                   <span class="font-mono font-bold text-orange-600 shrink-0">{Math.abs(tx.amount??0).toFixed(2)} €</span>
                 </div>
               {/each}
             </div>
-          {/if}
-        </div>
 
-        <!-- 1. Dawarich Sync -->
-        <div class="{card} border-l-4 border-l-emerald-400">
-          <div class="flex items-center gap-2 mb-1">
-            <span class="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold flex items-center justify-center shrink-0">1</span>
-            <h3 class="text-sm font-semibold text-stone-700">🧭 Dawarich Sync</h3>
-          </div>
-          <p class="text-xs text-stone-400 mb-3">GPS-Aufenthalte laden und Reisen automatisch erkennen.</p>
-
-          <!-- Tipp -->
-          <div class="mb-3 p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-700">
-            💡 <strong>Tipp:</strong> Führe erst diesen Sync aus — dann können im Schritt 2 die Kosten automatisch den erkannten Reisen zugeordnet werden.
-          </div>
-
-          <button onclick={syncJournal} disabled={syncing||!$apiUrl}
-            class="w-full py-2 px-4 rounded-lg text-sm font-semibold border border-stone-200 bg-stone-50 text-stone-700 hover:border-emerald-400 hover:text-emerald-700 transition-all disabled:opacity-50">
-            {syncing ? '⏳ Sync läuft…' : '🧭 Synchronisieren'}
-          </button>
-
-          <!-- force_full Checkbox -->
-          <label class="flex items-center gap-2 mt-2 cursor-pointer">
-            <input type="checkbox" bind:checked={forceFull}
-              class="w-3.5 h-3.5 rounded border-stone-300 accent-orange-600" />
-            <span class="text-xs text-stone-400">Gelöschte Reisen erzwingen (Full Sync)</span>
-          </label>
-
-          {#if syncInfo}
-            <p class="text-xs text-stone-400 mt-2 pt-2 border-t border-stone-100">ℹ️ {syncInfo}</p>
+            <!-- Auto-Cost Button -->
+            <div class="mt-3 pt-3 border-t border-stone-100">
+              <button onclick={runAutoCost} disabled={autoCostRunning||!$apiUrl}
+                class="w-full py-2 px-4 rounded-lg text-sm font-semibold border-2 border-orange-300 bg-orange-50
+                       text-orange-700 hover:bg-orange-100 transition-all disabled:opacity-40">
+                {autoCostRunning ? '⏳ Zuordne…' : '🔗 Kosten automatisch zuordnen'}
+              </button>
+              {#if autoCostResult}
+                <p class="text-xs text-emerald-600 mt-1.5 text-center">
+                  ✓ {autoCostResult.trips_updated} Reisen · {autoCostResult.total_assigned?.toFixed(2)} € zugeordnet
+                </p>
+              {/if}
+            </div>
           {/if}
         </div>
       </div>
 
-      <!-- 2/3 Rechts: Timeline gefiltert nach Jahr -->
+      <!-- 2/3 Rechts: Timeline -->
       <div class="lg:col-span-2">
         <div class="flex items-center justify-between mb-3">
           <h3 class="text-sm font-semibold text-stone-700">
@@ -855,6 +815,8 @@
               {@const loc      = trip.location_name || trip.name || '–'}
               {@const mapsUrl  = trip.lat&&trip.lon ? `https://www.google.com/maps?q=${trip.lat},${trip.lon}` : null}
               {@const isManual = trip.source==='manual'}
+              {@const displayCost = trip.cost ?? trip.auto_cost}
+              {@const isAutoCost  = trip.cost == null && trip.auto_cost != null}
               <div class="relative pb-4">
                 <div class="absolute -left-6 top-4 w-4 h-4 rounded-full border-2 border-white shadow-sm z-10"
                   style="background:{isManual?'#6366f1':'linear-gradient(135deg,#c4622d,#b84928)'}"></div>
@@ -878,7 +840,8 @@
                       {trip.nights} {trip.nights===1?'Nacht':'Nächte'}
                     </span>
                   </div>
-                  <!-- Kosten inline -->
+
+                  <!-- Kosten -->
                   <div class="mt-3 flex items-center gap-2 flex-wrap">
                     {#if editingCost === trip.id}
                       <input type="number" bind:value={costDraft} placeholder="Kosten €"
@@ -887,12 +850,10 @@
                       <button onclick={() => saveCost(trip)} class="px-3 py-1.5 rounded-lg text-xs font-semibold text-white shrink-0" style="background:#c4622d">✓</button>
                       <button onclick={() => editingCost=null} class="px-2 py-1.5 rounded-lg text-xs border border-stone-200 text-stone-400 shrink-0">✕</button>
                     {:else}
-                      {@const displayCost = trip.cost != null ? trip.cost : trip.auto_cost}
-                      {@const isAutoCost  = trip.cost == null && trip.auto_cost != null}
-                      <button onclick={() => { editingCost=trip.id; costDraft=displayCost!=null?String(displayCost):''; }}
+                      <button onclick={() => { editingCost=trip.id; costDraft=trip.cost!=null?String(trip.cost):''; }}
                         class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs border transition-colors
                                {displayCost!=null?'border-orange-200 bg-orange-50 text-orange-600 font-semibold':'border-stone-200 text-stone-400 hover:border-orange-200 hover:text-orange-500'}">
-                        💶 {displayCost!=null ? parseFloat(displayCost).toFixed(2)+' €'+(isAutoCost?' 🔗':'') : 'Kosten hinterlegen'}
+                        💶 {displayCost!=null ? parseFloat(displayCost).toFixed(2)+' €'+(isAutoCost?' (auto)':'') : 'Kosten hinterlegen'}
                       </button>
                     {/if}
                     <div class="flex gap-1.5 ml-auto">
