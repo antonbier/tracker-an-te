@@ -220,6 +220,8 @@ def init_db():
             ("booking_trackers", "user_id INTEGER NOT NULL DEFAULT 1"),
             ("detected_trips",   "user_id INTEGER NOT NULL DEFAULT 1"),
             ("trackers",         "threshold_price REAL DEFAULT NULL"),
+            ("detected_trips",   "cost REAL DEFAULT NULL"),
+            ("detected_trips",   "notes TEXT DEFAULT NULL"),
         ]
         for table, col_def in migrations:
             col_name = col_def.split()[0]
@@ -622,25 +624,27 @@ def save_booking_snapshot(tracker_id: int, snap: dict) -> int:
 def save_detected_trip(trip: dict, user_id: int = 1) -> int:
     with db() as conn:
         existing = conn.execute(
-            "SELECT id FROM detected_trips WHERE user_id=? AND start_date=? AND end_date=?",
-            (user_id, trip["start_date"], trip["end_date"])
+            "SELECT id FROM detected_trips WHERE user_id=? AND start_date=? AND end_date=? AND source=?",
+            (user_id, trip["start_date"], trip["end_date"], trip.get("source", "dawarich"))
         ).fetchone()
         if existing:
             conn.execute("""
                 UPDATE detected_trips SET
-                  location_name=?, country=?, lat=?, lon=?, nights=?
+                  location_name=?, country=?, lat=?, lon=?, nights=?, cost=?, notes=?
                 WHERE id=?
             """, (
                 trip.get("location_name"), trip.get("country"),
                 trip.get("lat"), trip.get("lon"),
-                trip.get("nights", 1), existing["id"]
+                trip.get("nights", 1),
+                trip.get("cost"), trip.get("notes"),
+                existing["id"]
             ))
             return existing["id"]
         cur = conn.execute("""
             INSERT INTO detected_trips
               (user_id, start_date, end_date, location_name, country,
-               lat, lon, nights, source, created_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?)
+               lat, lon, nights, source, cost, notes, created_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
         """, (
             user_id,
             trip["start_date"], trip["end_date"],
@@ -648,6 +652,7 @@ def save_detected_trip(trip: dict, user_id: int = 1) -> int:
             trip.get("lat"), trip.get("lon"),
             trip.get("nights", 1),
             trip.get("source", "dawarich"),
+            trip.get("cost"), trip.get("notes"),
             datetime.utcnow().isoformat(),
         ))
         return cur.lastrowid
@@ -660,6 +665,18 @@ def list_detected_trips(limit: int = 50, user_id: int | None = None) -> list[dic
             f"SELECT * FROM detected_trips {where} ORDER BY start_date DESC LIMIT ?",
             params + [limit]
         ).fetchall()]
+
+def update_detected_trip_cost(trip_id: int, cost: float | None, user_id: int | None = None) -> bool:
+    with db() as conn:
+        if user_id:
+            return conn.execute(
+                "UPDATE detected_trips SET cost=? WHERE id=? AND user_id=?",
+                (cost, trip_id, user_id)
+            ).rowcount > 0
+        return conn.execute(
+            "UPDATE detected_trips SET cost=? WHERE id=?", (cost, trip_id)
+        ).rowcount > 0
+
 
 def delete_detected_trip(trip_id: int, user_id: int | None = None) -> bool:
     with db() as conn:
