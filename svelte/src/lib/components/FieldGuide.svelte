@@ -120,8 +120,15 @@
             </div>
           {/each}
           <div class="rounded-xl p-3 border" style="background:var(--ws-surface2);border-color:var(--ws-border)">
-            <div class="font-semibold text-xs mb-1">ActualBudget</div>
+            <div class="font-semibold text-xs mb-1">💶 ActualBudget</div>
             <p class="text-xs" style="color:var(--ws-muted)">Self-hosted. URL + Server-Passwort als Token. Kategorienamen für Reise-Ausgaben konfigurieren (z.B. "Holiday, Flights, Hotel").</p>
+            <div class="mt-2 text-xs font-semibold" style="color:var(--ws-text)">Budget-Dateiname finden:</div>
+            <ol class="text-xs mt-1 space-y-0.5 list-decimal list-inside" style="color:var(--ws-muted)">
+              <li>ActualBudget öffnen → oben links auf den Budget-Namen klicken</li>
+              <li>In der URL erscheint die Budget-ID, z.B. <code class="font-mono px-1 rounded" style="background:var(--ws-surface);color:var(--ws-accent2)">My-Finances-abc123</code></li>
+              <li>Alternativ: <strong>Settings → Advanced → Budget ID</strong> (neuere Versionen)</li>
+              <li>Diesen Namen (ohne .blob) in WanderSuite eintragen</li>
+            </ol>
           </div>
         </div>
       {/if}
