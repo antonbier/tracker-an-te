@@ -65,22 +65,25 @@ def register_begin(data: RegisterBeginPayload, current_user: dict = Depends(get_
 
     user_id_bytes = str(current_user["id"]).encode()
 
-    options = webauthn.generate_registration_options(
-        rp_id=RP_ID,
-        rp_name=RP_NAME,
-        user_id=user_id_bytes,
-        user_name=user["email"],
-        user_display_name=user["email"],
-        attestation="none",
-        authenticator_selection=AuthenticatorSelectionCriteria(
-            resident_key=ResidentKeyRequirement.PREFERRED,
-            user_verification=UserVerificationRequirement.PREFERRED,
-        ),
-        supported_pub_key_algs=[
-            COSEAlgorithmIdentifier.ECDSA_SHA_256,
-            COSEAlgorithmIdentifier.RSASSA_PKCS1_v1_5_SHA_256,
-        ],
-    )
+    try:
+        options = webauthn.generate_registration_options(
+            rp_id=RP_ID,
+            rp_name=RP_NAME,
+            user_id=user_id_bytes,
+            user_name=user["email"],
+            user_display_name=user["email"],
+            authenticator_selection=AuthenticatorSelectionCriteria(
+                resident_key=ResidentKeyRequirement.PREFERRED,
+                user_verification=UserVerificationRequirement.PREFERRED,
+            ),
+            supported_pub_key_algs=[
+                COSEAlgorithmIdentifier.ECDSA_SHA_256,
+                COSEAlgorithmIdentifier.RSASSA_PKCS1_v1_5_SHA_256,
+            ],
+        )
+    except Exception as e:
+        logger.error(f"[Passkey] generate_registration_options failed: {e}")
+        raise HTTPException(500, f"Passkey-Optionen konnten nicht generiert werden: {e}")
 
     # Store challenge for verification
     challenge_b64 = base64.b64encode(options.challenge).decode()
