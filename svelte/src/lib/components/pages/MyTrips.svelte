@@ -149,8 +149,15 @@
   <!-- Header -->
   <div class="flex items-center justify-between">
     <h1 class="text-2xl font-bold" style="font-family:var(--ws-serif)">{$t('mytripsTitle')}</h1>
-    <div class="text-xs font-medium px-2.5 py-1 rounded-full border border-stone-200 text-stone-500 bg-white">
-      {$trips.length} {$t('mytripsStatsTrips').toLowerCase()}
+    <div class="flex gap-2">
+      {#if upcomingTrips.length > 0}
+        <div class="text-xs font-medium px-2.5 py-1 rounded-full border border-orange-200 text-orange-600 bg-orange-50">
+          ✈️ {upcomingTrips.length} geplant
+        </div>
+      {/if}
+      <div class="text-xs font-medium px-2.5 py-1 rounded-full border border-stone-200 text-stone-500 bg-white">
+        {$trips.length} gesamt
+      </div>
     </div>
   </div>
 
