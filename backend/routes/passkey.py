@@ -36,31 +36,30 @@ _ORIGIN_ENV  = os.getenv("WEBAUTHN_ORIGIN",   "http://localhost:8767")
 
 def _get_rp(request: Request):
     """
-    Derive RP_ID and ORIGIN from the HTTP request if env vars are still at defaults.
-    This allows zero-config usage behind a reverse proxy.
+    Derive RP_ID and ORIGIN from the HTTP request.
+    Priority:
+      1. Explicit env vars (WEBAUTHN_RP_ID != "localhost")
+      2. HTTP Origin header (set by browser on every cross-origin/same-origin POST)
+      3. Env var fallback
     """
-    # If explicitly configured (not default), always use env vars
+    # 1. Explicit env config always wins
     if _RP_ID_ENV != "localhost":
+        logger.info(f"[Passkey] Using env config: rp_id={_RP_ID_ENV} origin={_ORIGIN_ENV}")
         return _RP_ID_ENV, _RP_NAME_ENV, _ORIGIN_ENV
 
-    # Try to get the real origin from headers set by Zoraxy / Nginx
-    origin_header = (
-        request.headers.get("origin") or
-        request.headers.get("x-forwarded-proto", "http") + "://" +
-        request.headers.get("x-forwarded-host", "") or
-        request.headers.get("referer", "")
-    )
-
+    # 2. Browser always sends Origin header on POST requests
+    origin_header = request.headers.get("origin", "").strip()
     if origin_header:
         parsed = urlparse(origin_header)
-        hostname = parsed.hostname or "localhost"
-        # Strip "www." prefix for RP_ID
-        rp_id = hostname.lstrip("www.")
-        # Reconstruct clean origin (scheme + host, no path)
-        origin = f"{parsed.scheme}://{parsed.netloc}" if parsed.netloc else _ORIGIN_ENV
-        logger.info(f"[Passkey] Auto-derived rp_id={rp_id} origin={origin}")
-        return rp_id, _RP_NAME_ENV, origin
+        hostname = parsed.hostname or ""
+        if hostname:
+            rp_id = hostname  # must be registrable domain suffix of origin
+            origin = f"{parsed.scheme}://{parsed.netloc}"
+            logger.info(f"[Passkey] Derived from Origin header: rp_id={rp_id} origin={origin}")
+            return rp_id, _RP_NAME_ENV, origin
 
+    # 3. Fallback to env vars
+    logger.warning(f"[Passkey] No Origin header found, using env fallback: rp_id={_RP_ID_ENV}")
     return _RP_ID_ENV, _RP_NAME_ENV, _ORIGIN_ENV
 
 
