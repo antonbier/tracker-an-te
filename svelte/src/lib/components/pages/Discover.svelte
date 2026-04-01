@@ -1,5 +1,6 @@
 <script>
   import { api } from '$lib/api.js';
+  import { t } from '$lib/i18n.js';
   import { apiUrl } from '$lib/stores.js';
   import { toast } from '$lib/toast.js';
 
@@ -27,12 +28,12 @@
 </script>
 
 <div class="space-y-4">
-  <h1 class="text-2xl font-bold italic" style="font-family:var(--ws-serif)">✨ Inspiration</h1>
+  <h1 class="text-2xl font-bold italic" style="font-family:var(--ws-serif)">{$t('discoverTitle')}</h1>
 
   <div class="rounded-xl p-4 border space-y-3" style="background:var(--ws-surface);border-color:var(--ws-border)">
     <div class="grid grid-cols-2 gap-2">
       <div>
-        <label class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">KI-Anbieter</label>
+        <label class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">{$t('discoverProvider')}</label>
         <select bind:value={provider}
           class="w-full mt-1 px-3 py-2 rounded-xl border text-sm"
           style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)">
@@ -43,10 +44,10 @@
     </div>
 
     <div>
-      <label class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Was suchst du?</label>
+      <label class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">{$t('discoverQuery')}</label>
       <textarea
         bind:value={query}
-        placeholder="z.B. Strand, warmes Wetter, günstig, Oktober..."
+        placeholder={$t('discoverPlaceholder')}
         rows="3"
         class="w-full mt-1 px-3 py-2 rounded-xl border text-sm resize-none"
         style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"
@@ -59,7 +60,7 @@
       class="w-full py-2.5 rounded-xl font-semibold text-sm transition-opacity hover:opacity-80 disabled:opacity-50"
       style="background:linear-gradient(135deg,var(--ws-accent),#b84928);color:#fff5ec"
     >
-      {loading ? '🌍 KI denkt nach…' : '🌍 Reiseideen generieren'}
+      {loading ? $t('discoverLoading') : $t('discoverBtn')}
     </button>
   </div>
 
