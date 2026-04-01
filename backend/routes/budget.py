@@ -99,3 +99,57 @@ def debug_actual(config: ActualConfig):
 
     return result
 
+
+
+class TransactionsRequest(BaseModel):
+    actual_url:   str
+    actual_token: str
+    actual_file:  Optional[str] = None
+    categories:   Optional[str] = None  # komma-getrennt oder None
+
+
+@router.post("/actual/transactions")
+def get_transactions_alias(data: TransactionsRequest):
+    """
+    Frontend-kompatibler Endpoint.
+    Mappt actual_url/actual_token/actual_file → base_url/password/budget_file.
+    Gibt { transactions: [...] } zurück.
+    """
+    from actual_budget import get_travel_expenses, list_budget_files
+    import datetime as dt
+
+    base_url    = data.actual_url.rstrip("/")
+    password    = data.actual_token
+    budget_file = data.actual_file or ""
+    cats        = [c.strip() for c in (data.categories or "").split(",") if c.strip()]
+
+    # Falls kein budget_file angegeben: erste verfügbare Datei nehmen
+    if not budget_file:
+        files_resp = list_budget_files(base_url, password)
+        files = files_resp.get("files", [])
+        if not files:
+            return {"error": "Keine Budget-Dateien gefunden. Bitte Budget-Dateiname in Einstellungen eintragen.", "transactions": []}
+        budget_file = files[0].get("name", "")
+        logger.info(f"[ActualBudget] Kein Dateiname angegeben, nutze erste Datei: {budget_file}")
+
+    result = get_travel_expenses(base_url, password, budget_file, cats, dt.date.today().year)
+    if "error" in result:
+        return {"error": result["error"], "transactions": [], "budget_file_used": budget_file}
+
+    return {
+        "transactions": result.get("transactions", []),
+        "total": result.get("total", 0),
+        "budget_file_used": budget_file,
+        "categories_used": cats or ["alle"],
+    }
+
+
+@router.post("/actual/list-files")
+def list_budget_files_endpoint(data: TransactionsRequest):
+    """
+    Listet alle Budget-Dateien auf — hilft beim Herausfinden des richtigen Dateinamens.
+    Nur actual_url + actual_token nötig.
+    """
+    from actual_budget import list_budget_files
+    result = list_budget_files(data.actual_url.rstrip("/"), data.actual_token)
+    return result
