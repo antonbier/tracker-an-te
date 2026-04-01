@@ -28,6 +28,24 @@
     return [...s].sort((a,b) => b-a);
   });
 
+  // Jahres-Switcher: max 4 Jahre sichtbar, navigierbar per Pfeile
+  const YEARS_PER_PAGE = 4;
+  let yearPageStart = $state(0); // Index in availableYears()
+
+  // Wenn selectedYear sich ändert, Page so anpassen dass Jahr sichtbar ist
+  $effect(() => {
+    const ay = availableYears();
+    const idx = ay.indexOf(selectedYear);
+    if (idx < yearPageStart || idx >= yearPageStart + YEARS_PER_PAGE) {
+      yearPageStart = Math.max(0, Math.min(idx, ay.length - YEARS_PER_PAGE));
+    }
+  });
+
+  const visibleYears = $derived(() => {
+    const ay = availableYears();
+    return ay.slice(yearPageStart, yearPageStart + YEARS_PER_PAGE);
+  });
+
   // ── Budget (Backend) ───────────────────────────────────────────────────────
   let budgetByYear = $state({});
   let budgetInput  = $state('');
@@ -143,8 +161,27 @@
   }
 
   // ── ActualBudget Sync ─────────────────────────────────────────────────────
-  let actualSyncing = $state(false);
-  let actualResult  = $state(null);
+  let actualSyncing     = $state(false);
+  let actualResult      = $state(null);
+  let actualFiles       = $state([]);   // verfügbare Budget-Dateien
+  let actualFilesLoading = $state(false);
+
+  async function listActualFiles() {
+    if (!$apiUrl) { toast('Backend-URL fehlt', 'warning'); return; }
+    const url   = browser ? localStorage.getItem('s-actualUrl')      || '' : '';
+    const token = browser ? localStorage.getItem('s-actualPassword') || '' : '';
+    if (!url || !token) { toast('ActualBudget URL + Passwort fehlen → Einstellungen', 'warning'); return; }
+    actualFilesLoading = true;
+    try {
+      const r = await api('/api/budget/actual/list-files', {
+        method: 'POST',
+        body: JSON.stringify({ actual_url: url, actual_token: token }),
+      });
+      actualFiles = r.files || [];
+      if (!actualFiles.length) toast('Keine Budget-Dateien gefunden', 'warning');
+    } catch (e) { toast('Fehler: ' + e.message, 'error'); }
+    actualFilesLoading = false;
+  }
 
   async function syncActual() {
     if (!$apiUrl) { toast('Backend-URL fehlt', 'warning'); return; }
@@ -269,13 +306,13 @@
       {/if}
     </button>
 
-    <!-- Jahr-Switcher -->
+    <!-- Jahr-Switcher: max 4 sichtbar, navigierbar -->
     <div class="flex items-center gap-0.5 bg-white border border-stone-200 rounded-full px-1 py-1 shadow-sm">
       <button
-        onclick={() => { const ay=availableYears(); const i=ay.indexOf(selectedYear); if(i<ay.length-1) selectedYear=ay[i+1]; }}
-        disabled={availableYears().indexOf(selectedYear) >= availableYears().length-1}
+        onclick={() => { yearPageStart = Math.min(yearPageStart + YEARS_PER_PAGE, availableYears().length - YEARS_PER_PAGE); }}
+        disabled={yearPageStart + YEARS_PER_PAGE >= availableYears().length}
         class="w-7 h-7 rounded-full flex items-center justify-center text-stone-400 hover:text-orange-600 hover:bg-orange-50 transition-all disabled:opacity-30 text-sm">‹</button>
-      {#each availableYears() as y}
+      {#each visibleYears() as y}
         <button onclick={() => selectedYear=y}
           class="px-3 py-1 rounded-full text-sm font-semibold transition-all"
           class:bg-orange-600={selectedYear===y} class:text-white={selectedYear===y}
@@ -284,8 +321,8 @@
         </button>
       {/each}
       <button
-        onclick={() => { const ay=availableYears(); const i=ay.indexOf(selectedYear); if(i>0) selectedYear=ay[i-1]; }}
-        disabled={availableYears().indexOf(selectedYear) <= 0}
+        onclick={() => { yearPageStart = Math.max(0, yearPageStart - YEARS_PER_PAGE); }}
+        disabled={yearPageStart <= 0}
         class="w-7 h-7 rounded-full flex items-center justify-center text-stone-400 hover:text-orange-600 hover:bg-orange-50 transition-all disabled:opacity-30 text-sm">›</button>
     </div>
 
@@ -321,45 +358,42 @@
   ══════════════════════════════════════════════════════ -->
   {#if activeTab === 'overview'}
 
-    <!-- Stats: Reisen-Karte aufgeteilt + Budget + Verbleibend -->
-    <div class="grid grid-cols-3 gap-3">
+    <!-- Stats: 2x2 Grid — Vergangen/Geplant/BucketList/Budget -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
 
-      <!-- Reisen {Jahr}: Vergangen + Geplant, klickbar -->
-      <div class="{card} p-0 overflow-hidden col-span-1">
-        <div class="grid grid-cols-2 h-full divide-x divide-stone-100">
-          <button onclick={() => activeTab='journal'}
-            class="p-4 text-center hover:bg-stone-50 transition-colors group">
-            <div class="text-xl mb-1">✅</div>
-            <div class="text-xs font-medium text-stone-400 uppercase tracking-wide mb-0.5">Vergangen</div>
-            <div class="text-lg font-bold text-stone-800 group-hover:text-orange-600 transition-colors" style="font-family:var(--ws-serif)">
-              {journalYear.length}
-            </div>
-          </button>
-          <button onclick={() => activeTab='trips'}
-            class="p-4 text-center hover:bg-stone-50 transition-colors group">
-            <div class="text-xl mb-1">✈️</div>
-            <div class="text-xs font-medium text-stone-400 uppercase tracking-wide mb-0.5">Geplant</div>
-            <div class="text-lg font-bold text-stone-800 group-hover:text-orange-600 transition-colors" style="font-family:var(--ws-serif)">
-              {upcomingCount}
-            </div>
-          </button>
-        </div>
-      </div>
+      <!-- Vergangen → klick → Reisechronik -->
+      <button onclick={() => activeTab='journal'}
+        class="{card} text-center hover:border-orange-200 hover:shadow-md transition-all group cursor-pointer">
+        <div class="text-2xl mb-1">✅</div>
+        <div class="text-xs font-medium text-stone-400 mb-0.5 uppercase tracking-wide">Vergangen</div>
+        <div class="text-xl font-bold text-stone-800 group-hover:text-orange-600 transition-colors" style="font-family:var(--ws-serif)">{journalYear.length}</div>
+        <div class="text-[10px] text-stone-300 mt-1">→ Chronik</div>
+      </button>
+
+      <!-- Geplant → klick → Geplante Reisen -->
+      <button onclick={() => activeTab='trips'}
+        class="{card} text-center hover:border-orange-200 hover:shadow-md transition-all group cursor-pointer">
+        <div class="text-2xl mb-1">✈️</div>
+        <div class="text-xs font-medium text-stone-400 mb-0.5 uppercase tracking-wide">Geplant</div>
+        <div class="text-xl font-bold text-stone-800 group-hover:text-orange-600 transition-colors" style="font-family:var(--ws-serif)">{upcomingCount}</div>
+        <div class="text-[10px] text-stone-300 mt-1">→ Geplante Reisen</div>
+      </button>
+
+      <!-- Bucket List → klick → Bucket List -->
+      <button onclick={() => activeTab='bucketlist'}
+        class="{card} text-center hover:border-orange-200 hover:shadow-md transition-all group cursor-pointer">
+        <div class="text-2xl mb-1">🌟</div>
+        <div class="text-xs font-medium text-stone-400 mb-0.5 uppercase tracking-wide">Wunschziele</div>
+        <div class="text-xl font-bold text-stone-800 group-hover:text-orange-600 transition-colors" style="font-family:var(--ws-serif)">{$bucketlist.filter(b=>!b.done).length}</div>
+        <div class="text-[10px] text-stone-300 mt-1">→ Bucket List</div>
+      </button>
 
       <!-- Ausgegeben -->
       <div class="{card} text-center">
         <div class="text-2xl mb-1">💸</div>
         <div class="text-xs font-medium text-stone-400 mb-0.5 uppercase tracking-wide">{$t('mytripsStatsSpent')}</div>
-        <div class="text-lg font-bold text-orange-600" style="font-family:var(--ws-serif)">{totalSpentYear.toFixed(2)} €</div>
-      </div>
-
-      <!-- Verbleibend -->
-      <div class="{card} text-center">
-        <div class="text-2xl mb-1">💰</div>
-        <div class="text-xs font-medium text-stone-400 mb-0.5 uppercase tracking-wide">{$t('mytripsStatsRemaining')}</div>
-        <div class="text-lg font-bold text-emerald-700" style="font-family:var(--ws-serif)">
-          {yearBudget > 0 ? remainingYear.toFixed(2) + ' €' : '–'}
-        </div>
+        <div class="text-xl font-bold text-orange-600" style="font-family:var(--ws-serif)">{totalSpentYear.toFixed(2)} €</div>
+        {#if yearBudget > 0}<div class="text-[10px] text-stone-300 mt-1">{remainingYear.toFixed(0)} € frei</div>{/if}
       </div>
     </div>
 
@@ -614,11 +648,57 @@
         <!-- ActualBudget Sync -->
         <div class={card}>
           <h3 class="text-sm font-semibold text-stone-700 mb-1">{$t('mytripsActualSync')}</h3>
-          <p class="text-xs text-stone-400 mb-3">{$t('mytripsActualDesc')}</p>
-          <button onclick={syncActual} disabled={actualSyncing||!$apiUrl}
-            class="w-full py-2 px-4 rounded-lg text-sm font-semibold border border-stone-200 bg-stone-50 text-stone-700 hover:border-orange-300 hover:text-orange-600 transition-all disabled:opacity-40">
-            {actualSyncing ? '⏳ Sync…' : '🔄 Synchronisieren'}
-          </button>
+          <p class="text-xs text-stone-400 mb-2">{$t('mytripsActualDesc')}</p>
+
+          <!-- Hilfe: Budget-Dateiname finden -->
+          {#if !actualFiles.length}
+            <details class="mb-3">
+              <summary class="text-xs text-stone-400 cursor-pointer hover:text-orange-500 transition-colors">
+                💡 Budget-Dateiname unbekannt?
+              </summary>
+              <div class="mt-2 p-3 rounded-lg bg-stone-50 border border-stone-200 text-xs text-stone-500 space-y-2">
+                <p>Der Dateiname ist der interne Name deines Budgets in ActualBudget.</p>
+                <ol class="list-decimal list-inside space-y-1">
+                  <li>ActualBudget öffnen</li>
+                  <li>Oben links auf den Budget-Namen klicken</li>
+                  <li>Die angezeigte ID aus der URL kopieren (z.B. <code class="font-mono bg-white px-1 rounded">My-Budget-abc123</code>)</li>
+                  <li>Oder: Button unten klicken → Dateien werden automatisch aufgelistet</li>
+                </ol>
+                <button onclick={listActualFiles} disabled={actualFilesLoading||!$apiUrl}
+                  class="w-full mt-1 py-1.5 px-3 rounded-lg border border-stone-200 text-stone-600 hover:border-orange-300 hover:text-orange-600 transition-all disabled:opacity-40 text-xs font-medium">
+                  {actualFilesLoading ? '⏳…' : '📂 Verfügbare Dateien anzeigen'}
+                </button>
+              </div>
+            </details>
+          {/if}
+
+          <!-- Gefundene Dateien -->
+          {#if actualFiles.length}
+            <div class="mb-3 p-2 rounded-lg bg-emerald-50 border border-emerald-200">
+              <p class="text-xs font-semibold text-emerald-700 mb-1">Verfügbare Budget-Dateien:</p>
+              {#each actualFiles as f}
+                <div class="text-xs font-mono text-emerald-600 truncate">📄 {f.name}</div>
+              {/each}
+              <p class="text-[10px] text-emerald-500 mt-1">→ In Einstellungen → Mein Bereich eintragen</p>
+            </div>
+          {/if}
+
+          <div class="flex gap-2">
+            <button onclick={syncActual} disabled={actualSyncing||!$apiUrl}
+              class="flex-1 py-2 px-4 rounded-lg text-sm font-semibold border border-stone-200 bg-stone-50 text-stone-700 hover:border-orange-300 hover:text-orange-600 transition-all disabled:opacity-40">
+              {actualSyncing ? '⏳ Sync…' : '🔄 Synchronisieren'}
+            </button>
+          </div>
+
+          {#if actualResult?.error}
+            <div class="mt-2 p-2 rounded-lg bg-red-50 border border-red-200 text-xs text-red-600">
+              ⚠️ {actualResult.error}
+              {#if actualResult.error.includes('file') || actualResult.error.includes('Datei')}
+                <br>→ Budget-Dateiname in <strong>Einstellungen → Mein Bereich</strong> prüfen
+              {/if}
+            </div>
+          {/if}
+
           {#if actualResult?.transactions?.length}
             <div class="mt-3 pt-3 border-t border-stone-100 space-y-1 max-h-40 overflow-y-auto">
               {#each actualResult.transactions.slice(0,12) as tx}
