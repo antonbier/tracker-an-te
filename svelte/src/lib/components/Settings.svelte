@@ -334,9 +334,10 @@
           <input bind:value={actualToken} type="password" placeholder="Server Password"
             class="w-full px-3 py-2 rounded-xl border text-sm"
             style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
-          <input bind:value={actualFile} placeholder="Budget-Dateiname"
+          <input bind:value={actualFile} placeholder="Budget-Dateiname (z.B. My-Finances-abc123)"
             class="w-full px-3 py-2 rounded-xl border text-sm"
             style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
+          <div class="text-xs" style="color:var(--ws-muted)">💡 Dateiname: ActualBudget → Budget-Name oben links anklicken → ID aus der URL entnehmen</div>
           <input bind:value={travelCats} placeholder="Kategorien: Holiday, Flights, Hotel"
             class="w-full px-3 py-2 rounded-xl border text-sm"
             style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
@@ -427,9 +428,10 @@
           <input bind:value={myActualToken} type="password" placeholder="Server Password"
             class="w-full px-3 py-2 rounded-xl border text-sm"
             style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
-          <input bind:value={myActualFile} placeholder="Budget-Dateiname"
+          <input bind:value={myActualFile} placeholder="Budget-Dateiname (z.B. My-Finances-abc123)"
             class="w-full px-3 py-2 rounded-xl border text-sm"
             style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
+          <div class="text-xs" style="color:var(--ws-muted)">💡 Dateiname: ActualBudget → Budget-Name oben links anklicken → ID aus der URL entnehmen</div>
           <input bind:value={myTravelCats} placeholder="Kategorien: Holiday, Flights, Hotel"
             class="w-full px-3 py-2 rounded-xl border text-sm"
             style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
