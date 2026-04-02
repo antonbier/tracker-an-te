@@ -23,13 +23,13 @@
       onSettings={() => settingsOpen = true}
       onToggleDark={toggleDark}
     />
-    <main class="flex-1 overflow-y-auto p-4 md:p-6 pb-20 md:pb-6">
+    <main class="flex-1 overflow-y-auto p-4 md:p-6">
       {@render children()}
     </main>
+    <!-- Bottom nav (mobile) -->
+    <BottomNav />
   </div>
 </div>
-
-<!-- Fixed overlays & navigation — outside stacking context -->
-<BottomNav />
+<!-- Modals — rendered at AppShell root, outside any stacking context -->
 <FieldGuide bind:open={fieldGuideOpen} />
 <Settings   bind:open={settingsOpen} />
