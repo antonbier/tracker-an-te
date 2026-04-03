@@ -12,7 +12,7 @@ from contextlib import asynccontextmanager
 
 from database import init_db
 from auth_db import init_auth_tables
-from scheduler import run_all_trackers
+from scheduler import run_all_trackers, run_cleanup_job
 from routes import (
     trackers, prices, google_flights, discover,
     accommodations, budget, settings as settings_route,
@@ -24,6 +24,7 @@ from routes.auth import router_status, router_auth, router_admin
 from routes import dawarich as dawarich_route
 from routes import trips as trips_route
 from routes import passkey as passkey_route
+from routes import scheduler as scheduler_route
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -50,6 +51,8 @@ async def lifespan(app: FastAPI):
     logger.info(f"✅ DB ready — {APP_VERSION}")
 
     scheduler = BackgroundScheduler(timezone=TZ)
+
+    # Daily price fetch at 07:00
     scheduler.add_job(
         run_all_trackers,
         trigger="cron", hour=7, minute=0,
@@ -57,8 +60,18 @@ async def lifespan(app: FastAPI):
         replace_existing=True,
         misfire_grace_time=3600,
     )
+
+    # Daily cleanup at 03:00
+    scheduler.add_job(
+        run_cleanup_job,
+        trigger="cron", hour=3, minute=0,
+        id="daily_cleanup",
+        replace_existing=True,
+        misfire_grace_time=3600,
+    )
+
     scheduler.start()
-    logger.info(f"⏰ Scheduler started (07:00 {TZ})")
+    logger.info(f"⏰ Scheduler started — price fetch 07:00, cleanup 03:00 ({TZ})")
 
     yield
     scheduler.shutdown(wait=False)
@@ -88,17 +101,13 @@ app.include_router(trips_route.router,         prefix="/api/trips",            t
 app.include_router(dashboard_route.router,     prefix="/api/dashboard",        tags=["Dashboard"])
 app.include_router(userdata_route.router,      prefix="/api/userdata",         tags=["UserData"])
 app.include_router(notifications_route.router, prefix="/api/notifications",    tags=["Notifications"])
-app.include_router(passkey_route.router,       prefix="/api/auth/passkeys",    tags=["Passkeys"])
-app.include_router(router_status, prefix="/api", tags=["Auth"])
-app.include_router(router_auth,   prefix="/api", tags=["Auth"])
-app.include_router(router_admin,  prefix="/api", tags=["Admin"])
+app.include_router(scheduler_route.router,     prefix="/api/scheduler",        tags=["Scheduler"])
+app.include_router(router_status)
+app.include_router(router_auth)
+app.include_router(router_admin)
+app.include_router(passkey_route.router)
 
 
-@app.get("/")
-def root():
-    return {"status": "ok", "service": "WanderSuite API",
-            "version": APP_VERSION, "channel": CHANNEL, "db": DB_PATH, "tz": TZ}
-
-@app.get("/health")
+@app.get("/api/health")
 def health():
-    return {"status": "healthy", "version": APP_VERSION, "channel": CHANNEL}
+    return {"status": "ok", "version": APP_VERSION, "channel": CHANNEL}
