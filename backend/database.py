@@ -1043,3 +1043,8 @@ def _get_latest(table: str, tracker_id: int) -> dict | None:
             (tracker_id,)
         ).fetchone()
     return dict(row) if row else None
+
+
+def save_detected_trip(data: dict, user_id: int = 1) -> int:
+    """Alias for create_detected_trip — backward compatibility."""
+    return create_detected_trip(data, user_id=user_id)
