@@ -642,19 +642,15 @@
                 {:else if !chartState[wKey]?.history?.length || chartState[wKey].history.length < 2}
                   <p class="text-xs text-center py-4" style="color:var(--ws-muted)">Noch zu wenig Daten</p>
                 {:else}
-                  {@const hist = chartState[wKey].history}
-                  {@const prices = hist.map(h => h.price)}
-                  {@const minP = Math.min(...prices)}
-                  {@const maxP = Math.max(...prices)}
-                  {@const range = maxP - minP || 1}
+                  {#each [chartPts(chartState[wKey].history)] as cp}
                   <div class="relative h-20">
-                    {@const pts = hist.map((h,i) => { const x=(i/(hist.length-1))*290+5; const y=65-((h.price-minP)/range)*58; return `${x},${y}`; })}
                     <svg viewBox="0 0 300 70" class="w-full h-full" preserveAspectRatio="none">
-                      <polyline fill="none" stroke="var(--ws-accent)" stroke-width="2" points={pts.join(' ')}/>
+                      <polyline fill="none" stroke="var(--ws-accent)" stroke-width="2" points={cp.polyline}/>
                     </svg>
-                    <div class="absolute top-0 right-0 text-xs font-mono" style="color:var(--ws-muted)">{maxP.toFixed(0)}€</div>
-                    <div class="absolute bottom-0 right-0 text-xs font-mono" style="color:var(--ws-green)">{minP.toFixed(0)}€</div>
+                    <div class="absolute top-0 right-0 text-xs font-mono" style="color:var(--ws-muted)">{cp.maxP.toFixed(0)}€</div>
+                    <div class="absolute bottom-0 right-0 text-xs font-mono" style="color:var(--ws-green)">{cp.minP.toFixed(0)}€</div>
                   </div>
+                  {/each}
                 {/if}
               </div>
             {/if}
