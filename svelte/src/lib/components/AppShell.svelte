@@ -17,7 +17,7 @@
 </script>
 
 <div class="flex h-screen overflow-hidden" style="background:var(--ws-bg);color:var(--ws-text)">
-  <!-- Sidebar (desktop) -->
+  <!-- Sidebar (desktop only) -->
   <Sidebar onSettings={() => settingsOpen = true} />
 
   <!-- Main area -->
@@ -27,10 +27,11 @@
       onSettings={() => settingsOpen = true}
       onToggleDark={toggleDark}
     />
+    <!-- Main scroll area: pb-0 on desktop, content-area handles its own scroll -->
     <main class="flex-1 overflow-y-auto p-4 md:p-6">
       {@render children()}
     </main>
-    <!-- Bottom nav (mobile) -->
+    <!-- BottomNav renders fixed + its own spacer div -->
     <BottomNav />
   </div>
 </div>
