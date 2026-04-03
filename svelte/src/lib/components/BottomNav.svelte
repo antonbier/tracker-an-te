@@ -10,7 +10,8 @@
   ];
 </script>
 
-<nav class="md:hidden flex border-t shrink-0"
+<!-- Fixed bottom nav for mobile — always visible, never scrolled away -->
+<nav class="md:hidden fixed bottom-0 left-0 right-0 z-50 flex border-t safe-area-bottom"
   style="background:var(--ws-surface);border-color:var(--ws-border)">
   {#each nav as item}
     <button onclick={() => currentPage.set(item.id)}
@@ -21,3 +22,5 @@
     </button>
   {/each}
 </nav>
+<!-- Spacer so content isn't hidden behind fixed nav -->
+<div class="md:hidden h-16 shrink-0"></div>
