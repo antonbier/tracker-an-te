@@ -479,6 +479,12 @@
                   {@const minP = Math.min(...prices)}
                   {@const maxP = Math.max(...prices)}
                   {@const range = maxP - minP || 1}
+                  {@const pts = hist.map((h,i) => {
+                    const x = (i / (hist.length-1)) * 290 + 5;
+                    const y = 75 - ((h.price - minP) / range) * 65;
+                    return `${x},${y}`;
+                  })}
+                  {@const polyPts = `5,75 ${pts.join(' ')} ${(hist.length > 1 ? (hist.length-1)/(hist.length-1) : 1)*290+5},75`}
                   <div class="relative h-24">
                     <svg viewBox="0 0 300 80" class="w-full h-full" preserveAspectRatio="none">
                       <defs>
@@ -487,17 +493,10 @@
                           <stop offset="100%" stop-color="var(--ws-accent)" stop-opacity="0"/>
                         </linearGradient>
                       </defs>
-                      {@const pts = hist.map((h,i) => {
-                        const x = (i / (hist.length-1)) * 290 + 5;
-                        const y = 75 - ((h.price - minP) / range) * 65;
-                        return `${x},${y}`;
-                      })}
                       <polyline fill="none" stroke="var(--ws-accent)" stroke-width="2"
                         points={pts.join(' ')}/>
-                      <polygon fill="url(#chartGrad-{tr.id})"
-                        points={`5,75 ${pts.join(' ')} ${(hist.length-1)/(hist.length-1)*290+5},75`}/>
+                      <polygon fill="url(#chartGrad-{tr.id})" points={polyPts}/>
                     </svg>
-                    <!-- Min/Max labels -->
                     <div class="absolute top-0 right-0 text-xs font-mono" style="color:var(--ws-muted)">{maxP.toFixed(0)}€</div>
                     <div class="absolute bottom-0 right-0 text-xs font-mono" style="color:var(--ws-green)">{minP.toFixed(0)}€</div>
                     <div class="absolute bottom-0 left-0 text-xs" style="color:var(--ws-muted)">{hist[0].fetched_at.slice(0,10)}</div>
@@ -634,8 +633,8 @@
                   {@const maxP = Math.max(...prices)}
                   {@const range = maxP - minP || 1}
                   <div class="relative h-20">
+                    {@const pts = hist.map((h,i) => { const x=(i/(hist.length-1))*290+5; const y=65-((h.price-minP)/range)*58; return `${x},${y}`; })}
                     <svg viewBox="0 0 300 70" class="w-full h-full" preserveAspectRatio="none">
-                      {@const pts = hist.map((h,i) => { const x=(i/(hist.length-1))*290+5; const y=65-((h.price-minP)/range)*58; return `${x},${y}`; })}
                       <polyline fill="none" stroke="var(--ws-accent)" stroke-width="2" points={pts.join(' ')}/>
                     </svg>
                     <div class="absolute top-0 right-0 text-xs font-mono" style="color:var(--ws-muted)">{maxP.toFixed(0)}€</div>
