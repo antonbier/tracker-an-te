@@ -1,3 +1,5 @@
+from pydantic import BaseModel
+from typing import Optional
 """
 WanderSuite — REST Routes: /api/prices
 Preisverlauf für Charts und CSV-Export.
@@ -7,7 +9,10 @@ import csv
 import io
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
-from database import get_tracker, get_price_history as get_snapshots
+from database import get_price_history as _get_ph,
+    set_tracker_wish_price as _set_wish,
+    # (original imports follow)
+     get_tracker, get_price_history as get_snapshots
 
 router = APIRouter()
 
@@ -94,3 +99,28 @@ def export_price_history_csv(tracker_id: int, limit: int = 365):
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+# ── Wish Price API ────────────────────────────────────────────────────────────
+
+from database import set_tracker_wish_price as _set_wish
+
+class WishPriceUpdate(BaseModel):
+    wish_price: Optional[float] = None
+
+@router.put("/wish/{table}/{tracker_id}")
+def update_wish_price(
+    table: str,
+    tracker_id: int,
+    data: WishPriceUpdate,
+    user: dict = Depends(get_current_user)
+):
+    """
+    Set or clear wish_price on any tracker type.
+    table: trackers | gf_trackers | homair_trackers | booking_trackers
+    """
+    uid = user.get("id", 0) or None
+    ok = _set_wish(tracker_id, table, data.wish_price, user_id=uid)
+    if not ok:
+        raise HTTPException(404, "Tracker nicht gefunden oder kein Zugriff")
+    return {"message": "Wunschpreis gespeichert", "wish_price": data.wish_price}
