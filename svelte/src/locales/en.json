@@ -171,5 +171,6 @@
   "radarSource": "Source",
   "radarStart": "+ Start tracker",
   "radarBaggage": "Baggage",
-  "radarSeat": "Seat €/person/flight"
+  "radarSeat": "Seat €/person/flight",
+  "settingsScheduler": "Scheduler"
 }
