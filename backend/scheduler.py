@@ -9,7 +9,6 @@ Deep logging: per-provider status, scraping status, errors.
 import logging
 import random
 import time
-from datetime import datetime, timezone
 
 from database import (
     list_trackers, save_price_snapshot as save_snapshot,
@@ -19,14 +18,16 @@ from database import (
     get_user_scheduler_settings, update_scheduler_last_run,
     cleanup_old_price_history, cleanup_old_snapshots,
 )
+from scraper import fetch_flights
+from settings_manager import get_setting_value
 
 logger = logging.getLogger(__name__)
 
-# ── Deep Logging Helpers ──────────────────────────────────────────────────────
+
+# ── Deep Logging Helper ───────────────────────────────────────────────────────
 
 def _log_provider(provider: str, status: str, tracker_id: int,
                   detail: str = "", price: float | None = None):
-    """Structured per-provider log entry."""
     price_str = f" | price={price:.2f}" if price is not None else ""
     detail_str = f" | {detail}" if detail else ""
     icon = "✅" if status == "ok" else ("⚠️" if status == "blocked" else "❌")
@@ -36,8 +37,6 @@ def _log_provider(provider: str, status: str, tracker_id: int,
 # ── Ryanair Trackers ──────────────────────────────────────────────────────────
 
 def run_ryanair_trackers(user_id: int | None = None):
-    """Run all active Ryanair trackers, optionally filtered by user_id."""
-    from scraper import fetch_flights
     trackers = list_trackers(active_only=True, user_id=user_id)
     logger.info(f"🛫 Ryanair: {len(trackers)} aktive Tracker (user_id={user_id or 'all'})")
 
@@ -48,7 +47,7 @@ def run_ryanair_trackers(user_id: int | None = None):
         try:
             result = fetch_flights(tracker)
             snap = result["snapshot"]
-            snap_id = save_snapshot(tid, snap)
+            save_snapshot(tid, snap)
 
             status = result.get("status", "error")
             price = snap.get("total_price")
@@ -56,10 +55,8 @@ def run_ryanair_trackers(user_id: int | None = None):
             if status == "ok":
                 _log_provider("ryanair", "ok", tid, "scrape=success", price)
                 _check_and_notify(tracker, snap, result.get("previous_price"))
-            elif status in ("blocked", "rate_limited"):
-                _log_provider("ryanair", "blocked", tid, "scrape=blocked_by_cf")
             else:
-                _log_provider("ryanair", "error", tid, snap.get("error_message", "unknown"))
+                _log_provider("ryanair", status, tid, snap.get("error_message", "unknown"))
 
         except Exception as e:
             logger.error(f"  ❌ Ryanair #{tid}: {e}", exc_info=True)
@@ -72,21 +69,27 @@ def run_ryanair_trackers(user_id: int | None = None):
 # ── Google Flights Trackers ───────────────────────────────────────────────────
 
 def run_gf_trackers(user_id: int | None = None):
-    from routes.google_flights import fetch_gf_price
+    try:
+        from google_scraper import fetch_google_flights
+    except ImportError:
+        logger.warning("⚠️  google_scraper nicht verfügbar — GF-Tracker übersprungen")
+        return
+
     trackers = list_gf_trackers(active_only=True, user_id=user_id)
     logger.info(f"✈️  Google Flights: {len(trackers)} aktive Tracker")
+    api_key = get_setting_value("serpapi_key") or ""
 
     for i, tracker in enumerate(trackers):
         tid = tracker["id"]
         logger.info(f"  [{i+1}/{len(trackers)}] GF #{tid}: "
                     f"{tracker['origin']}→{tracker['destination']} {tracker['outbound_date']}")
         try:
-            snap = fetch_gf_price(tracker)
+            snap = fetch_google_flights(tracker, api_key=api_key)
             save_gf_snapshot(tid, snap)
             status = snap.get("status", "error")
             if status == "ok":
                 _log_provider("google_flights", "ok", tid, "source=serpapi", snap.get("total_price"))
-                _check_and_notify_generic(tracker, snap, tracker_type="google_flight")
+                _check_and_notify_generic(tracker, snap)
             else:
                 _log_provider("google_flights", status, tid, snap.get("error_message", ""))
         except Exception as e:
@@ -100,20 +103,26 @@ def run_gf_trackers(user_id: int | None = None):
 # ── Homair / Camping Trackers ─────────────────────────────────────────────────
 
 def run_homair_trackers(user_id: int | None = None):
-    from routes.accommodations import fetch_homair_price
+    try:
+        from homair_scraper import fetch_homair
+    except ImportError:
+        logger.warning("⚠️  homair_scraper nicht verfügbar — Homair-Tracker übersprungen")
+        return
+
     trackers = list_homair_trackers(active_only=True, user_id=user_id)
     logger.info(f"⛺ Homair: {len(trackers)} aktive Tracker")
+    api_key = get_setting_value("serpapi_key") or ""
 
     for i, tracker in enumerate(trackers):
         tid = tracker["id"]
         logger.info(f"  [{i+1}/{len(trackers)}] Homair #{tid}: {tracker.get('region')}")
         try:
-            snap = fetch_homair_price(tracker)
+            snap = fetch_homair(tracker, api_key=api_key)
             save_homair_snapshot(tid, snap)
             status = snap.get("status", "error")
             if status == "ok":
-                _log_provider("homair", "ok", tid, "source=serpapi_hotels", snap.get("total_price"))
-                _check_and_notify_generic(tracker, snap, tracker_type="camping")
+                _log_provider("homair", "ok", tid, "source=serpapi", snap.get("total_price"))
+                _check_and_notify_generic(tracker, snap)
             else:
                 _log_provider("homair", status, tid, snap.get("error_message", ""))
         except Exception as e:
@@ -127,20 +136,26 @@ def run_homair_trackers(user_id: int | None = None):
 # ── Booking / Hotel Trackers ──────────────────────────────────────────────────
 
 def run_booking_trackers(user_id: int | None = None):
-    from routes.accommodations import fetch_booking_price
+    try:
+        from booking_scraper import fetch_booking
+    except ImportError:
+        logger.warning("⚠️  booking_scraper nicht verfügbar — Booking-Tracker übersprungen")
+        return
+
     trackers = list_booking_trackers(active_only=True, user_id=user_id)
     logger.info(f"🏨 Booking: {len(trackers)} aktive Tracker")
+    api_key = get_setting_value("serpapi_key") or ""
 
     for i, tracker in enumerate(trackers):
         tid = tracker["id"]
         logger.info(f"  [{i+1}/{len(trackers)}] Booking #{tid}: {tracker.get('destination')}")
         try:
-            snap = fetch_booking_price(tracker)
+            snap = fetch_booking(tracker, api_key=api_key)
             save_booking_snapshot(tid, snap)
             status = snap.get("status", "error")
             if status == "ok":
                 _log_provider("booking", "ok", tid, "source=serpapi", snap.get("total_price"))
-                _check_and_notify_generic(tracker, snap, tracker_type="hotel")
+                _check_and_notify_generic(tracker, snap)
             else:
                 _log_provider("booking", status, tid, snap.get("error_message", ""))
         except Exception as e:
@@ -154,18 +169,15 @@ def run_booking_trackers(user_id: int | None = None):
 # ── Notification Helpers ──────────────────────────────────────────────────────
 
 def _check_and_notify(tracker: dict, snap: dict, prev_price: float | None):
-    """Ryanair-specific notification (has threshold_price field)."""
     new_price = snap.get("total_price")
     if not new_price:
         return
-
     if prev_price and new_price < prev_price:
         try:
             from notifications import notify_price_drop
             notify_price_drop(tracker, old_price=prev_price, new_price=new_price)
         except Exception as ne:
             logger.warning(f"  ⚠️ Benachrichtigung fehlgeschlagen: {ne}")
-
     threshold = tracker.get("threshold_price") or tracker.get("wish_price")
     if threshold and new_price <= threshold:
         already_below = prev_price and prev_price <= threshold
@@ -177,8 +189,7 @@ def _check_and_notify(tracker: dict, snap: dict, prev_price: float | None):
                 logger.warning(f"  ⚠️ Threshold-Alert fehlgeschlagen: {ne}")
 
 
-def _check_and_notify_generic(tracker: dict, snap: dict, tracker_type: str):
-    """Generic notification for non-Ryanair trackers (wish_price only)."""
+def _check_and_notify_generic(tracker: dict, snap: dict):
     new_price = snap.get("total_price")
     wish_price = tracker.get("wish_price")
     if not new_price or not wish_price:
@@ -188,33 +199,34 @@ def _check_and_notify_generic(tracker: dict, snap: dict, tracker_type: str):
             from notifications import notify_threshold_reached
             notify_threshold_reached(tracker, price=new_price, threshold=wish_price)
         except Exception as ne:
-            logger.warning(f"  ⚠️ Wish-price alert fehlgeschlagen ({tracker_type}): {ne}")
+            logger.warning(f"  ⚠️ Wish-price alert fehlgeschlagen: {ne}")
 
 
-# ── Master Run Function ───────────────────────────────────────────────────────
+# ── Master Run ────────────────────────────────────────────────────────────────
 
 def run_all_trackers(user_id: int | None = None):
     """
-    Run all tracker types for a user (or all users).
-    Called by APScheduler or manually via API.
-    Each provider runs independently — errors in one don't affect others.
+    Run all tracker types. Each provider is independent — errors don't cascade.
+    Called by APScheduler daily or via POST /api/scheduler/run.
     """
     logger.info(f"🕐 Scheduler startet (user_id={user_id or 'all'})")
 
     for runner, name in [
-        (run_ryanair_trackers, "Ryanair"),
-        (run_gf_trackers, "Google Flights"),
-        (run_homair_trackers, "Homair/Camping"),
-        (run_booking_trackers, "Booking/Hotels"),
+        (run_ryanair_trackers,  "Ryanair"),
+        (run_gf_trackers,       "Google Flights"),
+        (run_homair_trackers,   "Homair/Camping"),
+        (run_booking_trackers,  "Booking/Hotels"),
     ]:
         try:
             runner(user_id=user_id)
         except Exception as e:
             logger.error(f"❌ {name} runner crashed: {e}", exc_info=True)
-            # Continue with next provider
 
     if user_id:
-        update_scheduler_last_run(user_id)
+        try:
+            update_scheduler_last_run(user_id)
+        except Exception:
+            pass
 
     logger.info("✅ Scheduler-Lauf abgeschlossen")
 
@@ -222,7 +234,6 @@ def run_all_trackers(user_id: int | None = None):
 def run_single_tracker(tracker_id: int):
     """Einzelnen Ryanair-Tracker manuell abrufen."""
     from database import get_tracker
-    from scraper import fetch_flights
     tracker = get_tracker(tracker_id)
     if not tracker:
         raise ValueError(f"Tracker #{tracker_id} nicht gefunden")
@@ -236,16 +247,11 @@ def run_single_tracker(tracker_id: int):
 # ── Cleanup Job ───────────────────────────────────────────────────────────────
 
 def run_cleanup_job():
-    """
-    Delete price history and snapshots older than 180 days.
-    Runs daily at 03:00 via APScheduler.
-    """
+    """Delete price history and snapshots older than 180 days. Runs daily at 03:00."""
     logger.info("🧹 Cleanup-Job startet (>180 Tage)")
     try:
-        ph_count = cleanup_old_price_history(days=180)
-        snap_counts = cleanup_old_snapshots(days=180)
-        total_snaps = sum(snap_counts.values())
-        logger.info(f"  ✅ price_history: {ph_count} Einträge gelöscht")
-        logger.info(f"  ✅ snapshots: {total_snaps} Einträge gelöscht {snap_counts}")
+        ph = cleanup_old_price_history(days=180)
+        snaps = cleanup_old_snapshots(days=180)
+        logger.info(f"  ✅ price_history: {ph} gelöscht | snapshots: {sum(snaps.values())} gelöscht")
     except Exception as e:
         logger.error(f"  ❌ Cleanup fehlgeschlagen: {e}", exc_info=True)
