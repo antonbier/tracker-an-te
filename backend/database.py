@@ -654,6 +654,16 @@ def get_latest_gf_snapshot(tracker_id: int) -> dict | None:
         ).fetchone()
     return dict(row) if row else None
 
+def get_gf_history(tracker_id: int, limit: int = 90) -> list[dict]:
+    """Compatibility alias: return GF snapshots from gf_snapshots table."""
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT * FROM gf_snapshots WHERE tracker_id=? ORDER BY fetched_at DESC LIMIT ?",
+            (tracker_id, limit)
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
 
 # ── Homair Tracker CRUD ───────────────────────────────────────────────────────
 
