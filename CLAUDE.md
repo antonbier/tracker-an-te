@@ -513,6 +513,121 @@ body = {'message': msg, 'content': base64_content, 'branch': 'beta', 'sha': sha}
 - `import 'jsvectormap/dist/maps/world.js'`
 - CSS via `<svelte:head><style>@import 'jsvectormap/dist/css/jsvectormap.min.css'</style></svelte:head>`
 
+
+---
+
+## PriceRadar — Architektur (Multi-Provider Aggregator)
+
+### Tab-Struktur
+| Tab | ID | Provider | Tracker-Tabelle |
+|-----|----|----------|-----------------|
+| 🟠 Ryanair | `ryanair` | ryanair.com scraper | `trackers` |
+| 🔵 Google Flights | `gflights` | SerpAPI Google Flights | `gf_trackers` |
+| ⛺ Camping | `homair` | SerpAPI Google Hotels (Homair-Query) | `homair_trackers` |
+| 🏨 Hotels | `booking` | SerpAPI Google Hotels | `booking_trackers` |
+
+### Tracker-Karten Features
+- **Wunschpreis (`wish_price`)**: Editierbares Inline-Feld (✏️ → Input → ✓/Enter). Grüner Border + "🎯 Wunschpreis erreicht!" wenn `price ≤ wish_price`.
+- **Preisverlauf-Chart**: Akkordeon (📈 Button) → SVG Liniendiagramm aus `price_history` Tabelle. Min/Max-Labels.
+- **Skeleton Screens**: Animate-pulse Platzhalter beim Laden.
+
+### Wish-Price API
+`PUT /api/prices/wish/{table}/{tracker_id}` mit `{ wish_price: float | null }`
+- table: `trackers` | `gf_trackers` | `homair_trackers` | `booking_trackers`
+- Endpoint in `backend/routes/prices.py`
+
+### Price History API
+`GET /api/prices/history/{tracker_type}/{tracker_id}?limit=90`
+- tracker_type: `flight` | `google_flight` | `hotel` | `camping`
+- Returns: `{ history: [{ fetched_at, price, currency, provider, status }] }`
+
+---
+
+## Datenbank — Neue Tabellen (dieses Upgrade)
+
+### price_history
+```sql
+CREATE TABLE price_history (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id      INTEGER NOT NULL DEFAULT 1,
+    tracker_type TEXT    NOT NULL,   -- 'flight'|'google_flight'|'hotel'|'camping'
+    tracker_id   INTEGER NOT NULL,
+    price        REAL    NOT NULL,
+    currency     TEXT    NOT NULL DEFAULT 'EUR',
+    provider     TEXT,               -- 'ryanair'|'google_flights'|'homair'|'booking'
+    status       TEXT    NOT NULL DEFAULT 'ok',
+    error_msg    TEXT,
+    fetched_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+```
+**Cleanup**: `DELETE FROM price_history WHERE fetched_at < datetime('now', '-180 days')`
+→ Täglich 03:00 via APScheduler (`run_cleanup_job()`)
+
+### user_scheduler_settings
+```sql
+CREATE TABLE user_scheduler_settings (
+    user_id               INTEGER PRIMARY KEY,
+    update_interval_hours INTEGER NOT NULL DEFAULT 24,
+    notify_price_drop     INTEGER NOT NULL DEFAULT 1,
+    notify_daily_summary  INTEGER NOT NULL DEFAULT 0,
+    last_run_at           TEXT,
+    updated_at            TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+```
+
+### wish_price Spalte (Migration)
+Neue Spalte auf allen Tracker-Tabellen:
+```sql
+ALTER TABLE trackers         ADD COLUMN wish_price REAL DEFAULT NULL;
+ALTER TABLE gf_trackers      ADD COLUMN wish_price REAL DEFAULT NULL;
+ALTER TABLE homair_trackers  ADD COLUMN wish_price REAL DEFAULT NULL;
+ALTER TABLE booking_trackers ADD COLUMN wish_price REAL DEFAULT NULL;
+```
+
+---
+
+## Scheduler — Per-User Einstellungen
+
+### API
+| Methode | Pfad | Beschreibung |
+|---------|------|-------------|
+| GET | `/api/scheduler/settings` | Aktuelle Einstellungen des Users |
+| PUT | `/api/scheduler/settings` | Intervall (6/12/24/48/72/168h) + Notifications speichern |
+| POST | `/api/scheduler/run` | Manueller Trigger (läuft im Hintergrund) |
+
+### Settings-Tab "⏰ Scheduler"
+- 6 Intervall-Buttons (6h / 12h / 1d / 2d / 3d / 1Wo)
+- Toggle: Preissturz-Alarm, Tägliche Zusammenfassung
+- Letzter Lauf Timestamp
+- "Jetzt ausführen" Button
+
+### Cleanup-Job
+- Täglich 03:00 via APScheduler
+- Löscht `price_history` + alle `*_snapshots` Einträge älter als 180 Tage
+- Funktion: `run_cleanup_job()` in `backend/scheduler.py`
+
+---
+
+## Mobile UI
+
+### BottomNav — Fixiert
+- `position: fixed; bottom: 0; z-index: 50` (Tailwind: `fixed bottom-0 left-0 right-0 z-50`)
+- Spacer-Div (`h-16`) direkt nach dem Nav-Element verhindert, dass Content verdeckt wird
+
+### Settings — Responsive Overlay
+- **Mobile**: `fixed inset-0` → Fullscreen Overlay
+- **Desktop**: `fixed inset-y-0 right-0 md:max-w-md` → Side Panel (wie bisher)
+
+---
+
+## Backend — Scheduler Deep Logging
+
+Format: `[PROVIDER] {icon} #{id} status={status} | price={price} | {detail}`
+- `scrape=success` / `scrape=blocked_by_cf` / `source=serpapi`
+- Jeder Provider-Runner (`run_ryanair_trackers`, `run_gf_trackers`, etc.) läuft unabhängig
+- Fehler in einem Provider crashen nie den nächsten
+
+
 ## Open / Next Steps
 
 ### Erledigt (diese Session)
@@ -552,8 +667,8 @@ body = {'message': msg, 'content': base64_content, 'branch': 'beta', 'sha': sha}
 
 ### Roadmap (beta)
 - [ ] ScratchMap: Geocoding für planned-Trips (lat/lon aus Ortsname automatisch)
-- [ ] Price history chart (Chart.js) in PriceRadar
-- [ ] Mietwagen tab in PriceRadar
+- [x] Price history chart (SVG Liniendiagramm) in PriceRadar — per-Tracker Akkordeon
+- [ ] Mietwagen tab in PriceRadar (future)
 - [ ] Discord webhook notifications
 - [ ] Currency toggle (EUR/USD/GBP)
 - [x] Donut-Chart für Budget (conic-gradient)
