@@ -108,6 +108,7 @@ app.include_router(router_admin)
 app.include_router(passkey_route.router)
 
 
+@app.get("/health")
 @app.get("/api/health")
 def health():
     return {"status": "ok", "version": APP_VERSION, "channel": CHANNEL}
