@@ -292,6 +292,31 @@
     { id:'homair',   label:'⛺ ' + $t('radarHomair')  },
     { id:'booking',  label:'🏨 ' + $t('radarBooking') },
   ]);
+
+  // ── Chart helpers (no {@const} needed in template) ───────────────────────
+  function chartPts(history, w=290, h=65, pad=5) {
+    const prices = history.map(e => e.price);
+    const minP = Math.min(...prices);
+    const maxP = Math.max(...prices);
+    const range = maxP - minP || 1;
+    return {
+      minP, maxP,
+      polyline: history.map((e, i) => {
+        const x = (i / (history.length - 1 || 1)) * w + pad;
+        const y = h - ((e.price - minP) / range) * (h - 5);
+        return `${x},${y}`;
+      }).join(' '),
+      area: [
+        `${pad},${h}`,
+        ...history.map((e, i) => {
+          const x = (i / (history.length - 1 || 1)) * w + pad;
+          const y = h - ((e.price - minP) / range) * (h - 5);
+          return `${x},${y}`;
+        }),
+        `${(history.length > 1 ? 1 : 0) * w + pad},${h}`,
+      ].join(' '),
+    };
+  }
 </script>
 
 <!-- ── Page wrapper ── -->
@@ -474,17 +499,7 @@
                 {:else if chartState[cKey]?.history?.length < 2}
                   <p class="text-xs text-center py-4" style="color:var(--ws-muted)">Noch zu wenig Daten für Diagramm</p>
                 {:else}
-                  {@const hist = chartState[cKey].history}
-                  {@const prices = hist.map(h => h.price)}
-                  {@const minP = Math.min(...prices)}
-                  {@const maxP = Math.max(...prices)}
-                  {@const range = maxP - minP || 1}
-                  {@const pts = hist.map((h,i) => {
-                    const x = (i / (hist.length-1)) * 290 + 5;
-                    const y = 75 - ((h.price - minP) / range) * 65;
-                    return `${x},${y}`;
-                  })}
-                  {@const polyPts = `5,75 ${pts.join(' ')} ${(hist.length > 1 ? (hist.length-1)/(hist.length-1) : 1)*290+5},75`}
+                  {#each [chartPts(chartState[cKey].history, 290, 70, 5)] as cp}
                   <div class="relative h-24">
                     <svg viewBox="0 0 300 80" class="w-full h-full" preserveAspectRatio="none">
                       <defs>
@@ -493,14 +508,14 @@
                           <stop offset="100%" stop-color="var(--ws-accent)" stop-opacity="0"/>
                         </linearGradient>
                       </defs>
-                      <polyline fill="none" stroke="var(--ws-accent)" stroke-width="2"
-                        points={pts.join(' ')}/>
-                      <polygon fill="url(#chartGrad-{tr.id})" points={polyPts}/>
+                      <polyline fill="none" stroke="var(--ws-accent)" stroke-width="2" points={cp.polyline}/>
+                      <polygon fill="url(#chartGrad-{tr.id})" points={cp.area}/>
                     </svg>
-                    <div class="absolute top-0 right-0 text-xs font-mono" style="color:var(--ws-muted)">{maxP.toFixed(0)}€</div>
-                    <div class="absolute bottom-0 right-0 text-xs font-mono" style="color:var(--ws-green)">{minP.toFixed(0)}€</div>
-                    <div class="absolute bottom-0 left-0 text-xs" style="color:var(--ws-muted)">{hist[0].fetched_at.slice(0,10)}</div>
+                    <div class="absolute top-0 right-0 text-xs font-mono" style="color:var(--ws-muted)">{cp.maxP.toFixed(0)}€</div>
+                    <div class="absolute bottom-0 right-0 text-xs font-mono" style="color:var(--ws-green)">{cp.minP.toFixed(0)}€</div>
+                    <div class="absolute bottom-0 left-0 text-xs" style="color:var(--ws-muted)">{chartState[cKey].history[0].fetched_at.slice(0,10)}</div>
                   </div>
+                  {/each}
                 {/if}
               </div>
             {/if}
@@ -755,17 +770,15 @@
                 {:else if !chartState[wKey]?.history?.length || chartState[wKey].history.length < 2}
                   <p class="text-xs text-center py-4" style="color:var(--ws-muted)">Noch zu wenig Daten</p>
                 {:else}
-                  {@const hist = chartState[wKey].history}
-                  {@const prices = hist.map(h=>h.price)}
-                  {@const minP=Math.min(...prices)} {@const maxP=Math.max(...prices)} {@const range=maxP-minP||1}
-                  {@const pts=hist.map((h,i)=>{const x=(i/(hist.length-1))*290+5;const y=65-((h.price-minP)/range)*58;return `${x},${y}`;})}
+                  {#each [chartPts(chartState[wKey].history)] as cp}
                   <div class="relative h-20">
                     <svg viewBox="0 0 300 70" class="w-full h-full" preserveAspectRatio="none">
-                      <polyline fill="none" stroke="var(--ws-accent)" stroke-width="2" points={pts.join(' ')}/>
+                      <polyline fill="none" stroke="var(--ws-accent)" stroke-width="2" points={cp.polyline}/>
                     </svg>
-                    <div class="absolute top-0 right-0 text-xs font-mono" style="color:var(--ws-muted)">{maxP.toFixed(0)}€</div>
-                    <div class="absolute bottom-0 right-0 text-xs font-mono" style="color:var(--ws-green)">{minP.toFixed(0)}€</div>
+                    <div class="absolute top-0 right-0 text-xs font-mono" style="color:var(--ws-muted)">{cp.maxP.toFixed(0)}€</div>
+                    <div class="absolute bottom-0 right-0 text-xs font-mono" style="color:var(--ws-green)">{cp.minP.toFixed(0)}€</div>
                   </div>
+                  {/each}
                 {/if}
               </div>
             {/if}
@@ -884,17 +897,15 @@
                 {:else if !chartState[wKey]?.history?.length||chartState[wKey].history.length<2}
                   <p class="text-xs text-center py-4" style="color:var(--ws-muted)">Noch zu wenig Daten</p>
                 {:else}
-                  {@const hist=chartState[wKey].history}
-                  {@const prices=hist.map(h=>h.price)}
-                  {@const minP=Math.min(...prices)} {@const maxP=Math.max(...prices)} {@const range=maxP-minP||1}
-                  {@const pts=hist.map((h,i)=>{const x=(i/(hist.length-1))*290+5;const y=65-((h.price-minP)/range)*58;return `${x},${y}`;})}
+                  {#each [chartPts(chartState[wKey].history)] as cp}
                   <div class="relative h-20">
                     <svg viewBox="0 0 300 70" class="w-full h-full" preserveAspectRatio="none">
-                      <polyline fill="none" stroke="var(--ws-accent)" stroke-width="2" points={pts.join(' ')}/>
+                      <polyline fill="none" stroke="var(--ws-accent)" stroke-width="2" points={cp.polyline}/>
                     </svg>
-                    <div class="absolute top-0 right-0 text-xs font-mono" style="color:var(--ws-muted)">{maxP.toFixed(0)}€</div>
-                    <div class="absolute bottom-0 right-0 text-xs font-mono" style="color:var(--ws-green)">{minP.toFixed(0)}€</div>
+                    <div class="absolute top-0 right-0 text-xs font-mono" style="color:var(--ws-muted)">{cp.maxP.toFixed(0)}€</div>
+                    <div class="absolute bottom-0 right-0 text-xs font-mono" style="color:var(--ws-green)">{cp.minP.toFixed(0)}€</div>
                   </div>
+                  {/each}
                 {/if}
               </div>
             {/if}
