@@ -1,25 +1,29 @@
-from pydantic import BaseModel
-from typing import Optional
 """
 WanderSuite — REST Routes: /api/prices
-Preisverlauf für Charts und CSV-Export.
+Preisverlauf für Charts, CSV-Export, Wish-Price und History-Endpunkt.
 """
 
 import csv
 import io
-from fastapi import APIRouter, HTTPException
+from typing import Optional
+from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
-from database import get_price_history as _get_ph,
+from pydantic import BaseModel
+
+from database import (
+    get_tracker,
+    get_price_history as get_snapshots,
+    get_price_history as _get_ph,
     set_tracker_wish_price as _set_wish,
-    # (original imports follow)
-     get_tracker, get_price_history as get_snapshots
+)
+from auth_jwt import get_current_user
 
 router = APIRouter()
 
 
 @router.get("/{tracker_id}")
 def get_price_history(tracker_id: int, limit: int = 90):
-    """Preisverlauf für einen Tracker (Chart.js-kompatibel)."""
+    """Preisverlauf für einen Ryanair-Tracker (Chart.js-kompatibel)."""
     t = get_tracker(tracker_id)
     if not t:
         raise HTTPException(404, f"Tracker #{tracker_id} nicht gefunden")
@@ -29,34 +33,28 @@ def get_price_history(tracker_id: int, limit: int = 90):
 
     return {
         "tracker": {
-            "id":            t["id"],
-            "origin":        t["origin"],
-            "destination":   t["destination"],
-            "outbound_date": t["outbound_date"],
-            "return_date":   t.get("return_date"),
-            "adults":        t["adults"],
-            "seat_cost":     t.get("seat_cost", 0.0),
+            "id":              t["id"],
+            "origin":          t["origin"],
+            "destination":     t["destination"],
+            "outbound_date":   t["outbound_date"],
+            "return_date":     t.get("return_date"),
+            "adults":          t["adults"],
+            "seat_cost":       t.get("seat_cost", 0.0),
             "threshold_price": t.get("threshold_price"),
         },
         "labels":         [s["fetched_at"][:10] for s in snaps_sorted],
-        "total_prices":   [s["total_price"]   for s in snaps_sorted],
-        "flight_prices":  [s["flight_price"]  for s in snaps_sorted],
-        "baggage_prices": [s["baggage_price"] for s in snaps_sorted],
+        "total_prices":   [s["total_price"]    for s in snaps_sorted],
+        "flight_prices":  [s["flight_price"]   for s in snaps_sorted],
+        "baggage_prices": [s["baggage_price"]  for s in snaps_sorted],
         "seat_prices":    [s.get("seat_price", 0) for s in snaps_sorted],
-        "statuses":       [s["status"]        for s in snaps_sorted],
+        "statuses":       [s["status"]         for s in snaps_sorted],
         "snapshots":      snaps_sorted,
     }
 
 
 @router.get("/{tracker_id}/export.csv")
 def export_price_history_csv(tracker_id: int, limit: int = 365):
-    """
-    Export full price history as a CSV file download.
-    Columns: date, total_price, flight_price, baggage_price, seat_price, status, currency
-
-    Example: GET /api/prices/3/export.csv?limit=365
-    Browser will download: wandersuite_BGY-DUB_2024-06-01.csv
-    """
+    """Export full price history as CSV download."""
     t = get_tracker(tracker_id)
     if not t:
         raise HTTPException(404, f"Tracker #{tracker_id} nicht gefunden")
@@ -64,11 +62,8 @@ def export_price_history_csv(tracker_id: int, limit: int = 365):
     snaps = get_snapshots(tracker_id, limit=limit)
     snaps_sorted = sorted(snaps, key=lambda s: s["fetched_at"])
 
-    # Build CSV in memory
     output = io.StringIO()
     writer = csv.writer(output, quoting=csv.QUOTE_NONNUMERIC)
-
-    # Header row with tracker metadata as comments
     writer.writerow([
         f"# WanderSuite Preishistorie — "
         f"{t['origin']} → {t['destination']} "
@@ -76,10 +71,9 @@ def export_price_history_csv(tracker_id: int, limit: int = 365):
         f"{' ⇄ ' + t['return_date'] if t.get('return_date') else ''})"
     ])
     writer.writerow([f"# Erwachsene: {t['adults']} | Abruf: {len(snaps_sorted)} Datenpunkte"])
-    writer.writerow([])  # blank line
+    writer.writerow([])
     writer.writerow(["Datum", "Gesamtpreis (€)", "Flugpreis (€)",
                      "Gepäck (€)", "Sitzplatz (€)", "Status", "Währung"])
-
     for s in snaps_sorted:
         writer.writerow([
             s["fetched_at"][:10],
@@ -93,7 +87,6 @@ def export_price_history_csv(tracker_id: int, limit: int = 365):
 
     output.seek(0)
     filename = f"wandersuite_{t['origin']}-{t['destination']}_{t['outbound_date']}.csv"
-
     return StreamingResponse(
         iter([output.getvalue()]),
         media_type="text/csv; charset=utf-8",
@@ -101,22 +94,42 @@ def export_price_history_csv(tracker_id: int, limit: int = 365):
     )
 
 
-# ── Wish Price API ────────────────────────────────────────────────────────────
+# ── Unified Price History (all tracker types) ─────────────────────────────────
 
-from database import set_tracker_wish_price as _set_wish
+@router.get("/history/{tracker_type}/{tracker_id}")
+def get_unified_price_history(
+    tracker_type: str,
+    tracker_id: int,
+    limit: int = 90,
+    user: dict = Depends(get_current_user),
+):
+    """
+    Return price history from price_history table for any tracker type.
+    tracker_type: flight | google_flight | hotel | camping
+    """
+    allowed = {"flight", "google_flight", "hotel", "camping", "car"}
+    if tracker_type not in allowed:
+        raise HTTPException(400, f"tracker_type muss eines von {allowed} sein")
+    uid = user.get("id", 0) or None
+    history = _get_ph(tracker_type, tracker_id, user_id=uid, limit=min(limit, 365))
+    return {"tracker_type": tracker_type, "tracker_id": tracker_id, "history": history}
+
+
+# ── Wish Price ────────────────────────────────────────────────────────────────
 
 class WishPriceUpdate(BaseModel):
     wish_price: Optional[float] = None
+
 
 @router.put("/wish/{table}/{tracker_id}")
 def update_wish_price(
     table: str,
     tracker_id: int,
     data: WishPriceUpdate,
-    user: dict = Depends(get_current_user)
+    user: dict = Depends(get_current_user),
 ):
     """
-    Set or clear wish_price on any tracker type.
+    Set or clear wish_price on any tracker table.
     table: trackers | gf_trackers | homair_trackers | booking_trackers
     """
     uid = user.get("id", 0) or None
