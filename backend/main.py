@@ -105,7 +105,7 @@ app.include_router(scheduler_route.router,     prefix="/api/scheduler",        t
 app.include_router(router_status)
 app.include_router(router_auth)
 app.include_router(router_admin)
-app.include_router(passkey_route.router)
+app.include_router(passkey_route.router,     prefix="/api/auth/passkeys",  tags=["Passkeys"])
 
 
 @app.get("/health")
