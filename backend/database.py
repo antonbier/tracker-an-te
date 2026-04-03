@@ -474,6 +474,16 @@ def get_latest_snapshot(tracker_id: int) -> dict | None:
         ).fetchone()
     return dict(row) if row else None
 
+def get_snapshots(tracker_id: int, limit: int = 90) -> list[dict]:
+    """Return price_snapshots for a Ryanair tracker, newest-first."""
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT * FROM price_snapshots WHERE tracker_id=? ORDER BY fetched_at DESC LIMIT ?",
+            (tracker_id, limit)
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
 
 def get_price_history(tracker_type: str, tracker_id: int, user_id: int | None = None,
                        limit: int = 90) -> list[dict]:
