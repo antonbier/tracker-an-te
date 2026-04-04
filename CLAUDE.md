@@ -676,10 +676,10 @@ body = {'message': msg, 'content': base64_content, 'branch': 'beta', 'sha': sha}
 - [x] CLAUDE.md: PriceRadar auf neue Aggregator-Architektur dokumentiert (STEP 1)
 
 ### Roadmap (beta) -- PriceRadar Umbau
-- [ ] STEP 2: PriceRadar.svelte -- alte Tabs zerstören, neue Kategorie-Suchmasken
-- [ ] STEP 3: Backend /api/search/* Aggregator (Strategy Pattern, async parallel)
-- [ ] STEP 4: Aktive Tracker UX (Responsive Grid, Inklusiv-Badges, Button-Sicherheit)
-- [ ] STEP 5: Backend Security (verschlüsselte Notifications, APScheduler, DB-Cleanup 60d)
+- [x] STEP 2: PriceRadar.svelte -- alte Tabs zerstört, neue Kategorie-Suchmasken (IATA-Autocomplete, Camping-Extras)
+- [x] STEP 3: Backend /api/search/* Aggregator (httpx, asyncio.gather, anti-scraping headers, deep-logging)
+- [x] STEP 4: Aktive Tracker UX (Responsive Grid 1/2/3, Inklusiv-Badges, saveAsTracker routing, latest_snapshot)
+- [x] STEP 5: Backend Security (user_notification_settings verschluesselt, per-user Engine, Cleanup 60d)
 
 ### Phase 3 (future)
 - [ ] Mietwagen-Tab (echte Provider)
