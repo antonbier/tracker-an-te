@@ -286,6 +286,7 @@ async def _search_google_flights(params: FlightSearchParams, api_key: str) -> li
                 "currency":      "EUR",
                 "hl":            "de",
                 "adults":        params.adults,
+                "children":      params.children,
                 "api_key":       api_key,
             }
             # SerpAPI: type=1 = Round-trip, type=2 = One-way
@@ -294,6 +295,9 @@ async def _search_google_flights(params: FlightSearchParams, api_key: str) -> li
                 req_params["type"] = "1"   # round-trip
             else:
                 req_params["type"] = "2"   # one-way
+            # Stopp-Filter: 0=nonstop, 1=max 1 Stopp
+            if params.max_stops >= 0:
+                req_params["stops"] = params.max_stops
 
             resp = await client.get(SERPAPI_BASE, params=req_params)
             resp.raise_for_status()
