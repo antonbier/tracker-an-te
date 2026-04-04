@@ -237,7 +237,7 @@ async def _search_ryanair(params: FlightSearchParams) -> list[dict]:
 
             # Zeit- & Stopp-Filter anwenden
             def _time_in(t, from_t, to_t):
-                """Prüft ob HH:MM-Zeit t im Fenster [from_t, to_t] liegt."""                if not t or (not from_t and not to_t): return True
+                if not t or (not from_t and not to_t): return True
                 try:
                     th, tm = int(t[:2]), int(t[3:5])
                     if from_t:
