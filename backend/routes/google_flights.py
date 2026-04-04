@@ -11,6 +11,7 @@ from datetime import datetime
 from database import (
     create_gf_tracker, list_gf_trackers, get_gf_tracker,
     delete_gf_tracker, save_gf_snapshot, get_gf_history,
+    get_latest_gf_snapshot,
 )
 from google_scraper import fetch_google_flights as scrape_google_flights
 from settings_manager import get_setting_value
@@ -27,6 +28,8 @@ class GFTrackerCreate(BaseModel):
     return_date:   Optional[str] = None
     adults:        int = 1
     children:      int = 0
+    baggage:       str = "none"
+    seat:          bool = False
 
 
 def _uid(user: dict) -> int | None:
@@ -36,7 +39,10 @@ def _uid(user: dict) -> int | None:
 
 @router.get("")
 def list_trackers(user: dict = Depends(get_current_user)):
-    return list_gf_trackers(user_id=_uid(user))
+    trackers = list_gf_trackers(user_id=_uid(user))
+    for t in trackers:
+        t["latest_snapshot"] = get_latest_gf_snapshot(t["id"])
+    return trackers
 
 
 @router.post("", status_code=201)
@@ -50,7 +56,7 @@ def create_tracker(data: GFTrackerCreate, user: dict = Depends(get_current_user)
 def delete_tracker(tracker_id: int, user: dict = Depends(get_current_user)):
     if not delete_gf_tracker(tracker_id, user_id=_uid(user)):
         raise HTTPException(404, "Tracker nicht gefunden")
-    return {"message": "Tracker gelöscht"}
+    return {"message": "Tracker geloescht"}
 
 
 @router.get("/{tracker_id}/history")
