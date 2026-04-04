@@ -18,6 +18,7 @@ from routes import (
     accommodations, budget, settings as settings_route,
     dashboard as dashboard_route,
     userdata as userdata_route,
+    search as search_route,
 )
 from routes import notifications as notifications_route
 from routes.auth import router_status, router_auth, router_admin
@@ -48,7 +49,7 @@ logger.info(f"WanderSuite {APP_VERSION} ({CHANNEL}) starting — DB: {DB_PATH}, 
 async def lifespan(app: FastAPI):
     init_db()
     init_auth_tables()
-    logger.info(f"✅ DB ready — {APP_VERSION}")
+    logger.info(f"DB ready — {APP_VERSION}")
 
     scheduler = BackgroundScheduler(timezone=TZ)
 
@@ -71,7 +72,7 @@ async def lifespan(app: FastAPI):
     )
 
     scheduler.start()
-    logger.info(f"⏰ Scheduler started — price fetch 07:00, cleanup 03:00 ({TZ})")
+    logger.info(f"Scheduler started — price fetch 07:00, cleanup 03:00 ({TZ})")
 
     yield
     scheduler.shutdown(wait=False)
@@ -102,6 +103,7 @@ app.include_router(dashboard_route.router,     prefix="/api/dashboard",        t
 app.include_router(userdata_route.router,      prefix="/api/userdata",         tags=["UserData"])
 app.include_router(notifications_route.router, prefix="/api/notifications",    tags=["Notifications"])
 app.include_router(scheduler_route.router,     prefix="/api/scheduler",        tags=["Scheduler"])
+app.include_router(search_route.router,        prefix="/api/search",           tags=["Search"])
 app.include_router(router_status)
 app.include_router(router_auth)
 app.include_router(router_admin)
