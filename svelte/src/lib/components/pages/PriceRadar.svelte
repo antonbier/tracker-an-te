@@ -268,7 +268,7 @@
       if (searchResults.length === 0) toast($t('radarNoResults'), 'warning');
     } catch (e) {
       // Backend endpoint may not exist yet (Step 3) — show friendly message
-      toast('Suche noch nicht verfügbar (kommt in Step 3)', 'warning');
+      toast(e.message || 'Suche fehlgeschlagen', 'error');
     }
     searching = false;
   }
@@ -277,10 +277,68 @@
     if (!$apiUrl) { toast($t('radarNoBackend'), 'warning'); return; }
     savingTracker = result.id;
     try {
-      await api('/api/trackers', {
-        method: 'POST',
-        body: JSON.stringify(result),
-      });
+      const d = result.detail || {};
+      let endpoint, payload;
+
+      if (result._tracker_type === 'flight') {
+        // Ryanair — baggage as list[BaggageItem]
+        endpoint = '/api/trackers';
+        const bagList = (d.baggage && d.baggage !== 'none')
+          ? [{ type: d.baggage, per_person: true }]
+          : [];
+        payload = {
+          origin:        d.origin,
+          destination:   d.destination,
+          outbound_date: d.outbound_date,
+          return_date:   d.return_date || null,
+          adults:        d.adults || 1,
+          children:      0,
+          baggage:       bagList,
+          seat_cost:     d.seat ? 8.99 : 0.0,
+        };
+      } else if (result._tracker_type === 'google_flight') {
+        endpoint = '/api/google-flights';
+        payload = {
+          origin:        d.origin,
+          destination:   d.destination,
+          outbound_date: d.outbound_date,
+          return_date:   d.return_date || null,
+          adults:        d.adults || 1,
+          children:      0,
+          baggage:       d.baggage || 'none',
+          seat:          d.seat || false,
+        };
+      } else if (result._tracker_type === 'camping') {
+        endpoint = '/api/accommodations/homair';
+        payload = {
+          region:             d.region || d.destination || '',
+          accommodation_type: d.accommodation_type || 'mobilheim',
+          checkin_date:       d.checkin_date,
+          checkout_date:      d.checkout_date,
+          adults:             d.adults || 2,
+          children:           0,
+          bedrooms:           d.bedrooms || '1',
+          aircon:             d.aircon  || false,
+          pets:               d.pets   || false,
+          covered_terrace:    d.covered_terrace || false,
+        };
+      } else if (result._tracker_type === 'hotel') {
+        endpoint = '/api/accommodations/booking';
+        payload = {
+          destination:   d.destination,
+          checkin_date:  d.checkin_date,
+          checkout_date: d.checkout_date,
+          adults:        d.adults || 2,
+          rooms:         d.rooms  || 1,
+          source:        d.source || 'booking',
+        };
+      } else {
+        toast('Unbekannter Tracker-Typ', 'error');
+        savingTracker = null;
+        return;
+      }
+
+      await api(endpoint, { method: 'POST', body: JSON.stringify(payload) });
       toast($t('radarTrackerSaved'), 'success');
       await loadAllTrackers();
     } catch (e) {
@@ -289,7 +347,7 @@
     savingTracker = null;
   }
 
-  // ── Active trackers ───────────────────────────────────────────────────────
+    // ── Active trackers ───────────────────────────────────────────────────────
   let allTrackers  = $state([]);
   let trackersLoading = $state(true);
 
@@ -433,9 +491,10 @@
       if (tr.seat) badges.push('💺 Sitzplatz');
     }
     if (tr._type === 'camping') {
-      if (tr.accommodation_type === 'mobilheim') badges.push('⛺ Mobilheim');
-      else if (tr.accommodation_type === 'glamping') badges.push('🌟 Glamping');
-      else if (tr.accommodation_type === 'stellplatz') badges.push('🅿️ Stellplatz');
+      const at = (tr.accommodation_type || '').toLowerCase();
+      if (at.includes('mobilheim') || at.includes('chalet')) badges.push('⛺ Mobilheim');
+      else if (at.includes('glamping')) badges.push('🌟 Glamping');
+      else if (at.includes('stellplatz') || at.includes('pitch')) badges.push('🅿️ Stellplatz');
       if (tr.aircon) badges.push('❄️ Klima');
       if (tr.pets) badges.push('🐕 Hunde');
     }
@@ -1046,3 +1105,4 @@
   </div>
 
 </div>
+
