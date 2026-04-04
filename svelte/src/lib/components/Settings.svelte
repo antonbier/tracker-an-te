@@ -622,12 +622,6 @@
             {$t('settingsCreateUserBtn')}
           </button>
         </div>
-      {/if}
-
-    </div>
-
-    <!-- Save button — only for non-auth tabs -->
-    {#if activeTab !== 'account' && activeTab !== 'admin' && activeTab !== 'myspace'}
       {:else if activeTab === 'scheduler'}
         <!-- ── Scheduler Tab ── -->
         <div class="space-y-4">
@@ -684,7 +678,10 @@
 
       {/if}
 
-      {#if activeTab !== 'scheduler' && activeTab !== 'account' && activeTab !== 'admin'}
+    </div>
+
+    <!-- Footer: Speichern-Button (nur für Basic / Integrationen / APIs / Notifications) -->
+    {#if activeTab !== 'account' && activeTab !== 'admin' && activeTab !== 'myspace' && activeTab !== 'scheduler'}
       <div class="p-4 border-t shrink-0" style="border-color:var(--ws-border)">
         <button onclick={save}
           class="w-full py-2.5 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80"
@@ -692,7 +689,7 @@
           {$t('settingsSave')}
         </button>
       </div>
-      {/if}
+    {/if}
 
   </div>
 {/if}
