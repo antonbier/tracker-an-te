@@ -307,8 +307,8 @@
   const totalCount    = $derived(upcomingTrips.length + journalTrips.length);
   const upcomingCount = $derived(upcomingTrips.length);
 
-  const inp  = 'bg-stone-50 border border-stone-200 text-stone-800 text-sm rounded-lg focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 p-2.5 w-full outline-none transition-all';
-  const card = 'bg-white border border-stone-200 rounded-xl shadow-sm p-5';
+  const inp  = 'text-sm rounded-lg focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 p-2.5 w-full outline-none transition-all border';
+  const card = 'rounded-xl shadow-sm p-5 border';
   const btn  = 'w-full py-2.5 px-4 rounded-lg text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-[.98]';
 </script>
 
@@ -395,45 +395,49 @@
     <!-- 4 Stats-Karten -->
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
       <button onclick={() => activeTab='journal'}
-        class="{card} text-center hover:border-orange-200 hover:shadow-md transition-all group cursor-pointer">
+        class="{card} text-center hover:border-orange-200 hover:shadow-md transition-all group cursor-pointer"
+        style="background:var(--ws-surface);border-color:var(--ws-border)">
         <div class="text-2xl mb-1">✅</div>
-        <div class="text-xs font-medium text-stone-400 mb-0.5 uppercase tracking-wide">Vergangen</div>
-        <div class="text-xl font-bold text-stone-800 group-hover:text-orange-600 transition-colors" style="font-family:var(--ws-serif)">{journalYear.length}</div>
-        <div class="text-[10px] text-stone-300 mt-1">→ Chronik</div>
+        <div class="text-xs font-medium mb-0.5 uppercase tracking-wide" style="color:var(--ws-muted)">Vergangen</div>
+        <div class="text-xl font-bold group-hover:text-orange-600 transition-colors" style="font-family:var(--ws-serif);color:var(--ws-text)">{journalYear.length}</div>
+        <div class="text-[10px] mt-1" style="color:var(--ws-muted)">→ Chronik</div>
       </button>
       <button onclick={() => activeTab='trips'}
-        class="{card} text-center hover:border-orange-200 hover:shadow-md transition-all group cursor-pointer">
+        class="{card} text-center hover:border-orange-200 hover:shadow-md transition-all group cursor-pointer"
+        style="background:var(--ws-surface);border-color:var(--ws-border)">
         <div class="text-2xl mb-1">✈️</div>
-        <div class="text-xs font-medium text-stone-400 mb-0.5 uppercase tracking-wide">Geplant</div>
-        <div class="text-xl font-bold text-stone-800 group-hover:text-orange-600 transition-colors" style="font-family:var(--ws-serif)">{upcomingCount}</div>
-        <div class="text-[10px] text-stone-300 mt-1">→ Geplante Reisen</div>
+        <div class="text-xs font-medium mb-0.5 uppercase tracking-wide" style="color:var(--ws-muted)">Geplant</div>
+        <div class="text-xl font-bold group-hover:text-orange-600 transition-colors" style="font-family:var(--ws-serif);color:var(--ws-text)">{upcomingCount}</div>
+        <div class="text-[10px] mt-1" style="color:var(--ws-muted)">→ Geplante Reisen</div>
       </button>
       <button onclick={() => activeTab='bucketlist'}
-        class="{card} text-center hover:border-orange-200 hover:shadow-md transition-all group cursor-pointer">
+        class="{card} text-center hover:border-orange-200 hover:shadow-md transition-all group cursor-pointer"
+        style="background:var(--ws-surface);border-color:var(--ws-border)">
         <div class="text-2xl mb-1">🌟</div>
-        <div class="text-xs font-medium text-stone-400 mb-0.5 uppercase tracking-wide">Wunschziele</div>
-        <div class="text-xl font-bold text-stone-800 group-hover:text-orange-600 transition-colors" style="font-family:var(--ws-serif)">{$bucketlist.filter(b=>!b.done).length}</div>
-        <div class="text-[10px] text-stone-300 mt-1">→ Bucket List</div>
+        <div class="text-xs font-medium mb-0.5 uppercase tracking-wide" style="color:var(--ws-muted)">Wunschziele</div>
+        <div class="text-xl font-bold group-hover:text-orange-600 transition-colors" style="font-family:var(--ws-serif);color:var(--ws-text)">{$bucketlist.filter(b=>!b.done).length}</div>
+        <div class="text-[10px] mt-1" style="color:var(--ws-muted)">→ Bucket List</div>
       </button>
-      <div class="{card} text-center">
+      <div class="{card} text-center" style="background:var(--ws-surface);border-color:var(--ws-border)">
         <div class="text-2xl mb-1">💸</div>
-        <div class="text-xs font-medium text-stone-400 mb-0.5 uppercase tracking-wide">{$t('mytripsStatsSpent')}</div>
+        <div class="text-xs font-medium mb-0.5 uppercase tracking-wide" style="color:var(--ws-muted)">{$t('mytripsStatsSpent')}</div>
         <div class="text-xl font-bold text-orange-600" style="font-family:var(--ws-serif)">{totalSpentYear.toFixed(2)} €</div>
-        {#if yearBudget > 0}<div class="text-[10px] {overBudget ? 'text-red-400' : 'text-stone-300'} mt-1">{overBudget ? '⚠️ überschritten' : remainingYear.toFixed(0) + ' € frei'}</div>{/if}
+        {#if yearBudget > 0}<div class="text-[10px] mt-1" style="color:{overBudget ? '#f87171' : 'var(--ws-muted)'}">{overBudget ? '⚠️ überschritten' : remainingYear.toFixed(0) + ' € frei'}</div>{/if}
       </div>
     </div>
 
     <!-- Donut-Chart Budget -->
     {#if yearBudget > 0}
-      <div class="{card}">
+      <div class="{card}" style="background:var(--ws-surface);border-color:var(--ws-border)">
         <div class="flex items-center gap-6">
           <!-- Donut -->
           <div class="relative shrink-0 w-24 h-24">
             <div class="w-24 h-24 rounded-full" style="background:{donutGradient()}"></div>
             <!-- Loch -->
-            <div class="absolute inset-3 rounded-full bg-white flex flex-col items-center justify-center">
-              <span class="text-xs font-bold {overBudget ? 'text-red-500' : 'text-stone-700'}">{pctYear.toFixed(0)}%</span>
-              <span class="text-[9px] text-stone-400">{selectedYear}</span>
+            <div class="absolute inset-3 rounded-full flex flex-col items-center justify-center"
+              style="background:var(--ws-surface)">
+              <span class="text-xs font-bold" style="color:{overBudget ? '#f87171' : 'var(--ws-text)'}">{pctYear.toFixed(0)}%</span>
+              <span class="text-[9px]" style="color:var(--ws-muted)">{selectedYear}</span>
             </div>
           </div>
 
@@ -474,7 +478,7 @@
     {/if}
 
     <!-- Karte -->
-    <div class="{card} !p-4">
+    <div class="{card} !p-4" style="background:var(--ws-surface);border-color:var(--ws-border)">
       <div class="flex items-center justify-between mb-3">
         <h2 class="text-sm font-semibold text-stone-700">🗺️ Meine Reisekarte — {selectedYear}</h2>
         <span class="text-xs text-stone-400">{journalYear.length} Chronik · {upcomingCount} geplant</span>
@@ -484,9 +488,9 @@
 
     <!-- Nächste Abenteuer -->
     {#if upcomingTrips.length > 0}
-      <div class={card}>
-        <h2 class="text-sm font-semibold text-stone-700 mb-3">
-          ✈️ Nächste Abenteuer <span class="ml-1 text-xs font-normal text-stone-400">({upcomingTrips.length})</span>
+      <div class={card} style="background:var(--ws-surface);border-color:var(--ws-border)">
+        <h2 class="text-sm font-semibold mb-3" style="color:var(--ws-text)">
+          ✈️ Nächste Abenteuer <span class="ml-1 text-xs font-normal" style="color:var(--ws-muted)">({upcomingTrips.length})</span>
         </h2>
         <div class="space-y-2">
           {#each upcomingTrips.slice(0,4) as tr}
@@ -510,10 +514,10 @@
 
     <!-- Letzte Erinnerungen -->
     {#if journalYear.length > 0}
-      <div class={card}>
-        <h2 class="text-sm font-semibold text-stone-700 mb-3">
+      <div class={card} style="background:var(--ws-surface);border-color:var(--ws-border)">
+        <h2 class="text-sm font-semibold mb-3" style="color:var(--ws-text)">
           ✅ Letzte Erinnerungen — {selectedYear}
-          <span class="ml-1 text-xs font-normal text-stone-400">({journalYear.length})</span>
+          <span class="ml-1 text-xs font-normal" style="color:var(--ws-muted)">({journalYear.length})</span>
         </h2>
         <div class="space-y-2">
           {#each journalYear.slice(0,4) as tr}
