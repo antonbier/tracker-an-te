@@ -387,8 +387,19 @@
   }
 
     // ── Active trackers ───────────────────────────────────────────────────────
-  let allTrackers  = $state([]);
+  let allTrackers     = $state([]);
   let trackersLoading = $state(true);
+
+  // Tracker gefiltert nach aktivem Tab
+  const TRACKER_TYPES_BY_CAT = {
+    flights: ['flight', 'google_flight'],
+    hotels:  ['hotel'],
+    camping: ['camping'],
+    rentals: [],
+  };
+  const visibleTrackers = $derived(
+    allTrackers.filter(t => (TRACKER_TYPES_BY_CAT[activeCategory] || []).includes(t._type))
+  );
 
   async function loadAllTrackers() {
     if (!$apiUrl) { trackersLoading = false; return; }
@@ -1152,17 +1163,6 @@
 
   <!-- ══════════════════════════ ACTIVE TRACKERS ══════════════════════════ -->
   <div>
-    <!-- Filter: nur Tracker des aktiven Tabs anzeigen -->
-    {@const categoryTrackerTypes = {
-      flights:  ['flight', 'google_flight'],
-      hotels:   ['hotel'],
-      camping:  ['camping'],
-      rentals:  [],
-    }}
-    {@const visibleTrackers = allTrackers.filter(t =>
-      (categoryTrackerTypes[activeCategory] || []).includes(t._type)
-    )}
-
     <h2 class="text-sm font-semibold italic mb-3" style="font-family:var(--ws-serif);color:var(--ws-accent2)">
       📌 {$t('radarActiveTrackers')}
       {#if visibleTrackers.length > 0}
