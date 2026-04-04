@@ -176,26 +176,53 @@
   }
 
   // ── Flights form ──────────────────────────────────────────────────────────
-  let flOrigin   = $state('BGY');
-  let flDest     = $state('DUB');
-  let flOut      = $state(fmt(d30));
-  let flRet      = $state('');
-  let flAdults   = $state(2);
-  let flBaggage  = $state('none');   // 'none' | '10kg' | '20kg'
-  let flSeat     = $state(false);
+  let flOrigin    = $state('BGY');
+  let flDest      = $state('DUB');
+  let flOut       = $state(fmt(d30));
+  let flRet       = $state('');
+  let flAdults    = $state(1);       // Erwachsene
+  let flChildren  = $state(0);       // Kinder (2–11 J.)
+  let flBaggage   = $state('none');  // Legacy
+  let fl10kg      = $state(0);       // Anzahl 10kg-Koffer
+  let fl20kg      = $state(0);       // Anzahl 20kg-Koffer
+  let fl23kg      = $state(0);       // Anzahl 23kg-Koffer
+  let flSeatCost  = $state(0);       // Sitzplatz €/Person/Flug
+  let flSeat      = $state(false);   // Legacy
+  let flDepFrom   = $state('');      // Abflug ab HH:MM
+  let flDepTo     = $state('');      // Abflug bis HH:MM
+  let flArrFrom   = $state('');      // Ankunft ab HH:MM
+  let flArrTo     = $state('');      // Ankunft bis HH:MM
+  let flMaxStops  = $state(-1);      // -1=alle, 0=nonstop, 1=max1, 2=max2
+
+  // Gepäck-Preis-Preview (reaktiv)
+  const flBaggageCost = $derived(
+    fl10kg * 22.99 + fl20kg * 34.99 + fl23kg * 42.99
+  );
+  const flTotalPax = $derived(flAdults + flChildren);
+  // Gesamtpreis-Aufschlag (ohne Flugpreis) für Preview-Badge
+  const flExtrasLabel = $derived(() => {
+    const parts = [];
+    if (fl10kg > 0) parts.push(\`\${fl10kg}× 10kg\`);
+    if (fl20kg > 0) parts.push(\`\${fl20kg}× 20kg\`);
+    if (fl23kg > 0) parts.push(\`\${fl23kg}× 23kg\`);
+    if (flSeatCost > 0) parts.push(\`Sitz \${flSeatCost}€/P\`);
+    return parts.join(' · ');
+  });
 
   // ── Hotels form ───────────────────────────────────────────────────────────
-  let htCity    = $state('');
-  let htIn      = $state(fmt(d30));
-  let htOut     = $state(fmt(d37));
-  let htAdults  = $state(2);
-  let htRooms   = $state(1);
+  let htCity     = $state('');
+  let htIn       = $state(fmt(d30));
+  let htOut      = $state(fmt(d37));
+  let htAdults   = $state(2);
+  let htChildren = $state(0);
+  let htRooms    = $state(1);
 
   // ── Camping form ──────────────────────────────────────────────────────────
   let cpRegion    = $state('');
   let cpIn        = $state(fmt(d30));
   let cpOut       = $state(fmt(d37));
   let cpAdults    = $state(2);
+  let cpChildren  = $state(0);
   let cpAccomType = $state('mobilheim');
   let cpBedrooms  = $state('1');
   let cpAircon    = $state(false);
@@ -229,35 +256,47 @@
       if (activeCategory === 'flights') {
         endpoint = '/api/search/flights';
         payload = {
-          origin: flOrigin.toUpperCase(),
-          destination: flDest.toUpperCase(),
+          origin:        flOrigin.toUpperCase(),
+          destination:   flDest.toUpperCase(),
           outbound_date: flOut,
-          return_date: flRet || null,
-          adults: flAdults,
-          baggage: flBaggage,
-          seat: flSeat,
+          return_date:   flRet || null,
+          adults:        flAdults,
+          children:      flChildren,
+          baggage:       flBaggage,
+          baggage_10kg:  fl10kg,
+          baggage_20kg:  fl20kg,
+          baggage_23kg:  fl23kg,
+          seat_cost:     flSeatCost,
+          seat:          flSeatCost > 0,
+          dep_from:      flDepFrom || null,
+          dep_to:        flDepTo   || null,
+          arr_from:      flArrFrom || null,
+          arr_to:        flArrTo   || null,
+          max_stops:     flMaxStops,
         };
       } else if (activeCategory === 'hotels') {
         endpoint = '/api/search/hotels';
         payload = {
-          destination: htCity,
-          checkin_date: htIn,
+          destination:   htCity,
+          checkin_date:  htIn,
           checkout_date: htOut,
-          adults: htAdults,
-          rooms: htRooms,
+          adults:        htAdults,
+          children:      htChildren,
+          rooms:         htRooms,
         };
       } else if (activeCategory === 'camping') {
         endpoint = '/api/search/camping';
         payload = {
-          destination: cpRegion,
-          checkin_date: cpIn,
-          checkout_date: cpOut,
-          adults: cpAdults,
+          destination:        cpRegion,
+          checkin_date:       cpIn,
+          checkout_date:      cpOut,
+          adults:             cpAdults,
+          children:           cpChildren,
           accommodation_type: cpAccomType,
-          bedrooms: cpBedrooms,
-          aircon: cpAircon,
-          pets: cpPets,
-          covered_terrace: cpTerrace,
+          bedrooms:           cpBedrooms,
+          aircon:             cpAircon,
+          pets:               cpPets,
+          covered_terrace:    cpTerrace,
         };
       }
       const res = await api(endpoint, {
