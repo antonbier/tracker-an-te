@@ -32,7 +32,7 @@
       {@render children()}
     </main>
     <!-- BottomNav renders fixed + its own spacer div -->
-    <BottomNav />
+    <BottomNav onSettings={() => settingsOpen = true} />
   </div>
 </div>
 
