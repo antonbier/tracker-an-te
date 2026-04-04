@@ -104,9 +104,9 @@ app.include_router(userdata_route.router,      prefix="/api/userdata",         t
 app.include_router(notifications_route.router, prefix="/api/notifications",    tags=["Notifications"])
 app.include_router(scheduler_route.router,     prefix="/api/scheduler",        tags=["Scheduler"])
 app.include_router(search_route.router,        prefix="/api/search",           tags=["Search"])
-app.include_router(router_status)
-app.include_router(router_auth)
-app.include_router(router_admin)
+app.include_router(router_status, prefix="/api", tags=["Status"])
+app.include_router(router_auth,   prefix="/api", tags=["Auth"])
+app.include_router(router_admin,  prefix="/api", tags=["Admin"])
 app.include_router(passkey_route.router,     prefix="/api/auth/passkeys",  tags=["Passkeys"])
 
 
