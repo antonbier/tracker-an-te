@@ -687,3 +687,51 @@ body = {'message': msg, 'content': base64_content, 'branch': 'beta', 'sha': sha}
 - [ ] Currency toggle (EUR/USD/GBP)
 - [ ] Multi-user data separation fully tested
 - [ ] Merge stable features to `main`
+
+---
+
+## Step 1 — Stabilisierung & Core-Bugfixes (abgeschlossen)
+
+### Bug 1 — Mobile Auth (BottomNav)
+- `BottomNav.svelte`: Neues "Mehr"-Tab öffnet ein Overlay über der BottomNav
+- Overlay zeigt User-Avatar (Initial), E-Mail und Rolle aus `$currentUser`
+- Logout-Button ruft `logout()` aus `stores.js` auf
+- Einstellungs-Button delegiert an `onSettings` Prop (kommt von AppShell)
+- `AppShell.svelte`: `onSettings` Prop jetzt an BottomNav weitergeleitet
+
+### Bug 2 — /api/trips 500-Fehler
+- `database.py`: `list_detected_trips()` hatte keinen `limit`-Parameter
+- Route in `trips.py` übergab `limit=limit` → TypeError → 500
+- Fix: `limit: int = 500` als Default-Parameter + `LIMIT ?` in SQL-Query
+
+### Bug 3 — Geocoding (Nominatim)
+- `Settings.svelte` → `geocodeHome()`: User-Agent Header hinzugefügt
+  (`WanderSuite/1.0 (self-hosted travel tracker)`) — Nominatim blockiert
+  Requests ohne User-Agent (HTTP 403/429)
+- Koordinaten werden jetzt als reiner Float-String gespeichert (`String(parseFloat(...))`)
+  ohne `toFixed()` um Grad-Zeichen oder Formatierung zu vermeiden
+- Button liest `myHomeSearch.trim()` korrekt aus (war kein Binding-Problem,
+  sondern fehlender User-Agent)
+
+### Bug 4 — Scheduler Tab Blackscreen
+- `Settings.svelte`: Der Scheduler-Inhalt war in einem syntaktisch falschen
+  `{#if}...{:else if activeTab === 'scheduler'}` Block verschachtelt — dieser
+  Block war nie erreichbar (falsche Svelte-Template-Logik)
+- Fix: Scheduler-Tab als normaler `{:else if activeTab === 'scheduler'}` Block
+  im Haupt-Tab-Switcher eingefügt (nach dem Admin-Tab)
+
+### Bug 5 — Doppelter Speichern-Button (Mein Bereich)
+- `Settings.svelte`: Footer-Speichern-Button wurde für den `myspace`-Tab
+  fälschlicherweise angezeigt (fehlendes `myspace` in der Ausschlussbedingung)
+- Fix: `activeTab !== 'myspace'` zur Footer-Button-Bedingung hinzugefügt
+- Der `myspace`-Tab hat seinen eigenen inline Speichern-Button (korrekt)
+
+### Bug 6 — MyTrips Dark Mode (weiße Statistik-Karten)
+- `MyTrips.svelte`: `card`-Konstante war `bg-white border-stone-200` →
+  im Dark Mode weiße Boxen
+- Fix: `card` nutzt jetzt nur strukturelle Klassen, alle Farben via
+  `style="background:var(--ws-surface);border-color:var(--ws-border)"`
+- Alle 4 Statistik-Karten, Donut-Chart-Karte, Map-Karte und Preview-Karten
+  haben explizite CSS-Variablen-Styles bekommen
+- Donut-Loch: `bg-white` → `background:var(--ws-surface)`
+- Text: `text-stone-*` → `color:var(--ws-text/muted)`
