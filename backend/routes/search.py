@@ -61,6 +61,34 @@ HEADERS_SERPAPI = {
 SERPAPI_BASE = "https://serpapi.com/search"
 
 
+def _extract_price(rate_info: dict) -> float | None:
+    """
+    Robuste Preis-Extraktion aus SerpAPI rate_per_night / total_rate.
+    SerpAPI liefert Preise als:
+      - extracted_lowest / extracted_before_taxes_fees  (float, direkt nutzbar)
+      - lowest / before_taxes_fees                      (String, z.B. "€ 49" oder "$99")
+    Versucht alle bekannten Felder, parsed Strings via Regex.
+    """
+    import re
+    for key in ("extracted_lowest", "extracted_before_taxes_fees",
+                "extracted_total", "lowest", "before_taxes_fees", "total"):
+        val = rate_info.get(key)
+        if val is None:
+            continue
+        if isinstance(val, (int, float)) and val > 0:
+            return float(val)
+        if isinstance(val, str):
+            nums = re.findall(r"[\d]+(?:[.,][\d]+)?", val.replace(",", "."))
+            if nums:
+                try:
+                    price = float(nums[0].replace(",", "."))
+                    if price > 0:
+                        return price
+                except ValueError:
+                    continue
+    return None
+
+
 # ── Request / Response models ──────────────────────────────────────────────
 
 class FlightSearchParams(BaseModel):
@@ -217,11 +245,12 @@ async def _search_google_flights(params: FlightSearchParams, api_key: str) -> li
                 "adults":        params.adults,
                 "api_key":       api_key,
             }
+            # SerpAPI: type=1 = Round-trip, type=2 = One-way
             if params.return_date:
                 req_params["return_date"] = params.return_date
-                req_params["type"] = "1"
+                req_params["type"] = "1"   # round-trip
             else:
-                req_params["type"] = "2"
+                req_params["type"] = "2"   # one-way
 
             resp = await client.get(SERPAPI_BASE, params=req_params)
             resp.raise_for_status()
@@ -315,7 +344,15 @@ async def _search_hotels_serpapi(params: HotelSearchParams, api_key: str) -> lis
             results = []
             for h in hotels[:8]:
                 price_info = h.get("rate_per_night") or h.get("total_rate") or {}
-                raw_price  = price_info.get("extracted_lowest") or price_info.get("extracted_before_taxes_fees")
+                raw_price  = _extract_price(price_info)
+                if not raw_price:
+                    # Also try top-level extracted_lowest
+                    raw_price = h.get("extracted_lowest") or h.get("price") or None
+                    if raw_price:
+                        try:
+                            raw_price = float(raw_price)
+                        except (TypeError, ValueError):
+                            raw_price = None
                 if not raw_price:
                     continue
                 results.append({
@@ -388,7 +425,14 @@ async def _search_camping_serpapi(params: CampingSearchParams, api_key: str) -> 
             results = []
             for h in hotels[:6]:
                 price_info = h.get("rate_per_night") or h.get("total_rate") or {}
-                raw_price  = price_info.get("extracted_lowest") or price_info.get("extracted_before_taxes_fees")
+                raw_price  = _extract_price(price_info)
+                if not raw_price:
+                    raw_price = h.get("extracted_lowest") or h.get("price") or None
+                    if raw_price:
+                        try:
+                            raw_price = float(raw_price)
+                        except (TypeError, ValueError):
+                            raw_price = None
                 if not raw_price:
                     continue
 
