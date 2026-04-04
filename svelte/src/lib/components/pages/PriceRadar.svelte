@@ -202,10 +202,10 @@
   // Gesamtpreis-Aufschlag (ohne Flugpreis) für Preview-Badge
   const flExtrasLabel = $derived(() => {
     const parts = [];
-    if (fl10kg > 0) parts.push(\`\${fl10kg}× 10kg\`);
-    if (fl20kg > 0) parts.push(\`\${fl20kg}× 20kg\`);
-    if (fl23kg > 0) parts.push(\`\${fl23kg}× 23kg\`);
-    if (flSeatCost > 0) parts.push(\`Sitz \${flSeatCost}€/P\`);
+    if (fl10kg > 0)     parts.push(fl10kg + '× 10kg');
+    if (fl20kg > 0)     parts.push(fl20kg + '× 20kg');
+    if (fl23kg > 0)     parts.push(fl23kg + '× 23kg');
+    if (flSeatCost > 0) parts.push('Sitz ' + flSeatCost + '€/P');
     return parts.join(' · ');
   });
 
