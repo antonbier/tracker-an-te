@@ -247,11 +247,11 @@ def run_single_tracker(tracker_id: int):
 # ── Cleanup Job ───────────────────────────────────────────────────────────────
 
 def run_cleanup_job():
-    """Delete price history and snapshots older than 180 days. Runs daily at 03:00."""
-    logger.info("🧹 Cleanup-Job startet (>180 Tage)")
+    """Delete price history and snapshots older than 60 days. Runs daily at 03:00."""
+    logger.info("Cleanup-Job startet (>60 Tage)")
     try:
-        ph = cleanup_old_price_history(days=180)
-        snaps = cleanup_old_snapshots(days=180)
-        logger.info(f"  ✅ price_history: {ph} gelöscht | snapshots: {sum(snaps.values())} gelöscht")
+        ph = cleanup_old_price_history(days=60)
+        snaps = cleanup_old_snapshots(days=60)
+        logger.info(f"  Cleanup: price_history={ph} geloescht | snapshots={sum(snaps.values())} geloescht (>60d)")
     except Exception as e:
         logger.error(f"  ❌ Cleanup fehlgeschlagen: {e}", exc_info=True)
