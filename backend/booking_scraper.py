@@ -72,16 +72,19 @@ def fetch_booking(tracker: dict, api_key: str) -> dict:
 
     for prop in properties:
         # SerpAPI gibt Preise in verschiedenen Formaten zurück
-        rate_info = prop.get("rate_per_night", {})
-        price_str = rate_info.get("lowest", rate_info.get("extracted_lowest", 0))
-
-        if isinstance(price_str, str):
-            # Entferne Währungssymbole und parse
-            import re
-            nums = re.findall(r'[\d.]+', price_str.replace(',', '.'))
-            price = float(nums[0]) if nums else 0
+        import re as _re
+        # Try rate_per_night first, then total_rate as fallback
+        rate_info = prop.get("rate_per_night") or prop.get("total_rate") or {}
+        raw = (rate_info.get("extracted_lowest")
+               or rate_info.get("extracted_before_taxes_fees")
+               or rate_info.get("lowest")
+               or rate_info.get("before_taxes_fees")
+               or 0)
+        if isinstance(raw, str):
+            nums = _re.findall(r'[\d]+(?:[.,][\d]+)?', raw.replace(",", "."))
+            price = float(nums[0].replace(",", ".")) if nums else 0.0
         else:
-            price = float(price_str or 0)
+            price = float(raw or 0)
 
         if price > 0 and price < best_price:
             best_price = price
