@@ -735,3 +735,30 @@ body = {'message': msg, 'content': base64_content, 'branch': 'beta', 'sha': sha}
   haben explizite CSS-Variablen-Styles bekommen
 - Donut-Loch: `bg-white` → `background:var(--ws-surface)`
 - Text: `text-stone-*` → `color:var(--ws-text/muted)`
+
+---
+
+## Step 2 — Backend-Scraper & API-Reparatur (abgeschlossen)
+
+### Google Flights — SerpAPI `type`-Parameter vertauscht
+- `google_scraper.py` und `routes/search.py`: SerpAPI kodiert `type=1` = Round-trip,
+  `type=2` = One-way — war **vertauscht** (One-way-Suchen wurden als Round-trip gesendet)
+- Fix: `trip_type=1 if ret_date else 2` in `google_scraper.py`
+- Fix: Gleiche Logik in `_search_google_flights()` in `search.py` (war bereits korrekt,
+  nur Kommentar zur Klarheit hinzugefügt)
+
+### Hotels & Camping — „No results found" Bug
+- **Root cause**: `_search_hotels_serpapi()` und `_search_camping_serpapi()` extrahierten
+  Preise nur aus `extracted_lowest` / `extracted_before_taxes_fees` (numerische Felder).
+  SerpAPI liefert aber oft nur String-Felder wie `lowest: "€ 49"` oder `before_taxes_fees: "$ 99"`.
+- Fix in `routes/search.py`: Neue `_extract_price()` Hilfsfunktion die alle bekannten
+  SerpAPI Preisfelder durchsucht (numerisch + String via Regex) mit `total_rate` Fallback
+- Fix in `booking_scraper.py`: Robuste Preis-Extraktion mit `total_rate` Fallback
+  und Regex-Parsing für String-Preise
+- Fix in `homair_scraper.py`: Gleiche robuste Extraktion für alle bekannten Felder
+
+### Architektur-Anmerkung
+- `routes/search.py` ist der Meta-Aggregator (Suche → mehrere Provider parallel)
+- `google_scraper.py`, `booking_scraper.py`, `homair_scraper.py` sind die
+  Einzel-Scraper für gespeicherte Tracker (Scheduler + manueller Scrape)
+- Beide Ebenen wurden gepatcht
