@@ -97,8 +97,20 @@ class FlightSearchParams(BaseModel):
     outbound_date: str
     return_date:   Optional[str] = None
     adults:        int = 1
-    baggage:       str = "none"   # 'none' | '10kg' | '20kg'
-    seat:          bool = False
+    children:      int = 0          # Kinder (2–11 J.)
+    # Gepäck: Anzahl-Stepper pro Klasse (je Person)
+    baggage:       str = "none"     # Legacy: 'none'|'10kg'|'20kg' (Ryanair-Compat)
+    baggage_10kg:  int = 0          # Anzahl 10kg-Koffer gesamt
+    baggage_20kg:  int = 0          # Anzahl 20kg-Koffer gesamt
+    baggage_23kg:  int = 0          # Anzahl 23kg-Koffer gesamt
+    seat_cost:     float = 0.0      # Sitzplatzpreis €/Person/Flug
+    seat:          bool = False     # Legacy bool (wird aus seat_cost>0 abgeleitet)
+    # Zeit- & Stopp-Filter
+    dep_from:      Optional[str] = None   # Abflug ab  HH:MM
+    dep_to:        Optional[str] = None   # Abflug bis HH:MM
+    arr_from:      Optional[str] = None   # Ankunft ab HH:MM
+    arr_to:        Optional[str] = None   # Ankunft bis HH:MM
+    max_stops:     int = -1               # -1=alle, 0=nonstop, 1=max 1 Stopp, 2=max 2
 
 
 class HotelSearchParams(BaseModel):
@@ -171,23 +183,34 @@ async def _search_ryanair(params: FlightSearchParams) -> list[dict]:
                         if not base_price:
                             continue
 
-                        # Add baggage cost estimate
+                        # Gepäck-Kosten (neue Stepper-Logik + Legacy-Fallback)
+                        total_pax = params.adults + params.children
                         baggage_cost = 0.0
-                        if params.baggage == "10kg":
-                            baggage_cost = 22.99 * params.adults
-                        elif params.baggage == "20kg":
-                            baggage_cost = 34.99 * params.adults
-                        seat_cost = 8.99 * params.adults if params.seat else 0.0
+                        if params.baggage_10kg > 0:
+                            baggage_cost += params.baggage_10kg * 22.99
+                        elif params.baggage == "10kg":
+                            baggage_cost = 22.99 * total_pax
+                        if params.baggage_20kg > 0:
+                            baggage_cost += params.baggage_20kg * 34.99
+                        elif params.baggage == "20kg" and params.baggage_10kg == 0:
+                            baggage_cost = 34.99 * total_pax
+                        if params.baggage_23kg > 0:
+                            baggage_cost += params.baggage_23kg * 42.99
 
-                        total = round((base_price * params.adults) + baggage_cost + seat_cost, 2)
+                        # Sitzplatz: seat_cost €/Person/Flug (neue Logik) oder Legacy bool
+                        _seat_cost_per_pax = params.seat_cost if params.seat_cost > 0 else (8.99 if params.seat else 0.0)
+                        seat_total = _seat_cost_per_pax * total_pax
+
+                        total = round((base_price * total_pax) + baggage_cost + seat_total, 2)
 
                         badges = []
-                        if params.baggage == "10kg":
-                            badges.append("🎒 1x 10kg")
-                        elif params.baggage == "20kg":
-                            badges.append("🎒 1x 20kg")
-                        if params.seat:
-                            badges.append("💺 Sitzplatz")
+                        if params.baggage_10kg > 0: badges.append(f"🎒 {params.baggage_10kg}x 10kg")
+                        elif params.baggage == "10kg": badges.append("🎒 1x 10kg")
+                        if params.baggage_20kg > 0: badges.append(f"🎒 {params.baggage_20kg}x 20kg")
+                        elif params.baggage == "20kg" and params.baggage_10kg == 0: badges.append("🎒 1x 20kg")
+                        if params.baggage_23kg > 0: badges.append(f"🧳 {params.baggage_23kg}x 23kg")
+                        if _seat_cost_per_pax > 0: badges.append(f"💺 Sitz {_seat_cost_per_pax:.0f}€/P")
+                        if params.children > 0: badges.append(f"👶 {params.children} Kind{'er' if params.children>1 else ''}")
 
                         seg = flight.get("segments", [{}])[0]
                         results.append({
@@ -212,10 +235,30 @@ async def _search_ryanair(params: FlightSearchParams) -> list[dict]:
                             "_tracker_table": "trackers",
                         })
 
-            found = len(results)
-            cheapest = min((r["price"] for r in results), default=0)
+            # Zeit- & Stopp-Filter anwenden
+            def _time_in(t, from_t, to_t):
+                """Prüft ob HH:MM-Zeit t im Fenster [from_t, to_t] liegt."""                if not t or (not from_t and not to_t): return True
+                try:
+                    th, tm = int(t[:2]), int(t[3:5])
+                    if from_t:
+                        fh, fm = int(from_t[:2]), int(from_t[3:5])
+                        if (th*60+tm) < (fh*60+fm): return False
+                    if to_t:
+                        toh, tom = int(to_t[:2]), int(to_t[3:5])
+                        if (th*60+tm) > (toh*60+tom): return False
+                except Exception: pass
+                return True
+
+            filtered = []
+            for res in results:
+                dep_t = res.get("detail", {}).get("departure_time") or ""
+                if not _time_in(dep_t, params.dep_from, params.dep_to): continue
+                filtered.append(res)
+
+            found = len(filtered)
+            cheapest = min((r["price"] for r in filtered), default=0)
             logger.info(f"[RYANAIR] ✈️ #search status=ok | found={found} | cheapest={cheapest:.2f} EUR | elapsed={elapsed}s")
-            return results[:10]
+            return filtered[:10]
 
     except httpx.TimeoutException:
         elapsed = round(time.time() - t0, 1)
@@ -277,26 +320,63 @@ async def _search_google_flights(params: FlightSearchParams, api_key: str) -> li
                 airline = leg.get("airline", "")
                 dep = leg.get("departure_airport", {})
                 arr = leg.get("arrival_airport", {})
+                # Stopp-Anzahl
+                n_stops = len(fl.get("flights", [])) - 1
+                if params.max_stops >= 0 and n_stops > params.max_stops:
+                    continue
+                # Zeit-Filter
+                dep_t = dep.get("time", "")
+                arr_t = arr.get("time", "")
+                def _tin(t, f, to):
+                    if not t or (not f and not to): return True
+                    try:
+                        tv = int(t[:2])*60+int(t[3:5])
+                        if f and tv < int(f[:2])*60+int(f[3:5]): return False
+                        if to and tv > int(to[:2])*60+int(to[3:5]): return False
+                    except Exception: pass
+                    return True
+                if not _tin(dep_t, params.dep_from, params.dep_to): continue
+                if not _tin(arr_t, params.arr_from, params.arr_to): continue
+
+                # Gepäck + Sitz-Kosten aufaddieren
+                total_pax = params.adults + params.children
+                extra = 0.0
+                extra += params.baggage_10kg * 22.99
+                extra += params.baggage_20kg * 34.99
+                extra += params.baggage_23kg * 42.99
+                if params.baggage == "10kg" and params.baggage_10kg == 0: extra += 22.99 * total_pax
+                elif params.baggage == "20kg" and params.baggage_20kg == 0: extra += 34.99 * total_pax
+                _sp = params.seat_cost if params.seat_cost > 0 else (8.99 if params.seat else 0.0)
+                extra += _sp * total_pax
+                adj_price = float(price) + extra
+
+                stop_badges = ["🔵 Nonstop" if n_stops == 0 else f"🔵 {n_stops} Stopp{'s' if n_stops>1 else ''}"]
                 results.append({
                     "id":       f"gf-{params.origin}-{params.destination}-{params.outbound_date}-{len(results)}",
                     "provider": "Google Flights",
                     "title":    f"{params.origin.upper()} → {params.destination.upper()}",
-                    "subtitle": f"{params.outbound_date} · {airline} · {dep.get('time', '')}→{arr.get('time', '')}",
-                    "price":    float(price),
+                    "subtitle": f"{params.outbound_date} · {airline} · {dep_t[:5] if dep_t else ''}→{arr_t[:5] if arr_t else ''}",
+                    "price":    round(adj_price, 2),
                     "currency": "EUR",
-                    "badges":   badges,
+                    "badges":   badges + stop_badges,
                     "detail": {
                         "origin":          params.origin.upper(),
                         "destination":     params.destination.upper(),
                         "outbound_date":   params.outbound_date,
                         "return_date":     params.return_date,
                         "adults":          params.adults,
+                        "children":        params.children,
                         "baggage":         params.baggage,
+                        "baggage_10kg":    params.baggage_10kg,
+                        "baggage_20kg":    params.baggage_20kg,
+                        "baggage_23kg":    params.baggage_23kg,
                         "seat":            params.seat,
+                        "seat_cost":       params.seat_cost,
                         "airline":         airline,
-                        "departure_time":  dep.get("time"),
-                        "arrival_time":    arr.get("time"),
+                        "departure_time":  dep_t,
+                        "arrival_time":    arr_t,
                         "duration_min":    fl.get("total_duration"),
+                        "stops":           n_stops,
                     },
                     "_tracker_type":  "google_flight",
                     "_tracker_table": "gf_trackers",
