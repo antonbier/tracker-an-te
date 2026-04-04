@@ -477,9 +477,13 @@
   function trackerSubtitle(tr) {
     const parts = [];
     if (tr.outbound_date) parts.push(tr.outbound_date + (tr.return_date ? ' ⇄ ' + tr.return_date : ''));
-    if (tr.checkin_date) parts.push(tr.checkin_date + (tr.checkout_date ? ' → ' + tr.checkout_date : ''));
+    if (tr.checkin_date)  parts.push(tr.checkin_date  + (tr.checkout_date ? ' → ' + tr.checkout_date : ''));
     if (tr.adults) parts.push(tr.adults + ' Erw.');
-    if (tr.rooms) parts.push(tr.rooms + ' Zi.');
+    if (tr.rooms)  parts.push(tr.rooms  + ' Zi.');
+    // Flight details from latest snapshot
+    const s = tr.latest_snapshot;
+    if (s?.airline)        parts.push('✈ ' + s.airline);
+    if (s?.departure_time && s?.arrival_time) parts.push(s.departure_time.slice(0,5) + '→' + s.arrival_time.slice(0,5));
     return parts.join(' · ');
   }
 
@@ -924,10 +928,21 @@
 
   <!-- ══════════════════════════ ACTIVE TRACKERS ══════════════════════════ -->
   <div>
+    <!-- Filter: nur Tracker des aktiven Tabs anzeigen -->
+    {@const categoryTrackerTypes = {
+      flights:  ['flight', 'google_flight'],
+      hotels:   ['hotel'],
+      camping:  ['camping'],
+      rentals:  [],
+    }}
+    {@const visibleTrackers = allTrackers.filter(t =>
+      (categoryTrackerTypes[activeCategory] || []).includes(t._type)
+    )}
+
     <h2 class="text-sm font-semibold italic mb-3" style="font-family:var(--ws-serif);color:var(--ws-accent2)">
       📌 {$t('radarActiveTrackers')}
-      {#if allTrackers.length > 0}
-        <span class="ml-1 text-xs font-normal" style="color:var(--ws-muted)">({allTrackers.length})</span>
+      {#if visibleTrackers.length > 0}
+        <span class="ml-1 text-xs font-normal" style="color:var(--ws-muted)">({visibleTrackers.length} / {allTrackers.length} gesamt)</span>
       {/if}
     </h2>
 
@@ -942,15 +957,19 @@
         {/each}
       </div>
 
-    {:else if allTrackers.length === 0}
+    {:else if visibleTrackers.length === 0}
       <div class="rounded-xl p-6 border text-center" style="background:var(--ws-surface);border-color:var(--ws-border)">
         <div class="text-2xl mb-2">📭</div>
-        <p class="text-xs" style="color:var(--ws-muted)">{$t('dashNoTrackers')}</p>
+        <p class="text-xs" style="color:var(--ws-muted)">
+          {allTrackers.length > 0
+            ? 'Keine ' + (activeCategory === 'flights' ? 'Flug' : activeCategory === 'hotels' ? 'Hotel' : 'Camping') + '-Tracker — oben suchen und speichern!'
+            : $t('dashNoTrackers')}
+        </p>
       </div>
 
     {:else}
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {#each allTrackers as tr}
+        {#each visibleTrackers as tr}
           {@const wKey   = `${tr._type}-${tr.id}`}
           {@const cKey   = wKey}
           {@const s      = tr.latest_snapshot}
@@ -980,6 +999,17 @@
             <div>
               <div class="font-bold text-sm" style="color:var(--ws-text)">{trackerTitle(tr)}</div>
               <div class="text-xs mt-0.5" style="color:var(--ws-muted)">{trackerSubtitle(tr)}</div>
+              {#if tr.latest_snapshot?.airline}
+                <div class="flex items-center gap-1.5 mt-1">
+                  <span class="text-base">✈️</span>
+                  <span class="text-xs font-semibold" style="color:var(--ws-accent)">{tr.latest_snapshot.airline}</span>
+                  {#if tr.latest_snapshot?.departure_time && tr.latest_snapshot?.arrival_time}
+                    <span class="text-xs font-mono" style="color:var(--ws-muted)">
+                      {tr.latest_snapshot.departure_time.slice(0,5)} → {tr.latest_snapshot.arrival_time.slice(0,5)}
+                    </span>
+                  {/if}
+                </div>
+              {/if}
             </div>
 
             <!-- Inclusions badges -->
@@ -997,7 +1027,7 @@
             <!-- Price row -->
             <div class="flex items-center justify-between gap-2">
               <div>
-                <div class="text-xs" style="color:var(--ws-muted)">Aktuell</div>
+                <div class="text-xs" style="color:var(--ws-muted)">{$t('radarCurrentPrice') || 'Aktuell'}</div>
                 <div class="font-bold font-mono text-base" style="color:{price ? 'var(--ws-green)' : 'var(--ws-muted)'}">
                   {price ? price.toFixed(2) + ' €' : '–'}
                 </div>
