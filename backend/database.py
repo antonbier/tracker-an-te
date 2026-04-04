@@ -200,6 +200,16 @@ def init_db():
                 updated_at            TEXT    NOT NULL DEFAULT (datetime('now'))
             );
 
+            -- Per-user notification credentials (Fernet-encrypted)
+            CREATE TABLE IF NOT EXISTS user_notification_settings (
+                user_id             INTEGER PRIMARY KEY,
+                telegram_bot_token  TEXT DEFAULT NULL,
+                telegram_chat_id    TEXT DEFAULT NULL,
+                gotify_url          TEXT DEFAULT NULL,
+                gotify_app_token    TEXT DEFAULT NULL,
+                updated_at          TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+
             -- Global encrypted settings (admin only, no user_id)
             CREATE TABLE IF NOT EXISTS settings (
                 key        TEXT PRIMARY KEY,
@@ -524,7 +534,7 @@ def record_price_history(user_id: int, tracker_type: str, tracker_id: int,
 
 # ── Price History Cleanup ─────────────────────────────────────────────────────
 
-def cleanup_old_price_history(days: int = 180) -> int:
+def cleanup_old_price_history(days: int = 60) -> int:
     """Delete price_history entries older than `days` days. Returns count deleted."""
     with db() as conn:
         result = conn.execute(
@@ -534,7 +544,7 @@ def cleanup_old_price_history(days: int = 180) -> int:
     return result.rowcount
 
 
-def cleanup_old_snapshots(days: int = 180) -> dict:
+def cleanup_old_snapshots(days: int = 60) -> dict:
     """Delete price snapshots older than `days` days across all tables. Returns counts."""
     tables = [
         ("price_snapshots", "fetched_at"),
@@ -1048,3 +1058,56 @@ def _get_latest(table: str, tracker_id: int) -> dict | None:
 def save_detected_trip(data: dict, user_id: int = 1) -> int:
     """Alias for create_detected_trip — backward compatibility."""
     return create_detected_trip(data, user_id=user_id)
+
+# ── User Notification Settings CRUD ──────────────────────────────────────────
+
+def get_user_notification_settings(user_id: int, fernet) -> dict:
+    """Return decrypted notification settings for a user. Missing fields -> empty string."""
+    with db() as conn:
+        row = conn.execute(
+            "SELECT telegram_bot_token, telegram_chat_id, gotify_url, gotify_app_token "
+            "FROM user_notification_settings WHERE user_id=?",
+            (user_id,)
+        ).fetchone()
+    if not row:
+        return {"telegram_bot_token": "", "telegram_chat_id": "", "gotify_url": "", "gotify_app_token": ""}
+    def _dec(v):
+        if not v:
+            return ""
+        try:
+            return fernet.decrypt(v.encode()).decode()
+        except Exception:
+            return ""
+    return {
+        "telegram_bot_token": _dec(row["telegram_bot_token"]),
+        "telegram_chat_id":   _dec(row["telegram_chat_id"]),
+        "gotify_url":         _dec(row["gotify_url"]),
+        "gotify_app_token":   _dec(row["gotify_app_token"]),
+    }
+
+
+def save_user_notification_settings(user_id: int, settings: dict, fernet) -> None:
+    """Encrypt and upsert notification credentials for a user. Empty string -> NULL."""
+    def _enc(v):
+        if not v:
+            return None
+        return fernet.encrypt(v.encode()).decode()
+    with db() as conn:
+        conn.execute("""
+            INSERT INTO user_notification_settings
+                (user_id, telegram_bot_token, telegram_chat_id, gotify_url, gotify_app_token, updated_at)
+            VALUES (?,?,?,?,?,datetime('now'))
+            ON CONFLICT(user_id) DO UPDATE SET
+                telegram_bot_token = excluded.telegram_bot_token,
+                telegram_chat_id   = excluded.telegram_chat_id,
+                gotify_url         = excluded.gotify_url,
+                gotify_app_token   = excluded.gotify_app_token,
+                updated_at         = excluded.updated_at
+        """, (
+            user_id,
+            _enc(settings.get("telegram_bot_token", "")),
+            _enc(settings.get("telegram_chat_id",   "")),
+            _enc(settings.get("gotify_url",          "")),
+            _enc(settings.get("gotify_app_token",    "")),
+        ))
+
