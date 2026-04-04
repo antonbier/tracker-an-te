@@ -92,14 +92,17 @@ def fetch_homair(tracker: dict, api_key: str = "") -> dict:
         if "homair" not in name and "hom air" not in name:
             continue
 
-        rate_info = prop.get("rate_per_night", {})
-        price_raw = rate_info.get("lowest", rate_info.get("extracted_lowest", 0))
-
-        if isinstance(price_raw, str):
-            nums = re.findall(r'[\d.]+', price_raw.replace(',', '.'))
-            price = float(nums[0]) if nums else 0.0
+        rate_info = prop.get("rate_per_night") or prop.get("total_rate") or {}
+        raw = (rate_info.get("extracted_lowest")
+               or rate_info.get("extracted_before_taxes_fees")
+               or rate_info.get("lowest")
+               or rate_info.get("before_taxes_fees")
+               or 0)
+        if isinstance(raw, str):
+            nums = re.findall(r'[\d]+(?:[.,][\d]+)?', raw.replace(",", "."))
+            price = float(nums[0].replace(",", ".")) if nums else 0.0
         else:
-            price = float(price_raw or 0)
+            price = float(raw or 0)
 
         if price > 0 and price < best_price:
             best_price = price
@@ -113,13 +116,16 @@ def fetch_homair(tracker: dict, api_key: str = "") -> dict:
     if not best:
         logger.warning("[Homair] Kein explizites Homair-Ergebnis — nehme günstigstes Camping-Ergebnis")
         for prop in properties:
-            rate_info = prop.get("rate_per_night", {})
-            price_raw = rate_info.get("lowest", rate_info.get("extracted_lowest", 0))
-            if isinstance(price_raw, str):
-                nums = re.findall(r'[\d.]+', price_raw.replace(',', '.'))
-                price = float(nums[0]) if nums else 0.0
+            rate_info2 = prop.get("rate_per_night") or prop.get("total_rate") or {}
+            raw2 = (rate_info2.get("extracted_lowest")
+                    or rate_info2.get("extracted_before_taxes_fees")
+                    or rate_info2.get("lowest")
+                    or 0)
+            if isinstance(raw2, str):
+                nums = re.findall(r'[\d]+(?:[.,][\d]+)?', raw2.replace(",", "."))
+                price = float(nums[0].replace(",", ".")) if nums else 0.0
             else:
-                price = float(price_raw or 0)
+                price = float(raw2 or 0)
             if price > 0 and price < best_price:
                 best_price = price
                 best = {"name": prop.get("name", ""), "price": price, "rating": prop.get("overall_rating", 0)}
