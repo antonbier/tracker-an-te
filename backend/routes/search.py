@@ -1,0 +1,553 @@
+"""
+WanderSuite — /api/search  (Meta-Suche Aggregator)
+
+Strategy Pattern: Jede Kategorie feuert ALLE relevanten Provider
+gleichzeitig via asyncio.gather ab. Faellt ein Provider aus, bleiben
+die anderen unbeeintraichtigt (return_exceptions=True).
+
+Endpoints:
+  POST /api/search/flights  — Ryanair + Google Flights parallel
+  POST /api/search/hotels   — SerpAPI Google Hotels + Booking parallel
+  POST /api/search/camping  — SerpAPI Homair-Query
+
+Anti-Scraping:
+  - Realistische Browser-Header pro Provider
+  - httpx.AsyncClient mit Timeout 18s pro Provider
+  - Exception eines Providers wird geloggt und als leere Liste behandelt
+
+Deep-Logging Format:
+  [PROVIDER] icon #search status=ok | found=N | cheapest=XX.XX EUR
+  [PROVIDER] icon #search status=error | error=MSG
+"""
+
+import asyncio
+import logging
+import time
+from typing import Optional
+
+import httpx
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+
+from auth_jwt import get_current_user
+from settings_manager import get_setting_value
+
+router = APIRouter()
+logger = logging.getLogger(__name__)
+
+TIMEOUT = 18.0  # seconds per provider
+
+# ── Realistic browser headers per provider ─────────────────────────────────
+
+HEADERS_RYANAIR = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                  "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Accept": "application/json, text/plain, */*",
+    "Accept-Language": "de-DE,de;q=0.9,en-US;q=0.8",
+    "Origin": "https://www.ryanair.com",
+    "Referer": "https://www.ryanair.com/de/de/buchen/fluge-finden",
+    "Sec-Fetch-Dest": "empty",
+    "Sec-Fetch-Mode": "cors",
+    "Sec-Fetch-Site": "same-site",
+}
+
+HEADERS_SERPAPI = {
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+                  "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Accept": "application/json",
+    "Accept-Language": "de-DE,de;q=0.9,en;q=0.8",
+}
+
+SERPAPI_BASE = "https://serpapi.com/search"
+
+
+# ── Request / Response models ──────────────────────────────────────────────
+
+class FlightSearchParams(BaseModel):
+    origin:        str
+    destination:   str
+    outbound_date: str
+    return_date:   Optional[str] = None
+    adults:        int = 1
+    baggage:       str = "none"   # 'none' | '10kg' | '20kg'
+    seat:          bool = False
+
+
+class HotelSearchParams(BaseModel):
+    destination:   str
+    checkin_date:  str
+    checkout_date: str
+    adults:        int = 2
+    rooms:         int = 1
+
+
+class CampingSearchParams(BaseModel):
+    destination:     str
+    checkin_date:    str
+    checkout_date:   str
+    adults:          int = 2
+    accommodation_type: str = "mobilheim"  # 'mobilheim'|'glamping'|'stellplatz'
+    bedrooms:        str = "1"             # '1'|'2'|'3'
+    aircon:          bool = False
+    pets:            bool = False
+    covered_terrace: bool = False
+
+
+# ── Provider functions (async) ─────────────────────────────────────────────
+
+async def _search_ryanair(params: FlightSearchParams) -> list[dict]:
+    """Ryanair availability API — returns cheapest flights."""
+    t0 = time.time()
+    try:
+        async with httpx.AsyncClient(headers=HEADERS_RYANAIR, timeout=TIMEOUT) as client:
+            # Step 1: get session cookie
+            await client.get("https://www.ryanair.com/de/de", follow_redirects=True)
+
+            url = "https://www.ryanair.com/api/booking/v4/de-de/availability"
+            params_req = {
+                "ADT": params.adults,
+                "CHD": 0,
+                "DateOut": params.outbound_date,
+                "Destination": params.destination.upper(),
+                "FlexDaysBeforeOut": 0,
+                "FlexDaysOut": 0,
+                "Origin": params.origin.upper(),
+                "RoundTrip": "true" if params.return_date else "false",
+                "ToUs": "AGREED",
+            }
+            if params.return_date:
+                params_req["DateIn"] = params.return_date
+
+            resp = await client.get(url, params=params_req)
+            elapsed = round(time.time() - t0, 1)
+
+            if resp.status_code == 403:
+                logger.warning(f"[RYANAIR] ✈️ #search status=blocked_by_cf | elapsed={elapsed}s")
+                return []
+
+            resp.raise_for_status()
+            data = resp.json()
+
+            results = []
+            trips = data.get("trips", [])
+            for trip in trips:
+                for date_info in trip.get("dates", []):
+                    for flight in date_info.get("flights", []):
+                        regular = flight.get("regularFare")
+                        if not regular:
+                            continue
+                        fares = regular.get("fares", [])
+                        if not fares:
+                            continue
+                        base_price = fares[0].get("amount", 0)
+                        if not base_price:
+                            continue
+
+                        # Add baggage cost estimate
+                        baggage_cost = 0.0
+                        if params.baggage == "10kg":
+                            baggage_cost = 22.99 * params.adults
+                        elif params.baggage == "20kg":
+                            baggage_cost = 34.99 * params.adults
+                        seat_cost = 8.99 * params.adults if params.seat else 0.0
+
+                        total = round((base_price * params.adults) + baggage_cost + seat_cost, 2)
+
+                        badges = []
+                        if params.baggage == "10kg":
+                            badges.append("🎒 1x 10kg")
+                        elif params.baggage == "20kg":
+                            badges.append("🎒 1x 20kg")
+                        if params.seat:
+                            badges.append("💺 Sitzplatz")
+
+                        seg = flight.get("segments", [{}])[0]
+                        results.append({
+                            "id":          f"ry-{params.origin}-{params.destination}-{params.outbound_date}-{len(results)}",
+                            "provider":    "Ryanair",
+                            "title":       f"{params.origin.upper()} → {params.destination.upper()}",
+                            "subtitle":    f"{params.outbound_date}{' ⇄ ' + params.return_date if params.return_date else ''} · {params.adults} Pers.",
+                            "price":       total,
+                            "currency":    "EUR",
+                            "badges":      badges,
+                            "detail": {
+                                "origin":        params.origin.upper(),
+                                "destination":   params.destination.upper(),
+                                "outbound_date": params.outbound_date,
+                                "return_date":   params.return_date,
+                                "adults":        params.adults,
+                                "baggage":       params.baggage,
+                                "seat":          params.seat,
+                                "departure_time": seg.get("timeUTC", [""])[0][:5] if seg.get("timeUTC") else None,
+                            },
+                            "_tracker_type": "flight",
+                            "_tracker_table": "trackers",
+                        })
+
+            found = len(results)
+            cheapest = min((r["price"] for r in results), default=0)
+            logger.info(f"[RYANAIR] ✈️ #search status=ok | found={found} | cheapest={cheapest:.2f} EUR | elapsed={elapsed}s")
+            return results[:10]
+
+    except httpx.TimeoutException:
+        elapsed = round(time.time() - t0, 1)
+        logger.warning(f"[RYANAIR] ✈️ #search status=timeout | elapsed={elapsed}s")
+        return []
+    except Exception as e:
+        elapsed = round(time.time() - t0, 1)
+        logger.error(f"[RYANAIR] ✈️ #search status=error | error={e} | elapsed={elapsed}s")
+        return []
+
+
+async def _search_google_flights(params: FlightSearchParams, api_key: str) -> list[dict]:
+    """SerpAPI Google Flights — returns top results."""
+    if not api_key:
+        logger.warning("[SERPAPI/GF] ✈️ #search status=skip | reason=no_api_key")
+        return []
+    t0 = time.time()
+    try:
+        async with httpx.AsyncClient(headers=HEADERS_SERPAPI, timeout=TIMEOUT) as client:
+            req_params = {
+                "engine":        "google_flights",
+                "departure_id":  params.origin.upper(),
+                "arrival_id":    params.destination.upper(),
+                "outbound_date": params.outbound_date,
+                "currency":      "EUR",
+                "hl":            "de",
+                "adults":        params.adults,
+                "api_key":       api_key,
+            }
+            if params.return_date:
+                req_params["return_date"] = params.return_date
+                req_params["type"] = "1"
+            else:
+                req_params["type"] = "2"
+
+            resp = await client.get(SERPAPI_BASE, params=req_params)
+            resp.raise_for_status()
+            data = resp.json()
+            elapsed = round(time.time() - t0, 1)
+
+            best_flights = data.get("best_flights", []) or data.get("other_flights", [])
+            results = []
+            for fl in best_flights[:5]:
+                legs = fl.get("flights", [{}])
+                leg = legs[0] if legs else {}
+                price = fl.get("price")
+                if not price:
+                    continue
+
+                badges = []
+                if params.baggage == "10kg":
+                    badges.append("🎒 1x 10kg")
+                elif params.baggage == "20kg":
+                    badges.append("🎒 1x 20kg")
+                if params.seat:
+                    badges.append("💺 Sitzplatz")
+
+                airline = leg.get("airline", "")
+                dep = leg.get("departure_airport", {})
+                arr = leg.get("arrival_airport", {})
+                results.append({
+                    "id":       f"gf-{params.origin}-{params.destination}-{params.outbound_date}-{len(results)}",
+                    "provider": "Google Flights",
+                    "title":    f"{params.origin.upper()} → {params.destination.upper()}",
+                    "subtitle": f"{params.outbound_date} · {airline} · {dep.get('time', '')}→{arr.get('time', '')}",
+                    "price":    float(price),
+                    "currency": "EUR",
+                    "badges":   badges,
+                    "detail": {
+                        "origin":          params.origin.upper(),
+                        "destination":     params.destination.upper(),
+                        "outbound_date":   params.outbound_date,
+                        "return_date":     params.return_date,
+                        "adults":          params.adults,
+                        "baggage":         params.baggage,
+                        "seat":            params.seat,
+                        "airline":         airline,
+                        "departure_time":  dep.get("time"),
+                        "arrival_time":    arr.get("time"),
+                        "duration_min":    fl.get("total_duration"),
+                    },
+                    "_tracker_type":  "google_flight",
+                    "_tracker_table": "gf_trackers",
+                })
+
+            found = len(results)
+            cheapest = min((r["price"] for r in results), default=0)
+            logger.info(f"[SERPAPI] 🔍 #search status=ok | source=google_flights | found={found} | cheapest={cheapest:.2f} EUR | elapsed={elapsed}s")
+            return results
+
+    except httpx.TimeoutException:
+        elapsed = round(time.time() - t0, 1)
+        logger.warning(f"[SERPAPI] 🔍 #search status=timeout | source=google_flights | elapsed={elapsed}s")
+        return []
+    except Exception as e:
+        elapsed = round(time.time() - t0, 1)
+        logger.error(f"[SERPAPI] 🔍 #search status=error | source=google_flights | error={e} | elapsed={elapsed}s")
+        return []
+
+
+async def _search_hotels_serpapi(params: HotelSearchParams, api_key: str) -> list[dict]:
+    """SerpAPI Google Hotels."""
+    if not api_key:
+        logger.warning("[SERPAPI/HOTELS] 🏨 #search status=skip | reason=no_api_key")
+        return []
+    t0 = time.time()
+    try:
+        async with httpx.AsyncClient(headers=HEADERS_SERPAPI, timeout=TIMEOUT) as client:
+            resp = await client.get(SERPAPI_BASE, params={
+                "engine":         "google_hotels",
+                "q":              params.destination,
+                "check_in_date":  params.checkin_date,
+                "check_out_date": params.checkout_date,
+                "adults":         params.adults,
+                "rooms":          params.rooms,
+                "currency":       "EUR",
+                "hl":             "de",
+                "api_key":        api_key,
+            })
+            resp.raise_for_status()
+            data = resp.json()
+            elapsed = round(time.time() - t0, 1)
+
+            hotels = data.get("properties", [])
+            results = []
+            for h in hotels[:8]:
+                price_info = h.get("rate_per_night") or h.get("total_rate") or {}
+                raw_price  = price_info.get("extracted_lowest") or price_info.get("extracted_before_taxes_fees")
+                if not raw_price:
+                    continue
+                results.append({
+                    "id":       f"ht-{params.destination}-{params.checkin_date}-{len(results)}",
+                    "provider": "Google Hotels",
+                    "title":    h.get("name", params.destination),
+                    "subtitle": f"{params.checkin_date} → {params.checkout_date} · {params.adults} Pers. · {params.rooms} Zi.",
+                    "price":    float(raw_price),
+                    "currency": "EUR",
+                    "badges":   [f"⭐ {h.get('overall_rating', '')}"] if h.get("overall_rating") else [],
+                    "detail": {
+                        "destination":  params.destination,
+                        "checkin_date":  params.checkin_date,
+                        "checkout_date": params.checkout_date,
+                        "adults":        params.adults,
+                        "rooms":         params.rooms,
+                        "hotel_name":    h.get("name"),
+                        "source":        "google_hotels",
+                    },
+                    "_tracker_type":  "hotel",
+                    "_tracker_table": "booking_trackers",
+                })
+
+            found = len(results)
+            cheapest = min((r["price"] for r in results), default=0)
+            logger.info(f"[SERPAPI] 🏨 #search status=ok | source=google_hotels | found={found} | cheapest={cheapest:.2f} EUR | elapsed={elapsed}s")
+            return results
+
+    except httpx.TimeoutException:
+        elapsed = round(time.time() - t0, 1)
+        logger.warning(f"[SERPAPI] 🏨 #search status=timeout | source=google_hotels | elapsed={elapsed}s")
+        return []
+    except Exception as e:
+        elapsed = round(time.time() - t0, 1)
+        logger.error(f"[SERPAPI] 🏨 #search status=error | source=google_hotels | error={e} | elapsed={elapsed}s")
+        return []
+
+
+async def _search_camping_serpapi(params: CampingSearchParams, api_key: str) -> list[dict]:
+    """SerpAPI Google Hotels — Homair/Camping query."""
+    if not api_key:
+        logger.warning("[HOMAIR] ⛺ #search status=skip | reason=no_api_key")
+        return []
+    t0 = time.time()
+
+    accom_labels = {
+        "mobilheim":  "Mobilheim",
+        "glamping":   "Glamping",
+        "stellplatz": "Stellplatz",
+    }
+    query = f"Homair camping {params.destination} {accom_labels.get(params.accommodation_type, '')}".strip()
+
+    try:
+        async with httpx.AsyncClient(headers=HEADERS_SERPAPI, timeout=TIMEOUT) as client:
+            resp = await client.get(SERPAPI_BASE, params={
+                "engine":         "google_hotels",
+                "q":              query,
+                "check_in_date":  params.checkin_date,
+                "check_out_date": params.checkout_date,
+                "adults":         params.adults,
+                "currency":       "EUR",
+                "hl":             "de",
+                "api_key":        api_key,
+            })
+            resp.raise_for_status()
+            data = resp.json()
+            elapsed = round(time.time() - t0, 1)
+
+            hotels = data.get("properties", [])
+            results = []
+            for h in hotels[:6]:
+                price_info = h.get("rate_per_night") or h.get("total_rate") or {}
+                raw_price  = price_info.get("extracted_lowest") or price_info.get("extracted_before_taxes_fees")
+                if not raw_price:
+                    continue
+
+                badges = [f"⛺ {accom_labels.get(params.accommodation_type, params.accommodation_type)}"]
+                if params.aircon:
+                    badges.append("❄️ Klima")
+                if params.pets:
+                    badges.append("🐕 Hunde")
+                if params.covered_terrace:
+                    badges.append("🏠 Terrasse")
+
+                results.append({
+                    "id":       f"cp-{params.destination}-{params.checkin_date}-{len(results)}",
+                    "provider": "Homair",
+                    "title":    h.get("name", params.destination),
+                    "subtitle": f"{params.checkin_date} → {params.checkout_date} · {params.adults} Pers.",
+                    "price":    float(raw_price),
+                    "currency": "EUR",
+                    "badges":   badges,
+                    "detail": {
+                        "region":               params.destination,
+                        "checkin_date":         params.checkin_date,
+                        "checkout_date":        params.checkout_date,
+                        "adults":               params.adults,
+                        "accommodation_type":   params.accommodation_type,
+                        "bedrooms":             params.bedrooms,
+                        "aircon":               params.aircon,
+                        "pets":                 params.pets,
+                        "covered_terrace":      params.covered_terrace,
+                        "campsite_name":        h.get("name"),
+                        "source":               "homair",
+                    },
+                    "_tracker_type":  "camping",
+                    "_tracker_table": "homair_trackers",
+                })
+
+            found = len(results)
+            cheapest = min((r["price"] for r in results), default=0)
+            logger.info(f"[HOMAIR] ⛺ #search status=ok | found={found} | cheapest={cheapest:.2f} EUR | elapsed={elapsed}s")
+            return results
+
+    except httpx.TimeoutException:
+        elapsed = round(time.time() - t0, 1)
+        logger.warning(f"[HOMAIR] ⛺ #search status=timeout | elapsed={elapsed}s")
+        return []
+    except Exception as e:
+        elapsed = round(time.time() - t0, 1)
+        logger.error(f"[HOMAIR] ⛺ #search status=error | error={e} | elapsed={elapsed}s")
+        return []
+
+
+def _aggregate(raw_results: list) -> list[dict]:
+    """
+    Flatten and sort results from multiple providers.
+    Exceptions from gather (return_exceptions=True) are silently dropped.
+    """
+    flat = []
+    for r in raw_results:
+        if isinstance(r, Exception):
+            logger.error(f"[SEARCH] Provider exception suppressed: {r}")
+            continue
+        if isinstance(r, list):
+            flat.extend(r)
+    flat.sort(key=lambda x: x.get("price") or float("inf"))
+    return flat
+
+
+# ── API Endpoints ──────────────────────────────────────────────────────────
+
+@router.post("/flights")
+async def search_flights(
+    params: FlightSearchParams,
+    user: dict = Depends(get_current_user),
+):
+    """
+    Meta-Suche Fluege: Ryanair + Google Flights parallel.
+    Faellt ein Provider aus, liefert der andere trotzdem Ergebnisse.
+    """
+    if not params.origin or not params.destination or not params.outbound_date:
+        raise HTTPException(400, "origin, destination und outbound_date sind Pflichtfelder")
+
+    params.origin      = params.origin.strip().upper()
+    params.destination = params.destination.strip().upper()
+
+    serpapi_key = get_setting_value("serpapi_key") or ""
+
+    logger.info(
+        f"[SEARCH] ✈️ flights {params.origin}->{params.destination} "
+        f"{params.outbound_date} | adults={params.adults} | "
+        f"baggage={params.baggage} | seat={params.seat} | "
+        f"providers=ryanair,google_flights"
+    )
+
+    tasks = [
+        _search_ryanair(params),
+        _search_google_flights(params, serpapi_key),
+    ]
+    raw = await asyncio.gather(*tasks, return_exceptions=True)
+    results = _aggregate(list(raw))
+
+    logger.info(f"[SEARCH] ✈️ flights total_results={len(results)}")
+    return {"results": results, "count": len(results)}
+
+
+@router.post("/hotels")
+async def search_hotels(
+    params: HotelSearchParams,
+    user: dict = Depends(get_current_user),
+):
+    """
+    Meta-Suche Hotels: SerpAPI Google Hotels.
+    Booking.com scraper wird ergaenzt sobald verf??gbar.
+    """
+    if not params.destination or not params.checkin_date or not params.checkout_date:
+        raise HTTPException(400, "destination, checkin_date und checkout_date sind Pflichtfelder")
+
+    serpapi_key = get_setting_value("serpapi_key") or ""
+
+    logger.info(
+        f"[SEARCH] 🏨 hotels dest={params.destination} "
+        f"{params.checkin_date}->{params.checkout_date} | "
+        f"adults={params.adults} rooms={params.rooms}"
+    )
+
+    tasks = [
+        _search_hotels_serpapi(params, serpapi_key),
+    ]
+    raw = await asyncio.gather(*tasks, return_exceptions=True)
+    results = _aggregate(list(raw))
+
+    logger.info(f"[SEARCH] 🏨 hotels total_results={len(results)}")
+    return {"results": results, "count": len(results)}
+
+
+@router.post("/camping")
+async def search_camping(
+    params: CampingSearchParams,
+    user: dict = Depends(get_current_user),
+):
+    """
+    Meta-Suche Camping: SerpAPI Homair-Query.
+    """
+    if not params.destination or not params.checkin_date or not params.checkout_date:
+        raise HTTPException(400, "destination, checkin_date und checkout_date sind Pflichtfelder")
+
+    serpapi_key = get_setting_value("serpapi_key") or ""
+
+    logger.info(
+        f"[SEARCH] ⛺ camping dest={params.destination} "
+        f"{params.checkin_date}->{params.checkout_date} | "
+        f"type={params.accommodation_type} bedrooms={params.bedrooms} | "
+        f"aircon={params.aircon} pets={params.pets} terrace={params.covered_terrace}"
+    )
+
+    tasks = [
+        _search_camping_serpapi(params, serpapi_key),
+    ]
+    raw = await asyncio.gather(*tasks, return_exceptions=True)
+    results = _aggregate(list(raw))
+
+    logger.info(f"[SEARCH] ⛺ camping total_results={len(results)}")
+    return {"results": results, "count": len(results)}
