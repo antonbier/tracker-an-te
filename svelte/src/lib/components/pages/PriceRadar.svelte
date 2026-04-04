@@ -854,19 +854,49 @@
       </div>
     </div>
 
-    <!-- Persons + Rooms -->
-    <div class="grid grid-cols-2 gap-3">
-      <div>
-        <label class="{labelCls}" style="color:var(--ws-muted)">{$t('radarPassengers')}</label>
-        <select bind:value={htAdults} class="{inputCls}" style={inputStyle}>
-          {#each [1,2,3,4,5,6] as n}<option value={n}>{n} {n === 1 ? 'Person' : 'Personen'}</option>{/each}
-        </select>
+    <!-- Personen-Split Erw./Kinder + Zimmer -->
+    <div class="grid grid-cols-3 gap-2">
+      <!-- Erwachsene -->
+      <div class="rounded-xl border p-2.5 flex flex-col items-center gap-1.5"
+        style="background:var(--ws-surface2);border-color:var(--ws-border)">
+        <div class="text-[10px] font-semibold" style="color:var(--ws-muted)">{$t('radarAdults')}</div>
+        <div class="flex items-center gap-1.5">
+          <button onclick={() => htAdults = Math.max(1, htAdults-1)}
+            class="w-6 h-6 rounded-lg border text-sm font-bold flex items-center justify-center"
+            style="background:var(--ws-surface);border-color:var(--ws-border);color:var(--ws-text)">−</button>
+          <span class="text-sm font-bold w-4 text-center" style="color:var(--ws-text)">{htAdults}</span>
+          <button onclick={() => htAdults = Math.min(9, htAdults+1)}
+            class="w-6 h-6 rounded-lg border text-sm font-bold flex items-center justify-center"
+            style="background:var(--ws-accent);border-color:var(--ws-accent);color:#fff">+</button>
+        </div>
       </div>
-      <div>
-        <label class="{labelCls}" style="color:var(--ws-muted)">{$t('radarRoomsLabel')}</label>
-        <select bind:value={htRooms} class="{inputCls}" style={inputStyle}>
-          {#each [1,2,3,4] as n}<option value={n}>{n} {n === 1 ? 'Zimmer' : 'Zimmer'}</option>{/each}
-        </select>
+      <!-- Kinder -->
+      <div class="rounded-xl border p-2.5 flex flex-col items-center gap-1.5"
+        style="background:var(--ws-surface2);border-color:var(--ws-border)">
+        <div class="text-[10px] font-semibold" style="color:var(--ws-muted)">{$t('radarChildren')}</div>
+        <div class="flex items-center gap-1.5">
+          <button onclick={() => htChildren = Math.max(0, htChildren-1)}
+            class="w-6 h-6 rounded-lg border text-sm font-bold flex items-center justify-center"
+            style="background:var(--ws-surface);border-color:var(--ws-border);color:var(--ws-text)">−</button>
+          <span class="text-sm font-bold w-4 text-center" style="color:var(--ws-text)">{htChildren}</span>
+          <button onclick={() => htChildren = Math.min(8, htChildren+1)}
+            class="w-6 h-6 rounded-lg border text-sm font-bold flex items-center justify-center"
+            style="background:var(--ws-accent);border-color:var(--ws-accent);color:#fff">+</button>
+        </div>
+      </div>
+      <!-- Zimmer -->
+      <div class="rounded-xl border p-2.5 flex flex-col items-center gap-1.5"
+        style="background:var(--ws-surface2);border-color:var(--ws-border)">
+        <div class="text-[10px] font-semibold" style="color:var(--ws-muted)">{$t('radarRoomsLabel')}</div>
+        <div class="flex items-center gap-1.5">
+          <button onclick={() => htRooms = Math.max(1, htRooms-1)}
+            class="w-6 h-6 rounded-lg border text-sm font-bold flex items-center justify-center"
+            style="background:var(--ws-surface);border-color:var(--ws-border);color:var(--ws-text)">−</button>
+          <span class="text-sm font-bold w-4 text-center" style="color:var(--ws-text)">{htRooms}</span>
+          <button onclick={() => htRooms = Math.min(4, htRooms+1)}
+            class="w-6 h-6 rounded-lg border text-sm font-bold flex items-center justify-center"
+            style="background:var(--ws-accent);border-color:var(--ws-accent);color:#fff">+</button>
+        </div>
       </div>
     </div>
 
@@ -921,12 +951,42 @@
       </div>
     </div>
 
-    <!-- Persons -->
+    <!-- Personen-Split Erw./Kinder -->
     <div>
-      <label class="{labelCls}" style="color:var(--ws-muted)">{$t('radarPassengers')}</label>
-      <select bind:value={cpAdults} class="{inputCls}" style={inputStyle}>
-        {#each [1,2,3,4,5,6,7,8] as n}<option value={n}>{n} {n === 1 ? 'Person' : 'Personen'}</option>{/each}
-      </select>
+      <label class="{labelCls}" style="color:var(--ws-muted)">👥 {$t('radarPassengers')}</label>
+      <div class="grid grid-cols-2 gap-2 mt-1">
+        <div class="rounded-xl border p-2.5 flex items-center justify-between"
+          style="background:var(--ws-surface2);border-color:var(--ws-border)">
+          <div>
+            <div class="text-xs font-semibold" style="color:var(--ws-text)">{$t('radarAdults')}</div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick={() => cpAdults = Math.max(1, cpAdults-1)}
+              class="w-7 h-7 rounded-lg border text-base font-bold flex items-center justify-center"
+              style="background:var(--ws-surface);border-color:var(--ws-border);color:var(--ws-text)">−</button>
+            <span class="w-5 text-center text-sm font-bold" style="color:var(--ws-text)">{cpAdults}</span>
+            <button onclick={() => cpAdults = Math.min(9, cpAdults+1)}
+              class="w-7 h-7 rounded-lg border text-base font-bold flex items-center justify-center"
+              style="background:var(--ws-accent);border-color:var(--ws-accent);color:#fff">+</button>
+          </div>
+        </div>
+        <div class="rounded-xl border p-2.5 flex items-center justify-between"
+          style="background:var(--ws-surface2);border-color:var(--ws-border)">
+          <div>
+            <div class="text-xs font-semibold" style="color:var(--ws-text)">{$t('radarChildren')}</div>
+            <div class="text-[10px]" style="color:var(--ws-muted)">bis 17 J.</div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick={() => cpChildren = Math.max(0, cpChildren-1)}
+              class="w-7 h-7 rounded-lg border text-base font-bold flex items-center justify-center"
+              style="background:var(--ws-surface);border-color:var(--ws-border);color:var(--ws-text)">−</button>
+            <span class="w-5 text-center text-sm font-bold" style="color:var(--ws-text)">{cpChildren}</span>
+            <button onclick={() => cpChildren = Math.min(8, cpChildren+1)}
+              class="w-7 h-7 rounded-lg border text-base font-bold flex items-center justify-center"
+              style="background:var(--ws-accent);border-color:var(--ws-accent);color:#fff">+</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Accommodation type dropdown -->
