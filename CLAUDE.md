@@ -793,3 +793,50 @@ body = {'message': msg, 'content': base64_content, 'branch': 'beta', 'sha': sha}
   `settingsSchedulerLastRun`, `settingsSchedulerRun`
 - Hardcodierter String „Aktuell" in Tracker-Karte → `$t('radarCurrentPrice')`
 - Alle bestehenden Radar-Labels (`radarInclusions`, `radarSeat`, etc.) waren bereits korrekt via `$t()`
+
+---
+
+## Step 4 — Suchmasken-Upgrade (abgeschlossen)
+
+### S4-1: Personen-Split — Erwachsene + Kinder
+- **Flüge**: `flAdults` + `flChildren` mit ±-Steppern (Erw. ab 12 J., Kinder 2–11 J.)
+- **Hotels**: 3-spaltige Stepper-Gruppe: Erwachsene / Kinder / Zimmer
+- **Camping**: 2-spaltiger Personen-Split: Erwachsene / Kinder (bis 17 J.)
+- Backend: `children`-Feld in alle drei `SearchParams`-Modelle
+- SerpAPI GF: `children`-Parameter wird an API übergeben
+
+### S4-2: Gepäck-Anzahl-Stepper (Flüge)
+- Drei Stepper-Reihen: **10 kg** (22,99 €), **20 kg** (34,99 €), **23 kg** (42,99 €)
+- Anzahl je Klasse unabhängig wählbar (0–9 Koffer)
+- Echtzeit-Preview: „🧳 Gepäck gesamt: X,XX €"
+- Backend: `baggage_10kg`, `baggage_20kg`, `baggage_23kg` als Integer-Felder
+- Preiskalkulation: `Anzahl × Koffer-Preis` (nicht mehr per Person)
+
+### S4-3: Sitzplatz-Kalkulation (Flüge)
+- Neues Feld: **Sitzplatz €/Person/Flug** mit ±-Stepper + manueller Eingabe
+- Echtzeit-Preview: „💺 N Pers. × X € = Y €"
+- Backend: `seat_cost: float` — Kalkulation: `(Flugpreis) + Gepäck + ((Erw + Kind) × Sitzplatz)`
+- Legacy-Kompatibilität: `seat: bool` wird aus `seat_cost > 0` abgeleitet
+
+### S4-4: Zeit- & Stopp-Filter (Flüge)
+- **Stopp-Filter**: Toggle-Chips: Alle / Nonstop / Max 1 / Max 2
+- **Zeitfenster** (in `<details>`-Akkordeon):
+  - Abflug-Fenster: `ab HH:MM` + `bis HH:MM`
+  - Ankunfts-Fenster: `ab HH:MM` + `bis HH:MM`
+  - Reset-Button: setzt alle 4 Zeit-Felder auf leer
+- Backend:
+  - `max_stops: int` → SerpAPI `stops`-Parameter + clientseitiger Filter
+  - `dep_from/dep_to/arr_from/arr_to: Optional[str]` → HH:MM-Vergleich
+  - Ryanair: Post-Processing-Filter nach Abflugzeit
+  - Google Flights: Filter pro Ergebnis vor dem Append
+
+### Neue i18n-Keys (Step 4): 13 Keys je Sprache (DE/EN/IT)
+`radarStops`, `radarNonstop`, `radarMaxStops1/2`, `radarTimeWindow`,
+`radarDepWindow`, `radarArrWindow`, `radarTimeFrom/To`,
+`radarResetFilter`, `radarBaggage23`, `radarExtrasPreview`
+
+### Architektur-Änderung `routes/search.py`
+- `FlightSearchParams` hat jetzt 14 Felder (war 6)
+- `_extract_price()` Hilfsfunktion (Step 2) bleibt unverändert
+- Rückwärtskompatibilität: Legacy-Felder `baggage: str` + `seat: bool`
+  werden weiter akzeptiert und korrekt verarbeitet
