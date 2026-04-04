@@ -762,3 +762,34 @@ body = {'message': msg, 'content': base64_content, 'branch': 'beta', 'sha': sha}
 - `google_scraper.py`, `booking_scraper.py`, `homair_scraper.py` sind die
   Einzel-Scraper für gespeicherte Tracker (Scheduler + manueller Scrape)
 - Beide Ebenen wurden gepatcht
+
+---
+
+## Step 3 — Tracker UI & UX-Verfeinerung (abgeschlossen)
+
+### S3-1: Dynamischer Tracker-Filter nach aktivem Tab
+- `PriceRadar.svelte`: `allTrackers`-Liste wird jetzt nach `activeCategory` gefiltert
+- Mapping: `flights` → `['flight', 'google_flight']`, `hotels` → `['hotel']`, `camping` → `['camping']`
+- Neue `visibleTrackers` Variable (via `{@const}`) ersetzt direkte `allTrackers`-Referenz im Template
+- Leerzustand zeigt kontextbezogene Meldung: z.B. „Keine Flug-Tracker — oben suchen und speichern!"
+- Counter zeigt gefilterte + Gesamtzahl: „(2 / 5 gesamt)"
+
+### S3-2: Fluglinie (Logo/Name) + Abflug-/Ankunftszeit
+**Suchergebniskarten:**
+- `{@const d = result.detail || {}}` extrahiert Detail-Felder
+- Wenn `d.airline` vorhanden: Airline-Name mit ✈️-Icon + `departure_time → arrival_time` + Dauer
+- Gilt für Google Flights Ergebnisse (Ryanair liefert keine Airline, nur Zeiten teilweise)
+
+**Gespeicherte Tracker-Karten:**
+- `trackerSubtitle()` ergänzt Airline + Zeiten aus `latest_snapshot`
+- Zusätzliche Airline-Zeile direkt auf der Karte wenn `latest_snapshot.airline` vorhanden
+- Format: ✈️ **Lufthansa** `09:35 → 12:10`
+
+### S3-3: i18n Cleanup
+- Neue Keys in alle 3 Sprachen (DE/EN/IT) hinzugefügt:
+  `radarCurrentPrice`, `radarAirline`, `radarFlightTimes`, `radarFilterTab`
+  `settingsSchedulerInterval`, `settingsSchedulerNotifications`,
+  `settingsSchedulerPriceDrop`, `settingsSchedulerDaily`,
+  `settingsSchedulerLastRun`, `settingsSchedulerRun`
+- Hardcodierter String „Aktuell" in Tracker-Karte → `$t('radarCurrentPrice')`
+- Alle bestehenden Radar-Labels (`radarInclusions`, `radarSeat`, etc.) waren bereits korrekt via `$t()`
