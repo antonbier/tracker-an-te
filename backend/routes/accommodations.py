@@ -1,6 +1,6 @@
 """
 WanderSuite — /api/accommodations (Multi-User)
-Homair + Booking/Trivago trackers.
+Homair + Booking trackers. List endpoints now include latest_snapshot.
 """
 
 from fastapi import APIRouter, HTTPException, Depends
@@ -11,9 +11,9 @@ from datetime import datetime
 
 from database import (
     create_homair_tracker, list_homair_trackers, get_homair_tracker,
-    delete_homair_tracker, save_homair_snapshot,
+    delete_homair_tracker, save_homair_snapshot, get_latest_homair_snapshot,
     create_booking_tracker, list_booking_trackers, get_booking_tracker,
-    delete_booking_tracker, save_booking_snapshot,
+    delete_booking_tracker, save_booking_snapshot, get_latest_booking_snapshot,
 )
 from homair_scraper import fetch_homair as scrape_homair
 from booking_scraper import fetch_booking as scrape_booking
@@ -32,20 +32,27 @@ def _uid_w(user: dict) -> int:
     return user.get("id", 1) or 1
 
 
-# ── Homair ────────────────────────────────────────────────────────────────────
+# ── Homair ─────────────────────────────────────────────────────────────────
 
 class HomairCreate(BaseModel):
     region:             str
-    accommodation_type: str = "mobilheim-standard"
+    accommodation_type: str = "mobilheim"
     checkin_date:       str
     checkout_date:      str
     adults:             int = 2
     children:           int = 0
+    bedrooms:           str = "1"
+    aircon:             bool = False
+    pets:               bool = False
+    covered_terrace:    bool = False
 
 
 @router.get("/homair")
 def list_homair(user: dict = Depends(get_current_user)):
-    return list_homair_trackers(user_id=_uid(user))
+    trackers = list_homair_trackers(user_id=_uid(user))
+    for t in trackers:
+        t["latest_snapshot"] = get_latest_homair_snapshot(t["id"])
+    return trackers
 
 
 @router.post("/homair", status_code=201)
@@ -58,7 +65,7 @@ def create_homair(data: HomairCreate, user: dict = Depends(get_current_user)):
 def delete_homair(tracker_id: int, user: dict = Depends(get_current_user)):
     if not delete_homair_tracker(tracker_id, user_id=_uid(user)):
         raise HTTPException(404, "Tracker nicht gefunden")
-    return {"message": "Gelöscht"}
+    return {"message": "Geloescht"}
 
 
 @router.post("/homair/{tracker_id}/scrape")
@@ -78,20 +85,23 @@ def scrape_homair_tracker(tracker_id: int, user: dict = Depends(get_current_user
         raise HTTPException(500, str(e))
 
 
-# ── Booking ───────────────────────────────────────────────────────────────────
+# ── Booking ────────────────────────────────────────────────────────────────
 
 class BookingCreate(BaseModel):
-    destination:  str
-    checkin_date: str
+    destination:   str
+    checkin_date:  str
     checkout_date: str
-    adults:       int = 2
-    rooms:        int = 1
-    source:       str = "booking"
+    adults:        int = 2
+    rooms:         int = 1
+    source:        str = "booking"
 
 
 @router.get("/booking")
 def list_booking(user: dict = Depends(get_current_user)):
-    return list_booking_trackers(user_id=_uid(user))
+    trackers = list_booking_trackers(user_id=_uid(user))
+    for t in trackers:
+        t["latest_snapshot"] = get_latest_booking_snapshot(t["id"])
+    return trackers
 
 
 @router.post("/booking", status_code=201)
@@ -104,7 +114,7 @@ def create_booking(data: BookingCreate, user: dict = Depends(get_current_user)):
 def delete_booking(tracker_id: int, user: dict = Depends(get_current_user)):
     if not delete_booking_tracker(tracker_id, user_id=_uid(user)):
         raise HTTPException(404, "Tracker nicht gefunden")
-    return {"message": "Gelöscht"}
+    return {"message": "Geloescht"}
 
 
 @router.post("/booking/{tracker_id}/scrape")
