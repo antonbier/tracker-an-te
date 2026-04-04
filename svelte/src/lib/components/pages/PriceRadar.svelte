@@ -894,12 +894,26 @@
 
       <!-- Result cards -->
       {#each filteredResults() as result}
+        {@const d = result.detail || {}}
         <div class="rounded-xl p-4 border" style="background:var(--ws-surface);border-color:var(--ws-border)">
           <div class="flex items-start justify-between gap-3">
             <div class="flex-1 min-w-0">
-              <div class="font-bold text-sm truncate">{result.title || result.label || '–'}</div>
+              <div class="font-bold text-sm truncate" style="color:var(--ws-text)">{result.title || result.label || '–'}</div>
               {#if result.subtitle}
                 <div class="text-xs mt-0.5 truncate" style="color:var(--ws-muted)">{result.subtitle}</div>
+              {/if}
+              <!-- Airline + Flugzeiten -->
+              {#if d.airline}
+                <div class="flex items-center gap-1.5 mt-1">
+                  <span class="text-sm">✈️</span>
+                  <span class="text-xs font-semibold" style="color:var(--ws-accent)">{d.airline}</span>
+                  {#if d.departure_time && d.arrival_time}
+                    <span class="text-xs font-mono" style="color:var(--ws-muted)">{String(d.departure_time).slice(0,5)} → {String(d.arrival_time).slice(0,5)}</span>
+                  {/if}
+                  {#if d.duration_min}
+                    <span class="text-xs" style="color:var(--ws-muted)">({Math.floor(d.duration_min/60)}h{d.duration_min%60}m)</span>
+                  {/if}
+                </div>
               {/if}
               <div class="flex gap-1.5 flex-wrap mt-1.5">
                 <span class="text-xs px-2 py-0.5 rounded-full" style="background:var(--ws-surface2);color:var(--ws-muted)">{result.provider}</span>
