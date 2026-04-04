@@ -923,7 +923,8 @@ def update_scheduler_last_run(user_id: int) -> None:
 # ── detected_trips helpers ────────────────────────────────────────────────────
 
 def list_detected_trips(user_id: int | None = None,
-                         include_ignored: bool = False) -> list[dict]:
+                         include_ignored: bool = False,
+                         limit: int = 500) -> list[dict]:
     with db() as conn:
         where_parts = []
         params = []
@@ -934,7 +935,8 @@ def list_detected_trips(user_id: int | None = None,
             where_parts.append("(ignored IS NULL OR ignored=0)")
         where = ("WHERE " + " AND ".join(where_parts)) if where_parts else ""
         rows = conn.execute(
-            f"SELECT * FROM detected_trips {where} ORDER BY start_date DESC", params
+            f"SELECT * FROM detected_trips {where} ORDER BY start_date DESC LIMIT ?",
+            params + [limit]
         ).fetchall()
     return [dict(r) for r in rows]
 
