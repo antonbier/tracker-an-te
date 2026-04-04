@@ -3,302 +3,339 @@
   import { api } from '$lib/api.js';
   import { apiUrl } from '$lib/stores.js';
   import { toast } from '$lib/toast.js';
-  import { browser } from '$app/environment';
   import { t } from '$lib/i18n.js';
 
-  let activeTab = $state('ryanair');
+  // ── Category tabs ─────────────────────────────────────────────────────────
+  let activeCategory = $state('flights');
+
+  const categories = $derived([
+    { id: 'flights',  label: '✈️ ' + $t('radarFlights')  },
+    { id: 'hotels',   label: '🏨 ' + $t('radarHotels')   },
+    { id: 'camping',  label: '⛺ ' + $t('radarCamping')  },
+    { id: 'rentals',  label: '🚗 ' + $t('radarRentals')  },
+  ]);
 
   // ── Shared helpers ────────────────────────────────────────────────────────
   const today = new Date();
-  const d30 = new Date(today); d30.setDate(d30.getDate() + 30);
-  const d37 = new Date(today); d37.setDate(d37.getDate() + 37);
-  function fmt(d) { return d.toISOString().slice(0,10); }
-  const inputCls   = 'w-full px-3 py-2 rounded-xl border text-sm';
+  const d30   = new Date(today); d30.setDate(d30.getDate() + 30);
+  const d37   = new Date(today); d37.setDate(d37.getDate() + 37);
+  function fmt(d) { return d.toISOString().slice(0, 10); }
+  const inputCls   = 'w-full px-3 py-2 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-[var(--ws-accent)]';
   const inputStyle = 'background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)';
+  const labelCls   = 'block text-xs font-bold uppercase tracking-wider mb-1';
 
-  // Price chart accordion — map of trackerId → { open, history, loading }
+  // ── Autocomplete (local, no external API) ─────────────────────────────────
+  // Top airports with IATA + city name for filtering
+  const AIRPORTS = [
+    { iata: 'VIE', city: 'Wien', country: 'AT' },
+    { iata: 'MUC', city: 'München', country: 'DE' },
+    { iata: 'FRA', city: 'Frankfurt', country: 'DE' },
+    { iata: 'BER', city: 'Berlin', country: 'DE' },
+    { iata: 'HAM', city: 'Hamburg', country: 'DE' },
+    { iata: 'STR', city: 'Stuttgart', country: 'DE' },
+    { iata: 'DUS', city: 'Düsseldorf', country: 'DE' },
+    { iata: 'CGN', city: 'Köln', country: 'DE' },
+    { iata: 'NUE', city: 'Nürnberg', country: 'DE' },
+    { iata: 'ZRH', city: 'Zürich', country: 'CH' },
+    { iata: 'GVA', city: 'Genf', country: 'CH' },
+    { iata: 'BSL', city: 'Basel', country: 'CH' },
+    { iata: 'BGY', city: 'Bergamo / Mailand', country: 'IT' },
+    { iata: 'MXP', city: 'Mailand Malpensa', country: 'IT' },
+    { iata: 'FCO', city: 'Rom', country: 'IT' },
+    { iata: 'VCE', city: 'Venedig', country: 'IT' },
+    { iata: 'NAP', city: 'Neapel', country: 'IT' },
+    { iata: 'BLQ', city: 'Bologna', country: 'IT' },
+    { iata: 'PMO', city: 'Palermo', country: 'IT' },
+    { iata: 'CAG', city: 'Cagliari', country: 'IT' },
+    { iata: 'TRN', city: 'Turin', country: 'IT' },
+    { iata: 'FLR', city: 'Florenz', country: 'IT' },
+    { iata: 'LIN', city: 'Mailand Linate', country: 'IT' },
+    { iata: 'LNZ', city: 'Linz', country: 'AT' },
+    { iata: 'GRZ', city: 'Graz', country: 'AT' },
+    { iata: 'SZG', city: 'Salzburg', country: 'AT' },
+    { iata: 'INN', city: 'Innsbruck', country: 'AT' },
+    { iata: 'LHR', city: 'London Heathrow', country: 'GB' },
+    { iata: 'LGW', city: 'London Gatwick', country: 'GB' },
+    { iata: 'STN', city: 'London Stansted', country: 'GB' },
+    { iata: 'MAN', city: 'Manchester', country: 'GB' },
+    { iata: 'DUB', city: 'Dublin', country: 'IE' },
+    { iata: 'BCN', city: 'Barcelona', country: 'ES' },
+    { iata: 'MAD', city: 'Madrid', country: 'ES' },
+    { iata: 'PMI', city: 'Palma de Mallorca', country: 'ES' },
+    { iata: 'ALC', city: 'Alicante', country: 'ES' },
+    { iata: 'AGP', city: 'Málaga', country: 'ES' },
+    { iata: 'CDG', city: 'Paris Charles de Gaulle', country: 'FR' },
+    { iata: 'ORY', city: 'Paris Orly', country: 'FR' },
+    { iata: 'NCE', city: 'Nizza', country: 'FR' },
+    { iata: 'MRS', city: 'Marseille', country: 'FR' },
+    { iata: 'AMS', city: 'Amsterdam', country: 'NL' },
+    { iata: 'BRU', city: 'Brüssel', country: 'BE' },
+    { iata: 'CPH', city: 'Kopenhagen', country: 'DK' },
+    { iata: 'OSL', city: 'Oslo', country: 'NO' },
+    { iata: 'ARN', city: 'Stockholm', country: 'SE' },
+    { iata: 'HEL', city: 'Helsinki', country: 'FI' },
+    { iata: 'ATH', city: 'Athen', country: 'GR' },
+    { iata: 'SKG', city: 'Thessaloniki', country: 'GR' },
+    { iata: 'HER', city: 'Heraklion (Kreta)', country: 'GR' },
+    { iata: 'CFU', city: 'Korfu', country: 'GR' },
+    { iata: 'RHO', city: 'Rhodos', country: 'GR' },
+    { iata: 'IST', city: 'Istanbul', country: 'TR' },
+    { iata: 'SAW', city: 'Istanbul Sabiha', country: 'TR' },
+    { iata: 'AYT', city: 'Antalya', country: 'TR' },
+    { iata: 'OPO', city: 'Porto', country: 'PT' },
+    { iata: 'LIS', city: 'Lissabon', country: 'PT' },
+    { iata: 'FAO', city: 'Faro (Algarve)', country: 'PT' },
+    { iata: 'PRG', city: 'Prag', country: 'CZ' },
+    { iata: 'BUD', city: 'Budapest', country: 'HU' },
+    { iata: 'WAW', city: 'Warschau', country: 'PL' },
+    { iata: 'KRK', city: 'Krakau', country: 'PL' },
+    { iata: 'OTP', city: 'Bukarest', country: 'RO' },
+    { iata: 'SOF', city: 'Sofia', country: 'BG' },
+    { iata: 'ZAG', city: 'Zagreb', country: 'HR' },
+    { iata: 'SPU', city: 'Split', country: 'HR' },
+    { iata: 'DBV', city: 'Dubrovnik', country: 'HR' },
+    { iata: 'TIA', city: 'Tirana', country: 'AL' },
+    { iata: 'KIV', city: 'Chisinau', country: 'MD' },
+    { iata: 'JFK', city: 'New York JFK', country: 'US' },
+    { iata: 'EWR', city: 'New York Newark', country: 'US' },
+    { iata: 'LAX', city: 'Los Angeles', country: 'US' },
+    { iata: 'ORD', city: 'Chicago', country: 'US' },
+    { iata: 'MIA', city: 'Miami', country: 'US' },
+    { iata: 'DXB', city: 'Dubai', country: 'AE' },
+    { iata: 'DOH', city: 'Doha', country: 'QA' },
+    { iata: 'BKK', city: 'Bangkok', country: 'TH' },
+    { iata: 'SIN', city: 'Singapur', country: 'SG' },
+    { iata: 'HKG', city: 'Hongkong', country: 'HK' },
+    { iata: 'NRT', city: 'Tokio Narita', country: 'JP' },
+    { iata: 'KIX', city: 'Osaka', country: 'JP' },
+    { iata: 'SYD', city: 'Sydney', country: 'AU' },
+    { iata: 'MEL', city: 'Melbourne', country: 'AU' },
+    { iata: 'GRU', city: 'São Paulo', country: 'BR' },
+    { iata: 'EZE', city: 'Buenos Aires', country: 'AR' },
+    { iata: 'CMN', city: 'Casablanca', country: 'MA' },
+    { iata: 'TUN', city: 'Tunis', country: 'TN' },
+    { iata: 'CAI', city: 'Kairo', country: 'EG' },
+    { iata: 'HRG', city: 'Hurghada', country: 'EG' },
+    { iata: 'SSH', city: 'Sharm el-Sheikh', country: 'EG' },
+  ];
+
+  // Simple destinations for hotels/camping autocomplete
+  const DESTINATIONS = [
+    'Wien', 'München', 'Berlin', 'Hamburg', 'Frankfurt', 'Stuttgart', 'Köln', 'Düsseldorf',
+    'Zürich', 'Genf', 'Basel', 'Bern',
+    'Mailand', 'Rom', 'Venedig', 'Florenz', 'Neapel', 'Bologna', 'Turin', 'Palermo', 'Sardegna',
+    'Paris', 'Nizza', 'Marseille', 'Lyon', 'Bordeaux', 'Strasbourg',
+    'Barcelona', 'Madrid', 'Palma de Mallorca', 'Valencia', 'Sevilla', 'Málaga', 'Ibiza',
+    'London', 'Manchester', 'Edinburgh', 'Dublin',
+    'Amsterdam', 'Brüssel', 'Kopenhagen', 'Stockholm', 'Oslo', 'Helsinki',
+    'Prag', 'Budapest', 'Warschau', 'Krakau', 'Bukarest', 'Bratislava',
+    'Athen', 'Thessaloniki', 'Santorini', 'Mykonos', 'Kreta', 'Rhodos', 'Korfu',
+    'Istanbul', 'Antalya', 'Bodrum', 'Kappadokien',
+    'Lissabon', 'Porto', 'Faro / Algarve', 'Madeira',
+    'Dubrovnik', 'Split', 'Zadar', 'Zagreb', 'Boka Kotorska',
+    'Côte d\'Azur', 'Languedoc', 'Provence', 'Bretagne', 'Normandie',
+    'Toskana', 'Venetien', 'Ligurien', 'Sizilien', 'Sardinien', 'Kalabrien', 'Apulien',
+    'Katalonien', 'Costa Brava', 'Costa Blanca', 'Andalusien', 'Balearen',
+    'Kroatien - Istrien', 'Kroatien - Dalmatien',
+    'Schwarzwald', 'Bayern / Alpen', 'Österreich / Tirol', 'Schweiz Wallis',
+    'Dubai', 'Marrakesch', 'Hurghada', 'Sharm el-Sheikh', 'Tunesien', 'Zypern',
+    'New York', 'Miami', 'Los Angeles', 'Bali', 'Thailand - Phuket', 'Singapur',
+  ];
+
+  // Autocomplete state — one per field key
+  let acState = $state({});
+
+  function acFilter(key, value, list, iataMode = false) {
+    if (!value || value.length < 1) {
+      acState = { ...acState, [key]: { open: false, items: [] } };
+      return;
+    }
+    const q = value.toLowerCase();
+    let items;
+    if (iataMode) {
+      items = list.filter(a =>
+        a.iata.toLowerCase().startsWith(q) ||
+        a.city.toLowerCase().includes(q) ||
+        a.country.toLowerCase().includes(q)
+      ).slice(0, 8);
+    } else {
+      items = list.filter(d => d.toLowerCase().includes(q)).slice(0, 8);
+    }
+    acState = { ...acState, [key]: { open: items.length > 0, items } };
+  }
+
+  function acSelect(key, value, bindSetter) {
+    bindSetter(value);
+    acState = { ...acState, [key]: { open: false, items: [] } };
+  }
+
+  function acClose(key) {
+    setTimeout(() => {
+      acState = { ...acState, [key]: { open: false, items: [] } };
+    }, 150);
+  }
+
+  // ── Flights form ──────────────────────────────────────────────────────────
+  let flOrigin   = $state('BGY');
+  let flDest     = $state('DUB');
+  let flOut      = $state(fmt(d30));
+  let flRet      = $state('');
+  let flAdults   = $state(2);
+  let flBaggage  = $state('none');   // 'none' | '10kg' | '20kg'
+  let flSeat     = $state(false);
+
+  // ── Hotels form ───────────────────────────────────────────────────────────
+  let htCity    = $state('');
+  let htIn      = $state(fmt(d30));
+  let htOut     = $state(fmt(d37));
+  let htAdults  = $state(2);
+  let htRooms   = $state(1);
+
+  // ── Camping form ──────────────────────────────────────────────────────────
+  let cpRegion    = $state('');
+  let cpIn        = $state(fmt(d30));
+  let cpOut       = $state(fmt(d37));
+  let cpAdults    = $state(2);
+  let cpAccomType = $state('mobilheim');
+  let cpBedrooms  = $state('1');
+  let cpAircon    = $state(false);
+  let cpPets      = $state(false);
+  let cpTerrace   = $state(false);
+
+  // ── Search state ──────────────────────────────────────────────────────────
+  let searching    = $state(false);
+  let searchResults = $state([]);
+  let activeProviderFilter = $state('all');
+  let savingTracker = $state(null); // tracker id being saved
+
+  // Provider chips derived from results
+  const providerChips = $derived(() => {
+    const providers = ['all', ...new Set(searchResults.map(r => r.provider))];
+    return providers;
+  });
+
+  const filteredResults = $derived(() => {
+    if (activeProviderFilter === 'all') return searchResults;
+    return searchResults.filter(r => r.provider === activeProviderFilter);
+  });
+
+  async function doSearch() {
+    if (!$apiUrl) { toast($t('radarNoBackend'), 'warning'); return; }
+    searching = true;
+    searchResults = [];
+    activeProviderFilter = 'all';
+    try {
+      let endpoint, payload;
+      if (activeCategory === 'flights') {
+        endpoint = '/api/search/flights';
+        payload = {
+          origin: flOrigin.toUpperCase(),
+          destination: flDest.toUpperCase(),
+          outbound_date: flOut,
+          return_date: flRet || null,
+          adults: flAdults,
+          baggage: flBaggage,
+          seat: flSeat,
+        };
+      } else if (activeCategory === 'hotels') {
+        endpoint = '/api/search/hotels';
+        payload = {
+          destination: htCity,
+          checkin_date: htIn,
+          checkout_date: htOut,
+          adults: htAdults,
+          rooms: htRooms,
+        };
+      } else if (activeCategory === 'camping') {
+        endpoint = '/api/search/camping';
+        payload = {
+          destination: cpRegion,
+          checkin_date: cpIn,
+          checkout_date: cpOut,
+          adults: cpAdults,
+          accommodation_type: cpAccomType,
+          bedrooms: cpBedrooms,
+          aircon: cpAircon,
+          pets: cpPets,
+          covered_terrace: cpTerrace,
+        };
+      }
+      const res = await api(endpoint, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      searchResults = res.results || [];
+      if (searchResults.length === 0) toast($t('radarNoResults'), 'warning');
+    } catch (e) {
+      // Backend endpoint may not exist yet (Step 3) — show friendly message
+      toast('Suche noch nicht verfügbar (kommt in Step 3)', 'warning');
+    }
+    searching = false;
+  }
+
+  async function saveAsTracker(result) {
+    if (!$apiUrl) { toast($t('radarNoBackend'), 'warning'); return; }
+    savingTracker = result.id;
+    try {
+      await api('/api/trackers', {
+        method: 'POST',
+        body: JSON.stringify(result),
+      });
+      toast($t('radarTrackerSaved'), 'success');
+      await loadAllTrackers();
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+    savingTracker = null;
+  }
+
+  // ── Active trackers ───────────────────────────────────────────────────────
+  let allTrackers  = $state([]);
+  let trackersLoading = $state(true);
+
+  async function loadAllTrackers() {
+    if (!$apiUrl) { trackersLoading = false; return; }
+    trackersLoading = true;
+    try {
+      // Load from all existing endpoints (backward compat until unified endpoint in Step 3)
+      const [ry, gf, hm, bk] = await Promise.allSettled([
+        api('/api/trackers'),
+        api('/api/google-flights'),
+        api('/api/accommodations/homair'),
+        api('/api/accommodations/booking'),
+      ]);
+      allTrackers = [
+        ...(ry.status === 'fulfilled' ? (ry.value || []).map(t => ({ ...t, _type: 'flight',        _table: 'trackers' }))         : []),
+        ...(gf.status === 'fulfilled' ? (gf.value || []).map(t => ({ ...t, _type: 'google_flight', _table: 'gf_trackers' }))      : []),
+        ...(hm.status === 'fulfilled' ? (hm.value || []).map(t => ({ ...t, _type: 'camping',       _table: 'homair_trackers' }))  : []),
+        ...(bk.status === 'fulfilled' ? (bk.value || []).map(t => ({ ...t, _type: 'hotel',         _table: 'booking_trackers' })) : []),
+      ];
+    } catch {}
+    trackersLoading = false;
+  }
+
+  // ── Price chart accordion ─────────────────────────────────────────────────
   let chartState = $state({});
 
-  async function toggleChart(trackerType, trackerId) {
-    const key = `${trackerType}-${trackerId}`;
+  async function toggleChart(type, id) {
+    const key = `${type}-${id}`;
     if (!chartState[key]) chartState[key] = { open: false, history: [], loading: false };
-    chartState[key].open = !chartState[key].open;
+    chartState[key] = { ...chartState[key], open: !chartState[key].open };
     if (chartState[key].open && chartState[key].history.length === 0) {
-      chartState[key].loading = true;
+      chartState[key] = { ...chartState[key], loading: true };
       try {
-        const res = await api(`/api/prices/history/${trackerType}/${trackerId}`);
-        chartState[key].history = res.history || [];
-      } catch { chartState[key].history = []; }
-      chartState[key].loading = false;
+        const res = await api(`/api/prices/history/${type}/${id}`);
+        chartState[key] = { ...chartState[key], history: res.history || [] };
+      } catch { chartState[key] = { ...chartState[key], history: [] }; }
+      chartState[key] = { ...chartState[key], loading: false };
     }
   }
 
-  // Wish-price editing — map of key → { editing, value, saving }
-  let wishState = $state({});
-
-  async function saveWishPrice(trackerType, trackerId, tableName, newPrice) {
-    const key = `${trackerType}-${trackerId}`;
-    wishState[key] = { ...wishState[key], saving: true };
-    try {
-      await api(`/api/prices/wish/${tableName}/${trackerId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ wish_price: newPrice === '' ? null : parseFloat(newPrice) })
-      });
-      toast('Wunschpreis gespeichert ✓', 'success');
-      wishState[key] = { editing: false, value: newPrice, saving: false };
-    } catch(e) { toast(e.message, 'error'); wishState[key] = { ...wishState[key], saving: false }; }
-  }
-
-  function priceTrend(current, prev) {
-    if (!current || !prev) return null;
-    return current < prev ? 'down' : current > prev ? 'up' : 'same';
-  }
-
-  function trendStyle(trend) {
-    if (trend === 'down') return 'color:#16a34a;font-weight:700';
-    if (trend === 'up')   return 'color:#dc2626;font-weight:700';
-    return 'color:var(--ws-green);font-weight:700';
-  }
-
-  function trendIcon(trend) {
-    if (trend === 'down') return '⬇️';
-    if (trend === 'up')   return '⬆️';
-    return '';
-  }
-
-  // ── Ryanair ───────────────────────────────────────────────────────────────
-  let ryTrackers = $state([]);
-  let ryLoading  = $state(true);
-  let ryAdding   = $state(false);
-  let ryOrigin   = $state('BGY');
-  let ryDest     = $state('DUB');
-  let ryOut      = $state(fmt(d30));
-  let ryRet      = $state(fmt(d37));
-  let ryAdults   = $state(2);
-  let ryChildren = $state(0);
-  let rySeat     = $state(0);
-  let ryBags     = $state([]);
-  const bagOptions = [
-    { type: '10kg', label: '10 kg Check-in Koffer' },
-    { type: '20kg', label: '20 kg Check-in Koffer' },
-    { type: '23kg', label: '23 kg Koffer (Large)' },
-  ];
-  function toggleBag(t) { ryBags = ryBags.includes(t) ? ryBags.filter(b=>b!==t) : [...ryBags, t]; }
-
-  async function loadRyanair() {
-    if (!$apiUrl) { ryLoading=false; return; }
-    try { ryTrackers = await api('/api/trackers'); } catch {}
-    ryLoading = false;
-  }
-  async function addRyanair() {
-    if (!ryOrigin||!ryDest||!ryOut) { toast($t('radarRequired') || 'Pflichtfelder ausfüllen','error'); return; }
-    if (!$apiUrl) { toast($t('radarNoBackend'),'warning'); return; }
-    ryAdding=true;
-    try {
-      await api('/api/trackers',{method:'POST',body:JSON.stringify({
-        origin:ryOrigin.toUpperCase(),destination:ryDest.toUpperCase(),
-        outbound_date:ryOut,return_date:ryRet||null,
-        adults:ryAdults,children:ryChildren,
-        baggage:ryBags.map(t=>({type:t,per_person:true})),
-        seat_cost:parseFloat(rySeat)||0,
-      })});
-      toast('Tracker angelegt ✓','success');
-      await loadRyanair();
-    } catch(e) { toast(e.message,'error'); }
-    ryAdding=false;
-  }
-  async function scrapeRy(id) {
-    toast('Preis wird abgerufen…','warning');
-    try {
-      const r = await api(`/api/trackers/${id}/scrape`,{method:'POST'});
-      toast(`${r.snapshot?.total_price?.toFixed(2)} €`,'success');
-      await loadRyanair();
-    } catch(e) { toast(e.message,'error'); }
-  }
-  async function deleteRy(id) {
-    if (!confirm($t('delete') + '?')) return;
-    await api(`/api/trackers/${id}`,{method:'DELETE'});
-    await loadRyanair();
-  }
-
-  // ── Google Flights ────────────────────────────────────────────────────────
-  let gfTrackers = $state([]);
-  let gfLoading  = $state(false);
-  let gfAdding   = $state(false);
-  let gfOrigin   = $state('MUC');
-  let gfDest     = $state('JFK');
-  let gfOut      = $state(fmt(d30));
-  let gfRet      = $state('');
-  let gfAdults   = $state(2);
-  let gfChildren = $state(0);
-
-  async function loadGF() {
-    if (!$apiUrl) return;
-    gfLoading=true;
-    try { gfTrackers = await api('/api/google-flights'); } catch {}
-    gfLoading=false;
-  }
-  async function addGF() {
-    if (!gfOrigin||!gfDest||!gfOut) { toast($t('radarRequired')||'Pflichtfelder ausfüllen','error'); return; }
-    if (!$apiUrl) { toast($t('radarNoBackend'),'warning'); return; }
-    const serpKey = browser ? localStorage.getItem('s-serpApiKey')||'' : '';
-    if (!serpKey) { toast($t('radarNoKey'),'warning'); return; }
-    gfAdding=true;
-    try {
-      await api('/api/google-flights',{method:'POST',body:JSON.stringify({
-        origin:gfOrigin.toUpperCase(),destination:gfDest.toUpperCase(),
-        outbound_date:gfOut,return_date:gfRet||null,
-        adults:gfAdults,children:gfChildren,
-      })});
-      toast('Tracker angelegt ✓','success');
-      await loadGF();
-    } catch(e) { toast(e.message,'error'); }
-    gfAdding=false;
-  }
-  async function scrapeGF(id) {
-    toast('Google Flights wird abgefragt…','warning');
-    try {
-      const r = await api(`/api/google-flights/${id}/scrape`,{method:'POST'});
-      const s = r.snapshot;
-      const info = s?.airline ? ` — ${s.airline} ${s.departure_time??''}→${s.arrival_time??''}` : '';
-      toast(`${s?.total_price?.toFixed(2)} €${info}`,'success');
-      await loadGF();
-    } catch(e) { toast(e.message,'error'); }
-  }
-  async function deleteGF(id) {
-    if (!confirm($t('delete') + '?')) return;
-    await api(`/api/google-flights/${id}`,{method:'DELETE'});
-    await loadGF();
-  }
-
-  // ── Homair / Camping ──────────────────────────────────────────────────────
-  let hmTrackers = $state([]);
-  let hmLoading  = $state(false);
-  let hmAdding   = $state(false);
-  let hmRegion   = $state('cote-d-azur');
-  let hmType     = $state('mobilheim-standard');
-  let hmIn       = $state(fmt(d30));
-  let hmOut2     = $state(fmt(d37));
-  let hmAdults   = $state(2);
-  let hmChildren = $state(0);
-  const hmRegions = [
-    {val:'cote-d-azur',label:"Côte d'Azur"},
-    {val:'kroatien',label:'Kroatien'},
-    {val:'toskana',label:'Toskana'},
-    {val:'katalonien',label:'Katalonien'},
-    {val:'languedoc',label:'Languedoc'},
-    {val:'provence',label:'Provence'},
-    {val:'venetien',label:'Venetien'},
-  ];
-  const hmTypes = [
-    {val:'mobilheim-standard',label:'Mobilheim Standard'},
-    {val:'mobilheim-premium',label:'Mobilheim Premium'},
-    {val:'chalet',label:'Chalet'},
-    {val:'stellplatz',label:'Stellplatz'},
-  ];
-  async function loadHM() {
-    if (!$apiUrl) return;
-    hmLoading=true;
-    try { hmTrackers = await api('/api/accommodations/homair'); } catch {}
-    hmLoading=false;
-  }
-  async function addHM() {
-    if (!hmIn||!hmOut2) { toast('Datum fehlt','error'); return; }
-    if (!$apiUrl) { toast($t('radarNoBackend'),'warning'); return; }
-    hmAdding=true;
-    try {
-      await api('/api/accommodations/homair',{method:'POST',body:JSON.stringify({
-        region:hmRegion,accommodation_type:hmType,
-        checkin_date:hmIn,checkout_date:hmOut2,
-        adults:hmAdults,children:hmChildren,
-      })});
-      toast('Tracker angelegt ✓','success');
-      await loadHM();
-    } catch(e) { toast(e.message,'error'); }
-    hmAdding=false;
-  }
-  async function scrapeHM(id) {
-    toast('Suche Campingplätze…','warning');
-    try {
-      const r = await api(`/api/accommodations/homair/${id}/scrape`,{method:'POST'});
-      toast(`${r.snapshot?.total_price?.toFixed(2)} €`,'success');
-      await loadHM();
-    } catch(e) { toast(e.message,'error'); }
-  }
-  async function deleteHM(id) {
-    if (!confirm($t('delete') + '?')) return;
-    await api(`/api/accommodations/homair/${id}`,{method:'DELETE'});
-    await loadHM();
-  }
-
-  // ── Booking / Hotel ───────────────────────────────────────────────────────
-  let bkTrackers = $state([]);
-  let bkLoading  = $state(false);
-  let bkAdding   = $state(false);
-  let bkDest     = $state('');
-  let bkIn       = $state(fmt(d30));
-  let bkOut2     = $state(fmt(d37));
-  let bkAdults   = $state(2);
-  let bkRooms    = $state(1);
-  let bkSource   = $state('booking');
-  async function loadBK() {
-    if (!$apiUrl) return;
-    bkLoading=true;
-    try { bkTrackers = await api('/api/accommodations/booking'); } catch {}
-    bkLoading=false;
-  }
-  async function addBK() {
-    if (!bkDest||!bkIn||!bkOut2) { toast($t('radarRequired')||'Pflichtfelder ausfüllen','error'); return; }
-    if (!$apiUrl) { toast($t('radarNoBackend'),'warning'); return; }
-    bkAdding=true;
-    try {
-      await api('/api/accommodations/booking',{method:'POST',body:JSON.stringify({
-        destination:bkDest,checkin_date:bkIn,checkout_date:bkOut2,
-        adults:bkAdults,rooms:bkRooms,source:bkSource,
-      })});
-      toast('Tracker angelegt ✓','success');
-      await loadBK();
-    } catch(e) { toast(e.message,'error'); }
-    bkAdding=false;
-  }
-  async function scrapeBK(id) {
-    const serpKey = browser ? localStorage.getItem('s-serpApiKey')||'' : '';
-    toast('Suche Unterkünfte…','warning');
-    try {
-      const r = await api(`/api/accommodations/booking/${id}/scrape?api_key=${encodeURIComponent(serpKey)}`,{method:'POST'});
-      const s = r.snapshot;
-      const hotel = s?.hotel_name ? ` — ${s.hotel_name}` : '';
-      toast(`${s?.total_price?.toFixed(2)} €/Nacht${hotel}`,'success');
-      await loadBK();
-    } catch(e) { toast(e.message,'error'); }
-  }
-  async function deleteBK(id) {
-    if (!confirm($t('delete') + '?')) return;
-    await api(`/api/accommodations/booking/${id}`,{method:'DELETE'});
-    await loadBK();
-  }
-
-  // ── Init ──────────────────────────────────────────────────────────────────
-  onMount(() => { loadRyanair(); });
-  $effect(() => {
-    if (activeTab==='gflights' && gfTrackers.length===0) loadGF();
-    if (activeTab==='homair'   && hmTrackers.length===0) loadHM();
-    if (activeTab==='booking'  && bkTrackers.length===0) loadBK();
-  });
-
-  const tabs = $derived([
-    { id:'ryanair',  label:'🟠 ' + $t('radarRyanair') },
-    { id:'gflights', label:'🔵 ' + $t('radarGoogle')  },
-    { id:'homair',   label:'⛺ ' + $t('radarHomair')  },
-    { id:'booking',  label:'🏨 ' + $t('radarBooking') },
-  ]);
-
-  // ── Chart helpers (no {@const} needed in template) ───────────────────────
-  function chartPts(history, w=290, h=65, pad=5) {
+  function chartPts(history, w = 290, h = 65, pad = 5) {
     const prices = history.map(e => e.price);
-    const minP = Math.min(...prices);
-    const maxP = Math.max(...prices);
-    const range = maxP - minP || 1;
+    const minP   = Math.min(...prices);
+    const maxP   = Math.max(...prices);
+    const range  = maxP - minP || 1;
     return {
       minP, maxP,
       polyline: history.map((e, i) => {
@@ -317,599 +354,695 @@
       ].join(' '),
     };
   }
+
+  // ── Wish-price inline edit ────────────────────────────────────────────────
+  let wishState = $state({});
+
+  async function saveWishPrice(type, id, table, newPrice) {
+    const key = `${type}-${id}`;
+    wishState[key] = { ...wishState[key], saving: true };
+    try {
+      await api(`/api/prices/wish/${table}/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ wish_price: newPrice === '' ? null : parseFloat(newPrice) }),
+      });
+      toast($t('radarWishPrice') + ' ✓', 'success');
+      wishState[key] = { editing: false, value: newPrice, saving: false };
+      await loadAllTrackers();
+    } catch (e) {
+      toast(e.message, 'error');
+      wishState[key] = { ...wishState[key], saving: false };
+    }
+  }
+
+  // ── Delete tracker ────────────────────────────────────────────────────────
+  async function deleteTracker(tracker) {
+    if (!confirm($t('delete') + '?')) return;
+    try {
+      const endpoints = {
+        flight:        `/api/trackers/${tracker.id}`,
+        google_flight: `/api/google-flights/${tracker.id}`,
+        camping:       `/api/accommodations/homair/${tracker.id}`,
+        hotel:         `/api/accommodations/booking/${tracker.id}`,
+      };
+      await api(endpoints[tracker._type], { method: 'DELETE' });
+      await loadAllTrackers();
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
+  // ── Scrape / update tracker ───────────────────────────────────────────────
+  async function scrapeTracker(tracker) {
+    toast($t('radarUpdatePrice') + '…', 'warning');
+    try {
+      const endpoints = {
+        flight:        `/api/trackers/${tracker.id}/scrape`,
+        google_flight: `/api/google-flights/${tracker.id}/scrape`,
+        camping:       `/api/accommodations/homair/${tracker.id}/scrape`,
+        hotel:         `/api/accommodations/booking/${tracker.id}/scrape`,
+      };
+      await api(endpoints[tracker._type], { method: 'POST' });
+      toast($t('radarUpdatePrice') + ' ✓', 'success');
+      await loadAllTrackers();
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
+  // ── Tracker label helpers ─────────────────────────────────────────────────
+  function trackerTitle(tr) {
+    if (tr._type === 'flight' || tr._type === 'google_flight') {
+      return `${tr.origin} → ${tr.destination}`;
+    }
+    if (tr._type === 'hotel') return `🏨 ${tr.destination}`;
+    if (tr._type === 'camping') return `⛺ ${tr.region || tr.destination || ''}`;
+    return tr.destination || tr.location_name || '–';
+  }
+
+  function trackerSubtitle(tr) {
+    const parts = [];
+    if (tr.outbound_date) parts.push(tr.outbound_date + (tr.return_date ? ' ⇄ ' + tr.return_date : ''));
+    if (tr.checkin_date) parts.push(tr.checkin_date + (tr.checkout_date ? ' → ' + tr.checkout_date : ''));
+    if (tr.adults) parts.push(tr.adults + ' Erw.');
+    if (tr.rooms) parts.push(tr.rooms + ' Zi.');
+    return parts.join(' · ');
+  }
+
+  function trackerBadges(tr) {
+    const badges = [];
+    if (tr._type === 'flight' || tr._type === 'google_flight') {
+      if (tr.baggage === '10kg') badges.push('🎒 1x 10kg');
+      else if (tr.baggage === '20kg') badges.push('🎒 1x 20kg');
+      if (tr.seat) badges.push('💺 Sitzplatz');
+    }
+    if (tr._type === 'camping') {
+      if (tr.accommodation_type === 'mobilheim') badges.push('⛺ Mobilheim');
+      else if (tr.accommodation_type === 'glamping') badges.push('🌟 Glamping');
+      else if (tr.accommodation_type === 'stellplatz') badges.push('🅿️ Stellplatz');
+      if (tr.aircon) badges.push('❄️ Klima');
+      if (tr.pets) badges.push('🐕 Hunde');
+    }
+    if (tr._type === 'hotel') {
+      if (tr.rooms > 1) badges.push(`🛏 ${tr.rooms} Zi.`);
+    }
+    return badges;
+  }
+
+  function providerIcon(type) {
+    if (type === 'flight') return '🟠';
+    if (type === 'google_flight') return '🔵';
+    if (type === 'camping') return '⛺';
+    if (type === 'hotel') return '🏨';
+    return '📍';
+  }
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  onMount(() => { loadAllTrackers(); });
 </script>
 
-<!-- ── Page wrapper ── -->
-<div class="space-y-4">
+<!-- ── Page ── -->
+<div class="space-y-5">
 
-  <!-- ── Tab bar ── -->
+  <!-- ── Category tab bar ── -->
   <div class="flex border-b overflow-x-auto" style="border-color:var(--ws-border)">
-    {#each tabs as tab}
-      <button onclick={() => activeTab = tab.id}
+    {#each categories as cat}
+      <button
+        onclick={() => { activeCategory = cat.id; searchResults = []; }}
         class="px-4 py-2.5 text-xs font-semibold whitespace-nowrap shrink-0 transition-colors border-b-2"
-        style={activeTab===tab.id
+        style={activeCategory === cat.id
           ? 'border-color:var(--ws-accent);color:var(--ws-accent)'
           : 'border-color:transparent;color:var(--ws-muted)'}>
-        {tab.label}
+        {cat.label}
       </button>
     {/each}
   </div>
 
-  <!-- ════════════════════════════ RYANAIR ════════════════════════════ -->
-  {#if activeTab==='ryanair'}
-  <div class="grid md:grid-cols-2 gap-4">
+  <!-- ══════════════════════════ FLIGHTS ══════════════════════════ -->
+  {#if activeCategory === 'flights'}
+  <div class="rounded-xl p-4 border space-y-4" style="background:var(--ws-surface);border-color:var(--ws-border)">
+    <h2 class="text-sm font-semibold italic" style="font-family:var(--ws-serif);color:var(--ws-accent2)">✈️ {$t('radarFlights')}</h2>
 
-    <!-- Form -->
-    <div class="rounded-xl p-4 border space-y-3" style="background:var(--ws-surface);border-color:var(--ws-border)">
-      <h2 class="text-sm font-semibold italic" style="font-family:var(--ws-serif);color:var(--ws-accent2)">+ Ryanair Tracker</h2>
-      <div class="grid grid-cols-2 gap-2">
-        <div>
-          <label class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">{$t('radarFrom')||'Von'}</label>
-          <input bind:value={ryOrigin} maxlength="3" placeholder="BGY" class="{inputCls} mt-1 font-mono uppercase" style={inputStyle}/>
-        </div>
-        <div>
-          <label class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">{$t('radarTo')||'Nach'}</label>
-          <input bind:value={ryDest} maxlength="3" placeholder="DUB" class="{inputCls} mt-1 font-mono uppercase" style={inputStyle}/>
-        </div>
+    <!-- Origin / Destination with autocomplete -->
+    <div class="grid grid-cols-2 gap-3">
+      <!-- Origin -->
+      <div class="relative">
+        <label class="{labelCls}" style="color:var(--ws-muted)">{$t('radarDeparture')}</label>
+        <input
+          bind:value={flOrigin}
+          placeholder="BGY"
+          maxlength="3"
+          class="{inputCls} font-mono uppercase"
+          style={inputStyle}
+          oninput={() => acFilter('flOrigin', flOrigin, AIRPORTS, true)}
+          onblur={() => acClose('flOrigin')}
+        />
+        {#if acState.flOrigin?.open}
+          <div class="absolute z-50 left-0 right-0 top-full mt-1 rounded-xl border shadow-lg overflow-hidden" style="background:var(--ws-surface);border-color:var(--ws-border)">
+            {#each acState.flOrigin.items as a}
+              <button
+                class="w-full text-left px-3 py-2 text-xs hover:bg-[var(--ws-surface2)] flex items-center gap-2"
+                onmousedown={() => acSelect('flOrigin', a.iata, v => flOrigin = v)}>
+                <span class="font-mono font-bold" style="color:var(--ws-accent)">{a.iata}</span>
+                <span style="color:var(--ws-text)">{a.city}</span>
+                <span class="ml-auto text-xs" style="color:var(--ws-muted)">{a.country}</span>
+              </button>
+            {/each}
+          </div>
+        {/if}
       </div>
-      <div class="grid grid-cols-2 gap-2">
-        <div>
-          <label class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Hinflug</label>
-          <input type="date" bind:value={ryOut} class="{inputCls} mt-1" style={inputStyle}/>
-        </div>
-        <div>
-          <label class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Rückflug (opt.)</label>
-          <input type="date" bind:value={ryRet} class="{inputCls} mt-1" style={inputStyle}/>
-        </div>
+      <!-- Destination -->
+      <div class="relative">
+        <label class="{labelCls}" style="color:var(--ws-muted)">{$t('radarArrival')}</label>
+        <input
+          bind:value={flDest}
+          placeholder="DUB"
+          maxlength="3"
+          class="{inputCls} font-mono uppercase"
+          style={inputStyle}
+          oninput={() => acFilter('flDest', flDest, AIRPORTS, true)}
+          onblur={() => acClose('flDest')}
+        />
+        {#if acState.flDest?.open}
+          <div class="absolute z-50 left-0 right-0 top-full mt-1 rounded-xl border shadow-lg overflow-hidden" style="background:var(--ws-surface);border-color:var(--ws-border)">
+            {#each acState.flDest.items as a}
+              <button
+                class="w-full text-left px-3 py-2 text-xs hover:bg-[var(--ws-surface2)] flex items-center gap-2"
+                onmousedown={() => acSelect('flDest', a.iata, v => flDest = v)}>
+                <span class="font-mono font-bold" style="color:var(--ws-accent)">{a.iata}</span>
+                <span style="color:var(--ws-text)">{a.city}</span>
+                <span class="ml-auto text-xs" style="color:var(--ws-muted)">{a.country}</span>
+              </button>
+            {/each}
+          </div>
+        {/if}
       </div>
-      <div class="grid grid-cols-2 gap-2">
-        <div>
-          <label class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Erwachsene</label>
-          <select bind:value={ryAdults} class="{inputCls} mt-1" style={inputStyle}>
-            {#each [1,2,3,4,5,6] as n}<option value={n}>{n}</option>{/each}
-          </select>
-        </div>
-        <div>
-          <label class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Kinder</label>
-          <select bind:value={ryChildren} class="{inputCls} mt-1" style={inputStyle}>
-            {#each [0,1,2,3,4] as n}<option value={n}>{n}</option>{/each}
-          </select>
-        </div>
+    </div>
+
+    <!-- Dates -->
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <label class="{labelCls}" style="color:var(--ws-muted)">{$t('radarOutboundDate')}</label>
+        <input type="date" bind:value={flOut} class="{inputCls}" style={inputStyle}/>
       </div>
       <div>
-        <label class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">🧳 Gepäck</label>
-        <div class="mt-1.5 space-y-1.5">
-          {#each bagOptions as b}
-            <button onclick={() => toggleBag(b.type)}
-              class="w-full flex items-center gap-3 px-3 py-2 rounded-xl border text-sm text-left transition-colors"
-              style={ryBags.includes(b.type)
-                ? 'background:rgba(196,98,45,.1);border-color:var(--ws-accent);color:var(--ws-text)'
+        <label class="{labelCls}" style="color:var(--ws-muted)">{$t('radarReturnDate')}</label>
+        <input type="date" bind:value={flRet} class="{inputCls}" style={inputStyle}/>
+      </div>
+    </div>
+
+    <!-- Passengers -->
+    <div>
+      <label class="{labelCls}" style="color:var(--ws-muted)">{$t('radarPassengers')}</label>
+      <select bind:value={flAdults} class="{inputCls}" style={inputStyle}>
+        {#each [1,2,3,4,5,6] as n}<option value={n}>{n} {n === 1 ? 'Person' : 'Personen'}</option>{/each}
+      </select>
+    </div>
+
+    <!-- Inclusions: Baggage -->
+    <div>
+      <label class="{labelCls}" style="color:var(--ws-muted)">{$t('radarInclusions')} — {$t('radarBaggage')}</label>
+      <div class="flex gap-2 flex-wrap mt-1">
+        {#each [['none', $t('radarBaggageNone')], ['10kg', $t('radarBaggage10')], ['20kg', $t('radarBaggage20')]] as [val, lbl]}
+          <button
+            onclick={() => flBaggage = val}
+            class="px-3 py-1.5 rounded-xl border text-xs font-medium transition-colors"
+            style={flBaggage === val
+              ? 'background:rgba(196,98,45,.12);border-color:var(--ws-accent);color:var(--ws-accent)'
+              : 'background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)'}>
+            {lbl}
+          </button>
+        {/each}
+      </div>
+    </div>
+
+    <!-- Inclusions: Seat -->
+    <div>
+      <label class="{labelCls}" style="color:var(--ws-muted)">{$t('radarInclusions')} — Sitzplatz</label>
+      <div class="flex gap-2 flex-wrap mt-1">
+        {#each [[false, $t('radarSeatNone')], [true, $t('radarSeatIncluded')]] as [val, lbl]}
+          <button
+            onclick={() => flSeat = val}
+            class="px-3 py-1.5 rounded-xl border text-xs font-medium transition-colors"
+            style={flSeat === val
+              ? 'background:rgba(196,98,45,.12);border-color:var(--ws-accent);color:var(--ws-accent)'
+              : 'background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)'}>
+            {lbl}
+          </button>
+        {/each}
+      </div>
+    </div>
+
+    <!-- Search button -->
+    <button
+      onclick={doSearch}
+      disabled={searching || !flOrigin || !flDest || !flOut}
+      class="w-full py-2.5 rounded-xl font-semibold text-sm transition-opacity hover:opacity-80 disabled:opacity-50"
+      style="background:linear-gradient(135deg,var(--ws-accent),#b84928);color:#fff5ec">
+      {searching ? $t('radarSearching') : '🔍 ' + $t('radarSearch')}
+    </button>
+  </div>
+
+  <!-- ══════════════════════════ HOTELS ══════════════════════════ -->
+  {:else if activeCategory === 'hotels'}
+  <div class="rounded-xl p-4 border space-y-4" style="background:var(--ws-surface);border-color:var(--ws-border)">
+    <h2 class="text-sm font-semibold italic" style="font-family:var(--ws-serif);color:var(--ws-accent2)">🏨 {$t('radarHotels')}</h2>
+
+    <!-- City autocomplete -->
+    <div class="relative">
+      <label class="{labelCls}" style="color:var(--ws-muted)">{$t('radarCity')}</label>
+      <input
+        bind:value={htCity}
+        placeholder="z.B. Barcelona, Wien, Kreta…"
+        class="{inputCls}"
+        style={inputStyle}
+        oninput={() => acFilter('htCity', htCity, DESTINATIONS)}
+        onblur={() => acClose('htCity')}
+      />
+      {#if acState.htCity?.open}
+        <div class="absolute z-50 left-0 right-0 top-full mt-1 rounded-xl border shadow-lg overflow-hidden" style="background:var(--ws-surface);border-color:var(--ws-border)">
+          {#each acState.htCity.items as dest}
+            <button
+              class="w-full text-left px-3 py-2 text-xs hover:bg-[var(--ws-surface2)]"
+              style="color:var(--ws-text)"
+              onmousedown={() => acSelect('htCity', dest, v => htCity = v)}>
+              {dest}
+            </button>
+          {/each}
+        </div>
+      {/if}
+    </div>
+
+    <!-- Dates -->
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <label class="{labelCls}" style="color:var(--ws-muted)">{$t('radarCheckin')}</label>
+        <input type="date" bind:value={htIn} class="{inputCls}" style={inputStyle}/>
+      </div>
+      <div>
+        <label class="{labelCls}" style="color:var(--ws-muted)">{$t('radarCheckout')}</label>
+        <input type="date" bind:value={htOut} class="{inputCls}" style={inputStyle}/>
+      </div>
+    </div>
+
+    <!-- Persons + Rooms -->
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <label class="{labelCls}" style="color:var(--ws-muted)">{$t('radarPassengers')}</label>
+        <select bind:value={htAdults} class="{inputCls}" style={inputStyle}>
+          {#each [1,2,3,4,5,6] as n}<option value={n}>{n} {n === 1 ? 'Person' : 'Personen'}</option>{/each}
+        </select>
+      </div>
+      <div>
+        <label class="{labelCls}" style="color:var(--ws-muted)">{$t('radarRoomsLabel')}</label>
+        <select bind:value={htRooms} class="{inputCls}" style={inputStyle}>
+          {#each [1,2,3,4] as n}<option value={n}>{n} {n === 1 ? 'Zimmer' : 'Zimmer'}</option>{/each}
+        </select>
+      </div>
+    </div>
+
+    <button
+      onclick={doSearch}
+      disabled={searching || !htCity || !htIn || !htOut}
+      class="w-full py-2.5 rounded-xl font-semibold text-sm hover:opacity-80 disabled:opacity-50"
+      style="background:linear-gradient(135deg,var(--ws-accent),#b84928);color:#fff5ec">
+      {searching ? $t('radarSearching') : '🔍 ' + $t('radarSearch')}
+    </button>
+  </div>
+
+  <!-- ══════════════════════════ CAMPING ══════════════════════════ -->
+  {:else if activeCategory === 'camping'}
+  <div class="rounded-xl p-4 border space-y-4" style="background:var(--ws-surface);border-color:var(--ws-border)">
+    <h2 class="text-sm font-semibold italic" style="font-family:var(--ws-serif);color:var(--ws-accent2)">⛺ {$t('radarCamping')}</h2>
+
+    <!-- Region autocomplete -->
+    <div class="relative">
+      <label class="{labelCls}" style="color:var(--ws-muted)">{$t('radarRegionOrPlace')}</label>
+      <input
+        bind:value={cpRegion}
+        placeholder="z.B. Côte d'Azur, Toskana, Kroatien…"
+        class="{inputCls}"
+        style={inputStyle}
+        oninput={() => acFilter('cpRegion', cpRegion, DESTINATIONS)}
+        onblur={() => acClose('cpRegion')}
+      />
+      {#if acState.cpRegion?.open}
+        <div class="absolute z-50 left-0 right-0 top-full mt-1 rounded-xl border shadow-lg overflow-hidden" style="background:var(--ws-surface);border-color:var(--ws-border)">
+          {#each acState.cpRegion.items as dest}
+            <button
+              class="w-full text-left px-3 py-2 text-xs hover:bg-[var(--ws-surface2)]"
+              style="color:var(--ws-text)"
+              onmousedown={() => acSelect('cpRegion', dest, v => cpRegion = v)}>
+              {dest}
+            </button>
+          {/each}
+        </div>
+      {/if}
+    </div>
+
+    <!-- Dates -->
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <label class="{labelCls}" style="color:var(--ws-muted)">{$t('radarCheckin')}</label>
+        <input type="date" bind:value={cpIn} class="{inputCls}" style={inputStyle}/>
+      </div>
+      <div>
+        <label class="{labelCls}" style="color:var(--ws-muted)">{$t('radarCheckout')}</label>
+        <input type="date" bind:value={cpOut} class="{inputCls}" style={inputStyle}/>
+      </div>
+    </div>
+
+    <!-- Persons -->
+    <div>
+      <label class="{labelCls}" style="color:var(--ws-muted)">{$t('radarPassengers')}</label>
+      <select bind:value={cpAdults} class="{inputCls}" style={inputStyle}>
+        {#each [1,2,3,4,5,6,7,8] as n}<option value={n}>{n} {n === 1 ? 'Person' : 'Personen'}</option>{/each}
+      </select>
+    </div>
+
+    <!-- Accommodation type dropdown -->
+    <div>
+      <label class="{labelCls}" style="color:var(--ws-muted)">{$t('radarAccomType')}</label>
+      <select bind:value={cpAccomType} class="{inputCls}" style={inputStyle}>
+        <option value="mobilheim">{$t('radarAccomMobilheim')}</option>
+        <option value="glamping">{$t('radarAccomGlamping')}</option>
+        <option value="stellplatz">{$t('radarAccomStellplatz')}</option>
+      </select>
+    </div>
+
+    <!-- Bedrooms dropdown -->
+    <div>
+      <label class="{labelCls}" style="color:var(--ws-muted)">{$t('radarBedrooms')}</label>
+      <select bind:value={cpBedrooms} class="{inputCls}" style={inputStyle}>
+        <option value="1">1 Schlafzimmer</option>
+        <option value="2">2 Schlafzimmer</option>
+        <option value="3">3+ Schlafzimmer</option>
+      </select>
+    </div>
+
+    <!-- Extras checkboxes -->
+    <div>
+      <label class="{labelCls}" style="color:var(--ws-muted)">{$t('radarExtras')}</label>
+      <div class="mt-1.5 space-y-2">
+        {#each [
+          [() => cpAircon,   v => cpAircon   = v, 'radarAircon'],
+          [() => cpPets,     v => cpPets     = v, 'radarPetsAllowed'],
+          [() => cpTerrace,  v => cpTerrace  = v, 'radarCoveredTerrace'],
+        ] as [getter, setter, key]}
+          <button
+            onclick={() => setter(!getter())}
+            class="w-full flex items-center gap-3 px-3 py-2 rounded-xl border text-sm text-left transition-colors"
+            style={getter()
+              ? 'background:rgba(196,98,45,.1);border-color:var(--ws-accent);color:var(--ws-text)'
+              : 'background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)'}>
+            <span class="w-4 h-4 rounded border flex items-center justify-center text-xs shrink-0"
+              style="border-color:{getter() ? 'var(--ws-accent)' : 'var(--ws-border)'}">
+              {getter() ? '✓' : ''}
+            </span>
+            {$t(key)}
+          </button>
+        {/each}
+      </div>
+    </div>
+
+    <button
+      onclick={doSearch}
+      disabled={searching || !cpRegion || !cpIn || !cpOut}
+      class="w-full py-2.5 rounded-xl font-semibold text-sm hover:opacity-80 disabled:opacity-50"
+      style="background:linear-gradient(135deg,var(--ws-accent),#b84928);color:#fff5ec">
+      {searching ? $t('radarSearching') : '🔍 ' + $t('radarSearch')}
+    </button>
+  </div>
+
+  <!-- ══════════════════════════ RENTALS (Coming Soon) ══════════════════════════ -->
+  {:else if activeCategory === 'rentals'}
+  <div class="rounded-xl p-8 border text-center space-y-3" style="background:var(--ws-surface);border-color:var(--ws-border)">
+    <div class="text-4xl">🚗</div>
+    <h2 class="text-lg font-semibold italic" style="font-family:var(--ws-serif);color:var(--ws-accent2)">{$t('radarRentals')}</h2>
+    <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold"
+      style="background:rgba(196,98,45,.12);color:var(--ws-accent)">
+      🔜 {$t('radarComingSoon')}
+    </span>
+    <p class="text-xs" style="color:var(--ws-muted)">Mietwagen-Vergleich von mehreren Anbietern — demnächst verfügbar.</p>
+  </div>
+  {/if}
+
+  <!-- ══════════════════════════ SEARCH RESULTS ══════════════════════════ -->
+  {#if searching}
+    <!-- Skeleton screens -->
+    <div class="space-y-3">
+      <div class="text-xs font-semibold uppercase tracking-wider" style="color:var(--ws-muted)">{$t('radarSearchResults')}</div>
+      {#each [1,2,3] as _}
+        <div class="rounded-xl p-4 border animate-pulse" style="background:var(--ws-surface);border-color:var(--ws-border)">
+          <div class="flex justify-between items-start">
+            <div class="space-y-2 flex-1">
+              <div class="h-4 w-40 rounded" style="background:var(--ws-border)"></div>
+              <div class="h-3 w-56 rounded" style="background:var(--ws-border)"></div>
+              <div class="flex gap-2">
+                <div class="h-5 w-16 rounded-full" style="background:var(--ws-border)"></div>
+                <div class="h-5 w-20 rounded-full" style="background:var(--ws-border)"></div>
+              </div>
+            </div>
+            <div class="space-y-2 text-right">
+              <div class="h-6 w-20 rounded" style="background:var(--ws-border)"></div>
+              <div class="h-7 w-28 rounded-xl" style="background:var(--ws-border)"></div>
+            </div>
+          </div>
+        </div>
+      {/each}
+    </div>
+
+  {:else if searchResults.length > 0}
+    <div class="space-y-3">
+      <!-- Header + provider chips -->
+      <div class="flex items-center gap-2 flex-wrap">
+        <span class="text-xs font-semibold uppercase tracking-wider" style="color:var(--ws-muted)">
+          {$t('radarSearchResults')} ({filteredResults().length})
+        </span>
+        <div class="flex gap-1.5 overflow-x-auto">
+          {#each providerChips() as chip}
+            <button
+              onclick={() => activeProviderFilter = chip}
+              class="px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap shrink-0 border transition-colors"
+              style={activeProviderFilter === chip
+                ? 'background:var(--ws-accent);color:#fff;border-color:var(--ws-accent)'
                 : 'background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)'}>
-              <span class="w-4 h-4 rounded border flex items-center justify-center text-xs shrink-0"
-                style="border-color:{ryBags.includes(b.type)?'var(--ws-accent)':'var(--ws-border)'}">
-                {ryBags.includes(b.type)?'✓':''}
-              </span>
-              {b.label}
+              {chip === 'all' ? $t('radarAllProviders') : chip}
             </button>
           {/each}
         </div>
       </div>
-      <div>
-        <label class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">🪑 Sitzplatz €/Person/Flug</label>
-        <input type="number" bind:value={rySeat} min="0" step="0.01" placeholder="0.00" class="{inputCls} mt-1" style={inputStyle}/>
-      </div>
-      <button onclick={addRyanair} disabled={ryAdding}
-        class="w-full py-2.5 rounded-xl font-semibold text-sm transition-opacity hover:opacity-80 disabled:opacity-50"
-        style="background:linear-gradient(135deg,var(--ws-accent),#b84928);color:#fff5ec">
-        {ryAdding ? '⏳…' : '+ Tracker anlegen'}
-      </button>
-    </div>
 
-    <!-- Tracker list -->
-    <div class="space-y-3">
-      <h2 class="text-sm font-semibold italic" style="font-family:var(--ws-serif);color:var(--ws-accent2)">{$t('dashActiveTrackers')}</h2>
-      {#if ryLoading}
-        <!-- Skeleton screens -->
-        {#each [1,2] as _}
-          <div class="rounded-xl p-3 border animate-pulse" style="background:var(--ws-surface);border-color:var(--ws-border)">
+      <!-- Result cards -->
+      {#each filteredResults() as result}
+        <div class="rounded-xl p-4 border" style="background:var(--ws-surface);border-color:var(--ws-border)">
+          <div class="flex items-start justify-between gap-3">
+            <div class="flex-1 min-w-0">
+              <div class="font-bold text-sm truncate">{result.title || result.label || '–'}</div>
+              {#if result.subtitle}
+                <div class="text-xs mt-0.5 truncate" style="color:var(--ws-muted)">{result.subtitle}</div>
+              {/if}
+              <div class="flex gap-1.5 flex-wrap mt-1.5">
+                <span class="text-xs px-2 py-0.5 rounded-full" style="background:var(--ws-surface2);color:var(--ws-muted)">{result.provider}</span>
+                {#each (result.badges || []) as badge}
+                  <span class="text-xs px-2 py-0.5 rounded-full" style="background:rgba(196,98,45,.08);color:var(--ws-accent)">{badge}</span>
+                {/each}
+              </div>
+            </div>
+            <div class="text-right shrink-0">
+              <div class="font-bold font-mono text-base" style="color:var(--ws-green)">
+                {result.price ? result.price.toFixed(2) + ' €' : '–'}
+              </div>
+              <button
+                onclick={() => saveAsTracker(result)}
+                disabled={savingTracker === result.id}
+                class="mt-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-opacity hover:opacity-80 disabled:opacity-50"
+                style="background:linear-gradient(135deg,var(--ws-accent),#b84928);color:#fff5ec">
+                {savingTracker === result.id ? '⏳…' : $t('radarSaveTracker')}
+              </button>
+            </div>
+          </div>
+        </div>
+      {/each}
+    </div>
+  {/if}
+
+  <!-- ══════════════════════════ ACTIVE TRACKERS ══════════════════════════ -->
+  <div>
+    <h2 class="text-sm font-semibold italic mb-3" style="font-family:var(--ws-serif);color:var(--ws-accent2)">
+      📌 {$t('radarActiveTrackers')}
+      {#if allTrackers.length > 0}
+        <span class="ml-1 text-xs font-normal" style="color:var(--ws-muted)">({allTrackers.length})</span>
+      {/if}
+    </h2>
+
+    {#if trackersLoading}
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {#each [1,2,3] as _}
+          <div class="rounded-xl p-4 border animate-pulse" style="background:var(--ws-surface);border-color:var(--ws-border)">
             <div class="h-4 w-32 rounded mb-2" style="background:var(--ws-border)"></div>
             <div class="h-3 w-48 rounded mb-3" style="background:var(--ws-border)"></div>
             <div class="h-8 rounded" style="background:var(--ws-border)"></div>
           </div>
         {/each}
-      {:else if ryTrackers.length===0}
+      </div>
+
+    {:else if allTrackers.length === 0}
+      <div class="rounded-xl p-6 border text-center" style="background:var(--ws-surface);border-color:var(--ws-border)">
+        <div class="text-2xl mb-2">📭</div>
         <p class="text-xs" style="color:var(--ws-muted)">{$t('dashNoTrackers')}</p>
-      {:else}
-        {#each ryTrackers as tr}
-          {@const s = tr.latest_snapshot}
-          {@const wKey = `flight-${tr.id}`}
-          {@const cKey = `flight-${tr.id}`}
-          {@const wish = tr.wish_price}
-          {@const price = s?.total_price}
+      </div>
+
+    {:else}
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {#each allTrackers as tr}
+          {@const wKey   = `${tr._type}-${tr.id}`}
+          {@const cKey   = wKey}
+          {@const s      = tr.latest_snapshot}
+          {@const price  = s?.total_price}
+          {@const wish   = tr.wish_price}
           {@const wishMet = wish && price && price <= wish}
-          {@const prevSnap = null}
-          <div class="rounded-xl p-3 border transition-all"
-            style="background:var(--ws-surface);border-color:{wishMet?'var(--ws-green)':'var(--ws-border)'}">
-            <!-- Header row -->
-            <div class="flex items-start justify-between">
-              <div>
-                <div class="font-bold font-mono text-sm">{tr.origin} → {tr.destination}</div>
-                <div class="text-xs font-mono mt-0.5" style="color:var(--ws-muted)">
-                  {tr.outbound_date}{tr.return_date?' ⇄ '+tr.return_date:''} · {tr.adults} Erw.
-                </div>
-                {#if wishMet}
-                  <div class="text-xs mt-1 font-semibold" style="color:var(--ws-green)">🎯 Wunschpreis erreicht!</div>
-                {/if}
+          {@const badges  = trackerBadges(tr)}
+
+          <div
+            class="rounded-xl p-4 border flex flex-col gap-3 transition-all"
+            style="background:var(--ws-surface);border-color:{wishMet ? 'var(--ws-green)' : 'var(--ws-border)'};
+                   {wishMet ? 'box-shadow:0 0 0 2px rgba(22,163,74,.2)' : ''}">
+
+            <!-- Provider badge + wish met -->
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-xs px-2 py-0.5 rounded-full" style="background:var(--ws-surface2);color:var(--ws-muted)">
+                {providerIcon(tr._type)} {tr._type.replace('_', ' ')}
+              </span>
+              {#if wishMet}
+                <span class="text-xs font-bold px-2 py-0.5 rounded-full" style="background:rgba(22,163,74,.12);color:var(--ws-green)">
+                  🎯 {$t('radarWishMet')}
+                </span>
+              {/if}
+            </div>
+
+            <!-- Title + subtitle -->
+            <div>
+              <div class="font-bold text-sm" style="color:var(--ws-text)">{trackerTitle(tr)}</div>
+              <div class="text-xs mt-0.5" style="color:var(--ws-muted)">{trackerSubtitle(tr)}</div>
+            </div>
+
+            <!-- Inclusions badges -->
+            {#if badges.length > 0}
+              <div class="flex flex-wrap gap-1.5">
+                {#each badges as badge}
+                  <span class="text-xs px-2 py-0.5 rounded-full font-medium"
+                    style="background:rgba(196,98,45,.08);color:var(--ws-accent)">
+                    {badge}
+                  </span>
+                {/each}
               </div>
-              <div class="text-right">
-                <div class="font-bold font-mono text-sm" style={price ? trendStyle(null) : 'color:var(--ws-muted)'}>
+            {/if}
+
+            <!-- Price row -->
+            <div class="flex items-center justify-between gap-2">
+              <div>
+                <div class="text-xs" style="color:var(--ws-muted)">Aktuell</div>
+                <div class="font-bold font-mono text-base" style="color:{price ? 'var(--ws-green)' : 'var(--ws-muted)'}">
                   {price ? price.toFixed(2) + ' €' : '–'}
                 </div>
                 {#if s?.fetched_at}
-                  <div class="text-xs" style="color:var(--ws-muted)">{s.fetched_at.slice(0,10)}</div>
+                  <div class="text-xs" style="color:var(--ws-muted)">{s.fetched_at.slice(0, 10)}</div>
+                {/if}
+              </div>
+
+              <!-- Wish price inline edit -->
+              <div class="flex-1 min-w-0">
+                <div class="text-xs mb-1" style="color:var(--ws-muted)">🎯 {$t('radarWishPrice')}</div>
+                {#if wishState[wKey]?.editing}
+                  <div class="flex items-center gap-1">
+                    <input
+                      type="number"
+                      bind:value={wishState[wKey].value}
+                      min="0"
+                      step="1"
+                      placeholder="€"
+                      class="flex-1 min-w-0 px-2 py-1 rounded-lg border text-xs font-mono"
+                      style={inputStyle}
+                      onkeydown={(e) => e.key === 'Enter' && saveWishPrice(tr._type, tr.id, tr._table, wishState[wKey].value)}
+                    />
+                    <button
+                      onclick={() => saveWishPrice(tr._type, tr.id, tr._table, wishState[wKey].value)}
+                      disabled={wishState[wKey]?.saving}
+                      class="px-2 py-1 rounded-lg text-xs font-semibold shrink-0"
+                      style="background:var(--ws-accent);color:#fff">✓</button>
+                    <button
+                      onclick={() => wishState[wKey] = { editing: false }}
+                      class="px-2 py-1 rounded-lg text-xs shrink-0"
+                      style="background:var(--ws-surface2);color:var(--ws-muted)">✕</button>
+                  </div>
+                {:else}
+                  <div class="flex items-center gap-1.5">
+                    <span class="text-xs font-mono font-semibold" style="color:{wish ? 'var(--ws-accent)' : 'var(--ws-muted)'}">
+                      {wish ? wish.toFixed(2) + ' €' : $t('radarWishNotSet')}
+                    </span>
+                    <button
+                      onclick={() => wishState[wKey] = { editing: true, value: wish?.toString() || '' }}
+                      class="text-xs px-1.5 py-0.5 rounded-lg border shrink-0"
+                      style="border-color:var(--ws-border);color:var(--ws-muted)">✏️</button>
+                  </div>
                 {/if}
               </div>
             </div>
 
-            <!-- Wish price row -->
-            <div class="mt-2 flex items-center gap-2">
-              <span class="text-xs" style="color:var(--ws-muted)">🎯 Wunschpreis:</span>
-              {#if wishState[wKey]?.editing}
-                <input type="number" bind:value={wishState[wKey].value} min="0" step="1"
-                  placeholder="z.B. 120"
-                  class="flex-1 px-2 py-1 rounded-lg border text-xs font-mono"
-                  style={inputStyle}
-                  onkeydown={(e) => e.key==='Enter' && saveWishPrice('flight', tr.id, 'trackers', wishState[wKey].value)}/>
-                <button onclick={() => saveWishPrice('flight', tr.id, 'trackers', wishState[wKey].value)}
-                  disabled={wishState[wKey]?.saving}
-                  class="px-2 py-1 rounded-lg text-xs font-semibold"
-                  style="background:var(--ws-accent);color:#fff">✓</button>
-                <button onclick={() => wishState[wKey] = { editing: false }}
-                  class="px-2 py-1 rounded-lg text-xs" style="background:var(--ws-surface2);color:var(--ws-muted)">✕</button>
-              {:else}
-                <span class="text-xs font-mono font-semibold" style="color:{wish ? 'var(--ws-accent)' : 'var(--ws-muted)'}">
-                  {wish ? wish.toFixed(2) + ' €' : 'nicht gesetzt'}
-                </span>
-                <button onclick={() => wishState[wKey] = { editing: true, value: wish?.toString() || '' }}
-                  class="text-xs px-2 py-0.5 rounded-lg border"
-                  style="border-color:var(--ws-border);color:var(--ws-muted)">✏️</button>
-              {/if}
-            </div>
-
-            <!-- Action row -->
-            <div class="flex gap-2 mt-2">
-              <button onclick={() => scrapeRy(tr.id)}
-                class="flex-1 py-1.5 rounded-lg text-xs border hover:border-[var(--ws-accent)] transition-colors"
-                style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)">⟳ Aktualisieren</button>
-              <button onclick={() => toggleChart('flight', tr.id)}
-                class="px-3 py-1.5 rounded-lg text-xs border transition-colors"
+            <!-- Action buttons — history left, delete far right -->
+            <div class="flex items-center gap-2 mt-auto pt-1">
+              <button
+                onclick={() => toggleChart(tr._type, tr.id)}
+                class="px-3 py-1.5 rounded-xl text-xs border transition-colors"
                 style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)">
-                {chartState[cKey]?.open ? '▲' : '📈'}
+                {chartState[cKey]?.open ? '▲' : '📉'} {$t('radarPriceHistory')}
               </button>
-              <button onclick={() => deleteRy(tr.id)}
-                class="px-3 py-1.5 rounded-lg text-xs border transition-colors"
-                style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)">✕</button>
+              <button
+                onclick={() => scrapeTracker(tr)}
+                class="px-3 py-1.5 rounded-xl text-xs border transition-colors"
+                style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)">
+                ⟳
+              </button>
+              <button
+                onclick={() => deleteTracker(tr)}
+                class="ml-auto px-3 py-1.5 rounded-xl text-xs border transition-colors hover:border-red-400 hover:text-red-400"
+                style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)">
+                ✕
+              </button>
             </div>
 
-            <!-- Price history accordion -->
+            <!-- Price history accordion (inline SVG) -->
             {#if chartState[cKey]?.open}
-              <div class="mt-3 pt-3 border-t" style="border-color:var(--ws-border)">
+              <div class="pt-3 border-t" style="border-color:var(--ws-border)">
                 {#if chartState[cKey]?.loading}
                   <div class="h-24 rounded animate-pulse" style="background:var(--ws-border)"></div>
-                {:else if chartState[cKey]?.history?.length < 2}
-                  <p class="text-xs text-center py-4" style="color:var(--ws-muted)">Noch zu wenig Daten für Diagramm</p>
+                {:else if (chartState[cKey]?.history?.length || 0) < 2}
+                  <p class="text-xs text-center py-4" style="color:var(--ws-muted)">{$t('radarTooFewData')}</p>
                 {:else}
                   {#each [chartPts(chartState[cKey].history, 290, 70, 5)] as cp}
-                  <div class="relative h-24">
-                    <svg viewBox="0 0 300 80" class="w-full h-full" preserveAspectRatio="none">
-                      <defs>
-                        <linearGradient id="chartGrad-{tr.id}" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stop-color="var(--ws-accent)" stop-opacity="0.3"/>
-                          <stop offset="100%" stop-color="var(--ws-accent)" stop-opacity="0"/>
-                        </linearGradient>
-                      </defs>
-                      <polyline fill="none" stroke="var(--ws-accent)" stroke-width="2" points={cp.polyline}/>
-                      <polygon fill="url(#chartGrad-{tr.id})" points={cp.area}/>
-                    </svg>
-                    <div class="absolute top-0 right-0 text-xs font-mono" style="color:var(--ws-muted)">{cp.maxP.toFixed(0)}€</div>
-                    <div class="absolute bottom-0 right-0 text-xs font-mono" style="color:var(--ws-green)">{cp.minP.toFixed(0)}€</div>
-                    <div class="absolute bottom-0 left-0 text-xs" style="color:var(--ws-muted)">{chartState[cKey].history[0].fetched_at.slice(0,10)}</div>
-                  </div>
+                    <div class="relative h-24">
+                      <svg viewBox="0 0 300 80" class="w-full h-full" preserveAspectRatio="none">
+                        <defs>
+                          <linearGradient id="cg-{tr._type}-{tr.id}" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%"   stop-color="var(--ws-accent)" stop-opacity="0.3"/>
+                            <stop offset="100%" stop-color="var(--ws-accent)" stop-opacity="0"/>
+                          </linearGradient>
+                        </defs>
+                        <polygon fill="url(#cg-{tr._type}-{tr.id})" points={cp.area}/>
+                        <polyline fill="none" stroke="var(--ws-accent)" stroke-width="2" points={cp.polyline}/>
+                      </svg>
+                      <div class="absolute top-0 right-0 text-xs font-mono" style="color:var(--ws-muted)">{cp.maxP.toFixed(0)}€</div>
+                      <div class="absolute bottom-0 right-0 text-xs font-mono" style="color:var(--ws-green)">{cp.minP.toFixed(0)}€</div>
+                      <div class="absolute bottom-0 left-0 text-xs" style="color:var(--ws-muted)">
+                        {chartState[cKey].history[0].fetched_at.slice(0, 10)}
+                      </div>
+                    </div>
                   {/each}
                 {/if}
               </div>
             {/if}
-          </div>
-        {/each}
-      {/if}
-    </div>
-  </div>
 
-  <!-- ════════════════════════════ GOOGLE FLIGHTS ════════════════════════════ -->
-  {:else if activeTab==='gflights'}
-  <div class="grid md:grid-cols-2 gap-4">
-    <div class="rounded-xl p-4 border space-y-3" style="background:var(--ws-surface);border-color:var(--ws-border)">
-      <h2 class="text-sm font-semibold italic" style="font-family:var(--ws-serif);color:var(--ws-accent2)">+ Google Flights Tracker</h2>
-      <div class="grid grid-cols-2 gap-2">
-        <div>
-          <label class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">{$t('radarFrom')||'Von'}</label>
-          <input bind:value={gfOrigin} maxlength="3" placeholder="MUC" class="{inputCls} mt-1 font-mono uppercase" style={inputStyle}/>
-        </div>
-        <div>
-          <label class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">{$t('radarTo')||'Nach'}</label>
-          <input bind:value={gfDest} maxlength="3" placeholder="JFK" class="{inputCls} mt-1 font-mono uppercase" style={inputStyle}/>
-        </div>
-      </div>
-      <div class="grid grid-cols-2 gap-2">
-        <div>
-          <label class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Datum</label>
-          <input type="date" bind:value={gfOut} class="{inputCls} mt-1" style={inputStyle}/>
-        </div>
-        <div>
-          <label class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Rückflug (opt.)</label>
-          <input type="date" bind:value={gfRet} class="{inputCls} mt-1" style={inputStyle}/>
-        </div>
-      </div>
-      <div class="grid grid-cols-2 gap-2">
-        <div>
-          <label class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Erwachsene</label>
-          <select bind:value={gfAdults} class="{inputCls} mt-1" style={inputStyle}>
-            {#each [1,2,3,4,5,6] as n}<option value={n}>{n}</option>{/each}
-          </select>
-        </div>
-        <div>
-          <label class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Kinder</label>
-          <select bind:value={gfChildren} class="{inputCls} mt-1" style={inputStyle}>
-            {#each [0,1,2,3,4] as n}<option value={n}>{n}</option>{/each}
-          </select>
-        </div>
-      </div>
-      <button onclick={addGF} disabled={gfAdding}
-        class="w-full py-2.5 rounded-xl font-semibold text-sm disabled:opacity-50"
-        style="background:linear-gradient(135deg,var(--ws-accent),#b84928);color:#fff5ec">
-        {gfAdding ? '⏳…' : '+ Tracker anlegen'}
-      </button>
-      <p class="text-xs" style="color:var(--ws-muted)">⚙ SerpAPI Key in Einstellungen erforderlich</p>
-    </div>
-
-    <div class="space-y-3">
-      <h2 class="text-sm font-semibold italic" style="font-family:var(--ws-serif);color:var(--ws-accent2)">{$t('dashActiveTrackers')}</h2>
-      {#if gfLoading}
-        {#each [1,2] as _}
-          <div class="rounded-xl p-3 border animate-pulse" style="background:var(--ws-surface);border-color:var(--ws-border)">
-            <div class="h-4 w-32 rounded mb-2" style="background:var(--ws-border)"></div>
-            <div class="h-3 w-40 rounded mb-3" style="background:var(--ws-border)"></div>
-            <div class="h-8 rounded" style="background:var(--ws-border)"></div>
           </div>
         {/each}
-      {:else if gfTrackers.length===0}
-        <p class="text-xs" style="color:var(--ws-muted)">{$t('dashNoTrackers')}</p>
-      {:else}
-        {#each gfTrackers as tr}
-          {@const s = tr.latest_snapshot}
-          {@const wKey = `google_flight-${tr.id}`}
-          {@const wish = tr.wish_price}
-          {@const price = s?.total_price}
-          {@const wishMet = wish && price && price <= wish}
-          <div class="rounded-xl p-3 border transition-all"
-            style="background:var(--ws-surface);border-color:{wishMet?'var(--ws-green)':'var(--ws-border)'}">
-            <div class="flex items-start justify-between">
-              <div>
-                <div class="font-bold font-mono text-sm">{tr.origin} → {tr.destination}</div>
-                <div class="text-xs font-mono mt-0.5" style="color:var(--ws-muted)">
-                  {tr.outbound_date}{tr.return_date?' ⇄ '+tr.return_date:''} · {tr.adults} Erw.
-                </div>
-                {#if s?.airline}<div class="text-xs mt-0.5" style="color:var(--ws-muted)">✈ {s.airline} {s.departure_time??''}→{s.arrival_time??''}{s.duration_min?' ('+Math.floor(s.duration_min/60)+'h'+s.duration_min%60+'m)':''}</div>{/if}
-                {#if wishMet}<div class="text-xs mt-1 font-semibold" style="color:var(--ws-green)">🎯 Wunschpreis erreicht!</div>{/if}
-              </div>
-              <div class="text-right">
-                <div class="font-bold font-mono text-sm" style="color:var(--ws-green)">{price ? price.toFixed(2)+' €' : '–'}</div>
-                {#if s?.fetched_at}<div class="text-xs" style="color:var(--ws-muted)">{s.fetched_at.slice(0,10)}</div>{/if}
-              </div>
-            </div>
-            <!-- Wish price -->
-            <div class="mt-2 flex items-center gap-2">
-              <span class="text-xs" style="color:var(--ws-muted)">🎯</span>
-              {#if wishState[wKey]?.editing}
-                <input type="number" bind:value={wishState[wKey].value} min="0" step="1" placeholder="Wunschpreis"
-                  class="flex-1 px-2 py-1 rounded-lg border text-xs font-mono" style={inputStyle}
-                  onkeydown={(e) => e.key==='Enter' && saveWishPrice('google_flight', tr.id, 'gf_trackers', wishState[wKey].value)}/>
-                <button onclick={() => saveWishPrice('google_flight', tr.id, 'gf_trackers', wishState[wKey].value)}
-                  class="px-2 py-1 rounded-lg text-xs font-semibold" style="background:var(--ws-accent);color:#fff">✓</button>
-                <button onclick={() => wishState[wKey]={editing:false}}
-                  class="px-2 py-1 rounded-lg text-xs" style="background:var(--ws-surface2);color:var(--ws-muted)">✕</button>
-              {:else}
-                <span class="text-xs font-mono" style="color:{wish?'var(--ws-accent)':'var(--ws-muted)'}">{wish ? wish.toFixed(2)+' €' : 'nicht gesetzt'}</span>
-                <button onclick={() => wishState[wKey]={editing:true,value:wish?.toString()||''}}
-                  class="text-xs px-2 py-0.5 rounded-lg border" style="border-color:var(--ws-border);color:var(--ws-muted)">✏️</button>
-              {/if}
-            </div>
-            <div class="flex gap-2 mt-2">
-              <button onclick={() => scrapeGF(tr.id)}
-                class="flex-1 py-1.5 rounded-lg text-xs border transition-colors"
-                style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)">⟳ Aktualisieren</button>
-              <button onclick={() => toggleChart('google_flight', tr.id)}
-                class="px-3 py-1.5 rounded-lg text-xs border" style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)">
-                {chartState[wKey]?.open ? '▲' : '📈'}
-              </button>
-              <button onclick={() => deleteGF(tr.id)}
-                class="px-3 py-1.5 rounded-lg text-xs border" style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)">✕</button>
-            </div>
-            {#if chartState[wKey]?.open}
-              <div class="mt-3 pt-3 border-t" style="border-color:var(--ws-border)">
-                {#if chartState[wKey]?.loading}
-                  <div class="h-20 rounded animate-pulse" style="background:var(--ws-border)"></div>
-                {:else if !chartState[wKey]?.history?.length || chartState[wKey].history.length < 2}
-                  <p class="text-xs text-center py-4" style="color:var(--ws-muted)">Noch zu wenig Daten</p>
-                {:else}
-                  {#each [chartPts(chartState[wKey].history)] as cp}
-                  <div class="relative h-20">
-                    <svg viewBox="0 0 300 70" class="w-full h-full" preserveAspectRatio="none">
-                      <polyline fill="none" stroke="var(--ws-accent)" stroke-width="2" points={cp.polyline}/>
-                    </svg>
-                    <div class="absolute top-0 right-0 text-xs font-mono" style="color:var(--ws-muted)">{cp.maxP.toFixed(0)}€</div>
-                    <div class="absolute bottom-0 right-0 text-xs font-mono" style="color:var(--ws-green)">{cp.minP.toFixed(0)}€</div>
-                  </div>
-                  {/each}
-                {/if}
-              </div>
-            {/if}
-          </div>
-        {/each}
-      {/if}
-    </div>
+      </div>
+    {/if}
   </div>
-
-  <!-- ════════════════════════════ HOMAIR / CAMPING ════════════════════════════ -->
-  {:else if activeTab==='homair'}
-  <div class="grid md:grid-cols-2 gap-4">
-    <div class="rounded-xl p-4 border space-y-3" style="background:var(--ws-surface);border-color:var(--ws-border)">
-      <h2 class="text-sm font-semibold italic" style="font-family:var(--ws-serif);color:var(--ws-accent2)">⛺ Camping Tracker</h2>
-      <div>
-        <label class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Region</label>
-        <select bind:value={hmRegion} class="{inputCls} mt-1" style={inputStyle}>
-          {#each hmRegions as r}<option value={r.val}>{r.label}</option>{/each}
-        </select>
-      </div>
-      <div>
-        <label class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Unterkunftstyp</label>
-        <select bind:value={hmType} class="{inputCls} mt-1" style={inputStyle}>
-          {#each hmTypes as t}<option value={t.val}>{t.label}</option>{/each}
-        </select>
-      </div>
-      <div class="grid grid-cols-2 gap-2">
-        <div>
-          <label class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Anreise</label>
-          <input type="date" bind:value={hmIn} class="{inputCls} mt-1" style={inputStyle}/>
-        </div>
-        <div>
-          <label class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Abreise</label>
-          <input type="date" bind:value={hmOut2} class="{inputCls} mt-1" style={inputStyle}/>
-        </div>
-      </div>
-      <div class="grid grid-cols-2 gap-2">
-        <div>
-          <label class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Erwachsene</label>
-          <select bind:value={hmAdults} class="{inputCls} mt-1" style={inputStyle}>
-            {#each [1,2,3,4,5,6] as n}<option value={n}>{n}</option>{/each}
-          </select>
-        </div>
-        <div>
-          <label class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Kinder</label>
-          <select bind:value={hmChildren} class="{inputCls} mt-1" style={inputStyle}>
-            {#each [0,1,2,3,4] as n}<option value={n}>{n}</option>{/each}
-          </select>
-        </div>
-      </div>
-      <button onclick={addHM} disabled={hmAdding}
-        class="w-full py-2.5 rounded-xl font-semibold text-sm disabled:opacity-50"
-        style="background:linear-gradient(135deg,var(--ws-accent),#b84928);color:#fff5ec">
-        {hmAdding ? '⏳…' : '+ Tracker anlegen'}
-      </button>
-    </div>
-    <div class="space-y-3">
-      <h2 class="text-sm font-semibold italic" style="font-family:var(--ws-serif);color:var(--ws-accent2)">{$t('dashActiveTrackers')}</h2>
-      {#if hmLoading}
-        <div class="rounded-xl p-3 border animate-pulse" style="background:var(--ws-surface);border-color:var(--ws-border)">
-          <div class="h-4 w-32 rounded mb-2" style="background:var(--ws-border)"></div>
-          <div class="h-8 rounded" style="background:var(--ws-border)"></div>
-        </div>
-      {:else if hmTrackers.length===0}
-        <p class="text-xs" style="color:var(--ws-muted)">{$t('dashNoTrackers')}</p>
-      {:else}
-        {#each hmTrackers as tr}
-          {@const s = tr.latest_snapshot}
-          {@const wKey = `camping-${tr.id}`}
-          {@const wish = tr.wish_price}
-          {@const price = s?.total_price}
-          {@const wishMet = wish && price && price <= wish}
-          <div class="rounded-xl p-3 border" style="background:var(--ws-surface);border-color:{wishMet?'var(--ws-green)':'var(--ws-border)'}">
-            <div class="flex justify-between">
-              <div>
-                <div class="font-bold text-sm">⛺ {hmRegions.find(r=>r.val===tr.region)?.label??tr.region}</div>
-                <div class="text-xs mt-0.5" style="color:var(--ws-muted)">{tr.checkin_date} → {tr.checkout_date}</div>
-                <div class="text-xs" style="color:var(--ws-muted)">{tr.accommodation_type} · {tr.adults} Erw.</div>
-                {#if wishMet}<div class="text-xs mt-1 font-semibold" style="color:var(--ws-green)">🎯 Wunschpreis erreicht!</div>{/if}
-              </div>
-              <div class="font-bold font-mono text-sm" style="color:var(--ws-green)">{price ? price.toFixed(2)+' €' : '–'}</div>
-            </div>
-            <div class="mt-2 flex items-center gap-2">
-              <span class="text-xs" style="color:var(--ws-muted)">🎯</span>
-              {#if wishState[wKey]?.editing}
-                <input type="number" bind:value={wishState[wKey].value} min="0" step="1" placeholder="Wunschpreis"
-                  class="flex-1 px-2 py-1 rounded-lg border text-xs font-mono" style={inputStyle}
-                  onkeydown={(e) => e.key==='Enter' && saveWishPrice('camping', tr.id, 'homair_trackers', wishState[wKey].value)}/>
-                <button onclick={() => saveWishPrice('camping', tr.id, 'homair_trackers', wishState[wKey].value)}
-                  class="px-2 py-1 rounded-lg text-xs font-semibold" style="background:var(--ws-accent);color:#fff">✓</button>
-                <button onclick={() => wishState[wKey]={editing:false}}
-                  class="px-2 py-1 rounded-lg text-xs" style="background:var(--ws-surface2);color:var(--ws-muted)">✕</button>
-              {:else}
-                <span class="text-xs font-mono" style="color:{wish?'var(--ws-accent)':'var(--ws-muted)'}">{wish ? wish.toFixed(2)+' €' : 'nicht gesetzt'}</span>
-                <button onclick={() => wishState[wKey]={editing:true,value:wish?.toString()||''}}
-                  class="text-xs px-2 py-0.5 rounded-lg border" style="border-color:var(--ws-border);color:var(--ws-muted)">✏️</button>
-              {/if}
-            </div>
-            <div class="flex gap-2 mt-2">
-              <button onclick={() => scrapeHM(tr.id)}
-                class="flex-1 py-1.5 rounded-lg text-xs border" style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)">⟳</button>
-              <button onclick={() => toggleChart('camping', tr.id)}
-                class="px-3 py-1.5 rounded-lg text-xs border" style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)">
-                {chartState[wKey]?.open ? '▲' : '📈'}
-              </button>
-              <button onclick={() => deleteHM(tr.id)}
-                class="px-3 py-1.5 rounded-lg text-xs border" style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)">✕</button>
-            </div>
-            {#if chartState[wKey]?.open}
-              <div class="mt-3 pt-3 border-t" style="border-color:var(--ws-border)">
-                {#if chartState[wKey]?.loading}
-                  <div class="h-20 rounded animate-pulse" style="background:var(--ws-border)"></div>
-                {:else if !chartState[wKey]?.history?.length || chartState[wKey].history.length < 2}
-                  <p class="text-xs text-center py-4" style="color:var(--ws-muted)">Noch zu wenig Daten</p>
-                {:else}
-                  {#each [chartPts(chartState[wKey].history)] as cp}
-                  <div class="relative h-20">
-                    <svg viewBox="0 0 300 70" class="w-full h-full" preserveAspectRatio="none">
-                      <polyline fill="none" stroke="var(--ws-accent)" stroke-width="2" points={cp.polyline}/>
-                    </svg>
-                    <div class="absolute top-0 right-0 text-xs font-mono" style="color:var(--ws-muted)">{cp.maxP.toFixed(0)}€</div>
-                    <div class="absolute bottom-0 right-0 text-xs font-mono" style="color:var(--ws-green)">{cp.minP.toFixed(0)}€</div>
-                  </div>
-                  {/each}
-                {/if}
-              </div>
-            {/if}
-          </div>
-        {/each}
-      {/if}
-    </div>
-  </div>
-
-  <!-- ════════════════════════════ BOOKING / HOTEL ════════════════════════════ -->
-  {:else if activeTab==='booking'}
-  <div class="grid md:grid-cols-2 gap-4">
-    <div class="rounded-xl p-4 border space-y-3" style="background:var(--ws-surface);border-color:var(--ws-border)">
-      <h2 class="text-sm font-semibold italic" style="font-family:var(--ws-serif);color:var(--ws-accent2)">🏨 Hotel Tracker</h2>
-      <div>
-        <label class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Quelle</label>
-        <select bind:value={bkSource} class="{inputCls} mt-1" style={inputStyle}>
-          <option value="booking">Booking.com</option>
-          <option value="trivago">Trivago</option>
-        </select>
-      </div>
-      <div>
-        <label class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Zielort / Hotel</label>
-        <input bind:value={bkDest} placeholder="z.B. Dublin, Irland" class="{inputCls} mt-1" style={inputStyle}/>
-      </div>
-      <div class="grid grid-cols-2 gap-2">
-        <div>
-          <label class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Check-in</label>
-          <input type="date" bind:value={bkIn} class="{inputCls} mt-1" style={inputStyle}/>
-        </div>
-        <div>
-          <label class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Check-out</label>
-          <input type="date" bind:value={bkOut2} class="{inputCls} mt-1" style={inputStyle}/>
-        </div>
-      </div>
-      <div class="grid grid-cols-2 gap-2">
-        <div>
-          <label class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Erwachsene</label>
-          <select bind:value={bkAdults} class="{inputCls} mt-1" style={inputStyle}>
-            {#each [1,2,3,4,5,6] as n}<option value={n}>{n}</option>{/each}
-          </select>
-        </div>
-        <div>
-          <label class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Zimmer</label>
-          <select bind:value={bkRooms} class="{inputCls} mt-1" style={inputStyle}>
-            {#each [1,2,3] as n}<option value={n}>{n}</option>{/each}
-          </select>
-        </div>
-      </div>
-      <button onclick={addBK} disabled={bkAdding}
-        class="w-full py-2.5 rounded-xl font-semibold text-sm disabled:opacity-50"
-        style="background:linear-gradient(135deg,var(--ws-accent),#b84928);color:#fff5ec">
-        {bkAdding ? '⏳…' : '+ Tracker anlegen'}
-      </button>
-      <p class="text-xs" style="color:var(--ws-muted)">⚙ SerpAPI Key in Einstellungen erforderlich</p>
-    </div>
-    <div class="space-y-3">
-      <h2 class="text-sm font-semibold italic" style="font-family:var(--ws-serif);color:var(--ws-accent2)">{$t('dashActiveTrackers')}</h2>
-      {#if bkLoading}
-        <div class="rounded-xl p-3 border animate-pulse" style="background:var(--ws-surface);border-color:var(--ws-border)">
-          <div class="h-4 w-32 rounded mb-2" style="background:var(--ws-border)"></div>
-          <div class="h-8 rounded" style="background:var(--ws-border)"></div>
-        </div>
-      {:else if bkTrackers.length===0}
-        <p class="text-xs" style="color:var(--ws-muted)">{$t('dashNoTrackers')}</p>
-      {:else}
-        {#each bkTrackers as tr}
-          {@const s = tr.latest_snapshot}
-          {@const wKey = `hotel-${tr.id}`}
-          {@const wish = tr.wish_price}
-          {@const price = s?.total_price}
-          {@const wishMet = wish && price && price <= wish}
-          <div class="rounded-xl p-3 border" style="background:var(--ws-surface);border-color:{wishMet?'var(--ws-green)':'var(--ws-border)'}">
-            <div class="flex justify-between">
-              <div>
-                <div class="font-bold text-sm">🏨 {tr.destination}</div>
-                <div class="text-xs mt-0.5" style="color:var(--ws-muted)">{tr.checkin_date} → {tr.checkout_date}</div>
-                <div class="text-xs" style="color:var(--ws-muted)">{tr.adults} Erw. · {tr.rooms} Zi. · {tr.source}</div>
-                {#if s?.hotel_name}<div class="text-xs italic" style="color:var(--ws-muted)">{s.hotel_name}</div>{/if}
-                {#if wishMet}<div class="text-xs mt-1 font-semibold" style="color:var(--ws-green)">🎯 Wunschpreis erreicht!</div>{/if}
-              </div>
-              <div class="text-right">
-                <div class="font-bold font-mono text-sm" style="color:var(--ws-green)">{price ? price.toFixed(2)+' €/Nacht' : '–'}</div>
-              </div>
-            </div>
-            <div class="mt-2 flex items-center gap-2">
-              <span class="text-xs" style="color:var(--ws-muted)">🎯</span>
-              {#if wishState[wKey]?.editing}
-                <input type="number" bind:value={wishState[wKey].value} min="0" step="1" placeholder="€/Nacht"
-                  class="flex-1 px-2 py-1 rounded-lg border text-xs font-mono" style={inputStyle}
-                  onkeydown={(e)=>e.key==='Enter'&&saveWishPrice('hotel',tr.id,'booking_trackers',wishState[wKey].value)}/>
-                <button onclick={()=>saveWishPrice('hotel',tr.id,'booking_trackers',wishState[wKey].value)}
-                  class="px-2 py-1 rounded-lg text-xs font-semibold" style="background:var(--ws-accent);color:#fff">✓</button>
-                <button onclick={()=>wishState[wKey]={editing:false}}
-                  class="px-2 py-1 rounded-lg text-xs" style="background:var(--ws-surface2);color:var(--ws-muted)">✕</button>
-              {:else}
-                <span class="text-xs font-mono" style="color:{wish?'var(--ws-accent)':'var(--ws-muted)'}">{wish?wish.toFixed(2)+' €/Nacht':'nicht gesetzt'}</span>
-                <button onclick={()=>wishState[wKey]={editing:true,value:wish?.toString()||''}}
-                  class="text-xs px-2 py-0.5 rounded-lg border" style="border-color:var(--ws-border);color:var(--ws-muted)">✏️</button>
-              {/if}
-            </div>
-            <div class="flex gap-2 mt-2">
-              <button onclick={()=>scrapeBK(tr.id)}
-                class="flex-1 py-1.5 rounded-lg text-xs border" style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)">⟳</button>
-              <button onclick={()=>toggleChart('hotel',tr.id)}
-                class="px-3 py-1.5 rounded-lg text-xs border" style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)">
-                {chartState[wKey]?.open?'▲':'📈'}
-              </button>
-              <button onclick={()=>deleteBK(tr.id)}
-                class="px-3 py-1.5 rounded-lg text-xs border" style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)">✕</button>
-            </div>
-            {#if chartState[wKey]?.open}
-              <div class="mt-3 pt-3 border-t" style="border-color:var(--ws-border)">
-                {#if chartState[wKey]?.loading}
-                  <div class="h-20 rounded animate-pulse" style="background:var(--ws-border)"></div>
-                {:else if !chartState[wKey]?.history?.length||chartState[wKey].history.length<2}
-                  <p class="text-xs text-center py-4" style="color:var(--ws-muted)">Noch zu wenig Daten</p>
-                {:else}
-                  {#each [chartPts(chartState[wKey].history)] as cp}
-                  <div class="relative h-20">
-                    <svg viewBox="0 0 300 70" class="w-full h-full" preserveAspectRatio="none">
-                      <polyline fill="none" stroke="var(--ws-accent)" stroke-width="2" points={cp.polyline}/>
-                    </svg>
-                    <div class="absolute top-0 right-0 text-xs font-mono" style="color:var(--ws-muted)">{cp.maxP.toFixed(0)}€</div>
-                    <div class="absolute bottom-0 right-0 text-xs font-mono" style="color:var(--ws-green)">{cp.minP.toFixed(0)}€</div>
-                  </div>
-                  {/each}
-                {/if}
-              </div>
-            {/if}
-          </div>
-        {/each}
-      {/if}
-    </div>
-  </div>
-  {/if}
 
 </div>
