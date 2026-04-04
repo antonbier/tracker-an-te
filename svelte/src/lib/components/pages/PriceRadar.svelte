@@ -581,25 +581,18 @@
   <div class="rounded-xl p-4 border space-y-4" style="background:var(--ws-surface);border-color:var(--ws-border)">
     <h2 class="text-sm font-semibold italic" style="font-family:var(--ws-serif);color:var(--ws-accent2)">✈️ {$t('radarFlights')}</h2>
 
-    <!-- Origin / Destination with autocomplete -->
+    <!-- Origin / Destination mit Autocomplete -->
     <div class="grid grid-cols-2 gap-3">
-      <!-- Origin -->
       <div class="relative">
         <label class="{labelCls}" style="color:var(--ws-muted)">{$t('radarDeparture')}</label>
-        <input
-          bind:value={flOrigin}
-          placeholder="BGY"
-          maxlength="3"
-          class="{inputCls} font-mono uppercase"
-          style={inputStyle}
+        <input bind:value={flOrigin} placeholder="BGY" maxlength="3"
+          class="{inputCls} font-mono uppercase" style={inputStyle}
           oninput={() => acFilter('flOrigin', flOrigin, AIRPORTS, true)}
-          onblur={() => acClose('flOrigin')}
-        />
+          onblur={() => acClose('flOrigin')}/>
         {#if acState.flOrigin?.open}
           <div class="absolute z-50 left-0 right-0 top-full mt-1 rounded-xl border shadow-lg overflow-hidden" style="background:var(--ws-surface);border-color:var(--ws-border)">
             {#each acState.flOrigin.items as a}
-              <button
-                class="w-full text-left px-3 py-2 text-xs hover:bg-[var(--ws-surface2)] flex items-center gap-2"
+              <button class="w-full text-left px-3 py-2 text-xs hover:bg-[var(--ws-surface2)] flex items-center gap-2"
                 onmousedown={() => acSelect('flOrigin', a.iata, v => flOrigin = v)}>
                 <span class="font-mono font-bold" style="color:var(--ws-accent)">{a.iata}</span>
                 <span style="color:var(--ws-text)">{a.city}</span>
@@ -609,23 +602,16 @@
           </div>
         {/if}
       </div>
-      <!-- Destination -->
       <div class="relative">
         <label class="{labelCls}" style="color:var(--ws-muted)">{$t('radarArrival')}</label>
-        <input
-          bind:value={flDest}
-          placeholder="DUB"
-          maxlength="3"
-          class="{inputCls} font-mono uppercase"
-          style={inputStyle}
+        <input bind:value={flDest} placeholder="DUB" maxlength="3"
+          class="{inputCls} font-mono uppercase" style={inputStyle}
           oninput={() => acFilter('flDest', flDest, AIRPORTS, true)}
-          onblur={() => acClose('flDest')}
-        />
+          onblur={() => acClose('flDest')}/>
         {#if acState.flDest?.open}
           <div class="absolute z-50 left-0 right-0 top-full mt-1 rounded-xl border shadow-lg overflow-hidden" style="background:var(--ws-surface);border-color:var(--ws-border)">
             {#each acState.flDest.items as a}
-              <button
-                class="w-full text-left px-3 py-2 text-xs hover:bg-[var(--ws-surface2)] flex items-center gap-2"
+              <button class="w-full text-left px-3 py-2 text-xs hover:bg-[var(--ws-surface2)] flex items-center gap-2"
                 onmousedown={() => acSelect('flDest', a.iata, v => flDest = v)}>
                 <span class="font-mono font-bold" style="color:var(--ws-accent)">{a.iata}</span>
                 <span style="color:var(--ws-text)">{a.city}</span>
@@ -637,7 +623,7 @@
       </div>
     </div>
 
-    <!-- Dates -->
+    <!-- Daten -->
     <div class="grid grid-cols-2 gap-3">
       <div>
         <label class="{labelCls}" style="color:var(--ws-muted)">{$t('radarOutboundDate')}</label>
@@ -649,23 +635,115 @@
       </div>
     </div>
 
-    <!-- Passengers -->
+    <!-- Personen-Split: Erwachsene + Kinder -->
     <div>
-      <label class="{labelCls}" style="color:var(--ws-muted)">{$t('radarPassengers')}</label>
-      <select bind:value={flAdults} class="{inputCls}" style={inputStyle}>
-        {#each [1,2,3,4,5,6] as n}<option value={n}>{n} {n === 1 ? 'Person' : 'Personen'}</option>{/each}
-      </select>
+      <label class="{labelCls}" style="color:var(--ws-muted)">👥 {$t('radarPassengers')}</label>
+      <div class="grid grid-cols-2 gap-3 mt-1">
+        <!-- Erwachsene -->
+        <div class="rounded-xl border p-2.5 flex items-center justify-between gap-2"
+          style="background:var(--ws-surface2);border-color:var(--ws-border)">
+          <div>
+            <div class="text-xs font-semibold" style="color:var(--ws-text)">{$t('radarAdults')}</div>
+            <div class="text-[10px]" style="color:var(--ws-muted)">ab 12 J.</div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick={() => flAdults = Math.max(1, flAdults - 1)}
+              class="w-7 h-7 rounded-lg border text-base font-bold flex items-center justify-center transition-opacity hover:opacity-70"
+              style="background:var(--ws-surface);border-color:var(--ws-border);color:var(--ws-text)">−</button>
+            <span class="w-5 text-center text-sm font-bold" style="color:var(--ws-text)">{flAdults}</span>
+            <button onclick={() => flAdults = Math.min(9, flAdults + 1)}
+              class="w-7 h-7 rounded-lg border text-base font-bold flex items-center justify-center transition-opacity hover:opacity-70"
+              style="background:var(--ws-accent);border-color:var(--ws-accent);color:#fff">+</button>
+          </div>
+        </div>
+        <!-- Kinder -->
+        <div class="rounded-xl border p-2.5 flex items-center justify-between gap-2"
+          style="background:var(--ws-surface2);border-color:var(--ws-border)">
+          <div>
+            <div class="text-xs font-semibold" style="color:var(--ws-text)">{$t('radarChildren')}</div>
+            <div class="text-[10px]" style="color:var(--ws-muted)">2–11 J.</div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick={() => flChildren = Math.max(0, flChildren - 1)}
+              class="w-7 h-7 rounded-lg border text-base font-bold flex items-center justify-center transition-opacity hover:opacity-70"
+              style="background:var(--ws-surface);border-color:var(--ws-border);color:var(--ws-text)">−</button>
+            <span class="w-5 text-center text-sm font-bold" style="color:var(--ws-text)">{flChildren}</span>
+            <button onclick={() => flChildren = Math.min(8, flChildren + 1)}
+              class="w-7 h-7 rounded-lg border text-base font-bold flex items-center justify-center transition-opacity hover:opacity-70"
+              style="background:var(--ws-accent);border-color:var(--ws-accent);color:#fff">+</button>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <!-- Inclusions: Baggage -->
+    <!-- Gepäck-Stepper: 10kg / 20kg / 23kg -->
     <div>
-      <label class="{labelCls}" style="color:var(--ws-muted)">{$t('radarInclusions')} — {$t('radarBaggage')}</label>
+      <label class="{labelCls}" style="color:var(--ws-muted)">🧳 {$t('radarBaggage')} — {$t('radarInclusions')}</label>
+      <div class="space-y-2 mt-1">
+        {#each [
+          [() => fl10kg, v => fl10kg = v, '10 kg', '22.99'],
+          [() => fl20kg, v => fl20kg = v, '20 kg', '34.99'],
+          [() => fl23kg, v => fl23kg = v, '23 kg', '42.99'],
+        ] as [getter, setter, label, price]}
+          <div class="rounded-xl border p-2.5 flex items-center gap-3"
+            style="background:var(--ws-surface2);border-color:var(--ws-border)">
+            <div class="flex-1 min-w-0">
+              <span class="text-xs font-semibold" style="color:var(--ws-text)">{label}</span>
+              <span class="text-[10px] ml-1.5" style="color:var(--ws-muted)">{price} €/Koffer</span>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <button onclick={() => setter(Math.max(0, getter() - 1))}
+                class="w-7 h-7 rounded-lg border text-base font-bold flex items-center justify-center transition-opacity hover:opacity-70"
+                style="background:var(--ws-surface);border-color:var(--ws-border);color:var(--ws-text)">−</button>
+              <span class="w-5 text-center text-sm font-bold" style="color:{getter()>0?'var(--ws-accent)':'var(--ws-muted)'}">{getter()}</span>
+              <button onclick={() => setter(Math.min(9, getter() + 1))}
+                class="w-7 h-7 rounded-lg border text-base font-bold flex items-center justify-center transition-opacity hover:opacity-70"
+                style="background:var(--ws-accent);border-color:var(--ws-accent);color:#fff">+</button>
+            </div>
+          </div>
+        {/each}
+        <!-- Gesamtkosten-Preview -->
+        {#if flBaggageCost > 0}
+          <div class="text-xs px-2" style="color:var(--ws-muted)">
+            🧳 Gepäck gesamt: <strong style="color:var(--ws-accent)">{flBaggageCost.toFixed(2)} €</strong>
+          </div>
+        {/if}
+      </div>
+    </div>
+
+    <!-- Sitzplatz €/Person/Flug -->
+    <div>
+      <label class="{labelCls}" style="color:var(--ws-muted)">💺 {$t('radarSeat')} — €/Person/Flug</label>
+      <div class="flex items-center gap-3 mt-1">
+        <div class="flex items-center gap-2 rounded-xl border p-2.5 flex-1"
+          style="background:var(--ws-surface2);border-color:var(--ws-border)">
+          <button onclick={() => flSeatCost = Math.max(0, Math.round((flSeatCost - 1)*10)/10)}
+            class="w-7 h-7 rounded-lg border text-base font-bold flex items-center justify-center transition-opacity hover:opacity-70"
+            style="background:var(--ws-surface);border-color:var(--ws-border);color:var(--ws-text)">−</button>
+          <input type="number" bind:value={flSeatCost} min="0" step="0.5"
+            class="flex-1 text-center text-sm font-bold bg-transparent outline-none"
+            style="color:var(--ws-text)" placeholder="0"/>
+          <button onclick={() => flSeatCost = Math.round((flSeatCost + 1)*10)/10}
+            class="w-7 h-7 rounded-lg border text-base font-bold flex items-center justify-center transition-opacity hover:opacity-70"
+            style="background:var(--ws-accent);border-color:var(--ws-accent);color:#fff">+</button>
+        </div>
+        <span class="text-xs shrink-0" style="color:var(--ws-muted)">€</span>
+      </div>
+      {#if flSeatCost > 0}
+        <div class="text-xs mt-1 px-1" style="color:var(--ws-muted)">
+          💺 {flTotalPax} × {flSeatCost} € = <strong style="color:var(--ws-accent)">{(flTotalPax * flSeatCost).toFixed(2)} €</strong>
+        </div>
+      {/if}
+    </div>
+
+    <!-- Stopp-Filter -->
+    <div>
+      <label class="{labelCls}" style="color:var(--ws-muted)">🔀 Stopps</label>
       <div class="flex gap-2 flex-wrap mt-1">
-        {#each [['none', $t('radarBaggageNone')], ['10kg', $t('radarBaggage10')], ['20kg', $t('radarBaggage20')]] as [val, lbl]}
-          <button
-            onclick={() => flBaggage = val}
+        {#each [[-1,'Alle'], [0,'Nonstop'], [1,'Max 1'], [2,'Max 2']] as [val, lbl]}
+          <button onclick={() => flMaxStops = val}
             class="px-3 py-1.5 rounded-xl border text-xs font-medium transition-colors"
-            style={flBaggage === val
+            style={flMaxStops === val
               ? 'background:rgba(196,98,45,.12);border-color:var(--ws-accent);color:var(--ws-accent)'
               : 'background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)'}>
             {lbl}
@@ -674,24 +752,57 @@
       </div>
     </div>
 
-    <!-- Inclusions: Seat -->
-    <div>
-      <label class="{labelCls}" style="color:var(--ws-muted)">{$t('radarInclusions')} — Sitzplatz</label>
-      <div class="flex gap-2 flex-wrap mt-1">
-        {#each [[false, $t('radarSeatNone')], [true, $t('radarSeatIncluded')]] as [val, lbl]}
-          <button
-            onclick={() => flSeat = val}
-            class="px-3 py-1.5 rounded-xl border text-xs font-medium transition-colors"
-            style={flSeat === val
-              ? 'background:rgba(196,98,45,.12);border-color:var(--ws-accent);color:var(--ws-accent)'
-              : 'background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)'}>
-            {lbl}
-          </button>
-        {/each}
+    <!-- Zeit-Filter: Abflug- & Ankunftsfenster -->
+    <details class="rounded-xl border overflow-hidden" style="border-color:var(--ws-border)">
+      <summary class="px-3 py-2.5 text-xs font-semibold cursor-pointer select-none flex items-center gap-2"
+        style="background:var(--ws-surface2);color:var(--ws-muted);list-style:none">
+        <span>🕐 Zeitfenster</span>
+        {#if flDepFrom || flDepTo || flArrFrom || flArrTo}
+          <span class="ml-auto text-[10px] font-normal" style="color:var(--ws-accent)">aktiv</span>
+        {/if}
+      </summary>
+      <div class="p-3 space-y-3" style="background:var(--ws-surface)">
+        <!-- Abflug-Fenster -->
+        <div>
+          <div class="text-xs font-semibold mb-1.5" style="color:var(--ws-muted)">Abflug</div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <div class="text-[10px] mb-1" style="color:var(--ws-muted)">ab</div>
+              <input type="time" bind:value={flDepFrom} class="{inputCls}" style={inputStyle}/>
+            </div>
+            <div>
+              <div class="text-[10px] mb-1" style="color:var(--ws-muted)">bis</div>
+              <input type="time" bind:value={flDepTo} class="{inputCls}" style={inputStyle}/>
+            </div>
+          </div>
+        </div>
+        <!-- Ankunft-Fenster -->
+        <div>
+          <div class="text-xs font-semibold mb-1.5" style="color:var(--ws-muted)">Ankunft</div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <div class="text-[10px] mb-1" style="color:var(--ws-muted)">ab</div>
+              <input type="time" bind:value={flArrFrom} class="{inputCls}" style={inputStyle}/>
+            </div>
+            <div>
+              <div class="text-[10px] mb-1" style="color:var(--ws-muted)">bis</div>
+              <input type="time" bind:value={flArrTo} class="{inputCls}" style={inputStyle}/>
+            </div>
+          </div>
+        </div>
+        <button onclick={() => { flDepFrom=''; flDepTo=''; flArrFrom=''; flArrTo=''; }}
+          class="text-xs px-2 py-1 rounded-lg border" style="border-color:var(--ws-border);color:var(--ws-muted)">
+          ✕ Zeitfilter zurücksetzen
+        </button>
       </div>
-    </div>
+    </details>
 
-    <!-- Search button -->
+    <!-- Suche-Button + Preview-Summary -->
+    {#if flExtrasLabel()}
+      <div class="text-xs px-1" style="color:var(--ws-muted)">
+        ℹ️ Aufschlag wird auf Flugpreis addiert: {flExtrasLabel()}
+      </div>
+    {/if}
     <button
       onclick={doSearch}
       disabled={searching || !flOrigin || !flDest || !flOut}
