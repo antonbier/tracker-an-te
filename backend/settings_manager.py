@@ -32,6 +32,8 @@ GLOBAL_KEYS = [
 ]
 
 # Per-user keys — stored in user_settings table (each user configures their own)
+# Note: notification credentials are stored separately in user_notification_settings table
+# and managed via database.get/save_user_notification_settings with Fernet encryption.
 USER_KEYS = [
     "dawarich_url",
     "dawarich_token",
