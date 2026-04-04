@@ -46,20 +46,26 @@
   let myGeoResult   = $state('');
 
   async function geocodeHome() {
-    if (!myHomeSearch.trim()) return;
+    const q = myHomeSearch.trim();
+    if (!q) return;
     myGeoLoading = true; myGeoResult = '';
     try {
-      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(myHomeSearch)}&format=json&limit=1`;
-      const r = await fetch(url, { headers: { 'Accept-Language': 'de' } });
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`;
+      const r = await fetch(url, {
+        headers: {
+          'Accept-Language': 'de',
+          'User-Agent': 'WanderSuite/1.0 (self-hosted travel tracker)'
+        }
+      });
       const data = await r.json();
       if (data.length > 0) {
-        myHomeLat = parseFloat(data[0].lat).toFixed(6);
-        myHomeLon = parseFloat(data[0].lon).toFixed(6);
+        myHomeLat = String(parseFloat(data[0].lat));
+        myHomeLon = String(parseFloat(data[0].lon));
         myGeoResult = `✓ ${data[0].display_name.split(',').slice(0,2).join(',')}`;
       } else {
         myGeoResult = '✗ Ort nicht gefunden';
       }
-    } catch { myGeoResult = '✗ Fehler bei Geocoding'; }
+    } catch (e) { myGeoResult = '✗ Fehler bei Geocoding: ' + e.message; }
     myGeoLoading = false;
   }
 
