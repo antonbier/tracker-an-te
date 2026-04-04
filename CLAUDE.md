@@ -47,15 +47,15 @@ git pull && BUILD_DATE="$(date '+%Y-%m-%d %H:%M')" docker compose up -d --build
 
 ```
 Internet
-  │
-  └─► Zoraxy Reverse Proxy (Unraid)
-        │
-        ├─► Frontend :8767 (Nginx + Svelte SPA)
-        │     └─► /api/* → backend:8000 (internal Docker network)
-        │
-        └─► Backend :8768 (FastAPI — Swagger, direct API access)
-              ⚠️  Backend NOT exposed externally via Zoraxy
-              → /api/* calls go through Nginx proxy on port 8767
+  |
+  +-> Zoraxy Reverse Proxy (Unraid)
+        |
+        +-> Frontend :8767 (Nginx + Svelte SPA)
+        |     +-> /api/* -> backend:8000 (internal Docker network)
+        |
+        +-> Backend :8768 (FastAPI -- Swagger, direct API access)
+              WARNING: Backend NOT exposed externally via Zoraxy
+              -> /api/* calls go through Nginx proxy on port 8767
 ```
 
 **Backend URL:** Im Onboarding-Wizard die **frontend URL** eintragen.
@@ -77,11 +77,16 @@ AUTH_ENABLED=true
 JWT_SECRET=<generate: python3 -c "import secrets; print(secrets.token_hex(32))">
 
 # WebAuthn / Passkeys
-# Wenn gesetzt → direkt verwenden. Wenn nicht gesetzt (= localhost) →
-# rp_id + origin automatisch aus HTTP Origin-Header abgeleitet.
 WEBAUTHN_RP_ID=wandersuite.deinedomain.de
 WEBAUTHN_RP_NAME=WanderSuite
 WEBAUTHN_ORIGIN=https://wandersuite.deinedomain.de
+
+# Notifications (User-level -- verschlüsselt pro User in DB)
+# Nur zur Dokumentation in .env.example -- echte Werte via Settings-UI setzen.
+# TELEGRAM_BOT_TOKEN=<Bot Token von @BotFather>
+# TELEGRAM_CHAT_ID=<Chat-ID>
+# GOTIFY_URL=<https://gotify.deine-domain.de>
+# GOTIFY_APP_TOKEN=<App-Token aus Gotify>
 ```
 
 ---
@@ -98,142 +103,88 @@ WEBAUTHN_ORIGIN=https://wandersuite.deinedomain.de
 ### Passkey — rp_id / Origin Logik (`backend/routes/passkey.py`)
 
 `_get_rp(request)` Priorität:
-1. **Env-Vars explizit gesetzt** (`WEBAUTHN_RP_ID != "localhost"`) → direkt verwenden
-2. **HTTP Origin-Header** (Browser sendet bei jedem POST) → `hostname` als `rp_id`
-3. **Fallback** → localhost defaults
+1. **Env-Vars explizit gesetzt** (`WEBAUTHN_RP_ID != "localhost"`) -> direkt verwenden
+2. **HTTP Origin-Header** (Browser sendet bei jedem POST) -> `hostname` als `rp_id`
+3. **Fallback** -> localhost defaults
 
-⚠️ Nie `x-forwarded-host` verwenden — kann leer sein → `"http://"` → bug.
+WARNING: Nie `x-forwarded-host` verwenden -- kann leer sein -> `"http://"` -> bug.
 
 ---
 
 ## i18n System
 
 **Dateien:** `svelte/src/locales/de.json`, `en.json`, `it.json`
-**Store:** `svelte/src/lib/i18n.js` — reaktiver `t`-Store, `$t('key')` in Komponenten
+**Store:** `svelte/src/lib/i18n.js` -- reaktiver `t`-Store, `$t('key')` in Komponenten
 
 Vollständig übersetzt (DE/EN/IT): Navigation, Settings, Dashboard, MyTrips,
 PriceRadar (alle Labels + Formular-Felder), Discover, Onboarding, Login, Setup.
 
-**Regel:** Immer alle 3 Locale-Dateien gleichzeitig updaten. Tabs nie hardcodiert —
+**Regel:** Immer alle 3 Locale-Dateien gleichzeitig updaten. Tabs nie hardcodiert --
 immer `$derived([...])` mit `$t('key')`.
 
 ---
 
 ## PWA / Favicon
 
-- `svelte/static/favicon.svg` — oranges Rund-Rechteck (#D95D39) mit Kompassrose
-- `svelte/static/manifest.webmanifest` — PWA-Manifest (name, theme_color, icons)
-- `svelte/static/icons/icon-192.png` + `icon-512.png` — generiert mit Pillow
-- `svelte/src/app.html` — verlinkt favicon.svg + manifest
+- `svelte/static/favicon.svg` -- oranges Rund-Rechteck (#D95D39) mit Kompassrose
+- `svelte/static/manifest.webmanifest` -- PWA-Manifest (name, theme_color, icons)
+- `svelte/static/icons/icon-192.png` + `icon-512.png` -- generiert mit Pillow
+- `svelte/src/app.html` -- verlinkt favicon.svg + manifest
 
 ---
 
-## Settings — Mein Bereich (myspace Tab)
+## Settings -- Mein Bereich (myspace Tab)
 
 - Per-user Einstellungen: Dawarich, ActualBudget, Home-Koordinaten
-- **Geocoding:** Ortsname eingeben + 📍 → Nominatim → lat/lon automatisch befüllt
+- **Geocoding:** Ortsname eingeben + Klick -> Nominatim -> lat/lon automatisch befüllt
 - **ActualBudget Dateiname:** Hilfetext + Schritt-für-Schritt im FieldGuide (Tab Reisen)
-  - Budget-Name oben links anklicken → ID aus der URL entnehmen
-  - Oder: `/api/budget/actual/list-files` aufrufen → listet alle verfügbaren Dateien
 
 ---
 
-## MyTrips — Architektur & UX
+## MyTrips -- Architektur & UX
 
 ### Tab-Reihenfolge (strikt)
 | # | ID | Label |
 |---|----|-------|
-| 1 | `overview` | 📊 Übersicht |
-| 2 | `trips` | ✈️ Geplante Reisen |
-| 3 | `journal` | 📓 Reisechronik |
-| 4 | `bucketlist` | 🌟 Bucket List |
+| 1 | `overview` | Übersicht |
+| 2 | `trips` | Geplante Reisen |
+| 3 | `journal` | Reisechronik |
+| 4 | `bucketlist` | Bucket List |
 
-### Grid-Layout (Tabs 2–4)
+### Grid-Layout (Tabs 2-4)
 `grid grid-cols-1 lg:grid-cols-3 gap-5`
-- `lg:col-span-1` — Formular / Aktionen (links, 1/3)
-- `lg:col-span-2` — Liste / Timeline (rechts, 2/3)
+- `lg:col-span-1` -- Formular / Aktionen (links, 1/3)
+- `lg:col-span-2` -- Liste / Timeline (rechts, 2/3)
 
 ### Header-Elemente
-- **Titel** `🎒 Meine Reisen`
-- **Globaler Sync-Button** — rund, SVG-Icon, triggert `syncJournal()` + `syncActual()` nacheinander, `globalSyncing` State
-- **Jahres-Switcher** — max. **4 Jahre** gleichzeitig sichtbar, `‹ ›` blättern seitenweise
-  - `availableYears()` als `$derived` — sammelt aus `$trips`, `journalTrips`, `budgetByYear`
-  - `yearPageStart` State + `visibleYears()` für Pagination
-  - `$effect` passt Page automatisch an wenn `selectedYear` sich ändert
-  - Alle Views **strikt** nach `selectedYear` gefiltert
-- **Badges** — `✈️ X geplant` (klickbar → Tab `trips`) + `Y gesamt`
-  - `upcomingCount` = `$trips.filter(dateStart >= today).length`
-  - `totalCount` = `upcomingCount + journalTrips.length`
+- **Jahres-Switcher** -- zeigt genau 3 Jahre: `selectedYear-1 | selectedYear | selectedYear+1`
+- **Badges** -- Geplant / Vergangen / Wunschziele / Gesamt (alle klickbar ausser gesamt)
 
-### Übersicht-Tab (Tab 1)
+### Donut-Chart (SVG/conic-gradient)
+- Kein externes Chart-Package -- reines CSS `conic-gradient`
+- Segmente: Vergangen (dunkelgrün #2d6a4f) | Geplant (hellgrün #86efac) | Verfügbar (grau) | Überschuss (rot)
 
-**Stats-Grid** — 4 Karten, 2×2 Grid (`grid-cols-2 sm:grid-cols-4`):
-| Karte | Inhalt | Klick-Ziel |
-|-------|--------|-----------|
-| ✅ Vergangen | `journalYear.length` | → Tab `journal` |
-| ✈️ Geplant | `upcomingCount` | → Tab `trips` |
-| 🌟 Wunschziele | `$bucketlist.filter(!done).length` | → Tab `bucketlist` |
-| 💸 Ausgegeben | `totalSpentYear` + verbleibendes Budget | — |
+### Reisechronik -- Sync-Reihenfolge
+1. Jahresbudget
+2. Manuell erfassen
+3. Tipp-Banner
+4. Dawarich Sync (mit force_full Checkbox)
+5. ActualBudget Sync (mit Auto-Cost Button)
 
-Alle 3 Reise-Karten haben Hover-Effekt + `→ Tab-Name` Subtitle.
+#### Soft-Delete (Dawarich-Trips)
+- Löschen setzt `ignored=1` in DB (kein echter DELETE)
+- `force_full=true` -> resettet alle `ignored=1` auf `ignored=0`
+- Manuelle Trips: echter DELETE
 
-**Budget-Progressbar** — zeigt `totalSpentYear` vs `yearBudget`, farbkodiert.
-Aufschlüsselung: `📓 Vergangen: X € · ✈️ Geplant: Y €`
-
-**ScratchMap** — Weltkarte mit Pins (siehe unten)
-
-**Listen:**
-- **Nächste Abenteuer** (upcoming, aufsteigend sortiert, max. 4 + "X weitere →")
-- **Letzte Erinnerungen** (`journalYear`, absteigend, max. 4 + "X weitere →")
-
-### Geplante Reisen (Tab 2)
-
-**Links (1/3):**
-- Smart Reise-Planer Card (Coming Soon Badge)
-- Formular: Name, Von/Bis Datum, Kosten → speichert in localStorage `trips`-Store
-
-**Rechts (2/3):**
-- Budget-Progressbar für `selectedYear`
-- `✈️ Nächste Abenteuer` — upcoming (alle, kein Jahresfilter für Tab-Anzeige)
-- `✅ Vergangen (manuell)` — past (alle localStorage-Trips die in der Vergangenheit liegen)
-
-⚠️ **Kein ActualBudget Sync** in diesem Tab — gehört in Reisechronik.
-
-### Reisechronik (Tab 3)
-
-**Links (1/3):**
-- **Manuell erfassen** — Name*, Von*, Bis, Land, Kosten → `POST /api/trips` mit `source=manual`
-- **💶 Jahresbudget {Jahr}** — Input → `PUT /api/trips/budget { year, amount }`
-- **ActualBudget Sync** — `POST /api/budget/actual/transactions`
-  - Hilfe-Panel (`<details>`) mit Schritt-für-Schritt Anleitung
-  - `📂 Verfügbare Dateien anzeigen` → `POST /api/budget/actual/list-files` → zeigt alle Budget-Dateien
-  - Auto-Fallback: wenn `actual_file` leer → erste verfügbare Datei verwenden
-  - Fehler werden inline angezeigt mit Hinweis auf Einstellungen
-- **Dawarich Sync** — `POST /api/dawarich/sync`
-
-**Rechts (2/3): Timeline**
-- Gefiltert nach `selectedYear` (strikt auf `start_date.slice(0,4)`)
-- Dawarich-Trips: orange Timeline-Dot
-- Manuelle Einträge: violetter Dot + `manuell`-Badge
-- **Inline-Kosten-Editor** pro Eintrag: `💶 Kosten hinterlegen` → Input → Enter/✓ → `PATCH /api/trips/{id}/cost`
-
-### Budget-Logik
-- Pro Jahr im Backend: `GET/PUT /api/trips/budget`
-- Response: `{ "2024": 3000, "2025": 4500 }`
-- Legacy-Fallback: liest alten `ws-budget` Wert
-- `yearBudget = budgetByYear[selectedYear]`
-- `totalSpentYear = journalSpentYear + tripsSpentYear`
-  - `journalSpentYear` = Summe aller `journalYear[].cost`
-  - `tripsSpentYear` = Summe aller `$trips` für `selectedYear`
+#### Auto-Cost (ActualBudget -> Dawarich-Trips)
+- `POST /api/trips/auto-cost` -- Datum-Overlap Tx -> Trips
+- `auto_cost_txs` JSON gespeichert, Anzeige in Timeline mit Marker
 
 ---
 
 ## ScratchMap.svelte
 
-**Props:**
-- `journalTrips` — alle Chronik-Trips (Dawarich + manuell)
-- `plannedTrips` — geplante Trips (aus `$trips` Store)
-- `selectedYear` — aktuell gewähltes Jahr
+**Props:** `journalTrips`, `plannedTrips`, `selectedYear`
 
 **Marker-Typen & Farben:**
 | Typ | Quelle | Farbe | Jahresfilter |
@@ -242,84 +193,338 @@ Aufschlüsselung: `📓 Vergangen: X € · ✈️ Geplant: Y €`
 | `planned` | plannedTrips mit lat/lon | `#2563eb` blau | ja |
 | `bucket` | `$bucketlist` mit lat/lon | `#c4622d` orange | nein |
 
-**Fallback-Demos** wenn keine echten Daten: Salzburg/Rom/Paris (visited), London (planned), Tokyo/Machu Picchu (bucket)
-
-**Ladelogik (robust):**
-1. Container **immer im DOM** — kein `{#if}` conditional rendering
-2. `setTimeout(..., 150)` vor Init (Container braucht gerenderte Größe)
-3. Sequenziell: CSS → `jsvectormap.min.js` → **poll** bis `window.jsVectorMap` verfügbar → `world.js` → 150ms pause
-4. Polling: `setInterval` prüft alle 100ms, Timeout nach 2s
-5. Marker-Farben per DOM-Patching (`c.setAttribute('fill', COLORS[type])`) nach 300ms
-6. `destroyed`-Flag verhindert Race Conditions beim Unmount
-
-CDN: `https://cdn.jsdelivr.net/npm/jsvectormap@1.5.3/dist/`
+**Import:** `jsvectormap` als npm-Dependency (kein CDN)
+```js
+import { default as jsVectorMap } from 'jsvectormap'
+import 'jsvectormap/dist/maps/world.js'
+```
 
 ---
 
-## Backend API — Vollständige Übersicht
+## Backend API -- Vollständige Übersicht
 
 ### /api/trips (routes/trips.py)
 | Method | Path | Beschreibung |
 |--------|------|-------------|
-| GET | `/api/trips` | Alle Trips (dawarich + manual), pro User, sortiert nach start_date |
+| GET | `/api/trips` | Alle Trips (dawarich + manual), pro User |
 | POST | `/api/trips` | Manuellen Trip anlegen (`source=manual`) |
-| PATCH | `/api/trips/{id}/cost` | Kosten eines Trips updaten `{ cost: float\|null }` |
-| DELETE | `/api/trips/{id}` | Trip löschen |
-| GET | `/api/trips/budget` | Budget nach Jahr `{"2024":3000}` |
-| PUT | `/api/trips/budget` | Budget für Jahr setzen `{ year: int, amount: float }` |
+| PATCH | `/api/trips/{id}/cost` | Kosten updaten |
+| DELETE | `/api/trips/{id}` | Trip löschen (soft für dawarich, hard für manual) |
+| GET | `/api/trips/budget` | Budget nach Jahr |
+| PUT | `/api/trips/budget` | Budget für Jahr setzen |
 
-### /api/budget (routes/budget.py)
+### /api/search (routes/search.py) -- NEU
 | Method | Path | Beschreibung |
 |--------|------|-------------|
-| POST | `/api/budget/actual/transactions` | Frontend-kompatibler Sync-Endpoint |
-| POST | `/api/budget/actual/list-files` | Verfügbare Budget-Dateien auflisten |
-| POST | `/api/trips/auto-cost` | ActualBudget Tx → Trips zuordnen (Datum-Overlap) |
-| POST | `/api/budget/actual/expenses` | Interne Variante (base_url/password/budget_file) |
-| POST | `/api/budget/actual/files` | Alte Variante |
-| POST | `/api/budget/actual/debug` | Debug: Transaktionen + Konten anzeigen |
+| POST | `/api/search/flights` | Meta-Suche Flüge: alle Provider parallel |
+| POST | `/api/search/hotels` | Meta-Suche Hotels: alle Provider parallel |
+| POST | `/api/search/camping` | Meta-Suche Camping: alle Provider parallel |
 
-**`/actual/transactions` Feldmapping:**
-- Frontend sendet: `actual_url`, `actual_token`, `actual_file`, `categories`
-- Backend mappt auf: `base_url`, `password`, `budget_file`, `category_names`
-- Auto-Fallback: wenn `actual_file` leer → erste verfügbare Datei
+### /api/prices (routes/prices.py)
+| Method | Path | Beschreibung |
+|--------|------|-------------|
+| PUT | `/api/prices/wish/{table}/{id}` | Wunschpreis setzen |
+| GET | `/api/prices/history/{type}/{id}` | Preisverlauf (limit=90) |
 
-### /api/auth / /api/auth/passkeys
-Siehe Auth-Sektion oben.
+### /api/trackers (routes/trackers.py)
+| Method | Path | Beschreibung |
+|--------|------|-------------|
+| GET | `/api/trackers` | Alle aktiven Tracker des Users |
+| POST | `/api/trackers` | Tracker aus Suchergebnis anlegen |
+| DELETE | `/api/trackers/{id}` | Tracker löschen |
+
+### /api/scheduler (routes/scheduler.py)
+| Method | Path | Beschreibung |
+|--------|------|-------------|
+| GET | `/api/scheduler/settings` | Einstellungen des Users |
+| PUT | `/api/scheduler/settings` | Intervall + Notifications speichern |
+| POST | `/api/scheduler/run` | Manueller Trigger |
 
 ### /api/settings / /api/settings/user
-- Global (Admin): SerpAPI, Gemini, OpenAI, Telegram, Gotify, language
-- Per-user: dawarich_url/token, actual_url/token/file, home_lat/lon, travel_categories
-
-### /api/dawarich
-- `POST /api/dawarich/sync` — GPS-Trips aus Dawarich laden + detected_trips befüllen
-- `GET /api/dawarich/trips` — Liste der erkannten Trips
+- Global (Admin): SerpAPI, Gemini, OpenAI, language
+- Per-user: dawarich, actualbudget, home coords, Telegram (verschlüsselt), Gotify (verschlüsselt)
 
 ---
 
-## Datenbank — detected_trips
+## PriceRadar -- Architektur (Meta-Suche Aggregator)
 
-Tabelle für alle Reisen (Dawarich + manuell):
+### Konzept: Live-Suche vs. Tracker-Speicherung (STRIKT GETRENNT)
 
+```
+Suchmaske (Kategorie-spezifisch)
+    |
+    v  POST /api/search/{category}
+Backend Aggregator (async, alle Provider parallel)
+    |
+    +-- Provider A scraper (timeout, eigene Header)
+    +-- Provider B scraper (timeout, eigene Header)
+    +-- Provider C scraper (timeout, eigene Header)
+    |
+    v  gebündelte Ergebnisse
+Frontend Ergebnisliste (Skeleton -> Chips-Filter -> Karten)
+    |
+    v  [ + Als Tracker speichern ] (expliziter User-Action)
+POST /api/trackers  ->  Tracker-Karte in "Aktive Tracker"
+```
+
+**Regel:** Ein Klick auf "Suchen" erzeugt **keinen** Tracker. Erst der explizite
+Button `[ + Als Tracker speichern ]` schreibt in die DB.
+
+### 4 Haupt-Kategorien
+
+| Kategorie | Icon | Provider | Status |
+|-----------|------|----------|--------|
+| Flüge | Flugzeug | Ryanair scraper, SerpAPI Google Flights | aktiv |
+| Hotels | Hotel | SerpAPI Google Hotels, Booking.com scraper | aktiv |
+| Camping | Zelt | SerpAPI Google Hotels (Homair-Query) | aktiv |
+| Mietwagen | Auto | -- | Coming Soon |
+
+### Suchmasken (kategoriespezifisch)
+
+#### Flüge
+- Abflug (IATA-Code, Autocomplete)
+- Ziel (IATA-Code, Autocomplete)
+- Datum (Abflugdatum)
+- Personen (Anzahl)
+- Inklusivleistungen: Gepäck (Kein / 10kg / 20kg), Sitzplatz (Nein / Ja)
+
+#### Hotels
+- Ort/Stadt (Freitext, Autocomplete Ortsname)
+- Check-In / Check-Out Datum
+- Zimmer (Anzahl)
+- Personen (Anzahl)
+
+#### Camping
+- Region/Ort (Freitext, Autocomplete Ortsname)
+- Check-In / Check-Out Datum
+- Personen (Anzahl)
+- Unterkunftsart (Dropdown: Mobilheim / Glamping / Stellplatz)
+- Schlafzimmer (Dropdown: 1 / 2 / 3+)
+- Extras (Checkboxen): Klimaanlage / Hunde erlaubt / Überdachte Terrasse
+
+#### Mietwagen
+- Zeigt "Coming Soon" Badge -- kein Formular
+
+### Autocomplete-Logik (schlank, lokal)
+- Flughafen-Felder: statische JSON-Liste (IATA-Codes + Städtenamen), lokales Filter
+- Ortsfelder (Hotels/Camping): einfacher Freitext-Filter auf bekannte Destinationen
+- **Kein externer API-Call für Autocomplete** -- alles clientseitig
+
+### Frontend-Workflow (PriceRadar.svelte)
+1. User wählt Kategorie (Tab: Flüge / Hotels / Camping / Mietwagen)
+2. Suchmaske ausfüllen -> `[ Suchen ]`
+3. **Lade-Skeletons** erscheinen (animate-pulse)
+4. Ergebnisse kommen -> **Provider-Filter-Chips** (horizontal scrollbar)
+5. Ergebniskarten mit `[ + Als Tracker speichern ]` Button
+6. "Aktive Tracker" Sektion darunter -- zeigt gespeicherte Tracker
+
+### Backend Aggregator -- Strategy Pattern
+
+```python
+# POST /api/search/flights
+async def search_flights(params: FlightSearchParams, user=Depends(get_current_user)):
+    tasks = [
+        run_ryanair_search(params),       # eigener Timeout + Header
+        run_google_flights_search(params) # eigener Timeout + Header
+    ]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    # Fällt Provider A aus -> Provider B unberührt
+    return aggregate_results(results)
+```
+
+**Anti-Scraping & Robustheit:**
+- Realistische Browser-Header pro Provider (User-Agent, Accept-Language, Referer)
+- `httpx.AsyncClient` mit `timeout=15.0` pro Provider
+- `return_exceptions=True` -> Exception eines Providers bricht andere nicht ab
+- Jeder Provider-Aufruf wrapped in `try/except` mit Logging
+
+**Deep-Logging Format:**
+```
+[RYANAIR]   #search status=ok | found=12 | cheapest=49.99 EUR
+[RYANAIR]   #search status=blocked_by_cf | error=403
+[SERPAPI]   #search status=ok | found=8 | source=google_flights
+[HOMAIR]    #search status=timeout | elapsed=15.1s
+```
+
+### Aktive Tracker -- UX & Responsive Design
+
+#### Grid-Layout
+```
+grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4
+```
+
+#### Tracker-Karte Aufbau
+```
++-----------------------------------------+
+| [Ziel erreicht!]           [Ryanair]    |  <- Badge + Provider
+| Wien -> Barcelona  28. Jun  2 Pers.     |  <- Titel
+| [1x 10kg] [Sitzplatz]                   |  <- Inklusiv-Badges
+|                                         |
+| Aktuell: 49,99 EUR   Wunsch: [89,00] ✏️ |  <- Preis + Inline-Edit
+|                                         |
+| [ Preisverlauf ]            [X Löschen] |  <- Buttons (weit voneinander)
+|                                         |
+| v SVG Liniendiagramm (Akkordeon)        |  <- bei Klick auf Preisverlauf
++-----------------------------------------+
+```
+
+#### Wunschpreis Inline-Edit
+- Anzeige: Zahl + Stift-Icon (klickbar)
+- Edit-Mode: `<input type="number">` + Bestätigen/Abbrechen Buttons
+- `PUT /api/prices/wish/{table}/{id}` bei Bestätigung
+- Grüner Border (`ring-2 ring-green-500`) + "Ziel erreicht!" Badge wenn `current_price <= wish_price`
+
+#### Inklusiv-Badges (unter Titel)
+```svelte
+{#each tracker.inclusions as badge}
+  <span class="badge">{badge}</span>
+{/each}
+```
+Beispiele: "1x 10kg", "Mobilheim", "Klimaanlage"
+
+#### Preisverlauf-Akkordeon (inline SVG)
+- Klick auf Preisverlauf-Button -> `showChart = !showChart`
+- `GET /api/prices/history/{type}/{id}?limit=90`
+- SVG Liniendiagramm: Min/Max Labels, Tooltips per hover
+- Öffnet **innerhalb** der Karte (kein Modal, kein neues Panel)
+
+#### Button-Sicherheit
+- Preisverlauf-Button -- links (primäre Aktion)
+- Löschen-Button -- rechts, `ml-auto`, Abstand >= 8px zu anderen Buttons
+
+---
+
+## Datenbank -- Schema
+
+### price_history
 ```sql
-CREATE TABLE detected_trips (
-    id             INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id        INTEGER NOT NULL DEFAULT 1,
-    start_date     TEXT NOT NULL,
-    end_date       TEXT NOT NULL,
-    location_name  TEXT,
-    country        TEXT,
-    lat            REAL,
-    lon            REAL,
-    nights         INTEGER NOT NULL DEFAULT 1,
-    source         TEXT NOT NULL DEFAULT 'dawarich',  -- 'dawarich' | 'manual'
-    cost           REAL DEFAULT NULL,                    -- nachträglich editierbar
-    notes          TEXT DEFAULT NULL,
-    created_at     TEXT NOT NULL
+CREATE TABLE price_history (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id      INTEGER NOT NULL DEFAULT 1,
+    tracker_type TEXT    NOT NULL,   -- 'flight'|'google_flight'|'hotel'|'camping'
+    tracker_id   INTEGER NOT NULL,
+    price        REAL    NOT NULL,
+    currency     TEXT    NOT NULL DEFAULT 'EUR',
+    provider     TEXT,               -- 'ryanair'|'google_flights'|'homair'|'booking'
+    status       TEXT    NOT NULL DEFAULT 'ok',
+    error_msg    TEXT,
+    fetched_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX idx_price_history_tracker ON price_history(tracker_type, tracker_id, user_id);
+```
+
+### user_scheduler_settings
+```sql
+CREATE TABLE user_scheduler_settings (
+    user_id               INTEGER PRIMARY KEY,
+    update_interval_hours INTEGER NOT NULL DEFAULT 24,
+    notify_price_drop     INTEGER NOT NULL DEFAULT 1,
+    notify_daily_summary  INTEGER NOT NULL DEFAULT 0,
+    last_run_at           TEXT,
+    updated_at            TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 ```
 
-Duplicate-Check: `WHERE user_id=? AND start_date=? AND end_date=? AND source=?`
-→ Dawarich-Trips werden bei erneutem Sync aktualisiert, manuelle nie überschrieben.
+### user_notification_settings (NEU -- verschlüsselte Felder)
+```sql
+CREATE TABLE user_notification_settings (
+    user_id             INTEGER PRIMARY KEY,
+    telegram_bot_token  TEXT DEFAULT NULL,   -- Fernet-verschlüsselt
+    telegram_chat_id    TEXT DEFAULT NULL,   -- Fernet-verschlüsselt
+    gotify_url          TEXT DEFAULT NULL,   -- Fernet-verschlüsselt
+    gotify_app_token    TEXT DEFAULT NULL,   -- Fernet-verschlüsselt
+    updated_at          TEXT NOT NULL DEFAULT (datetime('now'))
+);
+```
+
+**Verschlüsselung:** Alle 4 Felder via `cryptography.fernet.Fernet(APP_SECRET)`
+symmetrisch verschlüsselt. Entschlüsselung nur im Backend, nie im Klartext ins Frontend.
+
+### wish_price Spalte (Migration -- alle Tracker-Tabellen)
+```sql
+ALTER TABLE trackers         ADD COLUMN wish_price REAL DEFAULT NULL;
+ALTER TABLE gf_trackers      ADD COLUMN wish_price REAL DEFAULT NULL;
+ALTER TABLE homair_trackers  ADD COLUMN wish_price REAL DEFAULT NULL;
+ALTER TABLE booking_trackers ADD COLUMN wish_price REAL DEFAULT NULL;
+```
+
+### Cleanup-Job (APScheduler)
+```python
+# Täglich 03:00 -- löscht Einträge älter als 60 Tage
+DELETE FROM price_history WHERE fetched_at < datetime('now', '-60 days')
+```
+Funktion: `run_cleanup_job()` in `backend/scheduler.py`
+
+---
+
+## Sicherheitskonzept -- Verschlüsselte User-API-Keys
+
+### Prinzip
+User-spezifische Credentials (Telegram Bot Token, Chat ID, Gotify URL + Token)
+werden **niemals im Klartext** in der DB gespeichert.
+
+### Implementierung
+```python
+from cryptography.fernet import Fernet
+import os
+
+def get_fernet():
+    key = os.environ["APP_SECRET"]
+    return Fernet(key.encode() if isinstance(key, str) else key)
+
+def encrypt(value: str) -> str:
+    return get_fernet().encrypt(value.encode()).decode()
+
+def decrypt(value: str) -> str:
+    return get_fernet().decrypt(value.encode()).decode()
+```
+
+- `APP_SECRET` = Fernet-kompatibler 32-Byte URL-safe Base64-Key
+- Gleicher `APP_SECRET` wie für bestehende Settings-Verschlüsselung
+
+### Was wird verschlüsselt
+| Feld | Tabelle | Wer sieht Klartext |
+|------|---------|-------------------|
+| `telegram_bot_token` | `user_notification_settings` | Nur Backend beim Senden |
+| `telegram_chat_id` | `user_notification_settings` | Nur Backend beim Senden |
+| `gotify_url` | `user_notification_settings` | Nur Backend beim Senden |
+| `gotify_app_token` | `user_notification_settings` | Nur Backend beim Senden |
+
+Frontend erhält immer nur maskierte Strings (z.B. "••••••••" oder leeren String).
+
+---
+
+## Benachrichtigungs-Engine (erweiterbar)
+
+```python
+# backend/notifications.py
+
+class NotificationProvider:
+    async def send(self, user_id: int, title: str, message: str): ...
+
+class TelegramProvider(NotificationProvider):
+    async def send(self, user_id, title, message):
+        # Decrypt credentials, POST to Telegram Bot API
+        pass
+
+class GotifyProvider(NotificationProvider):
+    async def send(self, user_id, title, message):
+        # Decrypt credentials, POST to Gotify /message
+        pass
+
+async def notify_user(user_id: int, title: str, message: str):
+    # Versucht alle konfigurierten Provider
+    # Fehler eines Providers stoppt andere nicht
+    providers = await get_configured_providers(user_id)
+    results = await asyncio.gather(
+        *[p.send(user_id, title, message) for p in providers],
+        return_exceptions=True
+    )
+```
+
+**Trigger-Events:**
+- Preis <= Wunschpreis eines Trackers -> `notify_user(...)` nach jedem Scheduler-Lauf
+- (Future) Tägliche Zusammenfassung
 
 ---
 
@@ -332,10 +537,13 @@ Duplicate-Check: `WHERE user_id=? AND start_date=? AND end_date=? AND source=?`
 | `gf_trackers` | Per-user | |
 | `homair_trackers` | Per-user | |
 | `booking_trackers` | Per-user | |
-| `detected_trips` | Per-user | Dawarich + manual, cost/notes editierbar |
+| `price_history` | Per-user | `user_id` column |
+| `user_scheduler_settings` | Per-user | PK = user_id |
+| `user_notification_settings` | Per-user | PK = user_id, verschlüsselt |
+| `detected_trips` | Per-user | Dawarich + manual |
 | `user_data` | Per-user | ws-trips, ws-bucketlist, ws-budget-years |
 | `user_settings` | Per-user | dawarich, actualbudget, home coords |
-| `settings` | Global (admin) | API keys, notifications |
+| `settings` | Global (admin) | SerpAPI, Gemini, OpenAI, language |
 | `webauthn_credentials` | Per-user | passkeys |
 
 ### AUTH_ENABLED=false (guest mode)
@@ -353,7 +561,7 @@ Duplicate-Check: `WHERE user_id=? AND start_date=? AND end_date=? AND source=?`
 - `Cross-Origin-Resource-Policy: same-origin`
 - `Cross-Origin-Opener-Policy: same-origin` (required for WebAuthn)
 
-**TODO — set in Zoraxy:**
+**TODO -- set in Zoraxy:**
 - `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload`
 
 ---
@@ -362,61 +570,66 @@ Duplicate-Check: `WHERE user_id=? AND start_date=? AND end_date=? AND source=?`
 
 ```
 wandersuite/
-├── svelte/src/
-│   ├── lib/
-│   │   ├── stores.js              ← all state (trips, budget, bucketlist, apiUrl, ...)
-│   │   ├── api.js                 ← HTTP client with JWT injection
-│   │   ├── i18n.js                ← reactive t() derived store
-│   │   └── components/
-│   │       ├── AppShell.svelte
-│   │       ├── Header.svelte      ← BETA badge + version
-│   │       ├── Sidebar.svelte     ← logout when auth enabled
-│   │       ├── Login.svelte       ← passkey + password fallback
-│   │       ├── Setup.svelte       ← first admin account
-│   │       ├── Settings.svelte    ← tabs: basic/integrations/apis/notifications/myspace/account/admin
-│   │       ├── PasskeyManager.svelte
-│   │       ├── FieldGuide.svelte  ← ActualBudget filename docs
-│   │       ├── ScratchMap.svelte  ← jsvectormap, 3 Marker-Typen, Jahr-Filter, robust CDN load
-│   │       └── pages/
-│   │           ├── Dashboard.svelte
-│   │           ├── PriceRadar.svelte   ← vollständig i18n, alle Tabs
-│   │           ├── MyTrips.svelte      ← Tabs: overview/trips/journal/bucketlist
-│   │           └── Discover.svelte     ← vollständig i18n
-│   ├── locales/
-│   │   ├── de.json
-│   │   ├── en.json
-│   │   └── it.json
-│   └── routes/
-│       ├── +layout.svelte         ← gate: onboarding → setup → login → app
-│       └── +page.svelte
-├── svelte/static/
-│   ├── favicon.svg
-│   ├── manifest.webmanifest
-│   └── icons/icon-192.png, icon-512.png
-├── backend/
-│   ├── main.py                    ← APP_VERSION, alle Router registriert
-│   ├── database.py                ← detected_trips: cost/notes/source Spalten
-│   ├── auth_db.py
-│   ├── auth_jwt.py
-│   ├── settings_manager.py        ← global + per-user settings
-│   ├── actual_budget.py           ← actualpy wrapper: get_travel_expenses, list_budget_files
-│   ├── dawarich.py
-│   └── routes/
-│       ├── auth.py
-│       ├── passkey.py             ← _get_rp() auto-detection via Origin-Header
-│       ├── settings.py
-│       ├── trips.py               ← /api/trips unified endpoint + /api/trips/budget
-│       ├── budget.py              ← /api/budget/actual/* incl. /transactions + /list-files
-│       ├── trackers.py
-│       ├── google_flights.py
-│       ├── accommodations.py
-│       ├── userdata.py
-│       └── dawarich.py
-├── docker/
-│   ├── Dockerfile
-│   ├── Dockerfile.frontend
-│   └── nginx.conf
-└── docker-compose.yml
++-- svelte/src/
+|   +-- lib/
+|   |   +-- stores.js
+|   |   +-- api.js
+|   |   +-- i18n.js
+|   |   +-- components/
+|   |       +-- AppShell.svelte
+|   |       +-- Header.svelte
+|   |       +-- Sidebar.svelte
+|   |       +-- Login.svelte
+|   |       +-- Setup.svelte
+|   |       +-- Settings.svelte
+|   |       +-- PasskeyManager.svelte
+|   |       +-- FieldGuide.svelte
+|   |       +-- ScratchMap.svelte
+|   |       +-- pages/
+|   |           +-- Dashboard.svelte
+|   |           +-- PriceRadar.svelte   <- Meta-Suche Aggregator, 4 Kategorien
+|   |           +-- MyTrips.svelte
+|   |           +-- Discover.svelte
+|   +-- locales/
+|   |   +-- de.json
+|   |   +-- en.json
+|   |   +-- it.json
+|   +-- routes/
+|       +-- +layout.svelte
+|       +-- +page.svelte
++-- svelte/static/
+|   +-- favicon.svg
+|   +-- manifest.webmanifest
+|   +-- icons/icon-192.png, icon-512.png
++-- backend/
+|   +-- main.py
+|   +-- database.py
+|   +-- auth_db.py
+|   +-- auth_jwt.py
+|   +-- settings_manager.py
+|   +-- notifications.py            <- NEU: Telegram + Gotify Engine
+|   +-- actual_budget.py
+|   +-- dawarich.py
+|   +-- scheduler.py                <- APScheduler + Cleanup-Job (60 Tage)
+|   +-- routes/
+|       +-- auth.py
+|       +-- passkey.py
+|       +-- settings.py
+|       +-- trips.py
+|       +-- budget.py
+|       +-- trackers.py             <- unified tracker CRUD
+|       +-- search.py               <- NEU: /api/search/* Aggregator
+|       +-- prices.py               <- wish_price + history
+|       +-- scheduler.py            <- /api/scheduler/* endpoints
+|       +-- google_flights.py
+|       +-- accommodations.py
+|       +-- userdata.py
+|       +-- dawarich.py
++-- docker/
+|   +-- Dockerfile
+|   +-- Dockerfile.frontend
+|   +-- nginx.conf
++-- docker-compose.yml
 ```
 
 ---
@@ -435,249 +648,42 @@ body = {'message': msg, 'content': base64_content, 'branch': 'beta', 'sha': sha}
 ## Bekannte Quirks & Fallen
 
 ### ActualBudget
-- Frontend sendet `actual_url`/`actual_token`/`actual_file` — Backend `/actual/transactions` mappt diese
-- Wenn `actual_file` leer → erste verfügbare Datei wird automatisch verwendet
-- Dateiname ≠ Budget-Name in der UI — es ist die **interne ID** (aus URL kopieren)
-- Debug-Endpoint: `POST /api/budget/actual/debug` mit `base_url`/`password`/`budget_file`
+- Frontend sendet `actual_url`/`actual_token`/`actual_file` -- Backend `/actual/transactions` mappt diese
+- Wenn `actual_file` leer -> erste verfügbare Datei wird automatisch verwendet
 
-### here.now / CDN-Caching
-- here.now generiert bei jedem Deploy eine neue zufällige URL → manuell im Dashboard pinnen
-- CDN cached aggressiv nach URL-Pfad → bei gleichem Chunk-Hash kein Cache-Bust
-
-### jsvectormap CDN-Load
-- `world.js` braucht `window.jsVectorMap` global → strikt sequenziell laden
-- `Promise.all` schlägt fehl weil `world.js` parallel geladen nichts findet
-- Lösung: CSS → core → **poll bis bereit** → world.js → 150ms pause → init
-
-### Svelte 5 / $derived
-- `$derived(() => { ... })` gibt eine Funktion zurück → im Template mit `()` aufrufen: `availableYears()`
-- `$state` Arrays/Objects: immer neu zuweisen statt mutieren: `arr = [...arr, item]`
-
----
-
-## MyTrips — Letzte Änderungen (April 2026)
-
-### Jahr-Switcher
-- Zeigt immer **genau 3 Jahre**: `selectedYear-1 | selectedYear | selectedYear+1`
-- `‹` / `›` dekrementieren/inkrementieren `selectedYear` direkt
-- Kein `availableYears`-Paginierung mehr — einfacher, robuster
-
-### Header Badges (4 Stück)
-- `✈️ X geplant` → klickbar → Tab `trips`
-- `✅ Y vergangen` → klickbar → Tab `journal`
-- `🌟 Z wünsche` → klickbar → Tab `bucketlist`
-- `W gesamt` → read-only
-
-### Donut-Chart (SVG/conic-gradient)
-- Kein externes Chart-Package — reines CSS `conic-gradient`
-- Segmente: Vergangen (dunkelgrün `#2d6a4f`) | Geplant (hellgrün `#86efac`) | Verfügbar (grau) | Überschuss (rot)
-- Legende-Buttons wechseln Tab (kein Auto-Filter)
-- `auto_cost` (automatisch zugeordnet) wird in Kosten eingerechnet
-
-### Reisechronik — Sync-Logik
-
-#### Reihenfolge (nummeriert)
-1. **Jahresbudget** (ganz oben links)
-2. **Manuell erfassen** (Formular)
-3. **💡 Tipp-Banner** (optimale Sync-Reihenfolge erklären)
-4. **1. Dawarich Sync** (grüner Balken links) — mit `force_full` Checkbox
-5. **2. ActualBudget Sync** (blauer Balken links) — mit `🔗 Kosten automatisch zuordnen` Button
-
-#### force_full (Dawarich)
-- Checkbox: "Gelöschte Reisen erzwingen (Full Sync)"
-- Sendet `force_full: true` an `/api/dawarich/sync`
-- Backend: `unignore_detected_trips()` → setzt `ignored=0` für alle Dawarich-Trips
-
-#### Auto-Cost (ActualBudget → Dawarich-Trips)
-- Erscheint nach erfolgreichem ActualBudget Sync
-- Button: `🔗 Kosten automatisch zuordnen`
-- Endpoint: `POST /api/trips/auto-cost`
-- Logik: Transaktionen deren `date` im `[trip.start_date, trip.end_date]` liegt → werden dem Trip als `auto_cost` zugeordnet
-- In Timeline: `(auto)` Badge wenn `cost==null` aber `auto_cost` vorhanden
-
-#### Soft-Delete (Dawarich-Trips)
-- Löschen setzt `ignored=1` in DB (kein echter DELETE)
-- Beim nächsten Sync wird ignorierte Trips übersprungen
-- `force_full=true` → resettet alle `ignored=1` auf `ignored=0`
-- Manuelle Trips: echter DELETE
-
-### Settings — Auth-Abhängigkeit
-- `auth_enabled=false` → Tab **Integrationen** sichtbar (global, single-user)
-- `auth_enabled=true`  → Tab **Mein Bereich** sichtbar (per-user, verschlüsselt)
-- Beide Tabs haben Info-Banner mit Erklärung
-- Beide speichern verschlüsselt in DB via `settings_manager`
-
-### ScratchMap — Lokaler Import
+### jsvectormap
 - `jsvectormap` aus `node_modules` (npm, kein CDN)
 - `import { default as jsVectorMap } from 'jsvectormap'`
-- `import 'jsvectormap/dist/maps/world.js'`
-- CSS via `<svelte:head><style>@import 'jsvectormap/dist/css/jsvectormap.min.css'</style></svelte:head>`
 
-
----
-
-## PriceRadar — Architektur (Multi-Provider Aggregator)
-
-### Tab-Struktur
-| Tab | ID | Provider | Tracker-Tabelle |
-|-----|----|----------|-----------------|
-| 🟠 Ryanair | `ryanair` | ryanair.com scraper | `trackers` |
-| 🔵 Google Flights | `gflights` | SerpAPI Google Flights | `gf_trackers` |
-| ⛺ Camping | `homair` | SerpAPI Google Hotels (Homair-Query) | `homair_trackers` |
-| 🏨 Hotels | `booking` | SerpAPI Google Hotels | `booking_trackers` |
-
-### Tracker-Karten Features
-- **Wunschpreis (`wish_price`)**: Editierbares Inline-Feld (✏️ → Input → ✓/Enter). Grüner Border + "🎯 Wunschpreis erreicht!" wenn `price ≤ wish_price`.
-- **Preisverlauf-Chart**: Akkordeon (📈 Button) → SVG Liniendiagramm aus `price_history` Tabelle. Min/Max-Labels.
-- **Skeleton Screens**: Animate-pulse Platzhalter beim Laden.
-
-### Wish-Price API
-`PUT /api/prices/wish/{table}/{tracker_id}` mit `{ wish_price: float | null }`
-- table: `trackers` | `gf_trackers` | `homair_trackers` | `booking_trackers`
-- Endpoint in `backend/routes/prices.py`
-
-### Price History API
-`GET /api/prices/history/{tracker_type}/{tracker_id}?limit=90`
-- tracker_type: `flight` | `google_flight` | `hotel` | `camping`
-- Returns: `{ history: [{ fetched_at, price, currency, provider, status }] }`
+### Svelte 5 / $derived
+- `$derived(() => { ... })` gibt eine Funktion zurück -> im Template mit `()` aufrufen
+- `$state` Arrays/Objects: immer neu zuweisen statt mutieren
 
 ---
-
-## Datenbank — Neue Tabellen (dieses Upgrade)
-
-### price_history
-```sql
-CREATE TABLE price_history (
-    id           INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id      INTEGER NOT NULL DEFAULT 1,
-    tracker_type TEXT    NOT NULL,   -- 'flight'|'google_flight'|'hotel'|'camping'
-    tracker_id   INTEGER NOT NULL,
-    price        REAL    NOT NULL,
-    currency     TEXT    NOT NULL DEFAULT 'EUR',
-    provider     TEXT,               -- 'ryanair'|'google_flights'|'homair'|'booking'
-    status       TEXT    NOT NULL DEFAULT 'ok',
-    error_msg    TEXT,
-    fetched_at   TEXT    NOT NULL DEFAULT (datetime('now'))
-);
-```
-**Cleanup**: `DELETE FROM price_history WHERE fetched_at < datetime('now', '-180 days')`
-→ Täglich 03:00 via APScheduler (`run_cleanup_job()`)
-
-### user_scheduler_settings
-```sql
-CREATE TABLE user_scheduler_settings (
-    user_id               INTEGER PRIMARY KEY,
-    update_interval_hours INTEGER NOT NULL DEFAULT 24,
-    notify_price_drop     INTEGER NOT NULL DEFAULT 1,
-    notify_daily_summary  INTEGER NOT NULL DEFAULT 0,
-    last_run_at           TEXT,
-    updated_at            TEXT    NOT NULL DEFAULT (datetime('now'))
-);
-```
-
-### wish_price Spalte (Migration)
-Neue Spalte auf allen Tracker-Tabellen:
-```sql
-ALTER TABLE trackers         ADD COLUMN wish_price REAL DEFAULT NULL;
-ALTER TABLE gf_trackers      ADD COLUMN wish_price REAL DEFAULT NULL;
-ALTER TABLE homair_trackers  ADD COLUMN wish_price REAL DEFAULT NULL;
-ALTER TABLE booking_trackers ADD COLUMN wish_price REAL DEFAULT NULL;
-```
-
----
-
-## Scheduler — Per-User Einstellungen
-
-### API
-| Methode | Pfad | Beschreibung |
-|---------|------|-------------|
-| GET | `/api/scheduler/settings` | Aktuelle Einstellungen des Users |
-| PUT | `/api/scheduler/settings` | Intervall (6/12/24/48/72/168h) + Notifications speichern |
-| POST | `/api/scheduler/run` | Manueller Trigger (läuft im Hintergrund) |
-
-### Settings-Tab "⏰ Scheduler"
-- 6 Intervall-Buttons (6h / 12h / 1d / 2d / 3d / 1Wo)
-- Toggle: Preissturz-Alarm, Tägliche Zusammenfassung
-- Letzter Lauf Timestamp
-- "Jetzt ausführen" Button
-
-### Cleanup-Job
-- Täglich 03:00 via APScheduler
-- Löscht `price_history` + alle `*_snapshots` Einträge älter als 180 Tage
-- Funktion: `run_cleanup_job()` in `backend/scheduler.py`
-
----
-
-## Mobile UI
-
-### BottomNav — Fixiert
-- `position: fixed; bottom: 0; z-index: 50` (Tailwind: `fixed bottom-0 left-0 right-0 z-50`)
-- Spacer-Div (`h-16`) direkt nach dem Nav-Element verhindert, dass Content verdeckt wird
-
-### Settings — Responsive Overlay
-- **Mobile**: `fixed inset-0` → Fullscreen Overlay
-- **Desktop**: `fixed inset-y-0 right-0 md:max-w-md` → Side Panel (wie bisher)
-
----
-
-## Backend — Scheduler Deep Logging
-
-Format: `[PROVIDER] {icon} #{id} status={status} | price={price} | {detail}`
-- `scrape=success` / `scrape=blocked_by_cf` / `source=serpapi`
-- Jeder Provider-Runner (`run_ryanair_trackers`, `run_gf_trackers`, etc.) läuft unabhängig
-- Fehler in einem Provider crashen nie den nächsten
-
 
 ## Open / Next Steps
 
-### Erledigt (diese Session)
-- [x] Passkeys: rp_id auto-detection via Origin-Header (kein x-forwarded-host)
-- [x] Passkeys: `attestation="none"` String entfernt (py-webauthn erwartet Default)
+### Erledigt (bisherige Sessions)
+- [x] Passkeys: rp_id auto-detection via Origin-Header
 - [x] i18n: alle Bereiche DE/EN/IT vollständig
-- [x] PriceRadar: alle Formular-Labels, Tabs, Buttons i18n
-- [x] MyTrips: komplettes UX-Redesign
-  - [x] Tab-Reihenfolge: Übersicht → Geplant → Chronik → Bucket List
-  - [x] Jahres-Switcher: max. 4 Jahre sichtbar, `‹ ›` navigierbar
-  - [x] Globaler Sync-Button (Dawarich + ActualBudget nacheinander)
-  - [x] Budget pro Jahr im Backend (`/api/trips/budget`)
-  - [x] Reisechronik: manuelle Einträge (`source=manual`)
-  - [x] Inline-Kosten-Editor in der Chronik (`PATCH /api/trips/{id}/cost`)
-  - [x] ActualBudget + Budget-Input in Reisechronik (nicht in Geplante Reisen)
-  - [x] Stats 4-Karten: Vergangen/Geplant/Wunschziele/Ausgegaben (alle 3 klickbar)
-  - [x] Donut-Chart (SVG conic-gradient): Vergangen dunkelgrün / Geplant hellgrün / Frei grau / Überzogen rot
-  - [x] Donut-Legende: Vergangen → Tab Chronik, Geplant → Tab Geplante Reisen
-- [x] Jahr-Switcher: genau 3 Jahre (letztes/aktuelles/nächstes), Pfeile direkt selectedYear ±1
-- [x] 4 Badges im Header: ✈️ Geplant | ✅ Vergangen | 🌟 Wunschziele | Gesamt (alle klickbar)
-- [x] Reisechronik: nummerierte Sync-Karten (1. Dawarich, 2. ActualBudget) mit Amber-Tipp
-- [x] Dawarich: force_full Checkbox → ignorierte Trips reaktivieren
-- [x] Soft-Delete: Dawarich-Trips setzen ignored=1 statt echter Delete; beim Sync übersprungen
-- [x] Auto-Cost: /api/trips/auto-cost — Datum-Overlap ActualBudget Tx → Trips zuordnen
-  - auto_cost_txs JSON gespeichert, Anzeige in Timeline mit 🔗-Marker
-- [x] Settings: Auth-abhängige Integrationen (auth=true → Mein Bereich; auth=false → Integrationen)
-- [x] ScratchMap: jsvectormap als npm-Dependency (kein CDN mehr)
-  - [x] Nächste Abenteuer + Letzte Erinnerungen im Übersicht-Tab
-  - [x] ScratchMap: 3 Marker-Typen (visited grün / planned blau / bucket orange)
-- [x] ScratchMap: robuste CDN-Ladestrategie (poll + sequenziell)
-- [x] ActualBudget 404 Fix: `/actual/transactions` Endpoint mit Feldname-Mapping
-- [x] ActualBudget: `📂 Dateien auflisten` Button + Hilfe-Panel in der UI
-- [x] Favicon: `favicon.svg` + `manifest.webmanifest` + `icon-192.png` + `icon-512.png`
-- [x] Settings Mein Bereich: Geocoding-Suche für Home-Koordinaten (Nominatim)
-- [x] FieldGuide: ActualBudget Dateiname Schritt-für-Schritt Erklärung
-- [x] Onboarding: `window.location.origin` als Backend-URL Vorschlag
+- [x] MyTrips: komplettes UX-Redesign (Tabs, Jahres-Switcher, Donut-Chart, Badges)
+- [x] Soft-Delete: Dawarich-Trips (ignored=1)
+- [x] Auto-Cost: ActualBudget -> Dawarich-Trips
+- [x] ScratchMap: jsvectormap npm + 3 Marker-Typen
+- [x] Price history chart (SVG) in PriceRadar
+- [x] Wish-price inline edit + grüner Border
+- [x] Scheduler: APScheduler + per-user settings
+- [x] CLAUDE.md: PriceRadar auf neue Aggregator-Architektur dokumentiert (STEP 1)
 
-### Roadmap (beta)
-- [ ] ScratchMap: Geocoding für planned-Trips (lat/lon aus Ortsname automatisch)
-- [x] Price history chart (SVG Liniendiagramm) in PriceRadar — per-Tracker Akkordeon
-- [ ] Mietwagen tab in PriceRadar (future)
-- [ ] Discord webhook notifications
-- [ ] Currency toggle (EUR/USD/GBP)
-- [x] Donut-Chart für Budget (conic-gradient)
-- [x] Auto-Cost: ActualBudget → Dawarich-Trips
-- [x] Soft-Delete mit ignored-Flag
-- [x] Settings auth-abhängige Tabs
-- [ ] HSTS header in Zoraxy setzen
-- [ ] Scratch Map: planned-Trips Koordinaten via Geocoding befüllen
+### Roadmap (beta) -- PriceRadar Umbau
+- [ ] STEP 2: PriceRadar.svelte -- alte Tabs zerstören, neue Kategorie-Suchmasken
+- [ ] STEP 3: Backend /api/search/* Aggregator (Strategy Pattern, async parallel)
+- [ ] STEP 4: Aktive Tracker UX (Responsive Grid, Inklusiv-Badges, Button-Sicherheit)
+- [ ] STEP 5: Backend Security (verschlüsselte Notifications, APScheduler, DB-Cleanup 60d)
 
 ### Phase 3 (future)
+- [ ] Mietwagen-Tab (echte Provider)
+- [ ] Discord webhook notifications
+- [ ] Currency toggle (EUR/USD/GBP)
 - [ ] Multi-user data separation fully tested
 - [ ] Merge stable features to `main`
