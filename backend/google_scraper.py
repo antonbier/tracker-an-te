@@ -26,9 +26,10 @@ def fetch_google_flights(tracker: dict, api_key: str) -> dict:
 
     logger.info(f"[GF] {origin}→{destination} {out_date} | adults={adults} children={children}")
 
+    # SerpAPI: type=1 = Round-trip, type=2 = One-way
     outbound_price, outbound_details = _search_flight(
         origin, destination, out_date, adults, children,
-        trip_type=2 if ret_date else 1, api_key=api_key
+        trip_type=1 if ret_date else 2, api_key=api_key
     )
 
     if outbound_price is None:
@@ -40,7 +41,7 @@ def fetch_google_flights(tracker: dict, api_key: str) -> dict:
     if ret_date:
         return_price, return_details = _search_flight(
             destination, origin, ret_date, adults, children,
-            trip_type=2, api_key=api_key
+            trip_type=2, api_key=api_key  # one-way for return leg
         )
         if return_price:
             total += return_price
