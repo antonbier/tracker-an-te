@@ -891,3 +891,40 @@ Beim Speichern eines Suchergebnisses als Tracker gingen essenzielle Metadaten ve
 - **Ryanair** (`flight`): parst `baggage_json` (Array von BaggageItems) → zeigt `🎒 Nx 10kg` etc.
 - **Google Flights** (`google_flight`): parst `baggage_json` (Objekt mit Counts) → zeigt Badges
 - Beide: zeigt `💺 Sitz X€/P` wenn `seat_cost > 0`
+
+
+---
+
+## Step 2 (Session 2025-04) — Preis-Logik & Suchmasken-Felder
+
+### Hotel & Camping Gesamtpreis (Backend — routes/search.py)
+- Neue Hilfsfunktion `_calc_nights(checkin, checkout)` → berechnet Nächte aus ISO-Datums-Strings
+- SerpAPI liefert Preise primär als **Rate pro Nacht** (`rate_per_night`) oder als Gesamtpreis (`total_rate`)
+- Logik: wenn `rate_per_night` in Response-Keys UND kein `total_rate` → `total = rate × nights`
+  sonst wird `raw_price` direkt als Gesamtpreis behandelt
+- Result-Objekte enthalten jetzt: `price` (Gesamtpreis), `price_per_night` (Ø/Nacht), `nights`
+- Subtitle zeigt `N Nächte` mit an
+- Frontend Suchergebniskarte: Gesamtpreis groß (`price.toFixed(2) €`), darunter `Ø X.XX €/Nacht` (bei >1 Nacht)
+- Tracker-Karte: berechnet Nächte reaktiv aus `checkin_date`/`checkout_date` → zeigt `Ø X.XX €/Nacht`
+
+### Camping Endreinigung (Frontend + Backend)
+- Neues State: `cpFinalClean = $state(false)` in PriceRadar.svelte
+- Neue Checkbox in Extras-Liste: `radarFinalCleaning` (Key in allen 3 Locales)
+- Backend `CampingSearchParams`: `final_cleaning: bool = False`
+- Wird als Badge `🧹 Endreinigung` in Suchergebnissen angezeigt und im `detail`-Objekt weitergereicht
+- Tracker-Speicherung: `final_cleaning` in Camping-Payload übergeben
+
+### Camping Kategorie-Dropdown (dynamisch vorbereitet)
+- State `cpAccomOptions = $state([...])` ersetzt hardcodierte `<option>`-Tags
+- Dropdown rendert jetzt `{#each cpAccomOptions as opt}<option value={opt.value}>{opt.label}</option>{/each}`
+- Initiale Werte: `Mobilheim (Standard)`, `Mobilheim (Premium)`, `Glamping`, `Stellplatz`
+- `mobilheim-premium` als neuer Wert vorbereitet — Klassen können später aus API befüllt werden
+- `accommodation_type` wird weiterhin als String ans Backend gesendet (kein Schema-Bruch)
+
+### Gepäck-Stepper Preisfelder (Frontend — Flüge)
+- Neue State-Vars: `fl10kgPrice`, `fl20kgPrice`, `fl23kgPrice` (Default: 0)
+- Gepäck-Stepper-Zeile: Anzahl-Stepper (links) + freies Eingabefeld `€/Koffer` (rechts)
+- Eingabefeld deaktiviert (opacity 0.4) wenn Anzahl = 0
+- Zeilensumme rechts: `(Anzahl × Preis).toFixed(2) €` — nur wenn beide > 0
+- `flBaggageCost` berechnet dynamisch aus User-Preisen statt fest codierten 22.99/34.99/42.99
+- Neues i18n-Key: `radarFinalCleaning` in DE/EN/IT
