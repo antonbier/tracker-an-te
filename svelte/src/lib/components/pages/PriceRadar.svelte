@@ -186,6 +186,9 @@
   let fl10kg      = $state(0);       // Anzahl 10kg-Koffer
   let fl20kg      = $state(0);       // Anzahl 20kg-Koffer
   let fl23kg      = $state(0);       // Anzahl 23kg-Koffer
+  let fl10kgPrice = $state(0);       // €/Koffer 10kg (manuell)
+  let fl20kgPrice = $state(0);       // €/Koffer 20kg (manuell)
+  let fl23kgPrice = $state(0);       // €/Koffer 23kg (manuell)
   let flSeatCost  = $state(0);       // Sitzplatz €/Person/Flug
   let flSeat      = $state(false);   // Legacy
   let flDepFrom   = $state('');      // Abflug ab HH:MM
@@ -194,9 +197,9 @@
   let flArrTo     = $state('');      // Ankunft bis HH:MM
   let flMaxStops  = $state(-1);      // -1=alle, 0=nonstop, 1=max1, 2=max2
 
-  // Gepäck-Preis-Preview (reaktiv)
+  // Gepäck-Preis-Preview (reaktiv) — nutzt User-eingegebene Preise
   const flBaggageCost = $derived(
-    fl10kg * 22.99 + fl20kg * 34.99 + fl23kg * 42.99
+    fl10kg * fl10kgPrice + fl20kg * fl20kgPrice + fl23kg * fl23kgPrice
   );
   const flTotalPax = $derived(flAdults + flChildren);
   // Gesamtpreis-Aufschlag (ohne Flugpreis) für Preview-Badge
@@ -219,6 +222,13 @@
 
   // ── Camping form ──────────────────────────────────────────────────────────
   let cpRegion    = $state('');
+  // Unterkunfts-Klassen — kann später durch API-Daten ersetzt werden
+  let cpAccomOptions = $state([
+    { value: 'mobilheim',         label: 'Mobilheim (Standard)' },
+    { value: 'mobilheim-premium', label: 'Mobilheim (Premium)' },
+    { value: 'glamping',          label: 'Glamping' },
+    { value: 'stellplatz',        label: 'Stellplatz' },
+  ]);
   let cpIn        = $state(fmt(d30));
   let cpOut       = $state(fmt(d37));
   let cpAdults    = $state(2);
@@ -228,6 +238,7 @@
   let cpAircon    = $state(false);
   let cpPets      = $state(false);
   let cpTerrace   = $state(false);
+  let cpFinalClean = $state(false); // Endreinigung
 
   // ── Search state ──────────────────────────────────────────────────────────
   let searching    = $state(false);
@@ -297,6 +308,7 @@
           aircon:             cpAircon,
           pets:               cpPets,
           covered_terrace:    cpTerrace,
+          final_cleaning:     cpFinalClean,
         };
       }
       const res = await api(endpoint, {
@@ -376,6 +388,7 @@
           covered_terrace:    d.covered_terrace || false,
           campsite_name:      d.campsite_name || result.title || null,
           initial_price:      result.price || null,
+          final_cleaning:     d.final_cleaning || false,
         };
       } else if (result._tracker_type === 'hotel') {
         endpoint = '/api/accommodations/booking';
@@ -725,30 +738,42 @@
       </div>
     </div>
 
-    <!-- Gepäck-Stepper: 10kg / 20kg / 23kg -->
+    <!-- Gepäck-Stepper: 10kg / 20kg / 23kg — Anzahl + freier Preis/Koffer -->
     <div>
       <label class="{labelCls}" style="color:var(--ws-muted)">🧳 {$t('radarBaggage')} — {$t('radarInclusions')}</label>
       <div class="space-y-2 mt-1">
         {#each [
-          [() => fl10kg, v => fl10kg = v, '10 kg', '22.99'],
-          [() => fl20kg, v => fl20kg = v, '20 kg', '34.99'],
-          [() => fl23kg, v => fl23kg = v, '23 kg', '42.99'],
-        ] as [getter, setter, label, price]}
-          <div class="rounded-xl border p-2.5 flex items-center gap-3"
+          [() => fl10kg, v => fl10kg = v, () => fl10kgPrice, v => fl10kgPrice = v, '10 kg'],
+          [() => fl20kg, v => fl20kg = v, () => fl20kgPrice, v => fl20kgPrice = v, '20 kg'],
+          [() => fl23kg, v => fl23kg = v, () => fl23kgPrice, v => fl23kgPrice = v, '23 kg'],
+        ] as [getter, setter, pGetter, pSetter, label]}
+          <div class="rounded-xl border p-2.5 flex items-center gap-2"
             style="background:var(--ws-surface2);border-color:var(--ws-border)">
-            <div class="flex-1 min-w-0">
-              <span class="text-xs font-semibold" style="color:var(--ws-text)">{label}</span>
-              <span class="text-[10px] ml-1.5" style="color:var(--ws-muted)">{price} €/Koffer</span>
-            </div>
-            <div class="flex items-center gap-2 shrink-0">
+            <!-- Koffer-Label -->
+            <span class="text-xs font-semibold w-10 shrink-0" style="color:var(--ws-text)">{label}</span>
+            <!-- Anzahl-Stepper -->
+            <div class="flex items-center gap-1.5 shrink-0">
               <button onclick={() => setter(Math.max(0, getter() - 1))}
-                class="w-7 h-7 rounded-lg border text-base font-bold flex items-center justify-center transition-opacity hover:opacity-70"
+                class="w-6 h-6 rounded-lg border text-sm font-bold flex items-center justify-center"
                 style="background:var(--ws-surface);border-color:var(--ws-border);color:var(--ws-text)">−</button>
-              <span class="w-5 text-center text-sm font-bold" style="color:{getter()>0?'var(--ws-accent)':'var(--ws-muted)'}">{getter()}</span>
+              <span class="w-4 text-center text-sm font-bold" style="color:{getter()>0?'var(--ws-accent)':'var(--ws-muted)'}">{getter()}</span>
               <button onclick={() => setter(Math.min(9, getter() + 1))}
-                class="w-7 h-7 rounded-lg border text-base font-bold flex items-center justify-center transition-opacity hover:opacity-70"
+                class="w-6 h-6 rounded-lg border text-sm font-bold flex items-center justify-center"
                 style="background:var(--ws-accent);border-color:var(--ws-accent);color:#fff">+</button>
             </div>
+            <!-- Preis-Eingabe (nur aktiv wenn Anzahl > 0) -->
+            <div class="flex items-center gap-1 flex-1 min-w-0">
+              <input type="number" bind:value={() => pGetter(), v => pSetter(v)} min="0" step="0.01"
+                placeholder="€/Koffer"
+                class="flex-1 min-w-0 px-2 py-1 rounded-lg border text-xs font-mono text-center outline-none"
+                style="{inputStyle};opacity:{getter()>0?1:0.4}"
+                disabled={getter() === 0}/>
+              <span class="text-[10px] shrink-0" style="color:var(--ws-muted)">€</span>
+            </div>
+            <!-- Summe dieser Zeile -->
+            {#if getter() > 0 && pGetter() > 0}
+              <span class="text-xs font-mono shrink-0" style="color:var(--ws-accent)">{(getter()*pGetter()).toFixed(2)}€</span>
+            {/if}
           </div>
         {/each}
         <!-- Gesamtkosten-Preview -->
@@ -1041,10 +1066,11 @@
     <!-- Accommodation type dropdown -->
     <div>
       <label class="{labelCls}" style="color:var(--ws-muted)">{$t('radarAccomType')}</label>
+      <!-- Dropdown vorbereitet für dynamische API-Klassen (Standard/Premium etc.) -->
       <select bind:value={cpAccomType} class="{inputCls}" style={inputStyle}>
-        <option value="mobilheim">{$t('radarAccomMobilheim')}</option>
-        <option value="glamping">{$t('radarAccomGlamping')}</option>
-        <option value="stellplatz">{$t('radarAccomStellplatz')}</option>
+        {#each cpAccomOptions as opt}
+          <option value={opt.value}>{opt.label}</option>
+        {/each}
       </select>
     </div>
 
@@ -1063,9 +1089,10 @@
       <label class="{labelCls}" style="color:var(--ws-muted)">{$t('radarExtras')}</label>
       <div class="mt-1.5 space-y-2">
         {#each [
-          [() => cpAircon,   v => cpAircon   = v, 'radarAircon'],
-          [() => cpPets,     v => cpPets     = v, 'radarPetsAllowed'],
-          [() => cpTerrace,  v => cpTerrace  = v, 'radarCoveredTerrace'],
+          [() => cpAircon,     v => cpAircon     = v, 'radarAircon'],
+          [() => cpPets,       v => cpPets       = v, 'radarPetsAllowed'],
+          [() => cpTerrace,    v => cpTerrace    = v, 'radarCoveredTerrace'],
+          [() => cpFinalClean, v => cpFinalClean = v, 'radarFinalCleaning'],
         ] as [getter, setter, key]}
           <button
             onclick={() => setter(!getter())}
@@ -1185,6 +1212,11 @@
               <div class="font-bold font-mono text-base" style="color:var(--ws-green)">
                 {result.price ? result.price.toFixed(2) + ' €' : '–'}
               </div>
+              {#if result.price_per_night && result.nights > 1}
+                <div class="text-[10px] font-mono" style="color:var(--ws-muted)">
+                  Ø {result.price_per_night.toFixed(2)} €/Nacht
+                </div>
+              {/if}
               <button
                 onclick={() => saveAsTracker(result)}
                 disabled={savingTracker === result.id}
@@ -1293,6 +1325,12 @@
                 <div class="font-bold font-mono text-base" style="color:{price ? 'var(--ws-green)' : 'var(--ws-muted)'}">
                   {price ? price.toFixed(2) + ' €' : '–'}
                 </div>
+                {#if (tr._type === 'hotel' || tr._type === 'camping') && tr.checkin_date && tr.checkout_date}
+                  {@const nights = Math.max(1, Math.round((new Date(tr.checkout_date) - new Date(tr.checkin_date)) / 86400000))}
+                  {#if nights > 1 && price}
+                    <div class="text-[10px] font-mono" style="color:var(--ws-muted)">Ø {(price/nights).toFixed(2)} €/Nacht</div>
+                  {/if}
+                {/if}
                 {#if s?.fetched_at}
                   <div class="text-xs" style="color:var(--ws-muted)">{s.fetched_at.slice(0, 10)}</div>
                 {/if}
@@ -1397,5 +1435,6 @@
   </div>
 
 </div>
+
 
 
