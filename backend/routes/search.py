@@ -35,6 +35,32 @@ from settings_manager import get_setting_value
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+
+def _parse_ryanair_time(local_list, utc_list, idx: int) -> str | None:
+    """
+    Extrahiert HH:MM als LOKALE Abflug-/Ankunftszeit.
+    Bevorzugt seg.time (local), fällt auf timeUTC zurück (ebenfalls als lokal behandelt).
+    Keine UTC→Lokal-Konvertierung — Zeiten werden exakt so angezeigt wie vom Airport.
+    """
+    def _extract(lst, i):
+        if not lst or i >= len(lst): return None
+        raw = str(lst[i]).strip()
+        if "T" in raw: return raw.split("T")[1][:5]
+        if len(raw) > 10 and " " in raw: return raw.split(" ")[1][:5]
+        return raw[:5] if len(raw) >= 5 else None
+
+    return _extract(local_list, idx) or _extract(utc_list, idx)
+
+
+def _fmt_ryanair_flight_num(raw: str) -> str | None:
+    """Normalisiert Ryanair Flugnummern: 'FR6125' → 'FR 6125'."""
+    import re as _re
+    if not raw: return None
+    raw = str(raw).strip()
+    if " " in raw: return raw
+    m = _re.match(r"^([A-Z]{1,3})([0-9].*)$", raw)
+    return f"{m.group(1)} {m.group(2)}" if m else raw
+
 TIMEOUT = 18.0  # seconds per provider
 
 # ── Realistic browser headers per provider ─────────────────────────────────
@@ -226,17 +252,16 @@ async def _search_ryanair(params: FlightSearchParams) -> list[dict]:
                         if params.children > 0: badges.append(f"👶 {params.children} Kind{'er' if params.children>1 else ''}")
 
                         seg = flight.get("segments", [{}])[0]
-                        # timeUTC = ["HH:MM", "HH:MM"] or ["2026-05-05T06:15:00Z", "..."]
-                        # Extract HH:MM robustly: take last 8 chars, then first 5
-                        def _hhmm(ts_list, idx):
-                            if not ts_list or idx >= len(ts_list): return None
-                            raw = str(ts_list[idx])
-                            return raw[-8:][:5] if len(raw) >= 8 else raw[:5] or None
-
-                        time_utc   = seg.get("timeUTC") or []
-                        dep_time   = _hhmm(time_utc, 0)
-                        arr_time   = _hhmm(time_utc, 1)
-                        flight_num = flight.get("flightNumber") or seg.get("flightNumber") or None
+                        # Use seg.time (LOCAL airport time), NOT timeUTC
+                        # Ryanair API: seg.time = [dep_local, arr_local] as plain "HH:MM"
+                        #              seg.timeUTC = [dep_utc, arr_utc] — do NOT use for display
+                        local_times = seg.get("time") or []
+                        utc_times   = seg.get("timeUTC") or []
+                        dep_time = _parse_ryanair_time(local_times, utc_times, 0)
+                        arr_time = _parse_ryanair_time(local_times, utc_times, 1)
+                        flight_num = _fmt_ryanair_flight_num(
+                            flight.get("flightNumber") or seg.get("flightNumber") or ""
+                        )
 
                         # Update subtitle with times if available
                         time_label = f" · {dep_time} ✈ {arr_time}" if dep_time and arr_time else ""
@@ -761,6 +786,7 @@ async def search_camping(
     logger.info(f"[SEARCH] ⛺ camping total_results={len(results)}")
     return {"results": results, "count": len(results),
             "missing_api_keys": missing_keys}
+
 
 
 
