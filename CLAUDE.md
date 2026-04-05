@@ -1072,3 +1072,43 @@ Ehemals ein `<details>` „🧳 Flugextras" → jetzt zwei separate:
 - PriceRadar: 422 mit `detail.error === 'missing_api_key'` → roter Toast
 - Hotels/Camping ohne SerpAPI-Key: `HTTPException(422)` → Frontend zeigt Alert
 - Flights ohne SerpAPI-Key: `missing_api_keys` in Response → Toast nach Suche
+
+---
+
+## Phase 3 Step 1 (Session 2025-04) — Scraper Time-Parsing & Flugnummern
+
+### Root Cause: Kaputte Zeiten ":00.0 → :00.0"
+Ryanair API liefert `seg.timeUTC` als ISO-Strings: `"2026-05-05T06:15:00.000Z"`.
+Alter `_hhmm`-Code: `raw[-8:][:5]` → bei `.000Z`-Suffix = `":00.0"` (falsch).
+
+**Zweites Problem:** `timeUTC` ist UTC, nicht lokale Abflugzeit. Für korrekte
+Anzeige muss `seg.time` (lokale Ortszeit des Airports) verwendet werden.
+
+### Fix: `_parse_local_time()` / `_parse_ryanair_time()` Hilfsfunktionen
+
+Alle Scraper nutzen jetzt robuste Zeitextraktion:
+```python
+if "T" in s:            return s.split("T")[1][:5]   # ISO → "06:15"
+if len(s) > 10 and " ": return s.split(" ")[1][:5]   # SerpAPI → "06:15"
+else:                   return s[:5]                  # plain HH:MM
+```
+
+**Zeitzonen-Regel (strikt):** Flugzeiten werden IMMER als lokale Ortszeit behandelt.
+Keine UTC→Lokal-Konvertierung im Backend. Browser-Zeitzone hat keinen Einfluss.
+- Ryanair: `seg.time[0/1]` (lokal), Fallback: `seg.timeUTC[0/1]` (als lokal behandelt)
+- SerpAPI: `departure_airport.time` / `arrival_airport.time` (lokale Flughafenzeit)
+
+### Flugnummer-Normalisierung: `_fmt_flight_number()`
+Ryanair gibt `flightNumber = "FR6125"` — wird jetzt zu `"FR 6125"` normalisiert.
+```python
+m = re.match(r"^([A-Z]{1,3})([0-9].*)$", raw)
+return f"{m.group(1)} {m.group(2)}"  # "FR 6125"
+```
+
+### Geänderte Dateien
+- `backend/scraper.py`: `_parse_local_time()` + `_fmt_flight_number()` ersetzt `_hhmm()`;
+  `_cheapest_flight()` nutzt `seg.time` primär
+- `backend/routes/search.py`: `_parse_ryanair_time()` + `_fmt_ryanair_flight_num()` als
+  Top-Level-Funktionen; Inline-`_hhmm`-Closure entfernt
+- `backend/google_scraper.py`: `_parse_serpapi_time()` + `_fmt_flight_number()` normalisieren
+  SerpAPI-Zeiten und Flugnummern
