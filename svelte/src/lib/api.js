@@ -2,11 +2,37 @@ import { get } from 'svelte/store';
 import { apiUrl, jwtToken } from './stores.js';
 
 /**
- * Core HTTP client — mirrors the old core/api.js pattern.
- * Automatically injects JWT if available.
+ * Core HTTP client.
+ * 
+ * Smart URL resolution:
+ * - If apiUrl is empty OR points to the same origin as the frontend
+ *   → use relative path (e.g. "/api/trips") so Nginx proxies it.
+ * - If apiUrl points to a different host/port
+ *   → use the full URL directly (dev / external backend).
+ *
+ * This fixes "failed to fetch" when the backend port is not externally
+ * exposed and all traffic must go through Nginx on port 80/443.
  */
+function resolveBase() {
+  const stored = get(apiUrl).replace(/\/$/, '');
+  if (!stored) return '';
+  try {
+    const u = new URL(stored);
+    // Same host and same port as frontend → use relative path (Nginx proxy)
+    if (u.hostname === window.location.hostname &&
+        u.port     === window.location.port) {
+      return '';
+    }
+    // Different host/port → use stored URL directly
+    return stored;
+  } catch {
+    // Not a valid absolute URL → treat as relative base
+    return stored.startsWith('/') ? stored : '';
+  }
+}
+
 export async function api(path, options = {}) {
-  const base = get(apiUrl).replace(/\/$/, '');
+  const base  = resolveBase();
   const token = get(jwtToken);
 
   const headers = {
@@ -28,7 +54,6 @@ export async function api(path, options = {}) {
     throw new Error(`API ${path} → ${res.status}: ${text}`);
   }
 
-  // 204 No Content
   if (res.status === 204) return null;
 
   return res.json();
