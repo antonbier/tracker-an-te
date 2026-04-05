@@ -50,8 +50,18 @@ export async function api(path, options = {}) {
   });
 
   if (!res.ok) {
-    const text = await res.text().catch(() => res.statusText);
-    throw new Error(`API ${path} → ${res.status}: ${text}`);
+    // Try to parse structured error detail (e.g. missing_api_key from FastAPI)
+    try {
+      const errBody = await res.json();
+      const err = new Error(errBody?.detail?.message || errBody?.detail || res.statusText);
+      err.status = res.status;
+      err.detail = errBody?.detail;
+      throw err;
+    } catch (parseErr) {
+      if (parseErr.status) throw parseErr; // re-throw structured error
+      const text = await res.text().catch(() => res.statusText);
+      throw new Error(`API ${path} → ${res.status}: ${text}`);
+    }
   }
 
   if (res.status === 204) return null;
