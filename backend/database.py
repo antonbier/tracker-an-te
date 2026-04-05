@@ -268,6 +268,8 @@ def init_db():
             ("detected_trips",   "ignored INTEGER NOT NULL DEFAULT 0"),
             ("detected_trips",   "auto_cost REAL DEFAULT NULL"),
             ("detected_trips",   "auto_cost_txs TEXT DEFAULT NULL"),
+            ("homair_trackers",  "campsite_name TEXT DEFAULT NULL"),
+            ("booking_trackers", "hotel_name TEXT DEFAULT NULL"),
         ]
         for table, col_def in migrations:
             col_name = col_def.split()[0]
@@ -682,11 +684,12 @@ def create_homair_tracker(data: dict, user_id: int = 1) -> int:
         cur = conn.execute(
             """INSERT INTO homair_trackers
                (user_id, region, accommodation_type, checkin_date, checkout_date,
-                adults, children, created_at)
-               VALUES (?,?,?,?,?,?,?,datetime('now'))""",
+                adults, children, campsite_name, created_at)
+               VALUES (?,?,?,?,?,?,?,?,datetime('now'))""",
             (user_id, data["region"], data.get("accommodation_type", "mobilheim-standard"),
              data["checkin_date"], data["checkout_date"],
-             data.get("adults", 2), data.get("children", 0))
+             data.get("adults", 2), data.get("children", 0),
+             data.get("campsite_name"))
         )
     return cur.lastrowid
 
@@ -779,12 +782,13 @@ def create_booking_tracker(data: dict, user_id: int = 1) -> int:
         cur = conn.execute(
             """INSERT INTO booking_trackers
                (user_id, destination, checkin_date, checkout_date,
-                adults, rooms, source, created_at)
-               VALUES (?,?,?,?,?,?,?,datetime('now'))""",
+                adults, rooms, source, hotel_name, created_at)
+               VALUES (?,?,?,?,?,?,?,?,datetime('now'))""",
             (user_id, data["destination"],
              data["checkin_date"], data["checkout_date"],
              data.get("adults", 2), data.get("rooms", 1),
-             data.get("source", "booking"))
+             data.get("source", "booking"),
+             data.get("hotel_name"))
         )
     return cur.lastrowid
 
@@ -1112,4 +1116,5 @@ def save_user_notification_settings(user_id: int, settings: dict, fernet) -> Non
             _enc(settings.get("gotify_url",          "")),
             _enc(settings.get("gotify_app_token",    "")),
         ))
+
 
