@@ -226,28 +226,45 @@ async def _search_ryanair(params: FlightSearchParams) -> list[dict]:
                         if params.children > 0: badges.append(f"👶 {params.children} Kind{'er' if params.children>1 else ''}")
 
                         seg = flight.get("segments", [{}])[0]
+                        # timeUTC = ["HH:MM", "HH:MM"] or ["2026-05-05T06:15:00Z", "..."]
+                        # Extract HH:MM robustly: take last 8 chars, then first 5
+                        def _hhmm(ts_list, idx):
+                            if not ts_list or idx >= len(ts_list): return None
+                            raw = str(ts_list[idx])
+                            return raw[-8:][:5] if len(raw) >= 8 else raw[:5] or None
+
+                        time_utc   = seg.get("timeUTC") or []
+                        dep_time   = _hhmm(time_utc, 0)
+                        arr_time   = _hhmm(time_utc, 1)
+                        flight_num = flight.get("flightNumber") or seg.get("flightNumber") or None
+
+                        # Update subtitle with times if available
+                        time_label = f" · {dep_time} ✈ {arr_time}" if dep_time and arr_time else ""
                         results.append({
                             "id":          f"ry-{params.origin}-{params.destination}-{params.outbound_date}-{len(results)}",
                             "provider":    "Ryanair",
                             "title":       f"{params.origin.upper()} → {params.destination.upper()}",
-                            "subtitle":    f"{params.outbound_date}{' ⇄ ' + params.return_date if params.return_date else ''} · {params.adults} Pers.",
+                            "subtitle":    f"{params.outbound_date}{' ⇄ ' + params.return_date if params.return_date else ''} · {params.adults} Pers.{time_label}",
                             "price":       total,
                             "currency":    "EUR",
                             "badges":      badges,
                             "detail": {
-                                "origin":        params.origin.upper(),
-                                "destination":   params.destination.upper(),
-                                "outbound_date": params.outbound_date,
-                                "return_date":   params.return_date,
-                                "adults":        params.adults,
-                                "children":      params.children,
-                                "baggage":       params.baggage,
-                                "baggage_10kg":  params.baggage_10kg,
-                                "baggage_20kg":  params.baggage_20kg,
-                                "baggage_23kg":  params.baggage_23kg,
-                                "seat":          params.seat,
-                                "seat_cost":     params.seat_cost,
-                                "departure_time": seg.get("timeUTC", [""])[0][:5] if seg.get("timeUTC") else None,
+                                "origin":          params.origin.upper(),
+                                "destination":     params.destination.upper(),
+                                "outbound_date":   params.outbound_date,
+                                "return_date":     params.return_date,
+                                "adults":          params.adults,
+                                "children":        params.children,
+                                "baggage":         params.baggage,
+                                "baggage_10kg":    params.baggage_10kg,
+                                "baggage_20kg":    params.baggage_20kg,
+                                "baggage_23kg":    params.baggage_23kg,
+                                "seat":            params.seat,
+                                "seat_cost":       params.seat_cost,
+                                "departure_time":  dep_time,
+                                "arrival_time":    arr_time,
+                                "flight_number":   flight_num,
+                                "airline":         "Ryanair",
                             },
                             "_tracker_type": "flight",
                             "_tracker_table": "trackers",
@@ -460,12 +477,11 @@ async def _search_hotels_serpapi(params: HotelSearchParams, api_key: str) -> lis
                             raw_price = None
                 if not raw_price:
                     continue
-                nights      = _calc_nights(params.checkin_date, params.checkout_date)
-                # SerpAPI may return per-night OR total — try to detect via key name
-                is_per_night = "rate_per_night" in (h.keys()) and not ("total_rate" in h and h.get("total_rate"))
+                nights          = _calc_nights(params.checkin_date, params.checkout_date)
+                # SerpAPI rate_per_night is always a nightly rate — multiply by nights
                 price_per_night = round(float(raw_price), 2)
-                total_price     = round(price_per_night * nights, 2) if is_per_night else round(float(raw_price), 2)
-                per_night_avg   = round(total_price / nights, 2)
+                total_price     = round(price_per_night * nights, 2)
+                per_night_avg   = price_per_night  # same, for consistency
 
                 results.append({
                     "id":       f"ht-{params.destination}-{params.checkin_date}-{len(results)}",
@@ -562,11 +578,11 @@ async def _search_camping_serpapi(params: CampingSearchParams, api_key: str) -> 
                 if params.final_cleaning:
                     badges.append("🧹 Endreinigung")
 
-                nights      = _calc_nights(params.checkin_date, params.checkout_date)
-                is_per_night = "rate_per_night" in (h.keys()) and not ("total_rate" in h and h.get("total_rate"))
+                nights          = _calc_nights(params.checkin_date, params.checkout_date)
+                # SerpAPI rate_per_night is always a nightly rate — multiply by nights
                 price_per_night = round(float(raw_price), 2)
-                total_price     = round(price_per_night * nights, 2) if is_per_night else round(float(raw_price), 2)
-                per_night_avg   = round(total_price / nights, 2)
+                total_price     = round(price_per_night * nights, 2)
+                per_night_avg   = price_per_night  # same, for consistency
 
                 results.append({
                     "id":       f"cp-{params.destination}-{params.checkin_date}-{len(results)}",
@@ -745,6 +761,7 @@ async def search_camping(
     logger.info(f"[SEARCH] ⛺ camping total_results={len(results)}")
     return {"results": results, "count": len(results),
             "missing_api_keys": missing_keys}
+
 
 
 
