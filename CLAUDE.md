@@ -1112,3 +1112,45 @@ return f"{m.group(1)} {m.group(2)}"  # "FR 6125"
   Top-Level-Funktionen; Inline-`_hhmm`-Closure entfernt
 - `backend/google_scraper.py`: `_parse_serpapi_time()` + `_fmt_flight_number()` normalisieren
   SerpAPI-Zeiten und Flugnummern
+
+---
+
+## Phase 3 Step 2 (Session 2025-04) — Tracker UI & Suchergebnisse
+
+### GF Doppel-Anzeige bereinigt (Suchergebnis-Karten)
+**Problem:** GF subtitle = `"2026-05-05 · Lufthansa · 08:15→10:50"` + Body-Zeile zeigt
+nochmal `✈️ Lufthansa 08:15 → 10:50`.
+
+**Fix:** Subtitle wird für Flüge mit Airline dynamisch bereinigt:
+```js
+const cleanSubtitle = d.airline
+  ? subtitle.replace(/·\s*[^·]+·\s*\d{2}:\d{2}→\d{2}:\d{2}/, '').trim()
+  : subtitle;
+```
+Body-Zeile (Airline + Flugnummer + Zeiten) ist jetzt die **einzige** Quelle.
+Flugnummer `d.flight_number` wird auch auf Suchergebnis-Karten angezeigt.
+
+### Tracker-Karten Fluginfos (Aktive Tracker)
+- `snap.airline`, `snap.flight_number`, `snap.departure_time`, `snap.arrival_time` zeigen korrekt
+- Fallback auf `snap.outbound_flight` wenn `flight_number` leer
+- Airline-Fallback: `"Ryanair"` / `"Google Flights"` wenn kein Snapshot-Airline
+- Kein Snapshot vorhanden → `"✈️ Ryanair · noch kein Preis-Scan"` als Hinweis
+- Dauer `(Xh Ym)` aus `snap.duration_min` ergänzt
+
+### Provider-Label — echter Name statt "_type"
+Neue Funktion `providerLabel(tr)`:
+```js
+'flight'        → 'Ryanair'
+'google_flight' → 'Google Flights'
+'hotel'         → 'Google Hotels' oder 'Booking.com'
+'camping'       → 'Homair'
+```
+Ersetzt `tr._type.replace('_', ' ')` im Provider-Badge (oben links auf Tracker-Karte).
+
+### Wunschpreis — prominente Fußzeile
+**Vorher:** Eingequetscht als rechte Hälfte der Preis-Row (flex justify-between).
+**Jetzt:** Eigener `<div>` mit Border direkt unter dem Preis-Block:
+- Zeigt aktuellen Wunschpreis groß (`text-sm font-mono font-bold`)
+- `✏️ setzen`-Button öffnet Inline-Edit mit `placeholder="Zielpreis in €"`
+- Border-Farbe: `var(--ws-accent)` wenn Wunschpreis gesetzt, sonst `var(--ws-border)`
+- Preis-Anzeige vergrößert auf `text-xl` für bessere Lesbarkeit
