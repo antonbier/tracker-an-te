@@ -272,6 +272,9 @@ def init_db():
             ("booking_trackers", "hotel_name TEXT DEFAULT NULL"),
             ("gf_trackers",      "seat_cost REAL NOT NULL DEFAULT 0"),
             ("gf_trackers",      "baggage_json TEXT NOT NULL DEFAULT '[]'"),
+            ("price_snapshots",  "departure_time TEXT DEFAULT NULL"),
+            ("price_snapshots",  "arrival_time TEXT DEFAULT NULL"),
+            ("price_snapshots",  "flight_number TEXT DEFAULT NULL"),
         ]
         for table, col_def in migrations:
             col_name = col_def.split()[0]
@@ -454,15 +457,18 @@ def save_price_snapshot(tracker_id: int, snap: dict) -> int:
             """INSERT INTO price_snapshots
                (tracker_id, fetched_at, flight_price, baggage_price, seat_price,
                 total_price, outbound_flight, return_flight, currency,
-                baggage_fallback, status, error_message, raw_json)
-               VALUES (?,datetime('now'),?,?,?,?,?,?,?,?,?,?,?)""",
+                baggage_fallback, status, error_message, raw_json,
+                departure_time, arrival_time, flight_number)
+               VALUES (?,datetime('now'),?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (tracker_id,
              snap.get("flight_price"), snap.get("baggage_price"),
              snap.get("seat_price", 0), snap.get("total_price"),
              snap.get("outbound_flight"), snap.get("return_flight"),
              snap.get("currency", "EUR"), snap.get("baggage_fallback", 0),
              snap.get("status", "ok"), snap.get("error_message"),
-             json.dumps(snap.get("raw")) if snap.get("raw") else None)
+             json.dumps(snap.get("raw")) if snap.get("raw") else None,
+             snap.get("departure_time"), snap.get("arrival_time"),
+             snap.get("flight_number") or snap.get("outbound_flight"))
         )
         snap_id = cur.lastrowid
 
@@ -1127,6 +1133,7 @@ def save_user_notification_settings(user_id: int, settings: dict, fernet) -> Non
             _enc(settings.get("gotify_url",          "")),
             _enc(settings.get("gotify_app_token",    "")),
         ))
+
 
 
 
