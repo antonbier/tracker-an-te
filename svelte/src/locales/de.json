@@ -234,5 +234,6 @@
   "toastBucketAdded": "Hinzugefügt ✓",
   "toastBudgetSaved": "Budget gespeichert",
   "toastSaved": "Einstellungen gespeichert ✓",
-  "toastTripAdded": "Reise hinzugefügt"
+  "toastTripAdded": "Reise hinzugefügt",
+  "radarFinalCleaning": "Endreinigung"
 }
