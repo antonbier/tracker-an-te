@@ -928,3 +928,54 @@ Beim Speichern eines Suchergebnisses als Tracker gingen essenzielle Metadaten ve
 - Zeilensumme rechts: `(Anzahl × Preis).toFixed(2) €` — nur wenn beide > 0
 - `flBaggageCost` berechnet dynamisch aus User-Preisen statt fest codierten 22.99/34.99/42.99
 - Neues i18n-Key: `radarFinalCleaning` in DE/EN/IT
+
+
+---
+
+## Step 3 (Session 2025-04) — Frontend UX & Error-Handling
+
+### Mobile UX — Flugextras Akkordeon
+- Gepäck-Stepper, Sitzplatz, Stopp-Filter, Zeitfenster-Filter in `<details>`-Element ausgelagert
+- Summary: `🧳 Flugextras` + `aktiv`-Badge (orange) wenn irgendein Extra-Feld gesetzt ist
+- Inhalt: selbe Felder wie bisher, jetzt im aufgeklappten `<div class="p-3 space-y-4">` Container
+- Mobile: kompakte Suchmaske (nur Origin/Dest/Datum/Personen sichtbar)
+
+### Flugzeiten-Format Fix (Backend — routes/search.py)
+- SerpAPI Google Flights liefert `departure_airport.time` als `"2026-05-05 08:15"` (Datetime-String)
+- Bisher: `dep_t[:5]` → `"2026-"` (falsches Format!)
+- Fix: `dep_t = _dep_raw[-5:]` — letzten 5 Zeichen = immer `HH:MM`
+- Betrifft: `dep_t`, `arr_t` im Google-Flights-Provider und damit `subtitle` + `detail`-Objekt
+
+### Text-Glitch Fix — doppeltes Label Sitzplatz
+- `radarSeat` locale = `"Sitzplatz €/Person/Flug"` + Template hatte `— €/Person/Flug` hardcoded
+- Fix: Label-Template auf `💺 {$t('radarSeat')}` gekürzt (kein doppelter Suffix mehr)
+
+### Datum-Lokalisierung (Frontend — PriceRadar.svelte)
+- Neue Hilfsfunktionen: `fmtDate(iso)` → `TT.MM.JJJJ`, `fmtRange(from, to)` → `TT.MM.JJJJ – TT.MM.JJJJ`
+- `trackerSubtitle()`: Datumsangaben über `fmtDate()` lokalisiert
+- Suchergebnis-Subtitle: JavaScript `.replace(/(\d{4})-(\d{2})-(\d{2})/g, ...)` konvertiert ISO-Dates inline
+- `fetched_at` auf Tracker-Karten und Chart-Achse: `fmtDate()` statt `.slice(0, 10)`
+- Kein US-Format mehr sichtbar im Frontend
+
+### API-Key Error Handling
+**Backend (search.py):**
+- `_aggregate()` gibt jetzt Tuple `(results, missing_keys)` zurück
+- Google Flights ohne Key: gibt Sentinel `{"_api_key_missing": True, "provider": "..."}` zurück
+- Hotels/Camping ohne Key: `HTTPException(422, detail={"error": "missing_api_key", ...})`
+- Response enthält `missing_api_keys: string[]` Liste
+
+**Frontend (api.js):**
+- `api()` parst jetzt JSON-Body bei Fehlern: `err.detail = errBody?.detail`
+- Strukturierte Fehler (FastAPI 422) werden als Objekt weitergegeben, nicht als String
+
+**Frontend (PriceRadar.svelte):**
+- Nach Suche: wenn `res.missing_api_keys.length > 0` → roter Toast mit Providernamen
+- Im catch-Block: `e.detail?.error === 'missing_api_key'` → `⚠️ API Key für X fehlt...`
+
+### Preis-Trends & Top-Preis Badge (Frontend — PriceRadar.svelte)
+- `priceTrend(history)` → `{dir: 'up'|'down'|'equal', pct: string}` aus letzten 2 Einträgen
+- `isTopPrice(history, currentPrice)` → `true` wenn aktueller Preis ≤ historischem Minimum
+- Tracker-Karte Preis-Row: Trend-Pfeil `⬇ X.X%` (grün) / `⬆ X.X%` (rot) — sichtbar wenn chart-History geladen
+- Top-Preis Badge: `🏆 Top Preis` (gold/gelb) — erscheint wenn Preis = historisches Allzeit-Tief
+- Daten-Basis: `chartState[cKey].history` — wird beim Öffnen des Preisverlauf-Akkordeons geladen
+  → Trend/Badge erscheinen **nach erstem Klick auf Preisverlauf** (lazy load)
