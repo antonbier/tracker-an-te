@@ -56,9 +56,9 @@
       await new Promise(r => setTimeout(r, 100));
     }
 
-    // ── Visited: ALLE Dawarich-Trips (kein Jahresfilter — Weltkarte zeigt alles) ──
+    // ── Visited: nur trips des selectedYear ─────────────────────────────────
     const visited = journalTrips
-      .filter(t => t.lat && t.lon)
+      .filter(t => t.lat && t.lon && (t.start_date || '').slice(0, 4) === String(selectedYear))
       .map(t => ({
         lat: +t.lat, lng: +t.lon, type: 'visited',
         name: [t.location_name, t.country].filter(Boolean).join(', ') || `${t.lat},${t.lon}`,
@@ -155,47 +155,48 @@
   <style>@import 'jsvectormap/dist/css/jsvectormap.min.css';</style>
 </svelte:head>
 
-<div class="relative w-full rounded-xl overflow-hidden border border-stone-200 bg-stone-50" style="height:300px">
+<div class="relative w-full rounded-xl overflow-hidden" style="height:300px;background:var(--ws-surface2);border:1px solid var(--ws-border)">
   <div bind:this={mapEl} class="w-full h-full" style="min-height:300px"></div>
 
   {#if loading && !loadErr}
-    <div class="absolute inset-0 flex items-center justify-center bg-stone-50/90 pointer-events-none">
+    <div class="absolute inset-0 flex items-center justify-center pointer-events-none" style="background:color-mix(in srgb,var(--ws-surface2) 90%,transparent)">
       <div class="text-center">
         <div class="text-2xl mb-1 animate-pulse">🗺️</div>
-        <span class="text-stone-400 text-xs">Karte lädt…</span>
+        <span class="text-xs" style="color:var(--ws-muted)">Karte lädt…</span>
       </div>
     </div>
   {/if}
 
   {#if geocoding}
-    <div class="absolute top-2 right-2 bg-white/90 border border-stone-200 rounded-lg
-                px-2.5 py-1.5 text-xs text-stone-500 shadow-sm flex items-center gap-1.5">
+    <div class="absolute top-2 right-2 rounded-lg px-2.5 py-1.5 text-xs shadow-sm flex items-center gap-1.5"
+         style="background:var(--ws-surface);border:1px solid var(--ws-border);color:var(--ws-muted)">
       <span class="animate-pulse">📍</span> Orte geocodieren…
     </div>
   {/if}
 
   {#if loadErr}
-    <div class="absolute inset-0 flex flex-col items-center justify-center bg-stone-50 gap-2 p-4">
+    <div class="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4" style="background:var(--ws-surface2)">
       <div class="text-2xl">⚠️</div>
-      <span class="text-stone-500 text-xs text-center">{loadErr}</span>
+      <span class="text-xs text-center" style="color:var(--ws-muted)">{loadErr}</span>
     </div>
   {/if}
 
   {#if !loading && !loadErr}
-    <div class="absolute bottom-2 left-2 flex gap-2.5 bg-white/90 backdrop-blur-sm
-                border border-stone-200 rounded-lg px-3 py-1.5 text-xs shadow-sm pointer-events-none">
-      <span class="flex items-center gap-1.5 text-stone-600">
+    <div class="absolute bottom-2 left-2 flex gap-2.5 rounded-lg px-3 py-1.5 text-xs shadow-sm pointer-events-none"
+         style="background:color-mix(in srgb,var(--ws-surface) 92%,transparent);border:1px solid var(--ws-border);backdrop-filter:blur(4px)">
+      <span class="flex items-center gap-1.5" style="color:var(--ws-text)">
         <span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#2d6a4f"></span>Besucht
       </span>
-      <span class="flex items-center gap-1.5 text-stone-600">
+      <span class="flex items-center gap-1.5" style="color:var(--ws-text)">
         <span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#2563eb"></span>Geplant
       </span>
-      <span class="flex items-center gap-1.5 text-stone-600">
+      <span class="flex items-center gap-1.5" style="color:var(--ws-text)">
         <span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#c4622d"></span>Wunschziel
       </span>
       {#if debugInfo}
-        <span class="text-stone-300 ml-1">{debugInfo}</span>
+        <span class="ml-1" style="color:var(--ws-muted)">{debugInfo}</span>
       {/if}
     </div>
   {/if}
 </div>
+
