@@ -61,6 +61,18 @@ HEADERS_SERPAPI = {
 SERPAPI_BASE = "https://serpapi.com/search"
 
 
+def _calc_nights(checkin: str, checkout: str) -> int:
+    """Return number of nights between checkin and checkout (YYYY-MM-DD)."""
+    try:
+        from datetime import date
+        ci = date.fromisoformat(checkin)
+        co = date.fromisoformat(checkout)
+        nights = (co - ci).days
+        return max(nights, 1)
+    except Exception:
+        return 1
+
+
 def _extract_price(rate_info: dict) -> float | None:
     """
     Robuste Preis-Extraktion aus SerpAPI rate_per_night / total_rate.
@@ -131,6 +143,7 @@ class CampingSearchParams(BaseModel):
     aircon:          bool = False
     pets:            bool = False
     covered_terrace: bool = False
+    final_cleaning:  bool = False          # Endreinigung einkalkulieren
 
 
 # ── Provider functions (async) ─────────────────────────────────────────────
@@ -444,22 +457,33 @@ async def _search_hotels_serpapi(params: HotelSearchParams, api_key: str) -> lis
                             raw_price = None
                 if not raw_price:
                     continue
+                nights      = _calc_nights(params.checkin_date, params.checkout_date)
+                # SerpAPI may return per-night OR total — try to detect via key name
+                is_per_night = "rate_per_night" in (h.keys()) and not ("total_rate" in h and h.get("total_rate"))
+                price_per_night = round(float(raw_price), 2)
+                total_price     = round(price_per_night * nights, 2) if is_per_night else round(float(raw_price), 2)
+                per_night_avg   = round(total_price / nights, 2)
+
                 results.append({
                     "id":       f"ht-{params.destination}-{params.checkin_date}-{len(results)}",
                     "provider": "Google Hotels",
                     "title":    h.get("name", params.destination),
-                    "subtitle": f"{params.checkin_date} → {params.checkout_date} · {params.adults} Pers. · {params.rooms} Zi.",
-                    "price":    float(raw_price),
+                    "subtitle": f"{params.checkin_date} → {params.checkout_date} · {params.adults} Pers. · {params.rooms} Zi. · {nights} Nächte",
+                    "price":    total_price,
+                    "price_per_night": per_night_avg,
+                    "nights":   nights,
                     "currency": "EUR",
                     "badges":   [f"⭐ {h.get('overall_rating', '')}"] if h.get("overall_rating") else [],
                     "detail": {
-                        "destination":  params.destination,
+                        "destination":   params.destination,
                         "checkin_date":  params.checkin_date,
                         "checkout_date": params.checkout_date,
                         "adults":        params.adults,
                         "rooms":         params.rooms,
                         "hotel_name":    h.get("name"),
                         "source":        "google_hotels",
+                        "nights":        nights,
+                        "price_per_night": per_night_avg,
                     },
                     "_tracker_type":  "hotel",
                     "_tracker_table": "booking_trackers",
@@ -532,13 +556,23 @@ async def _search_camping_serpapi(params: CampingSearchParams, api_key: str) -> 
                     badges.append("🐕 Hunde")
                 if params.covered_terrace:
                     badges.append("🏠 Terrasse")
+                if params.final_cleaning:
+                    badges.append("🧹 Endreinigung")
+
+                nights      = _calc_nights(params.checkin_date, params.checkout_date)
+                is_per_night = "rate_per_night" in (h.keys()) and not ("total_rate" in h and h.get("total_rate"))
+                price_per_night = round(float(raw_price), 2)
+                total_price     = round(price_per_night * nights, 2) if is_per_night else round(float(raw_price), 2)
+                per_night_avg   = round(total_price / nights, 2)
 
                 results.append({
                     "id":       f"cp-{params.destination}-{params.checkin_date}-{len(results)}",
                     "provider": "Homair",
                     "title":    h.get("name", params.destination),
-                    "subtitle": f"{params.checkin_date} → {params.checkout_date} · {params.adults} Pers.",
-                    "price":    float(raw_price),
+                    "subtitle": f"{params.checkin_date} → {params.checkout_date} · {params.adults} Pers. · {nights} Nächte",
+                    "price":    total_price,
+                    "price_per_night": per_night_avg,
+                    "nights":   nights,
                     "currency": "EUR",
                     "badges":   badges,
                     "detail": {
@@ -553,6 +587,9 @@ async def _search_camping_serpapi(params: CampingSearchParams, api_key: str) -> 
                         "covered_terrace":      params.covered_terrace,
                         "campsite_name":        h.get("name"),
                         "source":               "homair",
+                        "nights":               nights,
+                        "price_per_night":      per_night_avg,
+                        "final_cleaning":       params.final_cleaning,
                     },
                     "_tracker_type":  "camping",
                     "_tracker_table": "homair_trackers",
@@ -684,4 +721,5 @@ async def search_camping(
 
     logger.info(f"[SEARCH] ⛺ camping total_results={len(results)}")
     return {"results": results, "count": len(results)}
+
 
