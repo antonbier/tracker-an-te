@@ -227,8 +227,13 @@ async def _search_ryanair(params: FlightSearchParams) -> list[dict]:
                                 "outbound_date": params.outbound_date,
                                 "return_date":   params.return_date,
                                 "adults":        params.adults,
+                                "children":      params.children,
                                 "baggage":       params.baggage,
+                                "baggage_10kg":  params.baggage_10kg,
+                                "baggage_20kg":  params.baggage_20kg,
+                                "baggage_23kg":  params.baggage_23kg,
                                 "seat":          params.seat,
+                                "seat_cost":     params.seat_cost,
                                 "departure_time": seg.get("timeUTC", [""])[0][:5] if seg.get("timeUTC") else None,
                             },
                             "_tracker_type": "flight",
@@ -679,3 +684,4 @@ async def search_camping(
 
     logger.info(f"[SEARCH] ⛺ camping total_results={len(results)}")
     return {"results": results, "count": len(results)}
+
