@@ -45,6 +45,8 @@ class HomairCreate(BaseModel):
     aircon:             bool = False
     pets:               bool = False
     covered_terrace:    bool = False
+    campsite_name:      Optional[str] = None
+    initial_price:      Optional[float] = None
 
 
 @router.get("/homair")
@@ -58,6 +60,14 @@ def list_homair(user: dict = Depends(get_current_user)):
 @router.post("/homair", status_code=201)
 def create_homair(data: HomairCreate, user: dict = Depends(get_current_user)):
     tid = create_homair_tracker(data.model_dump(), user_id=_uid_w(user))
+    # Save initial price snapshot from search result if provided
+    if data.initial_price is not None:
+        save_homair_snapshot(tid, {
+            "total_price": data.initial_price,
+            "currency": "EUR",
+            "status": "ok",
+            "note": f"Initialpreis aus Suchergebnis ({data.campsite_name or data.region})",
+        })
     return {"id": tid, "message": "Homair Tracker angelegt"}
 
 
@@ -94,6 +104,8 @@ class BookingCreate(BaseModel):
     adults:        int = 2
     rooms:         int = 1
     source:        str = "booking"
+    hotel_name:    Optional[str] = None
+    initial_price: Optional[float] = None
 
 
 @router.get("/booking")
@@ -107,6 +119,14 @@ def list_booking(user: dict = Depends(get_current_user)):
 @router.post("/booking", status_code=201)
 def create_booking(data: BookingCreate, user: dict = Depends(get_current_user)):
     tid = create_booking_tracker(data.model_dump(), user_id=_uid_w(user))
+    # Save initial price snapshot from search result if provided
+    if data.initial_price is not None:
+        save_booking_snapshot(tid, {
+            "total_price": data.initial_price,
+            "hotel_name": data.hotel_name or data.destination,
+            "currency": "EUR",
+            "status": "ok",
+        })
     return {"id": tid, "message": "Booking Tracker angelegt"}
 
 
@@ -132,3 +152,4 @@ def scrape_booking_tracker(tracker_id: int, user: dict = Depends(get_current_use
         return result
     except Exception as e:
         raise HTTPException(500, str(e))
+
