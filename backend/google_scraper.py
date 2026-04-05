@@ -5,9 +5,36 @@ departure/arrival times, and duration.
 Free plan: 100 searches/month (shared with Booking scraper).
 """
 
+import re
 import requests
 import logging
 from datetime import datetime
+
+
+def _parse_serpapi_time(raw: str) -> str:
+    """
+    Normalisiert SerpAPI-Zeitstrings zu HH:MM (lokale Flughafenzeit).
+    SerpAPI liefert: "2026-05-05 08:15" oder "08:15" — nie UTC konvertieren!
+    """
+    if not raw:
+        return ""
+    s = str(raw).strip()
+    if "T" in s:  # ISO-Format
+        return s.split("T")[1][:5]
+    if len(s) > 10 and " " in s:  # "YYYY-MM-DD HH:MM"
+        return s.split(" ")[1][:5]
+    return s[:5] if len(s) >= 5 else s
+
+
+def _fmt_flight_number(raw: str) -> str:
+    """Normalisiert Flugnummer: 'LH123' → 'LH 123', 'LH 123' → 'LH 123'."""
+    if not raw:
+        return ""
+    raw = str(raw).strip()
+    if " " in raw:
+        return raw
+    m = re.match(r"^([A-Z]{1,3})([0-9].*)$", raw)
+    return f"{m.group(1)} {m.group(2)}" if m else raw
 
 logger = logging.getLogger(__name__)
 SERPAPI_BASE = "https://serpapi.com/search"
@@ -120,10 +147,10 @@ def _search_flight(origin, destination, date, adults, children, trip_type, api_k
 
         best = {
             "price":          price,
-            "flight_number":  first_leg.get("flight_number", ""),
+            "flight_number":  _fmt_flight_number(first_leg.get("flight_number", "")),
             "airline":        first_leg.get("airline", ""),
-            "departure_time": dep_airport.get("time", ""),
-            "arrival_time":   arr_airport.get("time", ""),
+            "departure_time": _parse_serpapi_time(dep_airport.get("time", "")),
+            "arrival_time":   _parse_serpapi_time(arr_airport.get("time", "")),
             "duration_min":   fg.get("total_duration", 0),
         }
 
@@ -138,3 +165,4 @@ def _error_snap(msg):
         "status": "error", "error_message": msg,
         "fetched_at": datetime.utcnow().isoformat(),
     }}
+
