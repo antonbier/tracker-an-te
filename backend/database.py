@@ -270,6 +270,8 @@ def init_db():
             ("detected_trips",   "auto_cost_txs TEXT DEFAULT NULL"),
             ("homair_trackers",  "campsite_name TEXT DEFAULT NULL"),
             ("booking_trackers", "hotel_name TEXT DEFAULT NULL"),
+            ("gf_trackers",      "seat_cost REAL NOT NULL DEFAULT 0"),
+            ("gf_trackers",      "baggage_json TEXT NOT NULL DEFAULT '[]'"),
         ]
         for table, col_def in migrations:
             col_name = col_def.split()[0]
@@ -571,14 +573,23 @@ def cleanup_old_snapshots(days: int = 60) -> dict:
 # ── Google Flights Tracker CRUD ───────────────────────────────────────────────
 
 def create_gf_tracker(data: dict, user_id: int = 1) -> int:
+    import json as _json
+    baggage_json = _json.dumps({
+        "baggage": data.get("baggage", "none"),
+        "baggage_10kg": data.get("baggage_10kg", 0),
+        "baggage_20kg": data.get("baggage_20kg", 0),
+        "baggage_23kg": data.get("baggage_23kg", 0),
+    })
     with db() as conn:
         cur = conn.execute(
             """INSERT INTO gf_trackers
-               (user_id, origin, destination, outbound_date, return_date, adults, children, created_at)
-               VALUES (?,?,?,?,?,?,?,datetime('now'))""",
+               (user_id, origin, destination, outbound_date, return_date,
+                adults, children, seat_cost, baggage_json, created_at)
+               VALUES (?,?,?,?,?,?,?,?,?,datetime('now'))""",
             (user_id, data["origin"], data["destination"],
              data["outbound_date"], data.get("return_date"),
-             data.get("adults", 1), data.get("children", 0))
+             data.get("adults", 1), data.get("children", 0),
+             data.get("seat_cost", 0.0), baggage_json)
         )
     return cur.lastrowid
 
@@ -1116,5 +1127,6 @@ def save_user_notification_settings(user_id: int, settings: dict, fernet) -> Non
             _enc(settings.get("gotify_url",          "")),
             _enc(settings.get("gotify_app_token",    "")),
         ))
+
 
 
