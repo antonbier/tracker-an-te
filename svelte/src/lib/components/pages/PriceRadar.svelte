@@ -651,6 +651,14 @@
     return '📍';
   }
 
+  function providerLabel(tr) {
+    if (tr._type === 'flight')        return 'Ryanair';
+    if (tr._type === 'google_flight') return 'Google Flights';
+    if (tr._type === 'hotel')         return tr.source === 'google_hotels' ? 'Google Hotels' : 'Booking.com';
+    if (tr._type === 'camping')       return 'Homair';
+    return tr._type;
+  }
+
   // ── Init ──────────────────────────────────────────────────────────────────
   onMount(() => { loadAllTrackers(); });
 </script>
@@ -1225,15 +1233,24 @@
             <div class="flex-1 min-w-0 overflow-hidden">
               <div class="font-bold text-sm truncate" style="color:var(--ws-text)">{result.title || result.label || '–'}</div>
               {#if result.subtitle}
-                <div class="text-xs mt-0.5 break-words leading-relaxed" style="color:var(--ws-muted)">
-                  {result.subtitle.replace(/(\d{4})-(\d{2})-(\d{2})/g, (_, y, m, d) => `${d}.${m}.${y}`)}
-                </div>
+                {@const cleanSubtitle = d.airline
+                  ? result.subtitle
+                      .replace(/·\s*[^·]+·\s*\d{2}:\d{2}→\d{2}:\d{2}/, '')  // strip "· Airline · HH:MM→HH:MM"
+                      .replace(/(\d{4})-(\d{2})-(\d{2})/g, (_, y, m, d2) => `${d2}.${m}.${y}`)
+                      .replace(/·\s*·/g, '·').trim().replace(/·\s*$/, '').trim()
+                  : result.subtitle.replace(/(\d{4})-(\d{2})-(\d{2})/g, (_, y, m, d2) => `${d2}.${m}.${y}`)}
+                <div class="text-xs mt-0.5" style="color:var(--ws-muted)">{cleanSubtitle}</div>
               {/if}
-              <!-- Airline + Flugzeiten -->
-              {#if d.airline}
-                <div class="flex items-center gap-1.5 mt-1">
-                  <span class="text-sm">✈️</span>
-                  <span class="text-xs font-semibold" style="color:var(--ws-accent)">{d.airline}</span>
+              <!-- Airline + Flugzeiten (einzige Quelle — nicht doppelt im Subtitle) -->
+              {#if d.airline || (d.departure_time && d.arrival_time)}
+                <div class="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                  {#if d.airline}
+                    <span class="text-xs">✈️</span>
+                    <span class="text-xs font-semibold" style="color:var(--ws-accent)">{d.airline}</span>
+                  {/if}
+                  {#if d.flight_number}
+                    <span class="text-xs font-mono px-1.5 py-0.5 rounded" style="background:var(--ws-surface2);color:var(--ws-muted)">{d.flight_number}</span>
+                  {/if}
                   {#if d.departure_time && d.arrival_time}
                     <span class="text-xs font-mono" style="color:var(--ws-muted)">{String(d.departure_time).slice(0,5)} → {String(d.arrival_time).slice(0,5)}</span>
                   {/if}
@@ -1320,8 +1337,8 @@
 
             <!-- Provider badge + wish met -->
             <div class="flex items-center justify-between gap-2">
-              <span class="text-xs px-2 py-0.5 rounded-full" style="background:var(--ws-surface2);color:var(--ws-muted)">
-                {providerIcon(tr._type)} {tr._type.replace('_', ' ')}
+              <span class="text-xs px-2 py-0.5 rounded-full font-medium" style="background:var(--ws-surface2);color:var(--ws-muted)">
+                {providerIcon(tr._type)} {providerLabel(tr)}
               </span>
               {#if wishMet}
                 <span class="text-xs font-bold px-2 py-0.5 rounded-full" style="background:rgba(22,163,74,.12);color:var(--ws-green)">
@@ -1334,22 +1351,37 @@
             <div>
               <div class="font-bold text-sm" style="color:var(--ws-text)">{trackerTitle(tr)}</div>
               <div class="text-xs mt-0.5" style="color:var(--ws-muted)">{trackerSubtitle(tr)}</div>
-              {#if (tr._type === 'flight' || tr._type === 'google_flight') && (tr.latest_snapshot?.airline || tr.latest_snapshot?.departure_time)}
+              {#if tr._type === 'flight' || tr._type === 'google_flight'}
                 {@const snap = tr.latest_snapshot}
-                <div class="flex items-center gap-1.5 mt-1 flex-wrap">
-                  <span class="text-xs">✈️</span>
-                  {#if snap?.airline}
-                    <span class="text-xs font-semibold" style="color:var(--ws-accent)">{snap.airline}</span>
-                  {/if}
-                  {#if snap?.flight_number}
-                    <span class="text-xs font-mono px-1.5 py-0.5 rounded" style="background:var(--ws-surface2);color:var(--ws-muted)">{snap.flight_number}</span>
-                  {/if}
-                  {#if snap?.departure_time && snap?.arrival_time}
-                    <span class="text-xs font-mono" style="color:var(--ws-muted)">
-                      {snap.departure_time.slice(0,5)} → {snap.arrival_time.slice(0,5)}
-                    </span>
-                  {/if}
-                </div>
+                {@const showAirline  = snap?.airline}
+                {@const showFlight   = snap?.flight_number || snap?.outbound_flight}
+                {@const showTimes    = snap?.departure_time && snap?.arrival_time}
+                {@const showDuration = snap?.duration_min}
+                {#if showAirline || showFlight || showTimes}
+                  <div class="flex items-center gap-1.5 mt-1 flex-wrap">
+                    <span class="text-xs">✈️</span>
+                    {#if showAirline}
+                      <span class="text-xs font-semibold" style="color:var(--ws-accent)">{snap.airline}</span>
+                    {:else}
+                      <span class="text-xs font-semibold" style="color:var(--ws-accent)">{tr._type === 'flight' ? 'Ryanair' : 'Google Flights'}</span>
+                    {/if}
+                    {#if showFlight}
+                      <span class="text-xs font-mono px-1.5 py-0.5 rounded" style="background:var(--ws-surface2);color:var(--ws-muted)">{snap.flight_number || snap.outbound_flight}</span>
+                    {/if}
+                    {#if showTimes}
+                      <span class="text-xs font-mono" style="color:var(--ws-muted)">
+                        {snap.departure_time.slice(0,5)} → {snap.arrival_time.slice(0,5)}
+                      </span>
+                    {/if}
+                    {#if showDuration}
+                      <span class="text-xs" style="color:var(--ws-muted)">({Math.floor(snap.duration_min/60)}h{snap.duration_min%60}m)</span>
+                    {/if}
+                  </div>
+                {:else}
+                  <div class="text-xs mt-1" style="color:var(--ws-muted)">
+                    <span>✈️ {tr._type === 'flight' ? 'Ryanair' : 'Google Flights'} · noch kein Preis-Scan</span>
+                  </div>
+                {/if}
               {/if}
             </div>
 
@@ -1365,8 +1397,8 @@
               </div>
             {/if}
 
-            <!-- Price row -->
-            <div class="flex items-center justify-between gap-2">
+            <!-- Price row — Preis links, Datum rechts -->
+            <div class="flex items-end justify-between gap-2">
               <div>
                 <div class="flex items-center gap-1.5">
                   <div class="text-xs" style="color:var(--ws-muted)">{$t('radarCurrentPrice') || 'Aktuell'}</div>
@@ -1379,63 +1411,68 @@
                     {/if}
                   {/if}
                 </div>
-                <div class="font-bold font-mono text-base" style="color:{price ? 'var(--ws-green)' : 'var(--ws-muted)'}">
+                <div class="font-bold font-mono text-xl" style="color:{price ? 'var(--ws-green)' : 'var(--ws-muted)'}">
                   {price ? price.toFixed(2) + ' €' : '–'}
                 </div>
-                {#if chartState[cKey]?.history?.length >= 2 && isTopPrice(chartState[cKey].history, price)}
-                  <div class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold mt-0.5"
-                    style="background:rgba(234,179,8,.15);color:#ca8a04;border:1px solid rgba(234,179,8,.3)">
-                    🏆 Top Preis
-                  </div>
-                {/if}
                 {#if (tr._type === 'hotel' || tr._type === 'camping') && tr.checkin_date && tr.checkout_date}
                   {@const nights = Math.max(1, Math.round((new Date(tr.checkout_date) - new Date(tr.checkin_date)) / 86400000))}
                   {#if nights > 1 && price}
                     <div class="text-[10px] font-mono" style="color:var(--ws-muted)">Ø {(price/nights).toFixed(2)} €/Nacht</div>
                   {/if}
                 {/if}
-                {#if s?.fetched_at}
-                  <div class="text-xs" style="color:var(--ws-muted)">{fmtDate(s.fetched_at.slice(0, 10))}</div>
+                {#if chartState[cKey]?.history?.length >= 2 && isTopPrice(chartState[cKey].history, price)}
+                  <div class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold mt-0.5"
+                    style="background:rgba(234,179,8,.15);color:#ca8a04;border:1px solid rgba(234,179,8,.3)">
+                    🏆 Top Preis
+                  </div>
                 {/if}
               </div>
+              {#if s?.fetched_at}
+                <div class="text-[10px] text-right" style="color:var(--ws-muted)">
+                  Stand<br>{fmtDate(s.fetched_at.slice(0, 10))}
+                </div>
+              {/if}
+            </div>
 
-              <!-- Wish price inline edit -->
-              <div class="flex-1 min-w-0">
-                <div class="text-xs mb-1" style="color:var(--ws-muted)">🎯 {$t('radarWishPrice')}</div>
-                {#if wishState[wKey]?.editing}
-                  <div class="flex items-center gap-1">
-                    <input
-                      type="number"
-                      bind:value={wishState[wKey].value}
-                      min="0"
-                      step="1"
-                      placeholder="€"
-                      class="flex-1 min-w-0 px-2 py-1 rounded-lg border text-xs font-mono"
-                      style={inputStyle}
-                      onkeydown={(e) => e.key === 'Enter' && saveWishPrice(tr._type, tr.id, tr._table, wishState[wKey].value)}
-                    />
-                    <button
-                      onclick={() => saveWishPrice(tr._type, tr.id, tr._table, wishState[wKey].value)}
-                      disabled={wishState[wKey]?.saving}
-                      class="px-2 py-1 rounded-lg text-xs font-semibold shrink-0"
-                      style="background:var(--ws-accent);color:#fff">✓</button>
-                    <button
-                      onclick={() => wishState[wKey] = { editing: false }}
-                      class="px-2 py-1 rounded-lg text-xs shrink-0"
-                      style="background:var(--ws-surface2);color:var(--ws-muted)">✕</button>
-                  </div>
-                {:else}
-                  <div class="flex items-center gap-1.5">
-                    <span class="text-xs font-mono font-semibold" style="color:{wish ? 'var(--ws-accent)' : 'var(--ws-muted)'}">
-                      {wish ? wish.toFixed(2) + ' €' : $t('radarWishNotSet')}
+            <!-- Wunschpreis — prominente eigene Zeile -->
+            <div class="rounded-xl border px-3 py-2" style="background:var(--ws-surface2);border-color:{wish ? 'var(--ws-accent)' : 'var(--ws-border)'}">
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-xs" style="color:var(--ws-muted)">🎯 {$t('radarWishPrice')}</span>
+                {#if !wishState[wKey]?.editing}
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm font-mono font-bold" style="color:{wish ? 'var(--ws-accent)' : 'var(--ws-muted)'}">
+                      {wish ? wish.toFixed(2) + ' €' : '–'}
                     </span>
                     <button
                       onclick={() => wishState[wKey] = { editing: true, value: wish?.toString() || '' }}
-                      class="text-xs px-1.5 py-0.5 rounded-lg border shrink-0"
-                      style="border-color:var(--ws-border);color:var(--ws-muted)">✏️</button>
+                      class="text-xs px-2 py-0.5 rounded-lg border"
+                      style="border-color:var(--ws-border);color:var(--ws-muted)">✏️ setzen</button>
                   </div>
                 {/if}
               </div>
+              {#if wishState[wKey]?.editing}
+                <div class="flex items-center gap-1 mt-1.5">
+                  <input
+                    type="number"
+                    bind:value={wishState[wKey].value}
+                    min="0"
+                    step="1"
+                    placeholder="Zielpreis in €"
+                    class="flex-1 min-w-0 px-2 py-1 rounded-lg border text-xs font-mono"
+                    style={inputStyle}
+                    onkeydown={(e) => e.key === 'Enter' && saveWishPrice(tr._type, tr.id, tr._table, wishState[wKey].value)}
+                  />
+                  <button
+                    onclick={() => saveWishPrice(tr._type, tr.id, tr._table, wishState[wKey].value)}
+                    disabled={wishState[wKey]?.saving}
+                    class="px-2 py-1 rounded-lg text-xs font-semibold shrink-0"
+                    style="background:var(--ws-accent);color:#fff">✓</button>
+                  <button
+                    onclick={() => wishState[wKey] = { editing: false }}
+                    class="px-2 py-1 rounded-lg text-xs shrink-0"
+                    style="background:var(--ws-surface2);color:var(--ws-muted)">✕</button>
+                </div>
+              {/if}
             </div>
 
             <!-- Action buttons — history left, delete far right -->
@@ -1498,6 +1535,7 @@
   </div>
 
 </div>
+
 
 
 
