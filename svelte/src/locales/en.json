@@ -234,5 +234,6 @@
   "toastBucketAdded": "Added ✓",
   "toastBudgetSaved": "Budget saved",
   "toastSaved": "Settings saved ✓",
-  "toastTripAdded": "Trip added"
+  "toastTripAdded": "Trip added",
+  "radarFinalCleaning": "Final Cleaning"
 }
