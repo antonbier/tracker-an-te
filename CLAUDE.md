@@ -840,3 +840,54 @@ body = {'message': msg, 'content': base64_content, 'branch': 'beta', 'sha': sha}
 - `_extract_price()` Hilfsfunktion (Step 2) bleibt unverändert
 - Rückwärtskompatibilität: Legacy-Felder `baggage: str` + `seat: bool`
   werden weiter akzeptiert und korrekt verarbeitet
+
+
+---
+
+## Step 1 (Session 2025-04) — Tracker-Datenpersistenz Bugfix
+
+### Problem
+Beim Speichern eines Suchergebnisses als Tracker gingen essenzielle Metadaten verloren.
+
+### Fixes
+
+#### Backend — database.py
+- **Migration**: `homair_trackers` + `campsite_name TEXT DEFAULT NULL` Spalte
+- **Migration**: `booking_trackers` + `hotel_name TEXT DEFAULT NULL` Spalte
+- **Migration**: `gf_trackers` + `seat_cost REAL NOT NULL DEFAULT 0` Spalte
+- **Migration**: `gf_trackers` + `baggage_json TEXT NOT NULL DEFAULT '[]'` Spalte
+- `create_homair_tracker()`: speichert jetzt `campsite_name`
+- `create_booking_tracker()`: speichert jetzt `hotel_name`
+- `create_gf_tracker()`: speichert jetzt `seat_cost` + `baggage_json` (dict mit baggage/10kg/20kg/23kg)
+
+#### Backend — accommodations.py
+- `HomairCreate`: neue optionale Felder `campsite_name` + `initial_price`
+- `BookingCreate`: neue optionale Felder `hotel_name` + `initial_price`
+- Nach `create_*_tracker()`: wenn `initial_price` übergeben → sofort ersten Snapshot speichern
+  (damit Tracker-Karte direkt nach dem Speichern einen Preis zeigt)
+
+#### Backend — google_flights.py
+- `GFTrackerCreate`: neue Felder `baggage_10kg/20kg/23kg`, `seat_cost`
+- Neue optionale Felder: `initial_price`, `initial_airline`, `initial_dep_time`, `initial_arr_time`, `initial_duration`
+- Nach `create_gf_tracker()`: wenn `initial_price` übergeben → sofort ersten `gf_snapshot` speichern
+
+#### Backend — search.py
+- Ryanair `detail`-Objekt enthält jetzt: `children`, `baggage_10kg`, `baggage_20kg`, `baggage_23kg`, `seat_cost`
+  (waren zuvor missing → `saveAsTracker` konnte diese nicht korrekt mappen)
+
+#### Frontend — PriceRadar.svelte / saveAsTracker()
+- **Ryanair**: Rekonstruiert `BaggageItem[]` aus `baggage_10kg/20kg/23kg` Stepper-Counts
+  statt einfachem Legacy-String. `seat_cost` korrekt aus `d.seat_cost` gelesen.
+- **Google Flights**: überträgt jetzt `baggage_10kg/20kg/23kg`, `seat_cost`, und alle
+  Initial-Snapshot-Felder (`initial_airline`, `initial_dep_time`, etc.)
+- **Camping**: überträgt `campsite_name` (aus `d.campsite_name || result.title`) + `initial_price`
+- **Hotel**: überträgt `hotel_name` (aus `d.hotel_name || result.title`) + `initial_price`
+
+#### Frontend — PriceRadar.svelte / trackerTitle()
+- Hotel: zeigt `tr.hotel_name || tr.destination` statt nur `tr.destination`
+- Camping: zeigt `tr.campsite_name || tr.region || tr.destination` statt nur `tr.region`
+
+#### Frontend — PriceRadar.svelte / trackerBadges()
+- **Ryanair** (`flight`): parst `baggage_json` (Array von BaggageItems) → zeigt `🎒 Nx 10kg` etc.
+- **Google Flights** (`google_flight`): parst `baggage_json` (Objekt mit Counts) → zeigt Badges
+- Beide: zeigt `💺 Sitz X€/P` wenn `seat_cost > 0`
