@@ -139,6 +139,8 @@ def fetch_flights(tracker: dict) -> dict:
         "total_price":      total,
         "outbound_flight":  outbound["flight_number"],
         "return_flight":    inbound["flight_number"] if inbound else None,
+        "departure_time":   outbound.get("departure_time"),
+        "arrival_time":     outbound.get("arrival_time"),
         "currency":         currency,
         "baggage_fallback": True,
         "status":           "ok",
@@ -154,8 +156,17 @@ def _error_snap(msg: str, status: str = "error") -> dict:
     }}
 
 
+def _hhmm(ts_list, idx):
+    """Extract HH:MM from Ryanair timeUTC list (handles ISO or plain HH:MM format)."""
+    if not ts_list or idx >= len(ts_list):
+        return None
+    raw = str(ts_list[idx])
+    extracted = raw[-8:][:5] if len(raw) >= 8 else raw[:5]
+    return extracted if extracted and ":" in extracted else None
+
+
 def _cheapest_flight(data: dict, orig: str, dest: str) -> dict | None:
-    """Günstigsten verfügbaren Flug in gegebener Richtung extrahieren."""
+    """Günstigsten verfügbaren Flug inkl. Zeiten + Flugnummer extrahieren."""
     best = None
     best_price = float("inf")
     for trip in data.get("trips", []):
@@ -171,8 +182,19 @@ def _cheapest_flight(data: dict, orig: str, dest: str) -> dict | None:
                 price = min(f.get("amount", 9999) for f in fares)
                 if price < best_price:
                     best_price = price
+                    # Extract times from first segment
+                    seg        = flight.get("segments", [{}])[0]
+                    time_utc   = seg.get("timeUTC") or []
+                    dep_time   = _hhmm(time_utc, 0)
+                    arr_time   = _hhmm(time_utc, 1)
+                    flight_num = (flight.get("flightNumber")
+                                  or seg.get("flightNumber")
+                                  or "")
                     best = {
-                        "flight_number": flight.get("flightNumber", ""),
-                        "price": price,
+                        "flight_number":  flight_num,
+                        "price":          price,
+                        "departure_time": dep_time,
+                        "arrival_time":   arr_time,
                     }
     return best
+
