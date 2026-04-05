@@ -1032,3 +1032,43 @@ price_per_night = round(float(raw_price), 2)   # raw_price ist immer Nachtrate
 total_price     = round(price_per_night * nights, 2)  # immer multiplizieren
 per_night_avg   = price_per_night  # identisch, für konsistentes API-Format
 ```
+
+---
+
+## Phase 2 Step 2 (Session 2025-04) — UI-Layout, Akkordeons & Cleanup
+
+### Flug-Akkordeons aufgeteilt (PriceRadar.svelte)
+Ehemals ein `<details>` „🧳 Flugextras" → jetzt zwei separate:
+
+**Akkordeon 1: „🧳 Gepäck & Sitzplätze"**
+- Gepäck-Stepper 10/20/23kg mit Preisfeldern
+- Sitzplatz €/Person/Flug
+- `aktiv`-Badge wenn fl10kg/fl20kg/fl23kg > 0 oder flSeatCost > 0
+
+**Akkordeon 2: „⏱️ Zeiten & Stopps"**
+- Stopp-Filter (Alle/Nonstop/Max 1/Max 2)
+- Abflug-Zeitfenster (ab/bis)
+- Ankunft-Zeitfenster (ab/bis)
+- Reset-Button setzt jetzt auch flMaxStops=-1 zurück
+- `aktiv`-Badge wenn flMaxStops >= 0 oder Zeitfelder gesetzt
+
+### CSS Clipping Fix — Suchergebnis-Karten
+- **Problem**: Subtitle mit `truncate` + rechter Preisblock mit `shrink-0` → Text wurde auf < 50% Breite gequetscht
+- **Fix**: `truncate` → `break-words leading-relaxed` auf Subtitle-Div
+- Rechter Block: `shrink-0` → `flex-none` mit explizitem `min-width:90px; max-width:130px`
+- Kein Text mehr abgeschnitten (z.B. „2 Pers." vollständig)
+
+### Google Flights Tracker-Karten — Redundanz entfernt
+- `trackerSubtitle()`: Airline + Zeiten entfernt (waren doppelt mit separater Airline-Zeile)
+  → Subtitle zeigt jetzt nur: Datum · Erwachsene · Zimmer
+- Separate Airline-Zeile (unter Subtitle): zeigt jetzt für **alle Flug-Typen** (Ryanair + GF)
+  - ✈️ Airline-Name (wenn vorhanden)
+  - Flugnummer als Code-Badge (z.B. `FR 1234`) — NEU für Ryanair
+  - Abflug → Ankunft (HH:MM → HH:MM)
+- Condition: `tr._type === 'flight' || tr._type === 'google_flight'`
+
+### API Error Handling — bestätigt aktiv
+- `api.js`: parst JSON-Body bei HTTP-Fehlern, gibt `err.detail` als Objekt weiter
+- PriceRadar: 422 mit `detail.error === 'missing_api_key'` → roter Toast
+- Hotels/Camping ohne SerpAPI-Key: `HTTPException(422)` → Frontend zeigt Alert
+- Flights ohne SerpAPI-Key: `missing_api_keys` in Response → Toast nach Suche
