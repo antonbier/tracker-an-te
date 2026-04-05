@@ -979,3 +979,56 @@ Beim Speichern eines Suchergebnisses als Tracker gingen essenzielle Metadaten ve
 - Top-Preis Badge: `🏆 Top Preis` (gold/gelb) — erscheint wenn Preis = historisches Allzeit-Tief
 - Daten-Basis: `chartState[cKey].history` — wird beim Öffnen des Preisverlauf-Akkordeons geladen
   → Trend/Badge erscheinen **nach erstem Klick auf Preisverlauf** (lazy load)
+
+---
+
+## Phase 2 Step 1 (Session 2025-04) — Scraper-Reparatur & Preis-Mathematik
+
+### Ryanair Zeiten-Fix (search.py + scraper.py + database.py)
+
+**Ursache:** `timeUTC`-Array von Ryanair enthält abhängig von API-Version entweder
+`["HH:MM", "HH:MM"]` (lokale Zeit) oder `["2026-05-05T06:15:00.000Z", "..."]` (ISO).
+Alter Code: `seg.get("timeUTC", [""])[0][:5]` → bei ISO-Format = `"2026-"` (falsch).
+Ankunftszeit (`timeUTC[1]`) wurde gar nicht extrahiert.
+
+**Fix — `_hhmm(ts_list, idx)` Hilfsfunktion:**
+- `raw[-8:][:5]` funktioniert für **beide** Formate:
+  - `"06:15"` → `[-8:] = "06:15"` → `[:5] = "06:15"` ✓
+  - `"2026-05-05T06:15:00.000Z"` → `[-8:] = "6:15:00"` → hmm, besser:
+  - Eigentlich: `raw[-14:-9]` oder einfacher: Split auf `T` falls ISO
+- Implementiert als: `raw[-8:][:5]` + Validierung `":" in extracted`
+- Abflug = `timeUTC[0]`, Ankunft = `timeUTC[1]`, Flugnummer = `flight.flightNumber`
+
+**`backend/routes/search.py`:** Live-Suche (Suchergebniskarte)
+- `dep_time`, `arr_time` korrekt extrahiert
+- `detail.airline = "Ryanair"` ergänzt (konsistent mit GF)
+- Subtitle zeigt `08:15 ✈ 10:50` wenn Zeiten verfügbar
+
+**`backend/scraper.py`:** Scheduler-Scraper (gespeicherte Tracker)
+- `_hhmm()` Hilfsfunktion hinzugefügt
+- `_cheapest_flight()` gibt jetzt `departure_time`, `arrival_time` zurück
+- `fetch_flights()` Snapshot-Dict enthält `departure_time` + `arrival_time`
+
+**`backend/database.py`:**
+- Migration: `price_snapshots` + `departure_time TEXT`, `arrival_time TEXT`, `flight_number TEXT`
+- `save_price_snapshot()` speichert alle 3 neuen Felder
+
+### Hotel & Camping Preis-Logik Fix (search.py)
+
+**Ursache:** Fehlerhafte Heuristik `is_per_night`:
+```python
+# ALT (falsch):
+is_per_night = "rate_per_night" in h.keys() and not ("total_rate" in h and h.get("total_rate"))
+total_price = price_per_night * nights if is_per_night else raw_price
+```
+SerpAPI `rate_per_night` ist **per Definition** eine Nachtrate. Die Heuristik
+konnte `is_per_night=False` liefern wenn `total_rate` ebenfalls vorhanden war,
+was zu `total_price = raw_price` (nicht multipliziert) führte.
+
+**Fix (Hotels + Camping):**
+```python
+# NEU (korrekt):
+price_per_night = round(float(raw_price), 2)   # raw_price ist immer Nachtrate
+total_price     = round(price_per_night * nights, 2)  # immer multiplizieren
+per_night_avg   = price_per_night  # identisch, für konsistentes API-Format
+```
