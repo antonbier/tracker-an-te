@@ -20,6 +20,17 @@
   const d30   = new Date(today); d30.setDate(d30.getDate() + 30);
   const d37   = new Date(today); d37.setDate(d37.getDate() + 37);
   function fmt(d) { return d.toISOString().slice(0, 10); }
+  // Lokalisiert YYYY-MM-DD → TT.MM.JJJJ (DE-Format)
+  function fmtDate(iso) {
+    if (!iso) return '–';
+    const parts = String(iso).slice(0, 10).split('-');
+    if (parts.length !== 3) return iso;
+    return `${parts[2]}.${parts[1]}.${parts[0]}`;
+  }
+  // Lokalisiert Datum-Range
+  function fmtRange(from, to) {
+    return to ? `${fmtDate(from)} – ${fmtDate(to)}` : fmtDate(from);
+  }
   const inputCls   = 'w-full px-3 py-2 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-[var(--ws-accent)]';
   const inputStyle = 'background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)';
   const labelCls   = 'block text-xs font-bold uppercase tracking-wider mb-1';
@@ -316,10 +327,19 @@
         body: JSON.stringify(payload),
       });
       searchResults = res.results || [];
-      if (searchResults.length === 0) toast($t('radarNoResults'), 'warning');
+      // Show red alert if a provider had no API key configured
+      if (res.missing_api_keys?.length > 0) {
+        toast(`⚠️ API Key für ${res.missing_api_keys.join(', ')} fehlt in den Einstellungen.`, 'error');
+      }
+      if (searchResults.length === 0 && !res.missing_api_keys?.length) toast($t('radarNoResults'), 'warning');
     } catch (e) {
-      // Backend endpoint may not exist yet (Step 3) — show friendly message
-      toast(e.message || 'Suche fehlgeschlagen', 'error');
+      // 422 = structured API key error from backend
+      const detail = e.detail || {};
+      if (detail.error === 'missing_api_key') {
+        toast(`⚠️ API Key für ${detail.provider} fehlt in den Einstellungen.`, 'error');
+      } else {
+        toast(e.message || 'Suche fehlgeschlagen', 'error');
+      }
     }
     searching = false;
   }
@@ -470,6 +490,23 @@
     }
   }
 
+  // Trend-Pfeil: vergleicht letzten mit vorletztem Preis-Eintrag
+  function priceTrend(history) {
+    if (!history || history.length < 2) return null;
+    const last = history[history.length - 1].price;
+    const prev = history[history.length - 2].price;
+    if (last < prev) return { dir: 'down', pct: (((prev - last) / prev) * 100).toFixed(1) };
+    if (last > prev) return { dir: 'up',   pct: (((last - prev) / prev) * 100).toFixed(1) };
+    return { dir: 'equal', pct: '0.0' };
+  }
+
+  // Ist der aktuelle Preis der historisch günstigste?
+  function isTopPrice(history, currentPrice) {
+    if (!history || history.length < 2 || currentPrice == null) return false;
+    const minHist = Math.min(...history.map(e => e.price));
+    return currentPrice <= minHist;
+  }
+
   function chartPts(history, w = 290, h = 65, pad = 5) {
     const prices = history.map(e => e.price);
     const minP   = Math.min(...prices);
@@ -557,8 +594,8 @@
 
   function trackerSubtitle(tr) {
     const parts = [];
-    if (tr.outbound_date) parts.push(tr.outbound_date + (tr.return_date ? ' ⇄ ' + tr.return_date : ''));
-    if (tr.checkin_date)  parts.push(tr.checkin_date  + (tr.checkout_date ? ' → ' + tr.checkout_date : ''));
+    if (tr.outbound_date) parts.push(fmtDate(tr.outbound_date) + (tr.return_date ? ' ⇄ ' + fmtDate(tr.return_date) : ''));
+    if (tr.checkin_date)  parts.push(fmtDate(tr.checkin_date)  + (tr.checkout_date ? ' – ' + fmtDate(tr.checkout_date) : ''));
     if (tr.adults) parts.push(tr.adults + ' Erw.');
     if (tr.rooms)  parts.push(tr.rooms  + ' Zi.');
     // Flight details from latest snapshot
@@ -738,6 +775,16 @@
       </div>
     </div>
 
+    <!-- ✈️ Flugextras — einklappbares Akkordeon (Mobile-optimiert) -->
+    <details class="rounded-xl border overflow-hidden" style="border-color:var(--ws-border)">
+      <summary class="px-3 py-2.5 text-xs font-semibold cursor-pointer select-none flex items-center gap-2"
+        style="background:var(--ws-surface2);color:var(--ws-muted);list-style:none">
+        <span>🧳 Flugextras</span>
+        {#if fl10kg > 0 || fl20kg > 0 || fl23kg > 0 || flSeatCost > 0 || flMaxStops >= 0 || flDepFrom || flDepTo || flArrFrom || flArrTo}
+          <span class="ml-auto text-[10px] font-normal" style="color:var(--ws-accent)">aktiv</span>
+        {/if}
+      </summary>
+      <div class="p-3 space-y-4" style="background:var(--ws-surface)">
     <!-- Gepäck-Stepper: 10kg / 20kg / 23kg — Anzahl + freier Preis/Koffer -->
     <div>
       <label class="{labelCls}" style="color:var(--ws-muted)">🧳 {$t('radarBaggage')} — {$t('radarInclusions')}</label>
@@ -787,7 +834,7 @@
 
     <!-- Sitzplatz €/Person/Flug -->
     <div>
-      <label class="{labelCls}" style="color:var(--ws-muted)">💺 {$t('radarSeat')} — €/Person/Flug</label>
+      <label class="{labelCls}" style="color:var(--ws-muted)">💺 {$t('radarSeat')}</label>
       <div class="flex items-center gap-3 mt-1">
         <div class="flex items-center gap-2 rounded-xl border p-2.5 flex-1"
           style="background:var(--ws-surface2);border-color:var(--ws-border)">
@@ -870,8 +917,10 @@
         </button>
       </div>
     </details>
+      </div>
+    </details>
 
-    <!-- Suche-Button + Preview-Summary -->
+        <!-- Suche-Button + Preview-Summary -->
     {#if flExtrasLabel()}
       <div class="text-xs px-1" style="color:var(--ws-muted)">
         ℹ️ Aufschlag wird auf Flugpreis addiert: {flExtrasLabel()}
@@ -1186,7 +1235,9 @@
             <div class="flex-1 min-w-0">
               <div class="font-bold text-sm truncate" style="color:var(--ws-text)">{result.title || result.label || '–'}</div>
               {#if result.subtitle}
-                <div class="text-xs mt-0.5 truncate" style="color:var(--ws-muted)">{result.subtitle}</div>
+                <div class="text-xs mt-0.5 truncate" style="color:var(--ws-muted)">
+                  {result.subtitle.replace(/(\d{4})-(\d{2})-(\d{2})/g, (_, y, m, d) => `${d}.${m}.${y}`)}
+                </div>
               {/if}
               <!-- Airline + Flugzeiten -->
               {#if d.airline}
@@ -1321,10 +1372,26 @@
             <!-- Price row -->
             <div class="flex items-center justify-between gap-2">
               <div>
-                <div class="text-xs" style="color:var(--ws-muted)">{$t('radarCurrentPrice') || 'Aktuell'}</div>
+                <div class="flex items-center gap-1.5">
+                  <div class="text-xs" style="color:var(--ws-muted)">{$t('radarCurrentPrice') || 'Aktuell'}</div>
+                  {#if chartState[cKey]?.history?.length >= 2}
+                    {@const trend = priceTrend(chartState[cKey].history)}
+                    {#if trend?.dir === 'down'}
+                      <span class="text-xs font-semibold" style="color:var(--ws-green)">⬇ {trend.pct}%</span>
+                    {:else if trend?.dir === 'up'}
+                      <span class="text-xs font-semibold" style="color:#ef4444">⬆ {trend.pct}%</span>
+                    {/if}
+                  {/if}
+                </div>
                 <div class="font-bold font-mono text-base" style="color:{price ? 'var(--ws-green)' : 'var(--ws-muted)'}">
                   {price ? price.toFixed(2) + ' €' : '–'}
                 </div>
+                {#if chartState[cKey]?.history?.length >= 2 && isTopPrice(chartState[cKey].history, price)}
+                  <div class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold mt-0.5"
+                    style="background:rgba(234,179,8,.15);color:#ca8a04;border:1px solid rgba(234,179,8,.3)">
+                    🏆 Top Preis
+                  </div>
+                {/if}
                 {#if (tr._type === 'hotel' || tr._type === 'camping') && tr.checkin_date && tr.checkout_date}
                   {@const nights = Math.max(1, Math.round((new Date(tr.checkout_date) - new Date(tr.checkin_date)) / 86400000))}
                   {#if nights > 1 && price}
@@ -1332,7 +1399,7 @@
                   {/if}
                 {/if}
                 {#if s?.fetched_at}
-                  <div class="text-xs" style="color:var(--ws-muted)">{s.fetched_at.slice(0, 10)}</div>
+                  <div class="text-xs" style="color:var(--ws-muted)">{fmtDate(s.fetched_at.slice(0, 10))}</div>
                 {/if}
               </div>
 
@@ -1420,7 +1487,7 @@
                       <div class="absolute top-0 right-0 text-xs font-mono" style="color:var(--ws-muted)">{cp.maxP.toFixed(0)}€</div>
                       <div class="absolute bottom-0 right-0 text-xs font-mono" style="color:var(--ws-green)">{cp.minP.toFixed(0)}€</div>
                       <div class="absolute bottom-0 left-0 text-xs" style="color:var(--ws-muted)">
-                        {chartState[cKey].history[0].fetched_at.slice(0, 10)}
+                        {fmtDate(chartState[cKey].history[0].fetched_at.slice(0, 10))}
                       </div>
                     </div>
                   {/each}
@@ -1435,6 +1502,7 @@
   </div>
 
 </div>
+
 
 
 
