@@ -446,14 +446,14 @@
             <button onclick={() => activeTab='journal'}
               class="flex items-center gap-2 w-full text-left hover:opacity-70 transition-opacity group">
               <span class="w-3 h-3 rounded-sm shrink-0" style="background:#2d6a4f"></span>
-              <span class="text-stone-600 group-hover:text-stone-800">Vergangen</span>
-              <span class="ml-auto font-mono font-semibold text-stone-700">{journalSpentYear.toFixed(2)} €</span>
+              <span style="color:var(--ws-muted)">Vergangen</span>
+              <span class="ml-auto font-mono font-semibold" style="color:var(--ws-text)">{journalSpentYear.toFixed(2)} €</span>
             </button>
             <button onclick={() => activeTab='trips'}
               class="flex items-center gap-2 w-full text-left hover:opacity-70 transition-opacity group">
               <span class="w-3 h-3 rounded-sm shrink-0" style="background:#86efac"></span>
-              <span class="text-stone-600 group-hover:text-stone-800">Geplant</span>
-              <span class="ml-auto font-mono font-semibold text-stone-700">{tripsSpentYear.toFixed(2)} €</span>
+              <span style="color:var(--ws-muted)">Geplant</span>
+              <span class="ml-auto font-mono font-semibold" style="color:var(--ws-text)">{tripsSpentYear.toFixed(2)} €</span>
             </button>
             {#if overBudget}
               <div class="flex items-center gap-2">
@@ -464,11 +464,11 @@
             {:else}
               <div class="flex items-center gap-2">
                 <span class="w-3 h-3 rounded-sm shrink-0" style="background:#e2e8f0"></span>
-                <span class="text-stone-400">Verfügbar</span>
-                <span class="ml-auto font-mono text-stone-400">{remainingYear.toFixed(2)} €</span>
+                <span style="color:var(--ws-muted)">Verfügbar</span>
+                <span class="ml-auto font-mono" style="color:var(--ws-muted)">{remainingYear.toFixed(2)} €</span>
               </div>
             {/if}
-            <div class="pt-1 border-t border-stone-100 flex justify-between font-semibold text-stone-600">
+            <div class="pt-1 border-t flex justify-between font-semibold" style="border-color:var(--ws-border);color:var(--ws-text)">
               <span>Budget gesamt</span>
               <span class="font-mono">{yearBudget.toFixed(2)} €</span>
             </div>
@@ -480,8 +480,8 @@
     <!-- Karte -->
     <div class="{card} !p-4" style="background:var(--ws-surface);border-color:var(--ws-border)">
       <div class="flex items-center justify-between mb-3">
-        <h2 class="text-sm font-semibold text-stone-700">🗺️ Meine Reisekarte — {selectedYear}</h2>
-        <span class="text-xs text-stone-400">{journalYear.length} Chronik · {upcomingCount} geplant</span>
+        <h2 class="text-sm font-semibold" style="color:var(--ws-text)">🗺️ Meine Reisekarte — {selectedYear}</h2>
+        <span class="text-xs" style="color:var(--ws-muted)">{journalYear.length} Chronik · {upcomingCount} geplant</span>
       </div>
       <ScratchMap {journalTrips} plannedTrips={$trips} {selectedYear} />
     </div>
@@ -499,7 +499,7 @@
             <div class="flex items-center gap-3 py-2 border-b border-stone-100 last:border-0">
               <span class="text-lg">✈️</span>
               <div class="flex-1 min-w-0">
-                <div class="text-sm font-semibold text-stone-800 truncate" style="font-family:var(--ws-serif)">{tr.name}</div>
+                <div style="font-family:var(--ws-serif);color:var(--ws-text)" class="text-sm font-semibold truncate">{tr.name}</div>
                 <div class="text-xs text-stone-400 font-mono">{start}{end&&end!==start?' → '+end:''}</div>
               </div>
               <div class="text-sm font-bold text-orange-600 font-mono shrink-0">{parseFloat(tr.cost).toFixed(2)} €</div>
@@ -528,7 +528,7 @@
             <div class="flex items-center gap-3 py-2 border-b border-stone-100 last:border-0">
               <span class="text-lg">{tr.source==='manual'?'✍️':'📍'}</span>
               <div class="flex-1 min-w-0">
-                <div class="text-sm font-semibold text-stone-800 truncate" style="font-family:var(--ws-serif)">{name}</div>
+                <div style="font-family:var(--ws-serif);color:var(--ws-text)" class="text-sm font-semibold truncate">{name}</div>
                 <div class="text-xs text-stone-400 font-mono">{start}{end&&end!==start?' → '+end:''}</div>
               </div>
               {#if cost != null}
@@ -551,16 +551,16 @@
       <div class="lg:col-span-1 space-y-4">
 
         <!-- Smart Planer -->
-        <div class="bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-200 rounded-xl shadow-sm p-5 relative overflow-hidden">
-          <span class="absolute top-3 right-3 text-[10px] font-bold uppercase tracking-wider bg-orange-600 text-white px-2 py-0.5 rounded-full">Bald verfügbar</span>
+        <div class="rounded-xl shadow-sm p-5 relative overflow-hidden border" style="background:color-mix(in srgb,var(--ws-accent) 8%,var(--ws-surface));border-color:color-mix(in srgb,var(--ws-accent) 30%,var(--ws-border))">
+          <span class="absolute top-3 right-3 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full" style="background:var(--ws-accent);color:#fff5ec">Bald verfügbar</span>
           <div class="text-xl mb-2">✨</div>
-          <h3 class="font-bold text-stone-800 text-sm mb-1" style="font-family:var(--ws-serif)">Smart Reise-Planer</h3>
-          <p class="text-xs text-stone-500 leading-relaxed">Budget, Personen & Zeitraum — WanderSuite findet Flüge, Mietwagen und Hotels auf einmal.</p>
+          <h3 class="font-bold text-sm mb-1" style="font-family:var(--ws-serif);color:var(--ws-text)">Smart Reise-Planer</h3>
+          <p class="text-xs leading-relaxed" style="color:var(--ws-muted)">Budget, Personen & Zeitraum — WanderSuite findet Flüge, Mietwagen und Hotels auf einmal.</p>
         </div>
 
         <!-- Reise planen -->
         <div class={card}>
-          <h3 class="text-sm font-semibold text-stone-700 mb-3">➕ Reise planen</h3>
+          <h3 class="text-sm font-semibold mb-3" style="color:var(--ws-text)">➕ Reise planen</h3>
           <div class="space-y-2.5">
             <input bind:value={tripName} placeholder="Ziel / Name *" class={inp} />
             <div class="grid grid-cols-2 gap-2">
@@ -610,7 +610,7 @@
                 <div class="flex items-center gap-3 p-3 rounded-lg bg-orange-50 border border-orange-100 hover:border-orange-200 transition-colors group">
                   <div class="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center shrink-0 text-base">✈️</div>
                   <div class="flex-1 min-w-0">
-                    <div class="text-sm font-semibold text-stone-800 truncate" style="font-family:var(--ws-serif)">{tr.name}</div>
+                    <div style="font-family:var(--ws-serif);color:var(--ws-text)" class="text-sm font-semibold truncate">{tr.name}</div>
                     <div class="text-xs text-stone-400 font-mono">{start}{end&&end!==start?' → '+end:''}</div>
                   </div>
                   <div class="text-sm font-bold text-orange-600 font-mono shrink-0">{parseFloat(tr.cost).toFixed(2)} €</div>
@@ -632,7 +632,7 @@
                 <div class="flex items-center gap-3 p-3 rounded-lg bg-stone-50 border border-stone-100 hover:border-stone-200 group transition-colors">
                   <div class="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center shrink-0 text-base">✅</div>
                   <div class="flex-1 min-w-0">
-                    <div class="text-sm font-semibold text-stone-800 truncate" style="font-family:var(--ws-serif)">{tr.name}</div>
+                    <div style="font-family:var(--ws-serif);color:var(--ws-text)" class="text-sm font-semibold truncate">{tr.name}</div>
                     <div class="text-xs text-stone-400 font-mono">{start}{end&&end!==start?' → '+end:''}</div>
                   </div>
                   <div class="text-sm font-bold text-stone-500 font-mono shrink-0">{parseFloat(tr.cost).toFixed(2)} €</div>
@@ -828,7 +828,7 @@
                   <div class="flex items-start justify-between gap-3">
                     <div class="flex-1 min-w-0">
                       <div class="flex items-center gap-2 flex-wrap">
-                        <span class="font-bold text-stone-800 truncate" style="font-family:var(--ws-serif)">
+                        <span class="font-bold truncate" style="font-family:var(--ws-serif);color:var(--ws-text)">
                           {isManual?'✍️':'📍'} {loc}
                         </span>
                         {#if isManual}
@@ -849,7 +849,7 @@
                   <div class="mt-3 flex items-center gap-2 flex-wrap">
                     {#if editingCost === trip.id}
                       <input type="number" bind:value={costDraft} placeholder="Kosten €"
-                        class="flex-1 min-w-0 bg-stone-50 border border-stone-200 text-stone-800 text-xs rounded-lg px-2.5 py-1.5 outline-none focus:border-orange-500"
+                        class="flex-1 min-w-0 text-xs rounded-lg px-2.5 py-1.5 outline-none" style="background:var(--ws-surface2);border:1px solid var(--ws-border);color:var(--ws-text)"
                         onkeydown={(e) => e.key==='Enter' && saveCost(trip)} />
                       <button onclick={() => saveCost(trip)} class="px-3 py-1.5 rounded-lg text-xs font-semibold text-white shrink-0" style="background:#c4622d">✓</button>
                       <button onclick={() => editingCost=null} class="px-2 py-1.5 rounded-lg text-xs border border-stone-200 text-stone-400 shrink-0">✕</button>
@@ -905,7 +905,7 @@
                 <button onclick={() => toggleBucket(i)} class="absolute top-4 right-4 w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs transition-all" style="border-color:{item.done?'#059669':'#d1d5db'};background:{item.done?'#059669':'transparent'};color:white">{item.done?'✓':''}</button>
                 <button onclick={() => removeBucket(i)} class="absolute top-4 right-12 w-6 h-6 rounded-full border border-stone-200 flex items-center justify-center text-xs text-stone-400 hover:text-red-500 hover:border-red-200 opacity-0 group-hover:opacity-100 transition-all">✕</button>
                 <div class="text-2xl mb-2">🌟</div>
-                <div class="text-sm font-semibold text-stone-800 pr-14" style="font-family:var(--ws-serif)" class:line-through={item.done}>{item.item}</div>
+                <div class="text-sm font-semibold pr-14" style="font-family:var(--ws-serif);color:var(--ws-text)" class:line-through={item.done}>{item.item}</div>
                 {#if item.dest}<div class="text-xs text-stone-400 mt-1">📍 {item.dest}</div>{/if}
                 <div class="text-xs text-stone-300 mt-2 font-mono">{item.created}</div>
               </div>
@@ -916,3 +916,4 @@
     </div>
   {/if}
 </div>
+
