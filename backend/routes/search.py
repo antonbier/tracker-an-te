@@ -292,7 +292,7 @@ async def _search_google_flights(params: FlightSearchParams, api_key: str) -> li
     """SerpAPI Google Flights — returns top results."""
     if not api_key:
         logger.warning("[SERPAPI/GF] ✈️ #search status=skip | reason=no_api_key")
-        return []
+        return [{"_api_key_missing": True, "provider": "Google Flights"}]
     t0 = time.time()
     try:
         async with httpx.AsyncClient(headers=HEADERS_SERPAPI, timeout=TIMEOUT) as client:
@@ -347,8 +347,11 @@ async def _search_google_flights(params: FlightSearchParams, api_key: str) -> li
                 if params.max_stops >= 0 and n_stops > params.max_stops:
                     continue
                 # Zeit-Filter
-                dep_t = dep.get("time", "")
-                arr_t = arr.get("time", "")
+                # SerpAPI "time" may be "2026-05-05 08:15" (datetime) or "08:15" (time only)
+                _dep_raw = dep.get("time", "")
+                _arr_raw = arr.get("time", "")
+                dep_t = _dep_raw[-5:] if len(_dep_raw) >= 5 else _dep_raw
+                arr_t = _arr_raw[-5:] if len(_arr_raw) >= 5 else _arr_raw
                 def _tin(t, f, to):
                     if not t or (not f and not to): return True
                     try:
@@ -610,20 +613,26 @@ async def _search_camping_serpapi(params: CampingSearchParams, api_key: str) -> 
         return []
 
 
-def _aggregate(raw_results: list) -> list[dict]:
+def _aggregate(raw_results: list) -> tuple[list[dict], list[str]]:
     """
     Flatten and sort results from multiple providers.
+    Returns (results, missing_key_providers).
     Exceptions from gather (return_exceptions=True) are silently dropped.
     """
     flat = []
+    missing_keys = []
     for r in raw_results:
         if isinstance(r, Exception):
             logger.error(f"[SEARCH] Provider exception suppressed: {r}")
             continue
         if isinstance(r, list):
-            flat.extend(r)
+            for item in r:
+                if item.get("_api_key_missing"):
+                    missing_keys.append(item.get("provider", "Unbekannt"))
+                else:
+                    flat.append(item)
     flat.sort(key=lambda x: x.get("price") or float("inf"))
-    return flat
+    return flat, missing_keys
 
 
 # ── API Endpoints ──────────────────────────────────────────────────────────
@@ -657,10 +666,11 @@ async def search_flights(
         _search_google_flights(params, serpapi_key),
     ]
     raw = await asyncio.gather(*tasks, return_exceptions=True)
-    results = _aggregate(list(raw))
+    results, missing_keys = _aggregate(list(raw))
 
     logger.info(f"[SEARCH] ✈️ flights total_results={len(results)}")
-    return {"results": results, "count": len(results)}
+    return {"results": results, "count": len(results),
+            "missing_api_keys": missing_keys}
 
 
 @router.post("/hotels")
@@ -676,6 +686,12 @@ async def search_hotels(
         raise HTTPException(400, "destination, checkin_date und checkout_date sind Pflichtfelder")
 
     serpapi_key = get_setting_value("serpapi_key") or ""
+    if not serpapi_key:
+        raise HTTPException(
+            status_code=422,
+            detail={"error": "missing_api_key", "provider": "SerpAPI",
+                    "message": "API Key für SerpAPI fehlt in den Einstellungen."}
+        )
 
     logger.info(
         f"[SEARCH] 🏨 hotels dest={params.destination} "
@@ -687,10 +703,11 @@ async def search_hotels(
         _search_hotels_serpapi(params, serpapi_key),
     ]
     raw = await asyncio.gather(*tasks, return_exceptions=True)
-    results = _aggregate(list(raw))
+    results, missing_keys = _aggregate(list(raw))
 
     logger.info(f"[SEARCH] 🏨 hotels total_results={len(results)}")
-    return {"results": results, "count": len(results)}
+    return {"results": results, "count": len(results),
+            "missing_api_keys": missing_keys}
 
 
 @router.post("/camping")
@@ -705,6 +722,12 @@ async def search_camping(
         raise HTTPException(400, "destination, checkin_date und checkout_date sind Pflichtfelder")
 
     serpapi_key = get_setting_value("serpapi_key") or ""
+    if not serpapi_key:
+        raise HTTPException(
+            status_code=422,
+            detail={"error": "missing_api_key", "provider": "SerpAPI",
+                    "message": "API Key für SerpAPI fehlt in den Einstellungen."}
+        )
 
     logger.info(
         f"[SEARCH] ⛺ camping dest={params.destination} "
@@ -717,9 +740,11 @@ async def search_camping(
         _search_camping_serpapi(params, serpapi_key),
     ]
     raw = await asyncio.gather(*tasks, return_exceptions=True)
-    results = _aggregate(list(raw))
+    results, missing_keys = _aggregate(list(raw))
 
     logger.info(f"[SEARCH] ⛺ camping total_results={len(results)}")
-    return {"results": results, "count": len(results)}
+    return {"results": results, "count": len(results),
+            "missing_api_keys": missing_keys}
+
 
 
