@@ -1154,3 +1154,44 @@ Ersetzt `tr._type.replace('_', ' ')` im Provider-Badge (oben links auf Tracker-K
 - `✏️ setzen`-Button öffnet Inline-Edit mit `placeholder="Zielpreis in €"`
 - Border-Farbe: `var(--ws-accent)` wenn Wunschpreis gesetzt, sonst `var(--ws-border)`
 - Preis-Anzeige vergrößert auf `text-xl` für bessere Lesbarkeit
+
+---
+
+## Phase 3 Step 3 (Session 2025-04) — MyTrips Dark Mode & Kartenfilter
+
+### ScratchMap.svelte — Jahresfilter für Visited-Pins
+**Vorher:** `journalTrips.filter(t => t.lat && t.lon)` — alle Lifetime-Trips auf Karte.
+**Jetzt:** Filtert auf `(t.start_date || '').slice(0, 4) === String(selectedYear)`.
+Karte zeigt damit nur die Reisen des im Header ausgewählten Jahres.
+Geplante Trips (planned) waren bereits jahresgefiltert — unverändert.
+Bucket-Ziele: jahresunabhängig (immer sichtbar) — unverändert.
+
+### ScratchMap.svelte — Dark Mode
+Alle `bg-stone-50`/`bg-white/90`/`text-stone-*` → `var(--ws-surface)`/`var(--ws-muted)`/etc.:
+- Outer container: `bg-stone-50 border-stone-200` → `var(--ws-surface2)` + `var(--ws-border)`
+- Lade-Overlay: `bg-stone-50/90` → `color-mix(in srgb, var(--ws-surface2) 90%, transparent)`
+- Geocoding-Overlay: `bg-white/90 border-stone-200 text-stone-500` → CSS-Variablen
+- Fehler-Overlay: `bg-stone-50 text-stone-500` → CSS-Variablen
+- Legende: `bg-white/90 border-stone-200 text-stone-600` → CSS-Variablen + `backdrop-filter:blur(4px)`
+
+### MyTrips.svelte — Dark Mode Fixes
+
+**Weltkarte-Titel + Counter:**
+`text-stone-700` / `text-stone-400` → `var(--ws-text)` / `var(--ws-muted)`
+
+**Donut-Legende:**
+- Alle `text-stone-600/800/700/400` → `var(--ws-muted)` / `var(--ws-text)`
+- `border-stone-100` → `var(--ws-border)`
+
+**Smart Reise-Planer Teaser:**
+- `from-orange-50 to-amber-50 border-orange-200` → `color-mix(in srgb, var(--ws-accent) 8%, var(--ws-surface))`
+- Badge: `bg-orange-600 text-white` → `var(--ws-accent)` / `#fff5ec`
+- Titel + Text: `text-stone-800/500` → CSS-Variablen
+
+**Chronik + Reise-Titel:**
+- Alle `font-bold text-stone-800` und `text-sm font-semibold text-stone-800` → `color:var(--ws-text)`
+- `font-family:var(--ws-serif)` bleibt, Farbe über `style` gesetzt
+- Bucketlist-Titel: `text-stone-800 pr-14` → CSS-Variable
+- Kosten-Input in Chronik: `bg-stone-50 border-stone-200 text-stone-800` → CSS-Variablen
+
+**Ergebnis:** 0 verbleibende `text-stone-800` Klassen in MyTrips.svelte.
