@@ -320,32 +320,46 @@
       let endpoint, payload;
 
       if (result._tracker_type === 'flight') {
-        // Ryanair — baggage as list[BaggageItem]
+        // Ryanair — baggage as list[BaggageItem] from stepper counts in badges
         endpoint = '/api/trackers';
-        const bagList = (d.baggage && d.baggage !== 'none')
-          ? [{ type: d.baggage, per_person: true }]
-          : [];
+        // Reconstruct BaggageItems from badge strings or legacy baggage field
+        const bagList = [];
+        if (d.baggage_10kg > 0) { for (let i=0; i<d.baggage_10kg; i++) bagList.push({ type: '10kg', per_person: false }); }
+        else if (d.baggage === '10kg') bagList.push({ type: '10kg', per_person: true });
+        if (d.baggage_20kg > 0) { for (let i=0; i<d.baggage_20kg; i++) bagList.push({ type: '20kg', per_person: false }); }
+        else if (d.baggage === '20kg' && !d.baggage_10kg) bagList.push({ type: '20kg', per_person: true });
+        if (d.baggage_23kg > 0) { for (let i=0; i<d.baggage_23kg; i++) bagList.push({ type: '23kg', per_person: false }); }
         payload = {
           origin:        d.origin,
           destination:   d.destination,
           outbound_date: d.outbound_date,
           return_date:   d.return_date || null,
           adults:        d.adults || 1,
-          children:      0,
+          children:      d.children || 0,
           baggage:       bagList,
-          seat_cost:     d.seat ? 8.99 : 0.0,
+          seat_cost:     d.seat_cost ?? (d.seat ? 8.99 : 0.0),
         };
       } else if (result._tracker_type === 'google_flight') {
         endpoint = '/api/google-flights';
         payload = {
-          origin:        d.origin,
-          destination:   d.destination,
-          outbound_date: d.outbound_date,
-          return_date:   d.return_date || null,
-          adults:        d.adults || 1,
-          children:      0,
-          baggage:       d.baggage || 'none',
-          seat:          d.seat || false,
+          origin:            d.origin,
+          destination:       d.destination,
+          outbound_date:     d.outbound_date,
+          return_date:       d.return_date || null,
+          adults:            d.adults || 1,
+          children:          d.children || 0,
+          baggage:           d.baggage || 'none',
+          baggage_10kg:      d.baggage_10kg || 0,
+          baggage_20kg:      d.baggage_20kg || 0,
+          baggage_23kg:      d.baggage_23kg || 0,
+          seat:              d.seat || false,
+          seat_cost:         d.seat_cost || 0.0,
+          // Initial snapshot data from search result
+          initial_price:     result.price || null,
+          initial_airline:   d.airline || null,
+          initial_dep_time:  d.departure_time || null,
+          initial_arr_time:  d.arrival_time || null,
+          initial_duration:  d.duration_min || null,
         };
       } else if (result._tracker_type === 'camping') {
         endpoint = '/api/accommodations/homair';
@@ -355,11 +369,13 @@
           checkin_date:       d.checkin_date,
           checkout_date:      d.checkout_date,
           adults:             d.adults || 2,
-          children:           0,
+          children:           d.children || 0,
           bedrooms:           d.bedrooms || '1',
           aircon:             d.aircon  || false,
           pets:               d.pets   || false,
           covered_terrace:    d.covered_terrace || false,
+          campsite_name:      d.campsite_name || result.title || null,
+          initial_price:      result.price || null,
         };
       } else if (result._tracker_type === 'hotel') {
         endpoint = '/api/accommodations/booking';
@@ -370,6 +386,8 @@
           adults:        d.adults || 2,
           rooms:         d.rooms  || 1,
           source:        d.source || 'booking',
+          hotel_name:    d.hotel_name || result.title || null,
+          initial_price: result.price || null,
         };
       } else {
         toast('Unbekannter Tracker-Typ', 'error');
@@ -519,8 +537,8 @@
     if (tr._type === 'flight' || tr._type === 'google_flight') {
       return `${tr.origin} → ${tr.destination}`;
     }
-    if (tr._type === 'hotel') return `🏨 ${tr.destination}`;
-    if (tr._type === 'camping') return `⛺ ${tr.region || tr.destination || ''}`;
+    if (tr._type === 'hotel') return `🏨 ${tr.hotel_name || tr.destination}`;
+    if (tr._type === 'camping') return `⛺ ${tr.campsite_name || tr.region || tr.destination || ''}`;
     return tr.destination || tr.location_name || '–';
   }
 
@@ -539,10 +557,30 @@
 
   function trackerBadges(tr) {
     const badges = [];
-    if (tr._type === 'flight' || tr._type === 'google_flight') {
-      if (tr.baggage === '10kg') badges.push('🎒 1x 10kg');
-      else if (tr.baggage === '20kg') badges.push('🎒 1x 20kg');
-      if (tr.seat) badges.push('💺 Sitzplatz');
+    if (tr._type === 'flight') {
+      // Parse baggage_json (list of BaggageItems) from Ryanair tracker
+      try {
+        const bagItems = JSON.parse(tr.baggage_json || '[]');
+        const cnt10 = bagItems.filter(b => b.type === '10kg').length;
+        const cnt20 = bagItems.filter(b => b.type === '20kg').length;
+        const cnt23 = bagItems.filter(b => b.type === '23kg').length;
+        if (cnt10 > 0) badges.push(`🎒 ${cnt10}× 10kg`);
+        if (cnt20 > 0) badges.push(`🎒 ${cnt20}× 20kg`);
+        if (cnt23 > 0) badges.push(`🧳 ${cnt23}× 23kg`);
+      } catch {}
+      if ((tr.seat_cost || 0) > 0) badges.push(`💺 Sitz ${tr.seat_cost}€/P`);
+    }
+    if (tr._type === 'google_flight') {
+      // Parse baggage_json (JSON object) from GF tracker
+      try {
+        const bg = JSON.parse(tr.baggage_json || '{}');
+        if (bg.baggage_10kg > 0) badges.push(`🎒 ${bg.baggage_10kg}× 10kg`);
+        else if (bg.baggage === '10kg') badges.push('🎒 1× 10kg');
+        if (bg.baggage_20kg > 0) badges.push(`🎒 ${bg.baggage_20kg}× 20kg`);
+        else if (bg.baggage === '20kg' && !bg.baggage_10kg) badges.push('🎒 1× 20kg');
+        if (bg.baggage_23kg > 0) badges.push(`🧳 ${bg.baggage_23kg}× 23kg`);
+      } catch {}
+      if ((tr.seat_cost || 0) > 0) badges.push(`💺 Sitz ${tr.seat_cost}€/P`);
     }
     if (tr._type === 'camping') {
       const at = (tr.accommodation_type || '').toLowerCase();
@@ -1359,4 +1397,5 @@
   </div>
 
 </div>
+
 
