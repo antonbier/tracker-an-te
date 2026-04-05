@@ -29,7 +29,17 @@ class GFTrackerCreate(BaseModel):
     adults:        int = 1
     children:      int = 0
     baggage:       str = "none"
+    baggage_10kg:  int = 0
+    baggage_20kg:  int = 0
+    baggage_23kg:  int = 0
     seat:          bool = False
+    seat_cost:     float = 0.0
+    # From search result — for initial snapshot
+    initial_price:     Optional[float] = None
+    initial_airline:   Optional[str] = None
+    initial_dep_time:  Optional[str] = None
+    initial_arr_time:  Optional[str] = None
+    initial_duration:  Optional[int] = None
 
 
 def _uid(user: dict) -> int | None:
@@ -49,6 +59,17 @@ def list_trackers(user: dict = Depends(get_current_user)):
 def create_tracker(data: GFTrackerCreate, user: dict = Depends(get_current_user)):
     uid = user.get("id", 1) or 1
     tid = create_gf_tracker(data.model_dump(), user_id=uid)
+    # Save initial snapshot from search result if price was provided
+    if data.initial_price is not None:
+        save_gf_snapshot(tid, {
+            "total_price":     data.initial_price,
+            "airline":         data.initial_airline,
+            "departure_time":  data.initial_dep_time,
+            "arrival_time":    data.initial_arr_time,
+            "duration_min":    data.initial_duration,
+            "currency":        "EUR",
+            "status":          "ok",
+        })
     return {"id": tid, "message": "Google Flights Tracker angelegt"}
 
 
@@ -83,3 +104,4 @@ def scrape(tracker_id: int, user: dict = Depends(get_current_user)):
     except Exception as e:
         logger.error(f"GF scrape error: {e}")
         raise HTTPException(500, str(e))
+
