@@ -598,10 +598,7 @@
     if (tr.checkin_date)  parts.push(fmtDate(tr.checkin_date)  + (tr.checkout_date ? ' – ' + fmtDate(tr.checkout_date) : ''));
     if (tr.adults) parts.push(tr.adults + ' Erw.');
     if (tr.rooms)  parts.push(tr.rooms  + ' Zi.');
-    // Flight details from latest snapshot
-    const s = tr.latest_snapshot;
-    if (s?.airline)        parts.push('✈ ' + s.airline);
-    if (s?.departure_time && s?.arrival_time) parts.push(s.departure_time.slice(0,5) + '→' + s.arrival_time.slice(0,5));
+    // NOTE: airline/zeiten werden in separater Zeile gerendert (kein Doppel)
     return parts.join(' · ');
   }
 
@@ -775,117 +772,112 @@
       </div>
     </div>
 
-    <!-- ✈️ Flugextras — einklappbares Akkordeon (Mobile-optimiert) -->
+    <!-- ✈️ Akkordeon 1: Gepäck & Sitzplätze -->
     <details class="rounded-xl border overflow-hidden" style="border-color:var(--ws-border)">
       <summary class="px-3 py-2.5 text-xs font-semibold cursor-pointer select-none flex items-center gap-2"
         style="background:var(--ws-surface2);color:var(--ws-muted);list-style:none">
-        <span>🧳 Flugextras</span>
-        {#if fl10kg > 0 || fl20kg > 0 || fl23kg > 0 || flSeatCost > 0 || flMaxStops >= 0 || flDepFrom || flDepTo || flArrFrom || flArrTo}
+        <span>🧳 Gepäck & Sitzplätze</span>
+        {#if fl10kg > 0 || fl20kg > 0 || fl23kg > 0 || flSeatCost > 0}
           <span class="ml-auto text-[10px] font-normal" style="color:var(--ws-accent)">aktiv</span>
         {/if}
       </summary>
       <div class="p-3 space-y-4" style="background:var(--ws-surface)">
-    <!-- Gepäck-Stepper: 10kg / 20kg / 23kg — Anzahl + freier Preis/Koffer -->
-    <div>
-      <label class="{labelCls}" style="color:var(--ws-muted)">🧳 {$t('radarBaggage')} — {$t('radarInclusions')}</label>
-      <div class="space-y-2 mt-1">
-        {#each [
-          [() => fl10kg, v => fl10kg = v, () => fl10kgPrice, v => fl10kgPrice = v, '10 kg'],
-          [() => fl20kg, v => fl20kg = v, () => fl20kgPrice, v => fl20kgPrice = v, '20 kg'],
-          [() => fl23kg, v => fl23kg = v, () => fl23kgPrice, v => fl23kgPrice = v, '23 kg'],
-        ] as [getter, setter, pGetter, pSetter, label]}
-          <div class="rounded-xl border p-2.5 flex items-center gap-2"
-            style="background:var(--ws-surface2);border-color:var(--ws-border)">
-            <!-- Koffer-Label -->
-            <span class="text-xs font-semibold w-10 shrink-0" style="color:var(--ws-text)">{label}</span>
-            <!-- Anzahl-Stepper -->
-            <div class="flex items-center gap-1.5 shrink-0">
-              <button onclick={() => setter(Math.max(0, getter() - 1))}
-                class="w-6 h-6 rounded-lg border text-sm font-bold flex items-center justify-center"
-                style="background:var(--ws-surface);border-color:var(--ws-border);color:var(--ws-text)">−</button>
-              <span class="w-4 text-center text-sm font-bold" style="color:{getter()>0?'var(--ws-accent)':'var(--ws-muted)'}">{getter()}</span>
-              <button onclick={() => setter(Math.min(9, getter() + 1))}
-                class="w-6 h-6 rounded-lg border text-sm font-bold flex items-center justify-center"
-                style="background:var(--ws-accent);border-color:var(--ws-accent);color:#fff">+</button>
-            </div>
-            <!-- Preis-Eingabe (nur aktiv wenn Anzahl > 0) -->
-            <div class="flex items-center gap-1 flex-1 min-w-0">
-              <input type="number" bind:value={() => pGetter(), v => pSetter(v)} min="0" step="0.01"
-                placeholder="€/Koffer"
-                class="flex-1 min-w-0 px-2 py-1 rounded-lg border text-xs font-mono text-center outline-none"
-                style="{inputStyle};opacity:{getter()>0?1:0.4}"
-                disabled={getter() === 0}/>
-              <span class="text-[10px] shrink-0" style="color:var(--ws-muted)">€</span>
-            </div>
-            <!-- Summe dieser Zeile -->
-            {#if getter() > 0 && pGetter() > 0}
-              <span class="text-xs font-mono shrink-0" style="color:var(--ws-accent)">{(getter()*pGetter()).toFixed(2)}€</span>
+        <!-- Gepäck-Stepper: 10kg / 20kg / 23kg -->
+        <div>
+          <label class="{labelCls}" style="color:var(--ws-muted)">🧳 {$t('radarBaggage')} — {$t('radarInclusions')}</label>
+          <div class="space-y-2 mt-1">
+            {#each [
+              [() => fl10kg, v => fl10kg = v, () => fl10kgPrice, v => fl10kgPrice = v, '10 kg'],
+              [() => fl20kg, v => fl20kg = v, () => fl20kgPrice, v => fl20kgPrice = v, '20 kg'],
+              [() => fl23kg, v => fl23kg = v, () => fl23kgPrice, v => fl23kgPrice = v, '23 kg'],
+            ] as [getter, setter, pGetter, pSetter, label]}
+              <div class="rounded-xl border p-2.5 flex items-center gap-2"
+                style="background:var(--ws-surface2);border-color:var(--ws-border)">
+                <span class="text-xs font-semibold w-10 shrink-0" style="color:var(--ws-text)">{label}</span>
+                <div class="flex items-center gap-1.5 shrink-0">
+                  <button onclick={() => setter(Math.max(0, getter() - 1))}
+                    class="w-6 h-6 rounded-lg border text-sm font-bold flex items-center justify-center"
+                    style="background:var(--ws-surface);border-color:var(--ws-border);color:var(--ws-text)">−</button>
+                  <span class="w-4 text-center text-sm font-bold" style="color:{getter()>0?'var(--ws-accent)':'var(--ws-muted)'}">{getter()}</span>
+                  <button onclick={() => setter(Math.min(9, getter() + 1))}
+                    class="w-6 h-6 rounded-lg border text-sm font-bold flex items-center justify-center"
+                    style="background:var(--ws-accent);border-color:var(--ws-accent);color:#fff">+</button>
+                </div>
+                <div class="flex items-center gap-1 flex-1 min-w-0">
+                  <input type="number" bind:value={() => pGetter(), v => pSetter(v)} min="0" step="0.01"
+                    placeholder="€/Koffer"
+                    class="flex-1 min-w-0 px-2 py-1 rounded-lg border text-xs font-mono text-center outline-none"
+                    style="{inputStyle};opacity:{getter()>0?1:0.4}"
+                    disabled={getter() === 0}/>
+                  <span class="text-[10px] shrink-0" style="color:var(--ws-muted)">€</span>
+                </div>
+                {#if getter() > 0 && pGetter() > 0}
+                  <span class="text-xs font-mono shrink-0" style="color:var(--ws-accent)">{(getter()*pGetter()).toFixed(2)}€</span>
+                {/if}
+              </div>
+            {/each}
+            {#if flBaggageCost > 0}
+              <div class="text-xs px-2" style="color:var(--ws-muted)">
+                🧳 Gepäck gesamt: <strong style="color:var(--ws-accent)">{flBaggageCost.toFixed(2)} €</strong>
+              </div>
             {/if}
           </div>
-        {/each}
-        <!-- Gesamtkosten-Preview -->
-        {#if flBaggageCost > 0}
-          <div class="text-xs px-2" style="color:var(--ws-muted)">
-            🧳 Gepäck gesamt: <strong style="color:var(--ws-accent)">{flBaggageCost.toFixed(2)} €</strong>
+        </div>
+        <!-- Sitzplatz -->
+        <div>
+          <label class="{labelCls}" style="color:var(--ws-muted)">💺 {$t('radarSeat')}</label>
+          <div class="flex items-center gap-3 mt-1">
+            <div class="flex items-center gap-2 rounded-xl border p-2.5 flex-1"
+              style="background:var(--ws-surface2);border-color:var(--ws-border)">
+              <button onclick={() => flSeatCost = Math.max(0, Math.round((flSeatCost - 1)*10)/10)}
+                class="w-7 h-7 rounded-lg border text-base font-bold flex items-center justify-center transition-opacity hover:opacity-70"
+                style="background:var(--ws-surface);border-color:var(--ws-border);color:var(--ws-text)">−</button>
+              <input type="number" bind:value={flSeatCost} min="0" step="0.5"
+                class="flex-1 text-center text-sm font-bold bg-transparent outline-none"
+                style="color:var(--ws-text)" placeholder="0"/>
+              <button onclick={() => flSeatCost = Math.round((flSeatCost + 1)*10)/10}
+                class="w-7 h-7 rounded-lg border text-base font-bold flex items-center justify-center transition-opacity hover:opacity-70"
+                style="background:var(--ws-accent);border-color:var(--ws-accent);color:#fff">+</button>
+            </div>
+            <span class="text-xs shrink-0" style="color:var(--ws-muted)">€</span>
           </div>
-        {/if}
-      </div>
-    </div>
-
-    <!-- Sitzplatz €/Person/Flug -->
-    <div>
-      <label class="{labelCls}" style="color:var(--ws-muted)">💺 {$t('radarSeat')}</label>
-      <div class="flex items-center gap-3 mt-1">
-        <div class="flex items-center gap-2 rounded-xl border p-2.5 flex-1"
-          style="background:var(--ws-surface2);border-color:var(--ws-border)">
-          <button onclick={() => flSeatCost = Math.max(0, Math.round((flSeatCost - 1)*10)/10)}
-            class="w-7 h-7 rounded-lg border text-base font-bold flex items-center justify-center transition-opacity hover:opacity-70"
-            style="background:var(--ws-surface);border-color:var(--ws-border);color:var(--ws-text)">−</button>
-          <input type="number" bind:value={flSeatCost} min="0" step="0.5"
-            class="flex-1 text-center text-sm font-bold bg-transparent outline-none"
-            style="color:var(--ws-text)" placeholder="0"/>
-          <button onclick={() => flSeatCost = Math.round((flSeatCost + 1)*10)/10}
-            class="w-7 h-7 rounded-lg border text-base font-bold flex items-center justify-center transition-opacity hover:opacity-70"
-            style="background:var(--ws-accent);border-color:var(--ws-accent);color:#fff">+</button>
+          {#if flSeatCost > 0}
+            <div class="text-xs mt-1 px-1" style="color:var(--ws-muted)">
+              💺 {flTotalPax} × {flSeatCost} € = <strong style="color:var(--ws-accent)">{(flTotalPax * flSeatCost).toFixed(2)} €</strong>
+            </div>
+          {/if}
         </div>
-        <span class="text-xs shrink-0" style="color:var(--ws-muted)">€</span>
       </div>
-      {#if flSeatCost > 0}
-        <div class="text-xs mt-1 px-1" style="color:var(--ws-muted)">
-          💺 {flTotalPax} × {flSeatCost} € = <strong style="color:var(--ws-accent)">{(flTotalPax * flSeatCost).toFixed(2)} €</strong>
-        </div>
-      {/if}
-    </div>
+    </details>
 
-    <!-- Stopp-Filter -->
-    <div>
-      <label class="{labelCls}" style="color:var(--ws-muted)">🔀 Stopps</label>
-      <div class="flex gap-2 flex-wrap mt-1">
-        {#each [[-1,'Alle'], [0,'Nonstop'], [1,'Max 1'], [2,'Max 2']] as [val, lbl]}
-          <button onclick={() => flMaxStops = val}
-            class="px-3 py-1.5 rounded-xl border text-xs font-medium transition-colors"
-            style={flMaxStops === val
-              ? 'background:rgba(196,98,45,.12);border-color:var(--ws-accent);color:var(--ws-accent)'
-              : 'background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)'}>
-            {lbl}
-          </button>
-        {/each}
-      </div>
-    </div>
-
-    <!-- Zeit-Filter: Abflug- & Ankunftsfenster -->
+    <!-- ✈️ Akkordeon 2: Zeiten & Stopps -->
     <details class="rounded-xl border overflow-hidden" style="border-color:var(--ws-border)">
       <summary class="px-3 py-2.5 text-xs font-semibold cursor-pointer select-none flex items-center gap-2"
         style="background:var(--ws-surface2);color:var(--ws-muted);list-style:none">
-        <span>🕐 Zeitfenster</span>
-        {#if flDepFrom || flDepTo || flArrFrom || flArrTo}
+        <span>⏱️ Zeiten & Stopps</span>
+        {#if flMaxStops >= 0 || flDepFrom || flDepTo || flArrFrom || flArrTo}
           <span class="ml-auto text-[10px] font-normal" style="color:var(--ws-accent)">aktiv</span>
         {/if}
       </summary>
       <div class="p-3 space-y-3" style="background:var(--ws-surface)">
+        <!-- Stopp-Filter -->
+        <div>
+          <label class="{labelCls}" style="color:var(--ws-muted)">🔀 Stopps</label>
+          <div class="flex gap-2 flex-wrap mt-1">
+            {#each [[-1,'Alle'], [0,'Nonstop'], [1,'Max 1'], [2,'Max 2']] as [val, lbl]}
+              <button onclick={() => flMaxStops = val}
+                class="px-3 py-1.5 rounded-xl border text-xs font-medium transition-colors"
+                style={flMaxStops === val
+                  ? 'background:rgba(196,98,45,.12);border-color:var(--ws-accent);color:var(--ws-accent)'
+                  : 'background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)'}>
+                {lbl}
+              </button>
+            {/each}
+          </div>
+        </div>
         <!-- Abflug-Fenster -->
         <div>
-          <div class="text-xs font-semibold mb-1.5" style="color:var(--ws-muted)">Abflug</div>
+          <div class="text-xs font-semibold mb-1.5" style="color:var(--ws-muted)">🛫 Abflug</div>
           <div class="grid grid-cols-2 gap-2">
             <div>
               <div class="text-[10px] mb-1" style="color:var(--ws-muted)">ab</div>
@@ -899,7 +891,7 @@
         </div>
         <!-- Ankunft-Fenster -->
         <div>
-          <div class="text-xs font-semibold mb-1.5" style="color:var(--ws-muted)">Ankunft</div>
+          <div class="text-xs font-semibold mb-1.5" style="color:var(--ws-muted)">🛬 Ankunft</div>
           <div class="grid grid-cols-2 gap-2">
             <div>
               <div class="text-[10px] mb-1" style="color:var(--ws-muted)">ab</div>
@@ -911,12 +903,10 @@
             </div>
           </div>
         </div>
-        <button onclick={() => { flDepFrom=''; flDepTo=''; flArrFrom=''; flArrTo=''; }}
+        <button onclick={() => { flDepFrom=''; flDepTo=''; flArrFrom=''; flArrTo=''; flMaxStops=-1; }}
           class="text-xs px-2 py-1 rounded-lg border" style="border-color:var(--ws-border);color:var(--ws-muted)">
-          ✕ Zeitfilter zurücksetzen
+          ✕ Filter zurücksetzen
         </button>
-      </div>
-    </details>
       </div>
     </details>
 
@@ -1231,11 +1221,11 @@
       {#each filteredResults() as result}
         {@const d = result.detail || {}}
         <div class="rounded-xl p-4 border" style="background:var(--ws-surface);border-color:var(--ws-border)">
-          <div class="flex items-start justify-between gap-3">
-            <div class="flex-1 min-w-0">
+          <div class="flex items-start justify-between gap-2">
+            <div class="flex-1 min-w-0 overflow-hidden">
               <div class="font-bold text-sm truncate" style="color:var(--ws-text)">{result.title || result.label || '–'}</div>
               {#if result.subtitle}
-                <div class="text-xs mt-0.5 truncate" style="color:var(--ws-muted)">
+                <div class="text-xs mt-0.5 break-words leading-relaxed" style="color:var(--ws-muted)">
                   {result.subtitle.replace(/(\d{4})-(\d{2})-(\d{2})/g, (_, y, m, d) => `${d}.${m}.${y}`)}
                 </div>
               {/if}
@@ -1259,12 +1249,12 @@
                 {/each}
               </div>
             </div>
-            <div class="text-right shrink-0">
-              <div class="font-bold font-mono text-base" style="color:var(--ws-green)">
+            <div class="text-right flex-none pl-1" style="min-width:90px;max-width:130px">
+              <div class="font-bold font-mono text-base whitespace-nowrap" style="color:var(--ws-green)">
                 {result.price ? result.price.toFixed(2) + ' €' : '–'}
               </div>
               {#if result.price_per_night && result.nights > 1}
-                <div class="text-[10px] font-mono" style="color:var(--ws-muted)">
+                <div class="text-[10px] font-mono whitespace-nowrap" style="color:var(--ws-muted)">
                   Ø {result.price_per_night.toFixed(2)} €/Nacht
                 </div>
               {/if}
@@ -1344,13 +1334,19 @@
             <div>
               <div class="font-bold text-sm" style="color:var(--ws-text)">{trackerTitle(tr)}</div>
               <div class="text-xs mt-0.5" style="color:var(--ws-muted)">{trackerSubtitle(tr)}</div>
-              {#if tr.latest_snapshot?.airline}
-                <div class="flex items-center gap-1.5 mt-1">
-                  <span class="text-base">✈️</span>
-                  <span class="text-xs font-semibold" style="color:var(--ws-accent)">{tr.latest_snapshot.airline}</span>
-                  {#if tr.latest_snapshot?.departure_time && tr.latest_snapshot?.arrival_time}
+              {#if (tr._type === 'flight' || tr._type === 'google_flight') && (tr.latest_snapshot?.airline || tr.latest_snapshot?.departure_time)}
+                {@const snap = tr.latest_snapshot}
+                <div class="flex items-center gap-1.5 mt-1 flex-wrap">
+                  <span class="text-xs">✈️</span>
+                  {#if snap?.airline}
+                    <span class="text-xs font-semibold" style="color:var(--ws-accent)">{snap.airline}</span>
+                  {/if}
+                  {#if snap?.flight_number}
+                    <span class="text-xs font-mono px-1.5 py-0.5 rounded" style="background:var(--ws-surface2);color:var(--ws-muted)">{snap.flight_number}</span>
+                  {/if}
+                  {#if snap?.departure_time && snap?.arrival_time}
                     <span class="text-xs font-mono" style="color:var(--ws-muted)">
-                      {tr.latest_snapshot.departure_time.slice(0,5)} → {tr.latest_snapshot.arrival_time.slice(0,5)}
+                      {snap.departure_time.slice(0,5)} → {snap.arrival_time.slice(0,5)}
                     </span>
                   {/if}
                 </div>
@@ -1502,6 +1498,7 @@
   </div>
 
 </div>
+
 
 
 
