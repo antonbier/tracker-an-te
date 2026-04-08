@@ -820,8 +820,7 @@
               {@const displayCost = trip.cost ?? trip.auto_cost}
               {@const isAutoCost  = trip.cost == null && trip.auto_cost != null}
               <div class="relative pb-4">
-                <div class="absolute -left-6 top-4 w-4 h-4 rounded-full border-2 shadow-sm z-10" style="border-color:var(--ws-surface)"
-                  style="background:{isManual?'#6366f1':'linear-gradient(135deg,#c4622d,#b84928)'}"></div>
+                <div class="absolute -left-6 top-4 w-4 h-4 rounded-full border-2 shadow-sm z-10" style="border-color:var(--ws-surface);background:{isManual?'#6366f1':'linear-gradient(135deg,#c4622d,#b84928)'}"></div>
                 <div class="{card} ml-2 hover:shadow-md transition-shadow">
                   <div class="flex items-start justify-between gap-3">
                     <div class="flex-1 min-w-0">
