@@ -1,6 +1,7 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
-  import { bucketlist } from '$lib/stores.js';
+  import { bucketlist, apiUrl } from '$lib/stores.js';
+  import { api } from '$lib/api.js';
 
   let { journalTrips = [], plannedTrips = [], selectedYear = new Date().getFullYear() } = $props();
 
@@ -114,8 +115,12 @@
       zoomButtons: true,
       backgroundColor: 'transparent',
       regionStyle: {
-        initial: { fill: '#e8ddd0', stroke: '#d4c4b0', strokeWidth: 0.4 },
-        hover:   { fill: '#c4622d', fillOpacity: 0.35 },
+        initial: {
+          fill: document.documentElement.classList.contains('dark') ? '#2a2a2a' : '#e8ddd0',
+          stroke: document.documentElement.classList.contains('dark') ? '#3a3a3a' : '#d4c4b0',
+          strokeWidth: 0.4
+        },
+        hover: { fill: '#c4622d', fillOpacity: 0.35 },
       },
       markers: allMarkers.map(m => ({ name: m.name, coords: [m.lat, m.lng] })),
       markerStyle: {
