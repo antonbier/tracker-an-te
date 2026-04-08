@@ -691,6 +691,33 @@ body = {'message': msg, 'content': base64_content, 'branch': 'beta', 'sha': sha}
   - Hotels → SerpAPI `link`-Feld (direkt zur Unterkunft)
   - Camping → analog zu Hotels via SerpAPI `link`
 
+
+---
+
+## Step 2 RC (Session 2025-04-08) — Tracker UI, Charts & State Management
+
+### Buchen-Button (Deeplinks)
+- Tracker-Karten: `{#if tr.booking_url}` → `<a href=... target="_blank">Buchen ↗</a>` (orange accent)
+- Suchergebnis-Karten: Button unter "Als Tracker speichern" — nur wenn `result.booking_url` vorhanden
+- `booking_url` kommt aus DB (Step 1 Migration) resp. frisch aus der Suche
+
+### "Alle aktualisieren" Button
+- In `PriceRadar.svelte`: Header der Aktiven-Tracker-Sektion (nur wenn `allTrackers.length > 0`)
+- `refreshAllTrackers()`: POST `/api/scheduler/run` → Backend verarbeitet im Hintergrund
+- `isRefreshing` State: Button wechselt auf "⏳ Aktualisierung läuft…", nach 90s `loadAllTrackers()`
+- Rate-Limit-sicher: Batching im Backend (Scheduler läuft seriell mit delays)
+
+### Preisvergleich-Grafik verbessert
+- `chartPts()` gibt jetzt `minPt` + `maxPt` zurück (koordinaten des Tiefst-/Höchstpreises)
+- SVG: Grüner Punkt am Minimum, roter Punkt am Maximum
+- Gestrichelte Referenzlinien (Y-Achse oben/unten) für bessere Lesbarkeit
+- Y-Achse startet nicht mehr bei 0 — Preisbereich dynamisch (range = max - min)
+
+### Datumsformat global angewendet
+- `fmtDate(iso)` in PriceRadar liest `localStorage.getItem('ws-date-format')`
+- Mögliche Werte: `DD.MM.YYYY` (default) | `MM/DD/YYYY` | `YYYY-MM-DD`
+- Settings speichert `ws-date-format` bei globalem Save und per-User Save ins localStorage
+
 ## Open / Next Steps
 
 ### Erledigt (bisherige Sessions)
