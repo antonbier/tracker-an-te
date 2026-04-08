@@ -718,6 +718,35 @@ body = {'message': msg, 'content': base64_content, 'branch': 'beta', 'sha': sha}
 - Mögliche Werte: `DD.MM.YYYY` (default) | `MM/DD/YYYY` | `YYYY-MM-DD`
 - Settings speichert `ws-date-format` bei globalem Save und per-User Save ins localStorage
 
+
+---
+
+## Step 3 RC (Session 2025-04-08) — Dashboard, Meine Reisen & UX-Polish
+
+### Budget-Sync Dashboard ↔ MyTrips
+- `Dashboard.svelte`: lädt `budgetByYear` aus `/api/trips/budget` via `loadBudget()`
+- Zeigt immer aktuelles Jahr (`currentYear`), kein Jahreswechsler
+- Inline-Budget-Eingabe direkt in der Budget-Übersicht-Card (Zahl + ✓ Button)
+- `saveBudget()` PUT `/api/trips/budget` → identische Logik wie in MyTrips
+
+### ScratchMap — Besuchte Pins + Geocoding Fix
+- Besuchte Pins: War zuvor auf Trips mit `lat && lon` beschränkt → jetzt geocodet ScratchMap
+  auch Trips ohne Koordinaten via Backend-Proxy (`/api/settings/geocode?q=`)
+- Geocoding-Funktion: nutzt jetzt `$apiUrl + /api/settings/geocode` statt direkten Nominatim-
+  fetch (CORS-safe, Rate-Limit 1.1s → 0.6s durch Backend-Caching)
+- Year-Filter bleibt: nur Pins des `selectedYear` werden angezeigt
+
+### Settings Overlay — Desktop Fullscreen (zentriert)
+- War: `md:max-w-md` rechts angedockt (schneidet UI auf Desktop ab)
+- Jetzt: `md:max-w-2xl md:inset-[5vh_auto] md:left-1/2 md:-translate-x-1/2` → zentriertes
+  Overlay mit max 90vh Höhe, abgerundeten Ecken, overflow-hidden
+
+### Dark Mode Fixes — MyTrips Chronik
+- Alle `text-stone-700` → `color:var(--ws-text)` inline style
+- Alle `text-stone-400` → `color:var(--ws-muted)` inline style
+- `border-stone-100` → `border-color:var(--ws-border)` inline style
+- Kostenbetrag Chronik: `text-stone-500` → `color:var(--ws-muted)`
+
 ## Open / Next Steps
 
 ### Erledigt (bisherige Sessions)
