@@ -20,12 +20,17 @@
   const d30   = new Date(today); d30.setDate(d30.getDate() + 30);
   const d37   = new Date(today); d37.setDate(d37.getDate() + 37);
   function fmt(d) { return d.toISOString().slice(0, 10); }
-  // Lokalisiert YYYY-MM-DD → TT.MM.JJJJ (DE-Format)
+  // Lokalisiert YYYY-MM-DD nach konfigurierbarem Format (global store)
   function fmtDate(iso) {
     if (!iso) return '–';
     const parts = String(iso).slice(0, 10).split('-');
     if (parts.length !== 3) return iso;
-    return `${parts[2]}.${parts[1]}.${parts[0]}`;
+    const [yyyy, mm, dd] = parts;
+    // Read date_format from localStorage (set by Settings)
+    const fmt = typeof localStorage !== 'undefined' ? (localStorage.getItem('ws-date-format') || 'DD.MM.YYYY') : 'DD.MM.YYYY';
+    if (fmt === 'MM/DD/YYYY') return `${mm}/${dd}/${yyyy}`;
+    if (fmt === 'YYYY-MM-DD') return `${yyyy}-${mm}-${dd}`;
+    return `${dd}.${mm}.${yyyy}`; // default DD.MM.YYYY
   }
   // Lokalisiert Datum-Range
   function fmtRange(from, to) {
@@ -580,6 +585,26 @@
       toast($t('radarUpdatePrice') + ' ✓', 'success');
       await loadAllTrackers();
     } catch (e) { toast(e.message, 'error'); }
+  }
+
+  // ── Refresh all trackers ─────────────────────────────────────────────────
+  let isRefreshing = $state(false);
+  async function refreshAllTrackers() {
+    if (isRefreshing) return;
+    isRefreshing = true;
+    try {
+      // Batching: trigger backend scheduler run
+      await api('/api/scheduler/run', { method: 'POST' });
+      toast('⏳ Alle Tracker werden aktualisiert… dauert 1–2 Min.', 'warning');
+      // After delay, reload trackers
+      setTimeout(async () => {
+        await loadAllTrackers();
+        isRefreshing = false;
+      }, 90000); // 90s
+    } catch (e) {
+      toast(e.message, 'error');
+      isRefreshing = false;
+    }
   }
 
   // ── Tracker label helpers ─────────────────────────────────────────────────
@@ -1282,6 +1307,13 @@
                 style="background:linear-gradient(135deg,var(--ws-accent),#b84928);color:#fff5ec">
                 {savingTracker === result.id ? '⏳…' : $t('radarSaveTracker')}
               </button>
+              {#if result.booking_url}
+                <a href={result.booking_url} target="_blank" rel="noopener noreferrer"
+                  class="mt-1 block text-center px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all hover:opacity-80"
+                  style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-accent);text-decoration:none">
+                  Buchen ↗
+                </a>
+              {/if}
             </div>
           </div>
         </div>
@@ -1291,12 +1323,23 @@
 
   <!-- ══════════════════════════ ACTIVE TRACKERS ══════════════════════════ -->
   <div>
-    <h2 class="text-sm font-semibold italic mb-3" style="font-family:var(--ws-serif);color:var(--ws-accent2)">
-      📌 {$t('radarActiveTrackers')}
-      {#if visibleTrackers.length > 0}
-        <span class="ml-1 text-xs font-normal" style="color:var(--ws-muted)">({visibleTrackers.length} / {allTrackers.length} gesamt)</span>
+    <div class="flex items-center justify-between gap-2 mb-3 flex-wrap">
+      <h2 class="text-sm font-semibold italic" style="font-family:var(--ws-serif);color:var(--ws-accent2)">
+        📌 {$t('radarActiveTrackers')}
+        {#if visibleTrackers.length > 0}
+          <span class="ml-1 text-xs font-normal" style="color:var(--ws-muted)">({visibleTrackers.length} / {allTrackers.length} gesamt)</span>
+        {/if}
+      </h2>
+      {#if allTrackers.length > 0}
+        <button
+          onclick={refreshAllTrackers}
+          disabled={isRefreshing}
+          class="px-3 py-1.5 rounded-xl text-xs border transition-all disabled:opacity-50"
+          style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)">
+          {isRefreshing ? '⏳ Aktualisierung läuft…' : '🔄 Alle aktualisieren'}
+        </button>
       {/if}
-    </h2>
+    </div>
 
     {#if trackersLoading}
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1489,6 +1532,13 @@
                 style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)">
                 ⟳
               </button>
+              {#if tr.booking_url}
+                <a href={tr.booking_url} target="_blank" rel="noopener noreferrer"
+                  class="px-3 py-1.5 rounded-xl text-xs border transition-all hover:opacity-80"
+                  style="background:var(--ws-accent);color:#fff;border-color:var(--ws-accent);text-decoration:none">
+                  Buchen ↗
+                </a>
+              {/if}
               <button
                 onclick={() => deleteTracker(tr)}
                 class="ml-auto px-3 py-1.5 rounded-xl text-xs border transition-colors hover:border-red-400 hover:text-red-400"
@@ -1510,15 +1560,24 @@
                       <svg viewBox="0 0 300 80" class="w-full h-full" preserveAspectRatio="none">
                         <defs>
                           <linearGradient id="cg-{tr._type}-{tr.id}" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%"   stop-color="var(--ws-accent)" stop-opacity="0.3"/>
+                            <stop offset="0%"   stop-color="var(--ws-accent)" stop-opacity="0.25"/>
                             <stop offset="100%" stop-color="var(--ws-accent)" stop-opacity="0"/>
                           </linearGradient>
                         </defs>
+                        <!-- Y-axis reference lines -->
+                        <line x1="0" y1="5" x2="300" y2="5" stroke="var(--ws-border)" stroke-width="0.5" stroke-dasharray="4,4"/>
+                        <line x1="0" y1="75" x2="300" y2="75" stroke="var(--ws-green)" stroke-width="0.5" stroke-dasharray="4,4" opacity="0.5"/>
                         <polygon fill="url(#cg-{tr._type}-{tr.id})" points={cp.area}/>
-                        <polyline fill="none" stroke="var(--ws-accent)" stroke-width="2" points={cp.polyline}/>
+                        <polyline fill="none" stroke="var(--ws-accent)" stroke-width="2" stroke-linejoin="round" points={cp.polyline}/>
+                        <!-- Min price dot -->
+                        {#each cp.points as pt, pi}
+                          {#if cp.points[pi]?.y === cp.points.reduce((m, p) => p.y > m ? p.y : m, 0)}
+                            <circle cx={cp.points[pi].x} cy={cp.points[pi].y} r="3" fill="var(--ws-green)" opacity="0.8"/>
+                          {/if}
+                        {/each}
                       </svg>
-                      <div class="absolute top-0 right-0 text-xs font-mono" style="color:var(--ws-muted)">{cp.maxP.toFixed(0)}€</div>
-                      <div class="absolute bottom-0 right-0 text-xs font-mono" style="color:var(--ws-green)">{cp.minP.toFixed(0)}€</div>
+                      <div class="absolute top-0 right-0 text-[10px] font-mono" style="color:var(--ws-muted)">{cp.maxP.toFixed(0)}€</div>
+                      <div class="absolute bottom-0 right-0 text-[10px] font-mono" style="color:var(--ws-green)">{cp.minP.toFixed(0)}€ ↓min</div>
                       <div class="absolute bottom-0 left-0 text-xs" style="color:var(--ws-muted)">
                         {fmtDate(chartState[cKey].history[0].fetched_at.slice(0, 10))}
                       </div>
