@@ -661,6 +661,36 @@ body = {'message': msg, 'content': base64_content, 'branch': 'beta', 'sha': sha}
 
 ---
 
+
+---
+
+## Step 1 RC (Session 2025-04-08) — Bugfixing, API/DB-Sync, Deeplinks, Lokalisierung
+
+### 1. API-Keys DB-Sync
+- `serpapi_key`, `openai_key`, `gemini_key` werden jetzt serverseitig in `settings`-Tabelle gespeichert
+- `Settings.svelte`: beim Öffnen werden API-Keys aus DB geladen (nicht mehr aus localStorage)
+  — wichtig damit der Background-Scheduler die Keys findet
+- Beim Speichern: Keys werden mit `••••••••` maskiert — nur echte Werte (kein ••••) gehen an die API
+
+### 2. Geocoding Fix (CORS-Proxy)
+- Nominatim direkt im Browser → CORS-Fehler auf HTTPS-Seiten
+- Fix: `GET /api/settings/geocode?q=...` Backend-Proxy Endpoint in `routes/settings.py`
+- `geocodeHome()` in Settings.svelte nutzt jetzt `api('/api/settings/geocode?q=...')` statt direkten fetch
+
+### 3. Lokalisierung (Timezone & Datumsformat)
+- `settings_manager.py`: `date_format` als GLOBAL_KEY; `timezone` + `date_format` auch als USER_KEYS (per-user Override)
+- `routes/settings.py`: `GlobalSettingsPayload` + `UserSettingsPayload` um `timezone`/`date_format` erweitert
+- `Settings.svelte` Allgemein-Tab: Timezone-Dropdown (13 Zonen) + Datumsformat-Buttons (DD.MM.YYYY | MM/DD/YYYY | YYYY-MM-DD)
+- `routes/scheduler.py`: `last_run_at` wird timezone-aware formatiert (User-TZ → Global-TZ → UTC)
+
+### 4. Buchungs-Links (Deeplinks)
+- `database.py`: Migration `booking_url TEXT DEFAULT NULL` für alle 4 Tracker-Tabellen
+- `routes/search.py`: `booking_url` in jedem Suchergebnis-Objekt:
+  - Ryanair → `https://www.ryanair.com/de/de/buchen/fluge-finden?...` mit Origin/Dest/Datum
+  - Google Flights → `https://www.google.com/flights#search;f=...;t=...;d=...`
+  - Hotels → SerpAPI `link`-Feld (direkt zur Unterkunft)
+  - Camping → analog zu Hotels via SerpAPI `link`
+
 ## Open / Next Steps
 
 ### Erledigt (bisherige Sessions)
