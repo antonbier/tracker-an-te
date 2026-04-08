@@ -23,7 +23,6 @@
   function setCached(name, c) {
     try { sessionStorage.setItem(`ws-geo:${name}`, JSON.stringify(c)); } catch {}
   }
-  import { apiUrl } from '$lib/stores.js';
 
   async function geocode(name) {
     if (!name?.trim()) return null;
