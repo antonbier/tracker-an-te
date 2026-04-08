@@ -22,21 +22,24 @@
   function setCached(name, c) {
     try { sessionStorage.setItem(`ws-geo:${name}`, JSON.stringify(c)); } catch {}
   }
+  import { apiUrl } from '$lib/stores.js';
+
   async function geocode(name) {
     if (!name?.trim()) return null;
     const cached = getCached(name);
     if (cached) return cached;
-    await new Promise(r => setTimeout(r, 1100));
+    await new Promise(r => setTimeout(r, 600));
     try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(name)}&format=json&limit=1`,
-        { headers: { 'Accept-Language': 'de', 'User-Agent': 'WanderSuite/1.0' } }
-      );
-      const data = await res.json();
-      if (data.length > 0) {
-        const c = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
-        setCached(name, c);
-        return c;
+      // Use backend proxy to avoid CORS issues on HTTPS
+      const base = $apiUrl || '';
+      const res = await fetch(`${base}/api/settings/geocode?q=${encodeURIComponent(name)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.length > 0) {
+          const c = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+          setCached(name, c);
+          return c;
+        }
       }
     } catch {}
     return null;
@@ -57,12 +60,18 @@
     }
 
     // ── Visited: nur trips des selectedYear ─────────────────────────────────
-    const visited = journalTrips
-      .filter(t => t.lat && t.lon && (t.start_date || '').slice(0, 4) === String(selectedYear))
-      .map(t => ({
-        lat: +t.lat, lng: +t.lon, type: 'visited',
-        name: [t.location_name, t.country].filter(Boolean).join(', ') || `${t.lat},${t.lon}`,
-      }));
+    const visitedRaw = journalTrips
+      .filter(t => (t.start_date || '').slice(0, 4) === String(selectedYear));
+    const visited = [];
+    for (const t of visitedRaw) {
+      const name = [t.location_name, t.country].filter(Boolean).join(', ') || t.name || '';
+      if (t.lat && t.lon) {
+        visited.push({ lat: +t.lat, lng: +t.lon, type: 'visited', name: name || `${t.lat},${t.lon}` });
+      } else if (name) {
+        const c = await geocode(name);
+        if (c) visited.push({ ...c, type: 'visited', name });
+      }
+    }
 
     // ── Planned: nur selectedYear (Zukunft ist jahresbezogen) ────────────────
     const yr = String(selectedYear);
