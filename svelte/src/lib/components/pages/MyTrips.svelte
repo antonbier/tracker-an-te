@@ -344,7 +344,6 @@
           class="px-3 h-8 text-sm font-semibold transition-all border-x" style="border-color:var(--ws-border)"
           class:bg-orange-600={selectedYear === y}
           class:text-white={selectedYear === y}
-          class:={false}
           style={selectedYear !== y ? "color:var(--ws-muted)" : ""}>
           {y}
         </button>
