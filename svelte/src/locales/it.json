@@ -235,5 +235,7 @@
   "toastBudgetSaved": "Budget salvato",
   "toastSaved": "Impostazioni salvate ✓",
   "toastTripAdded": "Viaggio aggiunto",
-  "radarFinalCleaning": "Pulizia finale"
+  "radarFinalCleaning": "Pulizia finale",
+  "settingsTimezone": "Fuso orario",
+  "settingsDateFormat": "Formato data"
 }
