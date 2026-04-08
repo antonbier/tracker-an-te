@@ -3,17 +3,42 @@
   import { api } from '$lib/api.js';
   import { apiUrl, trips, budget, appVersion } from '$lib/stores.js';
   import { currentPage } from '$lib/stores.js';
+  import { toast } from '$lib/toast.js';
   import { t } from '$lib/i18n.js';
 
+  const currentYear = new Date().getFullYear();
   let trackers = $state([]), dawarichTrips = $state([]), loading = $state(true);
+  let budgetByYear = $state({});
+  let budgetInput  = $state('');
+  let budgetSaving = $state(false);
 
-  const totalBudget = $derived($budget ? parseFloat($budget) : 0);
+  const yearBudget  = $derived(parseFloat(budgetByYear[String(currentYear)]) || 0);
+  const totalBudget = $derived(yearBudget || ($budget ? parseFloat($budget) : 0));
   const totalSpent  = $derived($trips.reduce((s, t) => s + (parseFloat(t.cost) || 0), 0));
   const remaining   = $derived(Math.max(0, totalBudget - totalSpent));
   const spentPct    = $derived(totalBudget > 0 ? Math.min(100, (totalSpent / totalBudget) * 100) : 0);
   const CIRC = 2 * Math.PI * 38;
   const donutFill  = $derived((spentPct / 100) * CIRC);
   const donutColor = $derived(spentPct > 85 ? 'var(--ws-red)' : spentPct > 60 ? 'var(--ws-accent2)' : 'var(--ws-accent)');
+
+  async function loadBudget() {
+    if (!$apiUrl) return;
+    try { budgetByYear = (await api('/api/trips/budget')) || {}; } catch {}
+    budgetInput = budgetByYear[String(currentYear)] != null ? String(budgetByYear[String(currentYear)]) : '';
+  }
+
+  async function saveBudget() {
+    if (!$apiUrl) { toast('Backend-URL fehlt', 'warning'); return; }
+    const amount = parseFloat(budgetInput);
+    if (isNaN(amount) || amount < 0) { toast('Ungültiger Betrag', 'error'); return; }
+    budgetSaving = true;
+    try {
+      await api('/api/trips/budget', { method: 'PUT', body: JSON.stringify({ year: currentYear, amount }) });
+      budgetByYear = { ...budgetByYear, [String(currentYear)]: amount };
+      toast(`Budget ${currentYear}: ${amount.toFixed(0)} € gespeichert ✓`, 'success');
+    } catch (e) { toast(e.message, 'error'); }
+    budgetSaving = false;
+  }
 
   onMount(async () => {
     if (!$apiUrl) { loading = false; return; }
@@ -22,6 +47,7 @@
         api('/api/trackers').catch(() => []),
         api('/api/dawarich/trips?limit=20').catch(() => []),
       ]);
+      await loadBudget();
     } catch {}
     loading = false;
   });
@@ -75,6 +101,22 @@
             </div>
           {/each}
         </div>
+      </div>
+      <!-- Inline budget input -->
+      <div class="flex gap-2 mt-3 pt-3 border-t" style="border-color:var(--ws-border)">
+        <input
+          type="number"
+          bind:value={budgetInput}
+          placeholder="{currentYear} Budget (€)"
+          class="flex-1 min-w-0 px-3 py-1.5 rounded-lg border text-xs"
+          style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"
+          onkeydown={(e) => e.key === 'Enter' && saveBudget()}
+        />
+        <button onclick={saveBudget} disabled={budgetSaving}
+          class="px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-50"
+          style="background:var(--ws-accent);color:#fff5ec">
+          {budgetSaving ? '⏳' : '✓'}
+        </button>
       </div>
     </div>
 
