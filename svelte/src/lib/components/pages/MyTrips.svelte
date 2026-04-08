@@ -496,11 +496,11 @@
           {#each upcomingTrips.slice(0,4) as tr}
             {@const start = tr.dateStart||tr.date||''}
             {@const end   = tr.dateEnd||''}
-            <div class="flex items-center gap-3 py-2 border-b border-stone-100 last:border-0">
+            <div class="flex items-center gap-3 py-2 border-b last:border-0" style="border-color:var(--ws-border)">
               <span class="text-lg">✈️</span>
               <div class="flex-1 min-w-0">
                 <div style="font-family:var(--ws-serif);color:var(--ws-text)" class="text-sm font-semibold truncate">{tr.name}</div>
-                <div class="text-xs text-stone-400 font-mono">{start}{end&&end!==start?' → '+end:''}</div>
+                <div class="text-xs font-mono" style="color:var(--ws-muted)">{start}{end&&end!==start?' → '+end:''}</div>
               </div>
               <div class="text-sm font-bold text-orange-600 font-mono shrink-0">{parseFloat(tr.cost).toFixed(2)} €</div>
             </div>
@@ -525,14 +525,14 @@
             {@const start = tr.start_date||''}
             {@const end   = tr.end_date||''}
             {@const cost  = tr.cost ?? tr.auto_cost}
-            <div class="flex items-center gap-3 py-2 border-b border-stone-100 last:border-0">
+            <div class="flex items-center gap-3 py-2 border-b last:border-0" style="border-color:var(--ws-border)">
               <span class="text-lg">{tr.source==='manual'?'✍️':'📍'}</span>
               <div class="flex-1 min-w-0">
                 <div style="font-family:var(--ws-serif);color:var(--ws-text)" class="text-sm font-semibold truncate">{name}</div>
-                <div class="text-xs text-stone-400 font-mono">{start}{end&&end!==start?' → '+end:''}</div>
+                <div class="text-xs font-mono" style="color:var(--ws-muted)">{start}{end&&end!==start?' → '+end:''}</div>
               </div>
               {#if cost != null}
-                <div class="text-sm font-bold text-stone-500 font-mono shrink-0">{parseFloat(cost).toFixed(2)} €</div>
+                <div class="text-sm font-bold font-mono shrink-0" style="color:var(--ws-muted)">{parseFloat(cost).toFixed(2)} €</div>
               {/if}
             </div>
           {/each}
@@ -565,7 +565,7 @@
             <input bind:value={tripName} placeholder="Ziel / Name *" class={inp} />
             <div class="grid grid-cols-2 gap-2">
               <div>
-                <label class="text-xs text-stone-400 mb-1 block">Von *</label>
+                <label class="text-xs mb-1 block" style="color:var(--ws-muted)">Von *</label>
                 <input type="date" bind:value={tripDateStart} class={inp} />
               </div>
               <div>
@@ -611,7 +611,7 @@
                   <div class="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center shrink-0 text-base">✈️</div>
                   <div class="flex-1 min-w-0">
                     <div style="font-family:var(--ws-serif);color:var(--ws-text)" class="text-sm font-semibold truncate">{tr.name}</div>
-                    <div class="text-xs text-stone-400 font-mono">{start}{end&&end!==start?' → '+end:''}</div>
+                    <div class="text-xs font-mono" style="color:var(--ws-muted)">{start}{end&&end!==start?' → '+end:''}</div>
                   </div>
                   <div class="text-sm font-bold text-orange-600 font-mono shrink-0">{parseFloat(tr.cost).toFixed(2)} €</div>
                   <button onclick={() => removeTrip(idx)} class="opacity-0 group-hover:opacity-100 transition-opacity text-stone-400 hover:text-red-500 text-xs px-1.5 py-1 rounded border border-stone-200 hover:border-red-200">✕</button>
@@ -633,9 +633,9 @@
                   <div class="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center shrink-0 text-base">✅</div>
                   <div class="flex-1 min-w-0">
                     <div style="font-family:var(--ws-serif);color:var(--ws-text)" class="text-sm font-semibold truncate">{tr.name}</div>
-                    <div class="text-xs text-stone-400 font-mono">{start}{end&&end!==start?' → '+end:''}</div>
+                    <div class="text-xs font-mono" style="color:var(--ws-muted)">{start}{end&&end!==start?' → '+end:''}</div>
                   </div>
-                  <div class="text-sm font-bold text-stone-500 font-mono shrink-0">{parseFloat(tr.cost).toFixed(2)} €</div>
+                  <div class="text-sm font-bold font-mono shrink-0" style="color:var(--ws-muted)">{parseFloat(tr.cost).toFixed(2)} €</div>
                   <button onclick={() => removeTrip(idx)} class="opacity-0 group-hover:opacity-100 transition-opacity text-stone-400 hover:text-red-500 text-xs px-1.5 py-1 rounded border border-stone-200 hover:border-red-200">✕</button>
                 </div>
               {/each}
@@ -656,7 +656,7 @@
 
         <!-- Jahresbudget — ganz oben -->
         <div class={card}>
-          <h3 class="text-sm font-semibold text-stone-700 mb-3">💶 Jahresbudget {selectedYear}</h3>
+          <h3 class="text-sm font-semibold font-semibold mb-3" style="color:var(--ws-text)">💶 Jahresbudget {selectedYear}</h3>
           <input type="number" bind:value={budgetInput} placeholder="z.B. 4000" class="{inp} mb-3" />
           <button onclick={saveBudget} disabled={budgetSaving}
             class="{btn} disabled:opacity-50" style="background:linear-gradient(135deg,#c4622d,#b84928)">
@@ -666,17 +666,17 @@
 
         <!-- Manuell erfassen -->
         <div class={card}>
-          <h3 class="text-sm font-semibold text-stone-700 mb-1">➕ Reise erfassen</h3>
-          <p class="text-xs text-stone-400 mb-3">Manuell eintragen — kein Dawarich nötig.</p>
+          <h3 class="text-sm font-semibold font-semibold mb-1" style="color:var(--ws-text)">➕ Reise erfassen</h3>
+          <p class="text-xs mb-3" style="color:var(--ws-muted)">Manuell eintragen — kein Dawarich nötig.</p>
           <div class="space-y-2.5">
             <input bind:value={mName}    placeholder="Ort / Name *" class={inp} />
             <div class="grid grid-cols-2 gap-2">
               <div>
-                <label class="text-xs text-stone-400 mb-1 block">Von *</label>
+                <label class="text-xs mb-1 block" style="color:var(--ws-muted)">Von *</label>
                 <input type="date" bind:value={mStart} class={inp} />
               </div>
               <div>
-                <label class="text-xs text-stone-400 mb-1 block">Bis</label>
+                <label class="text-xs mb-1 block" style="color:var(--ws-muted)">Bis</label>
                 <input type="date" bind:value={mEnd} class={inp} />
               </div>
             </div>
