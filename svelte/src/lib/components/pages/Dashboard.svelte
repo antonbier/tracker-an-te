@@ -58,13 +58,8 @@
   const completed       = $derived($trips.filter(t => t.date < today));
   const recentDawarich  = $derived([...dawarichTrips].sort((a,b)=>b.start_date.localeCompare(a.start_date)).slice(0,4));
 
-  // ── Budget (year-aware, synced with MyTrips) ──────────────────────────────
-  let budgetByYear  = $state({});
-  let budgetInput   = $state('');
-  let budgetSaving  = $state(false);
   let budgetEditing = $state(false);
 
-  const yearBudget  = $derived(parseFloat(budgetByYear[String(currentYear)]) || 0);
   const yearSpent   = $derived(
     $trips
       .filter(t => (t.dateStart || t.date || '').slice(0,4) === String(currentYear))
