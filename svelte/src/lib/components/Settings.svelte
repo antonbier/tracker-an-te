@@ -233,6 +233,8 @@
       if (myHomeLon)      localStorage.setItem('s-homeLon',          myHomeLon);
       if (myActualFile)   localStorage.setItem('s-actualFile',       myActualFile);
       if (myTravelCats)   localStorage.setItem('s-travelCategories', myTravelCats);
+      // Update localStorage for date format if per-user override set
+      if (myDateFormat) localStorage.setItem('ws-date-format', myDateFormat);
       await api('/api/settings/user', { method: 'POST', body: JSON.stringify(payload) });
       toast('Mein Bereich gespeichert ✓', 'success');
     } catch(e) { toast('Fehler: ' + e.message, 'error'); }
@@ -259,6 +261,8 @@
     localStorage.setItem('s-gotifyToken',       gotifyToken);
     if ($apiUrl) {
       try {
+        // Persist date format for frontend components
+        localStorage.setItem('ws-date-format', appDateFormat || 'DD.MM.YYYY');
         const globalPayload = {
           serpapi_key: (serpApiKey && serpApiKey !== '••••••••') ? serpApiKey : null,
           gemini_key: (geminiKey && geminiKey !== '••••••••') ? geminiKey : null,
