@@ -379,8 +379,7 @@
       <button onclick={() => activeTab = tab.id}
         class="px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all border"
         class:bg-orange-600={activeTab===tab.id} class:text-white={activeTab===tab.id}
-        class:border-orange-600={activeTab===tab.id} 
-        class:={activeTab!==tab.id} class:={activeTab!==tab.id}>
+        class:border-orange-600={activeTab===tab.id}>
         {tab.label}
       </button>
     {/each}
