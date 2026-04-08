@@ -273,7 +273,8 @@ async def _search_ryanair(params: FlightSearchParams) -> list[dict]:
                             "price":       total,
                             "currency":    "EUR",
                             "badges":      badges,
-                            "detail": {
+                            "booking_url":     f"https://www.ryanair.com/de/de/buchen/fluge-finden?departureAirport={params.origin.upper()}&arrivalAirport={params.destination.upper()}&departureDate={params.outbound_date}&adults={params.adults}&teens=0&children={params.children}&infants=0",
+                                "detail": {
                                 "origin":          params.origin.upper(),
                                 "destination":     params.destination.upper(),
                                 "outbound_date":   params.outbound_date,
@@ -426,6 +427,7 @@ async def _search_google_flights(params: FlightSearchParams, api_key: str) -> li
                     "price":    round(adj_price, 2),
                     "currency": "EUR",
                     "badges":   badges + stop_badges,
+                    "booking_url": f"https://www.google.com/flights#search;f={params.origin.upper()};t={params.destination.upper()};d={params.outbound_date}",
                     "detail": {
                         "origin":          params.origin.upper(),
                         "destination":     params.destination.upper(),
@@ -518,6 +520,7 @@ async def _search_hotels_serpapi(params: HotelSearchParams, api_key: str) -> lis
                     "nights":   nights,
                     "currency": "EUR",
                     "badges":   [f"⭐ {h.get('overall_rating', '')}"] if h.get("overall_rating") else [],
+                    "booking_url": h.get("link") or f"https://www.google.com/travel/hotels/entity/{h.get('serpapi_property_id', '')}",
                     "detail": {
                         "destination":   params.destination,
                         "checkin_date":  params.checkin_date,
