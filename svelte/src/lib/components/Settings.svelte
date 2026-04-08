@@ -337,7 +337,7 @@
     role="button" tabindex="-1" aria-label="Schließen">
   </div>
 
-  <div class="fixed inset-0 md:inset-y-0 md:right-0 md:left-auto z-50 w-full md:max-w-md flex flex-col shadow-2xl"
+  <div class="fixed inset-0 md:inset-[5vh_auto] md:left-1/2 md:-translate-x-1/2 md:w-full md:max-w-2xl md:max-h-[90vh] md:rounded-2xl z-50 flex flex-col shadow-2xl overflow-hidden"
     style="background:var(--ws-surface)">
 
     <div class="flex items-center justify-between px-5 py-4 border-b" style="border-color:var(--ws-border)">
