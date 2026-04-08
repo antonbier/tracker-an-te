@@ -3,9 +3,10 @@ WanderSuite — /api/settings (Multi-User)
 
 Global (admin): GET/POST /api/settings
 Per-user:       GET/POST /api/settings/user
+Geocode:        GET /api/settings/geocode?q=... (backend proxy for Nominatim)
 """
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel
 from typing import Optional
 import requests, logging
@@ -27,6 +28,7 @@ class GlobalSettingsPayload(BaseModel):
     openai_key:         Optional[str] = None
     llm_provider:       Optional[str] = None
     timezone:           Optional[str] = None
+    date_format:        Optional[str] = None  # NEW
     telegram_bot_token: Optional[str] = None
     telegram_chat_id:   Optional[str] = None
     gotify_url:         Optional[str] = None
@@ -43,6 +45,8 @@ class UserSettingsPayload(BaseModel):
     home_lat:          Optional[str] = None
     home_lon:          Optional[str] = None
     travel_categories: Optional[str] = None
+    timezone:          Optional[str] = None  # NEW per-user override
+    date_format:       Optional[str] = None  # NEW per-user override
 
 
 # ── Global settings (admin configures once for all) ───────────────────────────
@@ -71,6 +75,45 @@ def update_my_settings(data: UserSettingsPayload, user: dict = Depends(get_curre
     payload = {k: v for k, v in data.model_dump().items() if v is not None and v != ""}
     save_user_settings_bulk(user["id"], payload)
     return {"message": "Gespeichert", "updated": list(payload.keys())}
+
+
+# ── Geocoding proxy (Nominatim via backend — avoids CORS/HTTPS issues) ────────
+
+@router.get("/geocode")
+def geocode_place(
+    q: str = Query(..., description="Ortsname für Geocoding"),
+    user: dict = Depends(get_current_user),
+):
+    """Backend proxy for Nominatim geocoding — avoids browser CORS restrictions."""
+    if not q or len(q.strip()) < 2:
+        raise HTTPException(400, "Query zu kurz")
+    try:
+        resp = requests.get(
+            "https://nominatim.openstreetmap.org/search",
+            params={"q": q.strip(), "format": "json", "limit": 3},
+            headers={
+                "User-Agent": "WanderSuite/1.0 (self-hosted travel tracker; contact=admin)",
+                "Accept-Language": "de",
+            },
+            timeout=10,
+        )
+        resp.raise_for_status()
+        results = resp.json()
+        if not results:
+            return {"results": []}
+        return {
+            "results": [
+                {
+                    "lat": r["lat"],
+                    "lon": r["lon"],
+                    "display_name": r.get("display_name", ""),
+                }
+                for r in results[:3]
+            ]
+        }
+    except requests.RequestException as e:
+        logger.warning(f"Geocoding error: {e}")
+        raise HTTPException(503, f"Geocoding nicht erreichbar: {e}")
 
 
 # ── SerpAPI quota ─────────────────────────────────────────────────────────────
