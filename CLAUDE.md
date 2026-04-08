@@ -747,6 +747,33 @@ body = {'message': msg, 'content': base64_content, 'branch': 'beta', 'sha': sha}
 - `border-stone-100` → `border-color:var(--ws-border)` inline style
 - Kostenbetrag Chronik: `text-stone-500` → `color:var(--ws-muted)`
 
+
+---
+
+## Step 3 RC (Session 2025-04-08) — Dashboard, Meine Reisen & UX-Polish
+
+### Dashboard Budget-Card (Jahr-bewusst)
+- `Dashboard.svelte`: neues `yearBudget`/`yearSpent`/`yearRemaining` — filtert `$trips` auf `currentYear`
+- Donut zeigt % des aktuellen Jahresbudgets mit Prozent-Label in der Mitte
+- Inline Budget-Edit: "✏️ Budget setzen" Button → Input-Zeile mit Enter-Confirm → PUT `/api/trips/budget`
+- Synced mit MyTrips: beide lesen/schreiben `/api/trips/budget` API
+
+### ScratchMap Geocoding (CORS-Fix)
+- `ScratchMap.svelte`: `geocode()` nutzt jetzt `/api/settings/geocode?q=` Backend-Proxy statt direktem Nominatim
+- Kein CORS-Fehler mehr auf HTTPS-Seiten
+- Dark-Mode: Kartenregionen `fill` dynamisch — `'#2a2a2a'` im Dark-Mode, `'#e8ddd0'` im Light-Mode
+
+### Settings Fullscreen (Desktop)
+- `Settings.svelte`: `md:max-w-2xl` → `md:max-w-4xl` für zentriertes Fullscreen auf Desktop
+
+### MyTrips Dark Mode (Global Fix)
+- `MyTrips.svelte`: ~20 hardcodierte Tailwind-Farben auf CSS-Vars umgestellt
+  - `text-stone-400` → `style="color:var(--ws-muted)"`
+  - `bg-white` → `style="background:var(--ws-surface)"`
+  - `border-stone-200` → `style="border-color:var(--ws-border)"`
+  - Timeline-Dot `border-white` → `border-color:var(--ws-surface)`
+  - Manuell-Badge `bg-indigo-100 text-indigo-600` → rgba mit CSS-var
+
 ## Open / Next Steps
 
 ### Erledigt (bisherige Sessions)
