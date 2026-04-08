@@ -54,9 +54,48 @@
 
   const activeTrackers  = $derived(trackers.filter(t => t.active));
   const today           = new Date().toISOString().slice(0, 10);
+  const currentYear     = new Date().getFullYear();
   const upcoming        = $derived($trips.filter(t => t.date >= today));
   const completed       = $derived($trips.filter(t => t.date < today));
   const recentDawarich  = $derived([...dawarichTrips].sort((a,b)=>b.start_date.localeCompare(a.start_date)).slice(0,4));
+
+  // ── Budget (year-aware, synced with MyTrips) ──────────────────────────────
+  let budgetByYear  = $state({});
+  let budgetInput   = $state('');
+  let budgetSaving  = $state(false);
+  let budgetEditing = $state(false);
+
+  const yearBudget  = $derived(parseFloat(budgetByYear[String(currentYear)]) || 0);
+  const yearSpent   = $derived(
+    $trips
+      .filter(t => (t.dateStart || t.date || '').slice(0,4) === String(currentYear))
+      .reduce((s, t) => s + (parseFloat(t.cost) || 0), 0)
+  );
+  const yearRemaining = $derived(Math.max(0, yearBudget - yearSpent));
+  const yearSpentPct  = $derived(yearBudget > 0 ? Math.min(100, (yearSpent / yearBudget) * 100) : 0);
+  const yearDonutFill = $derived((yearSpentPct / 100) * CIRC);
+  const yearDonutColor = $derived(yearSpentPct > 85 ? 'var(--ws-red,#dc2626)' : yearSpentPct > 60 ? 'var(--ws-accent2)' : 'var(--ws-accent)');
+
+  async function loadYearBudget() {
+    if (!$apiUrl) return;
+    try { budgetByYear = (await api('/api/trips/budget')) || {}; } catch {}
+    budgetInput = budgetByYear[String(currentYear)] != null ? String(budgetByYear[String(currentYear)]) : '';
+  }
+
+  async function saveYearBudget() {
+    if (!$apiUrl) return;
+    const amount = parseFloat(budgetInput);
+    if (isNaN(amount) || amount < 0) return;
+    budgetSaving = true;
+    try {
+      await api('/api/trips/budget', { method: 'PUT', body: JSON.stringify({ year: currentYear, amount }) });
+      budgetByYear = { ...budgetByYear, [String(currentYear)]: amount };
+      budgetEditing = false;
+    } catch (e) { console.error(e); }
+    budgetSaving = false;
+  }
+
+  $effect(() => { if ($apiUrl) { loadYearBudget(); } });
 </script>
 
 <div class="space-y-4">
