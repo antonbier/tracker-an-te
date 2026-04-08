@@ -54,7 +54,6 @@
 
   const activeTrackers  = $derived(trackers.filter(t => t.active));
   const today           = new Date().toISOString().slice(0, 10);
-  const currentYear     = new Date().getFullYear();
   const upcoming        = $derived($trips.filter(t => t.date >= today));
   const completed       = $derived($trips.filter(t => t.date < today));
   const recentDawarich  = $derived([...dawarichTrips].sort((a,b)=>b.start_date.localeCompare(a.start_date)).slice(0,4));
