@@ -236,6 +236,14 @@
       // Update localStorage for date format if per-user override set
       if (myDateFormat) localStorage.setItem('ws-date-format', myDateFormat);
       await api('/api/settings/user', { method: 'POST', body: JSON.stringify(payload) });
+      // Also save API keys to global settings (same keys used by scheduler)
+      const apiKeyPayload = {};
+      if (serpApiKey && serpApiKey !== '••••••••') apiKeyPayload.serpapi_key = serpApiKey;
+      if (openaiKey  && openaiKey  !== '••••••••') apiKeyPayload.openai_key  = openaiKey;
+      if (geminiKey  && geminiKey  !== '••••••••') apiKeyPayload.gemini_key  = geminiKey;
+      if (Object.keys(apiKeyPayload).length > 0) {
+        await api('/api/settings', { method: 'POST', body: JSON.stringify(apiKeyPayload) });
+      }
       toast('Mein Bereich gespeichert ✓', 'success');
     } catch(e) { toast('Fehler: ' + e.message, 'error'); }
     mySettingsSaving = false;
@@ -579,6 +587,45 @@
             class="w-full px-3 py-2 rounded-xl border text-sm"
             style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
         </div>
+        <hr style="border-color:var(--ws-border)"/>
+
+        <!-- 🔍 Such-Engines -->
+        <div class="space-y-2">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="text-base">🔍</span>
+            <div class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Such-Engines</div>
+          </div>
+          <div class="text-xs mb-2" style="color:var(--ws-muted)">SerpAPI — wird für Google Flights, Hotels &amp; Booking genutzt</div>
+          <input bind:value={serpApiKey} type="password" placeholder="SerpAPI Key"
+            class="w-full px-3 py-2 rounded-xl border text-sm"
+            style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
+          <div class="text-xs" style="color:var(--ws-muted)">
+            Key holen: <a href="https://serpapi.com/manage-api-key" target="_blank" rel="noopener" style="color:var(--ws-accent)">serpapi.com ↗</a>
+          </div>
+        </div>
+
+        <hr style="border-color:var(--ws-border)"/>
+
+        <!-- ✨ Smart Assistant & Automatisierung -->
+        <div class="space-y-2">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="text-base">✨</span>
+            <div class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Smart Assistant &amp; Automatisierung</div>
+          </div>
+          <div class="text-xs mb-1" style="color:var(--ws-muted)">OpenAI — KI-Reiseempfehlungen &amp; smarte Zusammenfassungen</div>
+          <input bind:value={openaiKey} type="password" placeholder="OpenAI Key (sk-…)"
+            class="w-full px-3 py-2 rounded-xl border text-sm"
+            style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
+          <div class="text-xs mt-1 mb-1" style="color:var(--ws-muted)">Google Gemini — Alternative für KI-Features</div>
+          <input bind:value={geminiKey} type="password" placeholder="Gemini Key (AIzaSy…)"
+            class="w-full px-3 py-2 rounded-xl border text-sm"
+            style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
+          <div class="text-xs" style="color:var(--ws-muted)">
+            Keys: <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" style="color:var(--ws-accent)">OpenAI ↗</a>
+            · <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" style="color:var(--ws-accent)">Gemini ↗</a>
+          </div>
+        </div>
+
         <!-- Save button inline for myspace tab -->
         <button onclick={saveUserSettings} disabled={mySettingsSaving}
           class="w-full py-2.5 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80 disabled:opacity-50"
