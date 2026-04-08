@@ -774,6 +774,35 @@ body = {'message': msg, 'content': base64_content, 'branch': 'beta', 'sha': sha}
   - Timeline-Dot `border-white` → `border-color:var(--ws-surface)`
   - Manuell-Badge `bg-indigo-100 text-indigo-600` → rgba mit CSS-var
 
+
+---
+
+## Step 3 RC (Session 2025-04-08) — Dashboard, Meine Reisen & UX-Polish
+
+### Dark Mode Fixes (MyTrips.svelte)
+- Jahr-Switcher: `bg-white`/`border-stone-200` → `var(--ws-surface)`/`var(--ws-border)`
+- Pfeil-Buttons: `text-stone-400` → `color:var(--ws-muted)`
+- Jahres-Buttons: `border-stone-100` → `border-color:var(--ws-border)`, inaktiv → `color:var(--ws-muted)`
+- Upcoming-Zähler-Badge: `bg-white border-stone-200 text-stone-400` → CSS-Vars
+- ActualBudget-Sync-Button: `bg-white border-stone-200` → CSS-Vars
+- Chronik-Eintrags-Texte: alle `text-stone-*` global durch CSS-Var-`style=` ersetzt via `re.sub`
+- Summary-Badge-Chips: `bg-white border-stone-200` → `var(--ws-surface2)`
+
+### Fullscreen Modals (Desktop)
+- `Settings.svelte`: `md:inset-[4vh_auto] md:left-1/2 md:-translate-x-1/2 md:max-w-4xl md:max-h-[92vh]`
+  → `md:inset-[5vh_10vw] md:rounded-2xl` — echtes zentriertes Overlay ohne Seitenpanel
+- `FieldGuide.svelte`: `inset-y-0 right-0 max-w-lg` (Sidepanel)
+  → `inset-0 md:inset-[5vh_10vw] md:rounded-2xl` — konsistent mit Settings
+
+### Dashboard Budget
+- Bleibt auf `currentYear` fixiert (kein Jahreswechsler auf Home)
+- Inline-Budgetfeld bereits vorhanden — kein Patch nötig
+- Budget-Sync mit MyTrips über gemeinsamen `/api/trips/budget` Endpoint
+
+### Weltkarte Pins
+- Bereits korrekt: `journalTrips` gefiltert nach `selectedYear` via `start_date.slice(0,4)`
+- Geocoding via Backend-Proxy (Step 1), sessionStorage-Cache — kein Fix nötig
+
 ## Open / Next Steps
 
 ### Erledigt (bisherige Sessions)
