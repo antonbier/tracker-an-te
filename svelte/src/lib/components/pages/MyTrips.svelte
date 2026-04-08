@@ -321,7 +321,7 @@
     <!-- Globaler Sync -->
     <button onclick={globalSync} disabled={globalSyncing || !$apiUrl}
       title="Dawarich + ActualBudget + Auto-Cost synchronisieren"
-      class="w-9 h-9 rounded-full border border-stone-200 bg-white flex items-center justify-center
+      class="w-9 h-9 rounded-full border border-stone-200 flex items-center justify-center" style="background:var(--ws-surface)
              text-stone-400 hover:text-orange-600 hover:border-orange-300 transition-all shadow-sm
              disabled:opacity-40 disabled:cursor-not-allowed">
       {#if globalSyncing}
@@ -822,7 +822,7 @@
               {@const displayCost = trip.cost ?? trip.auto_cost}
               {@const isAutoCost  = trip.cost == null && trip.auto_cost != null}
               <div class="relative pb-4">
-                <div class="absolute -left-6 top-4 w-4 h-4 rounded-full border-2 border-white shadow-sm z-10"
+                <div class="absolute -left-6 top-4 w-4 h-4 rounded-full border-2 shadow-sm z-10" style="border-color:var(--ws-surface)"
                   style="background:{isManual?'#6366f1':'linear-gradient(135deg,#c4622d,#b84928)'}"></div>
                 <div class="{card} ml-2 hover:shadow-md transition-shadow">
                   <div class="flex items-start justify-between gap-3">
@@ -832,10 +832,10 @@
                           {isManual?'✍️':'📍'} {loc}
                         </span>
                         {#if isManual}
-                          <span class="text-[10px] bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded font-semibold shrink-0">manuell</span>
+                          <span class="text-[10px] px-1.5 py-0.5 rounded font-semibold shrink-0" style="background:rgba(99,102,241,.15);color:#6366f1">manuell</span>
                         {/if}
                       </div>
-                      <div class="text-xs text-stone-400 font-mono mt-0.5">{trip.start_date} → {trip.end_date}</div>
+                      <div class="text-xs font-mono mt-0.5" style="color:var(--ws-muted)">{trip.start_date} → {trip.end_date}</div>
                       {#if trip.country}
                         <div class="text-xs text-stone-400 mt-0.5">🌍 {trip.country}</div>
                       {/if}
