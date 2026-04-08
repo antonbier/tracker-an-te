@@ -32,12 +32,39 @@ class SchedulerSettingsUpdate(BaseModel):
 def get_scheduler_settings(user: dict = Depends(get_current_user)):
     uid = user.get("id", 1) or 1
     s = get_user_scheduler_settings(uid)
+    last_run = s.get("last_run_at")
+    # Format last_run_at using user's timezone if available
+    if last_run:
+        try:
+            from datetime import datetime
+            from settings_manager import get_user_setting_value, get_setting_value
+            # Try user-level timezone first, then global
+            tz_name = get_user_setting_value(uid, "timezone") or get_setting_value("timezone") or "UTC"
+            import zoneinfo
+            tz = zoneinfo.ZoneInfo(tz_name)
+            dt = datetime.fromisoformat(last_run.replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                import zoneinfo as _zi
+                dt = dt.replace(tzinfo=_zi.ZoneInfo("UTC"))
+            dt_local = dt.astimezone(tz)
+            last_run = dt_local.strftime("%Y-%m-%dT%H:%M:%S")
+        except Exception:
+            pass  # keep original if parsing fails
     return {
         "update_interval_hours": s.get("update_interval_hours", 24),
         "notify_price_drop": bool(s.get("notify_price_drop", True)),
         "notify_daily_summary": bool(s.get("notify_daily_summary", False)),
-        "last_run_at": s.get("last_run_at"),
+        "last_run_at": last_run,
+        "timezone": _get_user_tz(uid),
     }
+
+
+def _get_user_tz(uid: int) -> str:
+    try:
+        from settings_manager import get_user_setting_value, get_setting_value
+        return get_user_setting_value(uid, "timezone") or get_setting_value("timezone") or "UTC"
+    except Exception:
+        return "UTC"
 
 
 @router.put("/settings")
