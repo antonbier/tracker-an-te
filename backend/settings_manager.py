@@ -2,7 +2,8 @@
 WanderSuite — Settings Manager
 
 Global settings (admin): serpapi_key, gemini_key, openai_key,
-                          llm_provider, telegram_*, gotify_*, language
+                          llm_provider, telegram_*, gotify_*, language,
+                          timezone, date_format
 Per-user settings:        dawarich_url, dawarich_token,
                           actual_url, actual_token, actual_file,
                           home_lat, home_lon, travel_categories
@@ -29,6 +30,7 @@ GLOBAL_KEYS = [
     "gotify_token",
     "language",
     "timezone",
+    "date_format",   # NEW: DD.MM.YYYY | MM/DD/YYYY | YYYY-MM-DD
 ]
 
 # Per-user keys — stored in user_settings table (each user configures their own)
@@ -43,6 +45,8 @@ USER_KEYS = [
     "home_lat",
     "home_lon",
     "travel_categories",
+    "timezone",        # Per-user timezone override
+    "date_format",     # Per-user date format override
 ]
 
 ALL_KEYS = GLOBAL_KEYS + USER_KEYS
