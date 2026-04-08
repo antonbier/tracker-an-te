@@ -31,6 +31,12 @@
   let gotifyUrl     = $state('');
   let gotifyToken   = $state('');
 
+  // Timezone & date format
+  let appTimezone   = $state('Europe/Rome');
+  let appDateFormat = $state('DD.MM.YYYY');
+  let myTimezone    = $state('');
+  let myDateFormat  = $state('');
+
   // Per-user settings (Dawarich, ActualBudget, Home coords)
   let myDawarichUrl   = $state('');
   let myDawarichToken = $state('');
@@ -50,18 +56,13 @@
     if (!q) return;
     myGeoLoading = true; myGeoResult = '';
     try {
-      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`;
-      const r = await fetch(url, {
-        headers: {
-          'Accept-Language': 'de',
-          'User-Agent': 'WanderSuite/1.0 (self-hosted travel tracker)'
-        }
-      });
-      const data = await r.json();
-      if (data.length > 0) {
-        myHomeLat = String(parseFloat(data[0].lat));
-        myHomeLon = String(parseFloat(data[0].lon));
-        myGeoResult = `✓ ${data[0].display_name.split(',').slice(0,2).join(',')}`;
+      // Use backend proxy to avoid CORS/HTTPS issues with Nominatim
+      const res = await api(`/api/settings/geocode?q=${encodeURIComponent(q)}`);
+      if (res.results && res.results.length > 0) {
+        const first = res.results[0];
+        myHomeLat = String(parseFloat(first.lat));
+        myHomeLon = String(parseFloat(first.lon));
+        myGeoResult = '✓ ' + first.display_name.split(',').slice(0,2).join(',');
       } else {
         myGeoResult = '✗ Ort nicht gefunden';
       }
@@ -141,6 +142,8 @@
       myHomeLat       = us.home_lat             || ls('s-homeLat');
       myHomeLon       = us.home_lon             || ls('s-homeLon');
       myTravelCats    = us.travel_categories    || ls('s-travelCategories');
+      myTimezone      = us.timezone || '';
+      myDateFormat    = us.date_format || '';
     } catch {}
   }
 
@@ -157,13 +160,29 @@
       travelCats    = ls('s-travelCategories');
       // Load per-user settings async (non-blocking)
       loadUserSettings();
-      serpApiKey    = ls('s-serpApiKey');
-      geminiKey     = ls('s-geminiKey');
-      openaiKey     = ls('s-openaiKey');
-      telegramToken = ls('s-telegramToken');
-      telegramChat  = ls('s-telegramChat');
-      gotifyUrl     = ls('s-gotifyUrl');
-      gotifyToken   = ls('s-gotifyToken');
+      // Load API keys from DB (not localStorage — needed for scheduler)
+      if ($apiUrl) {
+        try {
+          const gs = await api('/api/settings');
+          serpApiKey    = gs.serpapi_key    ? '••••••••' : '';
+          geminiKey     = gs.gemini_key     ? '••••••••' : '';
+          openaiKey     = gs.openai_key     ? '••••••••' : '';
+          telegramToken = gs.telegram_bot_token ? '••••••••' : '';
+          telegramChat  = gs.telegram_chat_id   || '';
+          gotifyUrl     = gs.gotify_url     || '';
+          gotifyToken   = gs.gotify_token   ? '••••••••' : '';
+          appTimezone   = gs.timezone       || 'Europe/Rome';
+          appDateFormat = gs.date_format    || 'DD.MM.YYYY';
+        } catch { /* offline */ }
+      } else {
+        serpApiKey    = ls('s-serpApiKey');
+        geminiKey     = ls('s-geminiKey');
+        openaiKey     = ls('s-openaiKey');
+        telegramToken = ls('s-telegramToken');
+        telegramChat  = ls('s-telegramChat');
+        gotifyUrl     = ls('s-gotifyUrl');
+        gotifyToken   = ls('s-gotifyToken');
+      }
       pwCurrent = pwNew = pwNew2 = pwError = '';
       pwOk = false;
       if ($isAdmin && $appStatus?.auth_enabled) loadAdminUsers();
@@ -206,6 +225,8 @@
       if (myHomeLat)      payload.home_lat           = myHomeLat;
       if (myHomeLon)      payload.home_lon           = myHomeLon;
       if (myTravelCats)   payload.travel_categories  = myTravelCats;
+      if (myTimezone)     payload.timezone           = myTimezone;
+      if (myDateFormat)   payload.date_format        = myDateFormat;
       // Also cache in localStorage as fallback
       if (myDawarichUrl)  localStorage.setItem('s-dawarichUrl',      myDawarichUrl);
       if (myHomeLat)      localStorage.setItem('s-homeLat',          myHomeLat);
@@ -238,15 +259,18 @@
     localStorage.setItem('s-gotifyToken',       gotifyToken);
     if ($apiUrl) {
       try {
-        await api('/api/settings', { method: 'POST', body: JSON.stringify({
-          serpapi_key: serpApiKey||null, gemini_key: geminiKey||null, openai_key: openaiKey||null,
-          dawarich_url: dawarichUrl||null, dawarich_token: dawarichToken||null,
-          actual_url: actualUrl||null, actual_token: actualToken||null,
-          home_lat: homeLat||null, home_lon: homeLon||null,
-          travel_categories: travelCats||null,
-          telegram_bot_token: telegramToken||null, telegram_chat_id: telegramChat||null,
-          gotify_url: gotifyUrl||null, gotify_token: gotifyToken||null,
-        })});
+        const globalPayload = {
+          serpapi_key: (serpApiKey && serpApiKey !== '••••••••') ? serpApiKey : null,
+          gemini_key: (geminiKey && geminiKey !== '••••••••') ? geminiKey : null,
+          openai_key: (openaiKey && openaiKey !== '••••••••') ? openaiKey : null,
+          telegram_bot_token: (telegramToken && telegramToken !== '••••••••') ? telegramToken : null,
+          telegram_chat_id: telegramChat||null,
+          gotify_url: gotifyUrl||null,
+          gotify_token: (gotifyToken && gotifyToken !== '••••••••') ? gotifyToken : null,
+          timezone: appTimezone||null,
+          date_format: appDateFormat||null,
+        };
+        await api('/api/settings', { method: 'POST', body: JSON.stringify(globalPayload)});
       } catch { /* offline */ }
     }
     toast('Einstellungen gespeichert ✓', 'success');
@@ -360,6 +384,32 @@
                   ? 'background:var(--ws-accent);color:#fff;border-color:var(--ws-accent)'
                   : 'background:var(--ws-surface2);color:var(--ws-muted);border-color:var(--ws-border)'}>
                 {opt.label}
+              </button>
+            {/each}
+          </div>
+        </div>
+
+        <!-- Timezone & Date Format -->
+        <div>
+          <label class="text-xs font-bold uppercase tracking-wider block mb-2" style="color:var(--ws-muted)">🌍 {$t('settingsTimezone') || 'Zeitzone'}</label>
+          <select bind:value={appTimezone}
+            class="w-full px-3 py-2 rounded-xl border text-sm"
+            style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)">
+            {#each ['Europe/Rome','Europe/Berlin','Europe/Vienna','Europe/Zurich','Europe/London','Europe/Paris','America/New_York','America/Chicago','America/Los_Angeles','Asia/Tokyo','Asia/Singapore','Australia/Sydney','UTC'] as tz}
+              <option value={tz}>{tz}</option>
+            {/each}
+          </select>
+        </div>
+        <div>
+          <label class="text-xs font-bold uppercase tracking-wider block mb-2" style="color:var(--ws-muted)">📅 {$t('settingsDateFormat') || 'Datumsformat'}</label>
+          <div class="flex gap-2">
+            {#each [{ val: 'DD.MM.YYYY', label: '31.12.2025' }, { val: 'MM/DD/YYYY', label: '12/31/2025' }, { val: 'YYYY-MM-DD', label: '2025-12-31' }] as fmt}
+              <button onclick={() => appDateFormat = fmt.val}
+                class="flex-1 py-2 rounded-xl text-xs border transition-all"
+                style={appDateFormat === fmt.val
+                  ? 'background:var(--ws-accent);color:#fff;border-color:var(--ws-accent)'
+                  : 'background:var(--ws-surface2);color:var(--ws-muted);border-color:var(--ws-border)'}>
+                {fmt.label}
               </button>
             {/each}
           </div>
