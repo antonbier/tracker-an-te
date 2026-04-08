@@ -275,6 +275,11 @@ def init_db():
             ("price_snapshots",  "departure_time TEXT DEFAULT NULL"),
             ("price_snapshots",  "arrival_time TEXT DEFAULT NULL"),
             ("price_snapshots",  "flight_number TEXT DEFAULT NULL"),
+            # booking_url for deeplinks
+            ("trackers",         "booking_url TEXT DEFAULT NULL"),
+            ("gf_trackers",      "booking_url TEXT DEFAULT NULL"),
+            ("homair_trackers",  "booking_url TEXT DEFAULT NULL"),
+            ("booking_trackers", "booking_url TEXT DEFAULT NULL"),
         ]
         for table, col_def in migrations:
             col_name = col_def.split()[0]
