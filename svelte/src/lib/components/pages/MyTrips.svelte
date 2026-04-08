@@ -321,8 +321,8 @@
     <!-- Globaler Sync -->
     <button onclick={globalSync} disabled={globalSyncing || !$apiUrl}
       title="Dawarich + ActualBudget + Auto-Cost synchronisieren"
-      class="w-9 h-9 rounded-full border border-stone-200 flex items-center justify-center" style="background:var(--ws-surface)
-             text-stone-400 hover:text-orange-600 hover:border-orange-300 transition-all shadow-sm
+      class="w-9 h-9 rounded-full border  flex items-center justify-center" style="background:var(--ws-surface)
+              hover:text-orange-600 hover:border-orange-300 shadow-sm
              disabled:opacity-40 disabled:cursor-not-allowed">
       {#if globalSyncing}
         <span class="text-sm" style="display:inline-block;animation:spin 1s linear infinite">⟳</span>
@@ -338,37 +338,37 @@
     <!-- Jahr-Switcher: genau 3 Jahre -->
     <div class="flex items-center rounded-full shadow-sm overflow-hidden" style="background:var(--ws-surface);border:1px solid var(--ws-border)">
       <button onclick={prevYear}
-        class="w-8 h-8 flex items-center justify-center text-stone-400 hover:text-orange-600 hover:bg-orange-50 transition-all text-sm font-bold">‹</button>
+        class="w-8 h-8 flex items-center justify-center transition-all text-sm font-bold" style="color:var(--ws-muted)">‹</button>
       {#each visibleYears() as y}
         <button onclick={() => { selectedYear = y; }}
-          class="px-3 h-8 text-sm font-semibold transition-all border-x border-stone-100"
+          class="px-3 h-8 text-sm font-semibold transition-all border-x" style="border-color:var(--ws-border)"
           class:bg-orange-600={selectedYear === y}
           class:text-white={selectedYear === y}
-          class:text-stone-500={selectedYear !== y}
-          class:hover:bg-stone-50={selectedYear !== y}>
+          class:={false}
+          style={selectedYear !== y ? "color:var(--ws-muted)" : ""}>
           {y}
         </button>
       {/each}
       <button onclick={nextYear}
-        class="w-8 h-8 flex items-center justify-center text-stone-400 hover:text-orange-600 hover:bg-orange-50 transition-all text-sm font-bold">›</button>
+        class="w-8 h-8 flex items-center justify-center transition-all text-sm font-bold" style="color:var(--ws-muted)">›</button>
     </div>
 
     <!-- 4 Badges -->
     <div class="flex gap-1.5 flex-wrap">
       <button onclick={() => activeTab='trips'}
         class="text-xs font-medium px-2 py-1 rounded-full border transition-colors
-               {upcomingCount > 0 ? 'border-orange-200 text-orange-600 bg-orange-50 hover:bg-orange-100' : 'border-stone-200 text-stone-400 bg-white'}">
+               {upcomingCount > 0 ? 'border-orange-200 text-orange-600 bg-orange-50 hover:bg-orange-100' : ''}">
         ✈️ {upcomingCount} geplant
       </button>
       <button onclick={() => activeTab='journal'}
-        class="text-xs font-medium px-2 py-1 rounded-full border border-stone-200 text-stone-500 bg-white hover:border-stone-300 transition-colors">
+        class="text-xs font-medium px-2 py-1 rounded-full border transition-colors" style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)">
         ✅ {journalYear.length} vergangen
       </button>
       <button onclick={() => activeTab='bucketlist'}
-        class="text-xs font-medium px-2 py-1 rounded-full border border-stone-200 text-stone-500 bg-white hover:border-stone-300 transition-colors">
+        class="text-xs font-medium px-2 py-1 rounded-full border transition-colors" style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)">
         🌟 {$bucketlist.filter(b=>!b.done).length} wünsche
       </button>
-      <div class="text-xs font-medium px-2 py-1 rounded-full border border-stone-200 text-stone-400 bg-white">
+      <div class="text-xs font-medium px-2 py-1 rounded-full border" style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)">
         {totalCount} gesamt
       </div>
     </div>
@@ -381,7 +381,7 @@
         class="px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all border"
         class:bg-orange-600={activeTab===tab.id} class:text-white={activeTab===tab.id}
         class:border-orange-600={activeTab===tab.id} 
-        class:text-stone-500={activeTab!==tab.id} class:border-stone-200={activeTab!==tab.id}>
+        class:={activeTab!==tab.id} class:={activeTab!==tab.id}>
         {tab.label}
       </button>
     {/each}
@@ -583,10 +583,10 @@
         {#if yearBudget > 0}
           <div class={card}>
             <div class="flex items-center justify-between mb-2">
-              <span class="text-xs font-semibold text-stone-500 uppercase tracking-wide">Budget {selectedYear}</span>
+              <span class="text-xs font-semibold  uppercase tracking-wide">Budget {selectedYear}</span>
               <span class="text-xs font-bold {pctYear>85?'text-red-500':'text-emerald-600'}">{pctYear.toFixed(0)}% verbraucht</span>
             </div>
-            <div class="h-3 rounded-full bg-stone-100 overflow-hidden">
+            <div class="h-3 rounded-full  overflow-hidden">
               <div class="h-full rounded-full transition-all duration-500"
                 style="width:{pctYear}%;background:{pctYear>85?'#ef4444':pctYear>60?'#f97316':'#059669'}"></div>
             </div>
@@ -598,7 +598,7 @@
         {/if}
 
         <div class={card}>
-          <h3 class="text-sm font-semibold text-stone-700 mb-3">✈️ Nächste Abenteuer <span class="ml-1 text-xs font-normal text-stone-400">({upcomingTrips.length})</span></h3>
+          <h3 class="text-sm font-semibold  mb-3">✈️ Nächste Abenteuer <span class="ml-1 text-xs font-normal text-xs" style="color:var(--ws-muted)">({upcomingTrips.length})</span></h3>
           {#if upcomingTrips.length === 0}
             <p class="text-sm py-6 text-center" style="color:var(--ws-muted)">Noch keine Reisen geplant.</p>
           {:else}
@@ -614,7 +614,7 @@
                     <div class="text-xs font-mono" style="color:var(--ws-muted)">{start}{end&&end!==start?' → '+end:''}</div>
                   </div>
                   <div class="text-sm font-bold text-orange-600 font-mono shrink-0">{parseFloat(tr.cost).toFixed(2)} €</div>
-                  <button onclick={() => removeTrip(idx)} class="opacity-0 group-hover:opacity-100 transition-opacity text-stone-400 hover:text-red-500 text-xs px-1.5 py-1 rounded border border-stone-200 hover:border-red-200">✕</button>
+                  <button onclick={() => removeTrip(idx)} class="opacity-0 group-hover:opacity-100 transition-opacity  hover:text-red-500 text-xs px-1.5 py-1 rounded border  hover:border-red-200">✕</button>
                 </div>
               {/each}
             </div>
@@ -623,20 +623,20 @@
 
         {#if pastTrips.length > 0}
           <div class={card}>
-            <h3 class="text-sm font-semibold text-stone-700 mb-3">✅ Vergangen (manuell) <span class="ml-1 text-xs font-normal text-stone-400">({pastTrips.length})</span></h3>
+            <h3 class="text-sm font-semibold  mb-3">✅ Vergangen (manuell) <span class="ml-1 text-xs font-normal text-xs" style="color:var(--ws-muted)">({pastTrips.length})</span></h3>
             <div class="space-y-2">
               {#each pastTrips as tr}
                 {@const start = tr.dateStart||tr.date||''}
                 {@const end   = tr.dateEnd||''}
                 {@const idx   = $trips.indexOf(tr)}
-                <div class="flex items-center gap-3 p-3 rounded-lg bg-stone-50 border border-stone-100 hover:border-stone-200 group transition-colors">
-                  <div class="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center shrink-0 text-base">✅</div>
+                <div class="flex items-center gap-3 p-3 rounded-lg  border  hover: group transition-colors">
+                  <div class="w-8 h-8 rounded-full  flex items-center justify-center shrink-0 text-base">✅</div>
                   <div class="flex-1 min-w-0">
                     <div style="font-family:var(--ws-serif);color:var(--ws-text)" class="text-sm font-semibold truncate">{tr.name}</div>
                     <div class="text-xs font-mono" style="color:var(--ws-muted)">{start}{end&&end!==start?' → '+end:''}</div>
                   </div>
                   <div class="text-sm font-bold font-mono shrink-0" style="color:var(--ws-muted)">{parseFloat(tr.cost).toFixed(2)} €</div>
-                  <button onclick={() => removeTrip(idx)} class="opacity-0 group-hover:opacity-100 transition-opacity text-stone-400 hover:text-red-500 text-xs px-1.5 py-1 rounded border border-stone-200 hover:border-red-200">✕</button>
+                  <button onclick={() => removeTrip(idx)} class="opacity-0 group-hover:opacity-100 transition-opacity  hover:text-red-500 text-xs px-1.5 py-1 rounded border  hover:border-red-200">✕</button>
                 </div>
               {/each}
             </div>
@@ -699,20 +699,20 @@
         <div class="{card} border-l-4 border-l-emerald-400">
           <div class="flex items-center gap-2 mb-1">
             <span class="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold flex items-center justify-center shrink-0">1</span>
-            <h3 class="text-sm font-semibold text-stone-700">Dawarich Sync</h3>
+            <h3 class="text-sm font-semibold ">Dawarich Sync</h3>
           </div>
           <p class="text-xs mb-3 ml-7" style="color:var(--ws-muted)">GPS-Reisen automatisch erkennen und importieren.</p>
 
           <!-- Force Full Checkbox -->
-          <label class="flex items-center gap-2 text-xs text-stone-500 mb-3 ml-7 cursor-pointer">
+          <label class="flex items-center gap-2 text-xs  mb-3 ml-7 cursor-pointer">
             <input type="checkbox" bind:checked={forceFull}
-              class="rounded border-stone-300 text-orange-500 focus:ring-orange-400" />
+              class="rounded  text-orange-500 focus:ring-orange-400" />
             Gelöschte Reisen erzwingen (Full Sync)
           </label>
 
           <button onclick={syncJournal} disabled={syncing||!$apiUrl}
-            class="w-full py-2 px-4 rounded-lg text-sm font-semibold border border-stone-200 bg-stone-50
-                   text-stone-700 hover:border-emerald-300 hover:text-emerald-700 transition-all disabled:opacity-50">
+            class="w-full py-2 px-4 rounded-lg text-sm font-semibold border  
+                    hover:border-emerald-300 hover:text-emerald-700 transition-all disabled:opacity-50">
             {syncing ? '⏳ Sync…' : '🧭 Synchronisieren'}
           </button>
           {#if syncInfo}
@@ -724,17 +724,17 @@
         <div class="{card} border-l-4 border-l-blue-400">
           <div class="flex items-center gap-2 mb-1">
             <span class="w-5 h-5 rounded-full bg-blue-100 text-blue-700 text-xs font-bold flex items-center justify-center shrink-0">2</span>
-            <h3 class="text-sm font-semibold text-stone-700">{$t('mytripsActualSync')}</h3>
+            <h3 class="text-sm font-semibold ">{$t('mytripsActualSync')}</h3>
           </div>
           <p class="text-xs mb-3 ml-7" style="color:var(--ws-muted)">{$t('mytripsActualDesc')}</p>
 
           {#if !actualFiles.length}
             <details class="mb-3 ml-7">
               <summary class="text-xs cursor-pointer hover:text-orange-500" style="color:var(--ws-muted) transition-colors">💡 Budget-Dateiname unbekannt?</summary>
-              <div class="mt-2 p-3 rounded-lg bg-stone-50 border border-stone-200 text-xs text-stone-500 space-y-2">
+              <div class="mt-2 p-3 rounded-lg  border  text-xs  space-y-2">
                 <p>In ActualBudget: oben links Budget-Name anklicken → ID aus der URL kopieren</p>
                 <button onclick={listActualFiles} disabled={actualFilesLoading||!$apiUrl}
-                  class="w-full py-1.5 px-3 rounded-lg border border-stone-200 text-stone-600 hover:border-orange-300 hover:text-orange-600 transition-all disabled:opacity-40 text-xs font-medium">
+                  class="w-full py-1.5 px-3 rounded-lg border   hover:border-orange-300 hover:text-orange-600 transition-all disabled:opacity-40 text-xs font-medium">
                   {actualFilesLoading ? '⏳…' : '📂 Dateien anzeigen'}
                 </button>
               </div>
@@ -752,8 +752,8 @@
           {/if}
 
           <button onclick={syncActual} disabled={actualSyncing||!$apiUrl}
-            class="w-full py-2 px-4 rounded-lg text-sm font-semibold border border-stone-200 bg-stone-50
-                   text-stone-700 hover:border-blue-300 hover:text-blue-700 transition-all disabled:opacity-40">
+            class="w-full py-2 px-4 rounded-lg text-sm font-semibold border  
+                    hover:border-blue-300 hover:text-blue-700 transition-all disabled:opacity-40">
             {actualSyncing ? '⏳ Sync…' : '🔄 Synchronisieren'}
           </button>
 
@@ -764,17 +764,17 @@
           {/if}
 
           {#if actualResult?.transactions?.length}
-            <div class="mt-3 pt-3 border-t border-stone-100 space-y-1 max-h-32 overflow-y-auto">
+            <div class="mt-3 pt-3 border-t  space-y-1 max-h-32 overflow-y-auto">
               {#each actualResult.transactions.slice(0,10) as tx}
                 <div class="flex justify-between text-xs py-0.5">
-                  <span class="truncate flex-1 mr-2 text-stone-600">{tx.payee_name||tx.notes||'–'}</span>
+                  <span class="truncate flex-1 mr-2 ">{tx.payee_name||tx.notes||'–'}</span>
                   <span class="font-mono font-bold text-orange-600 shrink-0">{Math.abs(tx.amount??0).toFixed(2)} €</span>
                 </div>
               {/each}
             </div>
 
             <!-- Auto-Cost Button -->
-            <div class="mt-3 pt-3 border-t border-stone-100">
+            <div class="mt-3 pt-3 border-t ">
               <button onclick={runAutoCost} disabled={autoCostRunning||!$apiUrl}
                 class="w-full py-2 px-4 rounded-lg text-sm font-semibold border-2 border-orange-300 bg-orange-50
                        text-orange-700 hover:bg-orange-100 transition-all disabled:opacity-40">
@@ -793,9 +793,9 @@
       <!-- 2/3 Rechts: Timeline -->
       <div class="lg:col-span-2">
         <div class="flex items-center justify-between mb-3">
-          <h3 class="text-sm font-semibold text-stone-700">
+          <h3 class="text-sm font-semibold ">
             Reisen {selectedYear}
-            <span class="ml-1 text-xs font-normal text-stone-400">({journalYear.length})</span>
+            <span class="ml-1 text-xs font-normal text-xs" style="color:var(--ws-muted)">({journalYear.length})</span>
           </h3>
           {#if journalTrips.length !== journalYear.length}
             <span class="text-xs" style="color:var(--ws-muted)">Gesamt: {journalTrips.length}</span>
@@ -805,16 +805,16 @@
         {#if !$apiUrl}
           <div class="{card} text-center py-12"><div class="text-4xl mb-3">🔌</div><p class="text-sm" style="color:var(--ws-muted)">{$t('journalNoBackend')}</p></div>
         {:else if journalLoad}
-          <div class="space-y-3">{#each [1,2,3] as _}<div class="h-20 rounded-xl bg-stone-100 animate-pulse"></div>{/each}</div>
+          <div class="space-y-3">{#each [1,2,3] as _}<div class="h-20 rounded-xl  animate-pulse"></div>{/each}</div>
         {:else if journalYear.length === 0}
           <div class="{card} text-center py-12">
             <div class="text-4xl mb-3">🗺️</div>
-            <p class="text-sm font-semibold text-stone-700 mb-1">Keine Reisen in {selectedYear}</p>
+            <p class="text-sm font-semibold  mb-1">Keine Reisen in {selectedYear}</p>
             <p class="text-xs mb-4" style="color:var(--ws-muted)">Links manuell erfassen oder Dawarich synchronisieren.</p>
           </div>
         {:else}
           <div class="relative pl-6">
-            <div class="absolute left-2.5 top-2 bottom-2 w-0.5 bg-stone-200 rounded-full"></div>
+            <div class="absolute left-2.5 top-2 bottom-2 w-0.5  rounded-full"></div>
             {#each journalYear as trip}
               {@const loc      = trip.location_name || trip.name || '–'}
               {@const mapsUrl  = trip.lat&&trip.lon ? `https://www.google.com/maps?q=${trip.lat},${trip.lon}` : null}
@@ -837,7 +837,7 @@
                       </div>
                       <div class="text-xs font-mono mt-0.5" style="color:var(--ws-muted)">{trip.start_date} → {trip.end_date}</div>
                       {#if trip.country}
-                        <div class="text-xs text-stone-400 mt-0.5">🌍 {trip.country}</div>
+                        <div class="text-xs  mt-0.5">🌍 {trip.country}</div>
                       {/if}
                     </div>
                     <span class="shrink-0 px-2.5 py-1 rounded-full text-xs font-bold" style="background:rgba(196,98,45,.1);color:#c4622d">
@@ -856,13 +856,13 @@
                     {:else}
                       <button onclick={() => { editingCost=trip.id; costDraft=trip.cost!=null?String(trip.cost):''; }}
                         class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs border transition-colors
-                               {displayCost!=null?'border-orange-200 bg-orange-50 text-orange-600 font-semibold':'border-stone-200 text-stone-400 hover:border-orange-200 hover:text-orange-500'}">
+                               {displayCost!=null?'border-orange-200 bg-orange-50 text-orange-600 font-semibold':'  hover:border-orange-200 hover:text-orange-500'}">
                         💶 {displayCost!=null ? parseFloat(displayCost).toFixed(2)+' €'+(isAutoCost?' (auto)':'') : 'Kosten hinterlegen'}
                       </button>
                     {/if}
                     <div class="flex gap-1.5 ml-auto">
                       {#if mapsUrl}
-                        <a href={mapsUrl} target="_blank" class="py-1.5 px-2.5 rounded-lg text-xs border border-stone-200 text-stone-500 hover:border-orange-300 hover:text-orange-600 transition-colors">🗺</a>
+                        <a href={mapsUrl} target="_blank" class="py-1.5 px-2.5 rounded-lg text-xs border   hover:border-orange-300 hover:text-orange-600 transition-colors">🗺</a>
                       {/if}
                       <button onclick={() => deleteJournalTrip(trip.id)} class="py-1.5 px-2.5 rounded-lg text-xs border hover:text-red-500 transition-colors" style="border-color:var(--ws-border);color:var(--ws-muted)">✕</button>
                     </div>
@@ -882,7 +882,7 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
       <div class="lg:col-span-1">
         <div class={card}>
-          <h3 class="text-sm font-semibold text-stone-700 mb-3">🌟 {$t('mytripsBucketAdd')}</h3>
+          <h3 class="text-sm font-semibold  mb-3">🌟 {$t('mytripsBucketAdd')}</h3>
           <div class="space-y-2.5">
             <input bind:value={bucketItem} placeholder={$t('mytripsBucketItemPlaceholder')} class={inp} />
             <input bind:value={bucketDest} placeholder={$t('mytripsBucketDestPlaceholder')} class={inp} />
@@ -903,11 +903,11 @@
             {#each $bucketlist as item, i}
               <div class="group relative {card} transition-all hover:shadow-md" class:opacity-50={item.done}>
                 <button onclick={() => toggleBucket(i)} class="absolute top-4 right-4 w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs transition-all" style="border-color:{item.done?'#059669':'#d1d5db'};background:{item.done?'#059669':'transparent'};color:white">{item.done?'✓':''}</button>
-                <button onclick={() => removeBucket(i)} class="absolute top-4 right-12 w-6 h-6 rounded-full border border-stone-200 flex items-center justify-center text-xs text-stone-400 hover:text-red-500 hover:border-red-200 opacity-0 group-hover:opacity-100 transition-all">✕</button>
+                <button onclick={() => removeBucket(i)} class="absolute top-4 right-12 w-6 h-6 rounded-full border  flex items-center justify-center text-xs  hover:text-red-500 hover:border-red-200 opacity-0 group-hover:opacity-100 transition-all">✕</button>
                 <div class="text-2xl mb-2">🌟</div>
                 <div class="text-sm font-semibold pr-14" style="font-family:var(--ws-serif);color:var(--ws-text)" class:line-through={item.done}>{item.item}</div>
                 {#if item.dest}<div class="text-xs mt-1" style="color:var(--ws-muted)">📍 {item.dest}</div>{/if}
-                <div class="text-xs text-stone-300 mt-2 font-mono">{item.created}</div>
+                <div class="text-xs  mt-2 font-mono">{item.created}</div>
               </div>
             {/each}
           </div>
