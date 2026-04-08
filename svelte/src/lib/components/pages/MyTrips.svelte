@@ -341,10 +341,10 @@
         class="w-8 h-8 flex items-center justify-center transition-all text-sm font-bold" style="color:var(--ws-muted)">‹</button>
       {#each visibleYears() as y}
         <button onclick={() => { selectedYear = y; }}
-          class="px-3 h-8 text-sm font-semibold transition-all border-x" style="border-color:var(--ws-border)"
+          class="px-3 h-8 text-sm font-semibold transition-all border-x"
+          style="border-color:var(--ws-border);{selectedYear !== y ? 'color:var(--ws-muted)' : ''}"
           class:bg-orange-600={selectedYear === y}
-          class:text-white={selectedYear === y}
-          style={selectedYear !== y ? "color:var(--ws-muted)" : ""}>
+          class:text-white={selectedYear === y}>
           {y}
         </button>
       {/each}
