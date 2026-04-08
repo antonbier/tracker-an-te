@@ -1,8 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { api } from '$lib/api.js';
-  import { apiUrl, trips, budget, appVersion } from '$lib/stores.js';
-  import { currentPage } from '$lib/stores.js';
+  import { apiUrl, trips, budget, appVersion, currentPage } from '$lib/stores.js';
   import { toast } from '$lib/toast.js';
   import { t } from '$lib/i18n.js';
 
