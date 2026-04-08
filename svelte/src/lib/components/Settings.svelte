@@ -162,18 +162,20 @@
       loadUserSettings();
       // Load API keys from DB (not localStorage — needed for scheduler)
       if ($apiUrl) {
-        try {
-          const gs = await api('/api/settings');
-          serpApiKey    = gs.serpapi_key    ? '••••••••' : '';
-          geminiKey     = gs.gemini_key     ? '••••••••' : '';
-          openaiKey     = gs.openai_key     ? '••••••••' : '';
-          telegramToken = gs.telegram_bot_token ? '••••••••' : '';
-          telegramChat  = gs.telegram_chat_id   || '';
-          gotifyUrl     = gs.gotify_url     || '';
-          gotifyToken   = gs.gotify_token   ? '••••••••' : '';
-          appTimezone   = gs.timezone       || 'Europe/Rome';
-          appDateFormat = gs.date_format    || 'DD.MM.YYYY';
-        } catch { /* offline */ }
+        (async () => {
+          try {
+            const gs = await api('/api/settings');
+            serpApiKey    = gs.serpapi_key    ? '••••••••' : '';
+            geminiKey     = gs.gemini_key     ? '••••••••' : '';
+            openaiKey     = gs.openai_key     ? '••••••••' : '';
+            telegramToken = gs.telegram_bot_token ? '••••••••' : '';
+            telegramChat  = gs.telegram_chat_id   || '';
+            gotifyUrl     = gs.gotify_url     || '';
+            gotifyToken   = gs.gotify_token   ? '••••••••' : '';
+            appTimezone   = gs.timezone       || 'Europe/Rome';
+            appDateFormat = gs.date_format    || 'DD.MM.YYYY';
+          } catch { /* offline */ }
+        })();
       } else {
         serpApiKey    = ls('s-serpApiKey');
         geminiKey     = ls('s-geminiKey');
