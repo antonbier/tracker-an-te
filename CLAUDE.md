@@ -803,6 +803,33 @@ body = {'message': msg, 'content': base64_content, 'branch': 'beta', 'sha': sha}
 - Bereits korrekt: `journalTrips` gefiltert nach `selectedYear` via `start_date.slice(0,4)`
 - Geocoding via Backend-Proxy (Step 1), sessionStorage-Cache — kein Fix nötig
 
+
+---
+
+## Step 4 RC (Session 2025-04-08) — Settings Umzug & Kategorisierung
+
+### Neue Sektionen in „Mein Bereich" (myspace Tab)
+Direkt vor dem Speichern-Button in `Settings.svelte`:
+
+**🔍 Such-Engines**
+- SerpAPI Key — `bind:value={serpApiKey}` (dieselbe State-Variable wie `apis`-Tab)
+- Erklärungs-Text + Link zu serpapi.com
+
+**✨ Smart Assistant & Automatisierung**
+- OpenAI Key — `bind:value={openaiKey}`
+- Google Gemini Key — `bind:value={geminiKey}`
+- Links zu platform.openai.com + aistudio.google.com
+
+### Datenbindung
+- Keys sind dieselben State-Variablen wie im globalen `apis`-Tab
+- `saveUserSettings()` wurde erweitert: speichert API-Keys zusätzlich via `POST /api/settings`
+  (da Keys global sind — werden vom Scheduler genutzt)
+- Maskierung `'••••••••'` bleibt aktiv — nur echte Werte werden gesendet
+
+### apis-Tab bleibt
+- Der globale `apis`-Tab bleibt als Admin-Ansicht erhalten
+- Myspace bietet Nutzern eine übersichtlichere Kategorisierung ihrer eigenen Keys
+
 ## Open / Next Steps
 
 ### Erledigt (bisherige Sessions)
