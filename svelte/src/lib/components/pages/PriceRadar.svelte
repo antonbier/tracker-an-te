@@ -517,20 +517,20 @@
     const minP   = Math.min(...prices);
     const maxP   = Math.max(...prices);
     const range  = maxP - minP || 1;
+    const pts = history.map((e, i) => {
+      const x = (i / (history.length - 1 || 1)) * w + pad;
+      const y = h - ((e.price - minP) / range) * (h - 5);
+      return { x, y, price: e.price };
+    });
+    const minPt = pts.reduce((m, p) => p.price < m.price ? p : m, pts[0]);
+    const maxPt = pts.reduce((m, p) => p.price > m.price ? p : m, pts[0]);
     return {
       minP, maxP,
-      polyline: history.map((e, i) => {
-        const x = (i / (history.length - 1 || 1)) * w + pad;
-        const y = h - ((e.price - minP) / range) * (h - 5);
-        return `${x},${y}`;
-      }).join(' '),
+      minPt, maxPt,
+      polyline: pts.map(p => `${p.x},${p.y}`).join(' '),
       area: [
         `${pad},${h}`,
-        ...history.map((e, i) => {
-          const x = (i / (history.length - 1 || 1)) * w + pad;
-          const y = h - ((e.price - minP) / range) * (h - 5);
-          return `${x},${y}`;
-        }),
+        ...pts.map(p => `${p.x},${p.y}`),
         `${(history.length > 1 ? 1 : 0) * w + pad},${h}`,
       ].join(' '),
     };
@@ -1569,12 +1569,9 @@
                         <line x1="0" y1="75" x2="300" y2="75" stroke="var(--ws-green)" stroke-width="0.5" stroke-dasharray="4,4" opacity="0.5"/>
                         <polygon fill="url(#cg-{tr._type}-{tr.id})" points={cp.area}/>
                         <polyline fill="none" stroke="var(--ws-accent)" stroke-width="2" stroke-linejoin="round" points={cp.polyline}/>
-                        <!-- Min price dot -->
-                        {#each cp.points as pt, pi}
-                          {#if cp.points[pi]?.y === cp.points.reduce((m, p) => p.y > m ? p.y : m, 0)}
-                            <circle cx={cp.points[pi].x} cy={cp.points[pi].y} r="3" fill="var(--ws-green)" opacity="0.8"/>
-                          {/if}
-                        {/each}
+                        <!-- Min/Max price markers -->
+                        <circle cx={cp.minPt.x} cy={cp.minPt.y} r="3" fill="var(--ws-green)" opacity="0.9"/>
+                        <circle cx={cp.maxPt.x} cy={cp.maxPt.y} r="3" fill="#ef4444" opacity="0.6"/>
                       </svg>
                       <div class="absolute top-0 right-0 text-[10px] font-mono" style="color:var(--ws-muted)">{cp.maxP.toFixed(0)}€</div>
                       <div class="absolute bottom-0 right-0 text-[10px] font-mono" style="color:var(--ws-green)">{cp.minP.toFixed(0)}€ ↓min</div>
