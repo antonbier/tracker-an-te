@@ -1535,4 +1535,31 @@ Das Backend in `routes/scheduler.py` lieferte `timezone` in der API-Antwort bere
 ### S1-5 — Timezone in localStorage (Settings.svelte)
 `localStorage.setItem('ws-timezone', appTimezone)` in `save()` ergänzt.
 Frontend-Komponenten können damit ohne Backend-Request die User-Timezone lesen.
+---
+
+## RC Step 2 (Session 2025-04-09) — Settings-Refactoring & Menü-Bugs
+
+### S2-1 — Blockierte Tabs (Alerts/Scheduler) — `$derived` → `$derived.by()`
+**Root Cause:** `const tabs = $derived([...])` — In Svelte 5 erzeugt ein Array-Literal
+in `$derived` bei jedem reaktiven Update eine **neue Array-Referenz**. Das `{#each tabs}` Block
+re-mountet dann alle Buttons neu → Event-Listener gehen verloren → Tabs nicht klickbar.
+**Fix:** `const tabs = $derived.by(() => [...])` — `$derived.by()` cached die Funktion korrekt
+und vermeidet unnötige Re-Mounts des `{#each}`-Blocks.
+
+### S2-2 — Sub-Tab-Navigation "Mein Bereich" nach oben verschoben
+**Vorher:** Sub-Tab-Buttons (`Such-Engines`, `Smart Assistant`) waren am Ende des myspace-Tabs,
+nach den Dawarich/ActualBudget-Feldern.
+**Nachher:** Sub-Tab-Leiste erscheint **direkt unter dem Tab-Header** von "Mein Bereich" —
+als echte Tab-Navigation ganz oben, alle Inhalte darunter sind sub-tab-konditioniert.
+
+### S2-3 — Neuer Sub-Tab "Lokale Anbindungen" (`connections`)
+Dawarich und ActualBudget aus dem Fließtext herausgelöst und in eigenem Sub-Tab organisiert.
+**Neue Sub-Tab-Struktur in "Mein Bereich":**
+| Sub-Tab | Icon | Inhalt |
+|---------|------|--------|
+| `connections` | 🔌 | Dawarich (URL, Token, Heimatort) + ActualBudget (URL, PW, File, Kategorien) |
+| `integrations` | 🔍 | SerpAPI Key (Such-Engines) |
+| `ai` | ✨ | OpenAI Key + Google Gemini Key (Smart Assistant) |
+
+Default-Sub-Tab ist jetzt `connections` (war: `integrations`).
 
