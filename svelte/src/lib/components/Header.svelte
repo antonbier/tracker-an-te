@@ -4,8 +4,25 @@
   let { onFieldGuide, onSettings, onToggleDark } = $props();
 
   // Verfügbare Sprachen dynamisch aus allLocales ableiten
-  // Neue Sprache: JSON in locales/ + Import in i18n.js → erscheint hier automatisch
   const availableLangs = Object.keys(allLocales);
+
+  // select-Stil als JS-Konstante — verhindert Parser-Fehler durch
+  // spitze Klammern (z.B. SVG-Data-URIs) in style=""-HTML-Attributen
+  const selectStyle = [
+    'background:var(--ws-surface2)',
+    'border-color:var(--ws-border)',
+    'color:var(--ws-accent)',
+    'outline:none',
+    'appearance:none',
+    '-webkit-appearance:none',
+    'padding:0.25rem 0.5rem',
+    'border-radius:0.5rem',
+    'border-width:1px',
+    'border-style:solid',
+    'font-size:0.75rem',
+    'font-weight:700',
+    'cursor:pointer',
+  ].join(';');
 </script>
 
 <header class="flex items-center justify-between px-4 h-14 border-b shrink-0"
@@ -30,8 +47,7 @@
     <select
       value={$lang}
       onchange={(e) => setLang(e.currentTarget.value)}
-      class="text-xs font-bold rounded-lg px-2 py-1.5 border cursor-pointer transition-colors"
-      style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-accent);outline:none;appearance:none;-webkit-appearance:none;padding-right:1.5rem;background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%228%22 height=%225%22 viewBox=%220 0 8 5%22><path d=%22M0 0l4 5 4-5z%22 fill=%22%23999%22/></svg>');background-repeat:no-repeat;background-position:right 0.4rem center"
+      style={selectStyle}
       title="Sprache wählen">
       {#each availableLangs as l}
         <option value={l}>{localeLabels[l] ?? l.toUpperCase()}</option>
