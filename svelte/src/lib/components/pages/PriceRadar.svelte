@@ -1,11 +1,12 @@
-<script>
-  import { onMount } from 'svelte';
-  import { api } from '$lib/api.js';
-  import { apiUrl } from '$lib/stores.js';
-  import { toast } from '$lib/toast.js';
-  import { browser } from '$app/environment';
-
-  // ── Category tabs ─────────────────────────────────────────────────────────
+OK: No more $t/$apiUrl in script block
+get(t)() calls: 12
+  L225: if (flSeatCost > 0) parts.push(get(t)('radarSeatBadge').replace('{n}', flSeatCos
+  L274: if (!get(apiUrl)) { toast(get(t)('radarNoBackend'), 'warning'); return; }
+  L336: if (searchResults.length === 0 && !res.missing_api_keys?.length) toast(get(t)('r
+  L350: if (!get(apiUrl)) { toast(get(t)('radarNoBackend'), 'warning'); return; }
+  L434: toast(get(t)('radarTrackerSaved'), 'success');
+Written: 1685 lines
+��─
   let activeCategory = $state('flights');
 
   // Kategorie-IDs — Labels+Icons im Template, kein Emoji im Script (Svelte-5 Parser-Bug)
@@ -220,7 +221,7 @@
     if (fl10kg > 0)     parts.push(fl10kg + '× 10kg');
     if (fl20kg > 0)     parts.push(fl20kg + '× 20kg');
     if (fl23kg > 0)     parts.push(fl23kg + '× 23kg');
-    if (flSeatCost > 0) parts.push($t('radarSeatBadge').replace('{n}', flSeatCost));
+    if (flSeatCost > 0) parts.push(get(t)('radarSeatBadge').replace('{n}', flSeatCost));
     return parts.join(' · ');
   }
 
@@ -269,7 +270,7 @@
   }
 
 async function doSearch() {
-    if (!$apiUrl) { toast($t('radarNoBackend'), 'warning'); return; }
+    if (!get(apiUrl)) { toast(get(t)('radarNoBackend'), 'warning'); return; }
     searching = true;
     searchResults = [];
     activeProviderFilter = 'all';
@@ -331,7 +332,7 @@ async function doSearch() {
       if (res.missing_api_keys?.length > 0) {
         toast(`⚠️ API Key für ${res.missing_api_keys.join(', ')} fehlt in den Einstellungen.`, 'error');
       }
-      if (searchResults.length === 0 && !res.missing_api_keys?.length) toast($t('radarNoResults'), 'warning');
+      if (searchResults.length === 0 && !res.missing_api_keys?.length) toast(get(t)('radarNoResults'), 'warning');
     } catch (e) {
       // 422 = structured API key error from backend
       const detail = e.detail || {};
@@ -345,7 +346,7 @@ async function doSearch() {
   }
 
   async function saveAsTracker(result) {
-    if (!$apiUrl) { toast($t('radarNoBackend'), 'warning'); return; }
+    if (!get(apiUrl)) { toast(get(t)('radarNoBackend'), 'warning'); return; }
     savingTracker = result.id;
     try {
       const d = result.detail || {};
@@ -429,7 +430,7 @@ async function doSearch() {
       }
 
       await api(endpoint, { method: 'POST', body: JSON.stringify(payload) });
-      toast($t('radarTrackerSaved'), 'success');
+      toast(get(t)('radarTrackerSaved'), 'success');
       await loadAllTrackers();
     } catch (e) {
       toast(e.message, 'error');
@@ -453,7 +454,7 @@ async function doSearch() {
   );
 
   async function loadAllTrackers() {
-    if (!$apiUrl) { trackersLoading = false; return; }
+    if (!get(apiUrl)) { trackersLoading = false; return; }
     trackersLoading = true;
     try {
       // Load from all existing endpoints (backward compat until unified endpoint in Step 3)
@@ -543,7 +544,7 @@ async function doSearch() {
         method: 'PUT',
         body: JSON.stringify({ wish_price: newPrice === '' ? null : parseFloat(newPrice) }),
       });
-      toast($t('radarWishPrice') + ' ✓', 'success');
+      toast(get(t)('radarWishPrice') + ' ✓', 'success');
       wishState[key] = { editing: false, value: newPrice, saving: false };
       await loadAllTrackers();
     } catch (e) {
@@ -554,7 +555,7 @@ async function doSearch() {
 
   // ── Delete tracker ────────────────────────────────────────────────────────
   async function deleteTracker(tracker) {
-    if (!confirm($t('delete') + '?')) return;
+    if (!confirm(get(t)('delete') + '?')) return;
     try {
       const endpoints = {
         flight:        `/api/trackers/${tracker.id}`,
@@ -569,7 +570,7 @@ async function doSearch() {
 
   // ── Scrape / update tracker ───────────────────────────────────────────────
   async function scrapeTracker(tracker) {
-    toast($t('radarUpdatePrice') + '…', 'warning');
+    toast(get(t)('radarUpdatePrice') + '…', 'warning');
     try {
       const endpoints = {
         flight:        `/api/trackers/${tracker.id}/scrape`,
@@ -578,7 +579,7 @@ async function doSearch() {
         hotel:         `/api/accommodations/booking/${tracker.id}/scrape`,
       };
       await api(endpoints[tracker._type], { method: 'POST' });
-      toast($t('radarUpdatePrice') + ' ✓', 'success');
+      toast(get(t)('radarUpdatePrice') + ' ✓', 'success');
       await loadAllTrackers();
     } catch (e) { toast(e.message, 'error'); }
   }
@@ -617,7 +618,7 @@ async function doSearch() {
     const parts = [];
     if (tr.outbound_date) parts.push(fmtDate(tr.outbound_date) + (tr.return_date ? ' ⇄ ' + fmtDate(tr.return_date) : ''));
     if (tr.checkin_date)  parts.push(fmtDate(tr.checkin_date)  + (tr.checkout_date ? ' – ' + fmtDate(tr.checkout_date) : ''));
-    if (tr.adults) parts.push(tr.adults + ' ' + $t('radarAdultsShort'));
+    if (tr.adults) parts.push(tr.adults + ' ' + get(t)('radarAdultsShort'));
     if (tr.rooms)  parts.push(tr.rooms  + ' Zi.');
     // NOTE: airline/zeiten werden in separater Zeile gerendert (kein Doppel)
     return parts.join(' · ');
@@ -636,7 +637,7 @@ async function doSearch() {
         if (cnt20 > 0) badges.push(`🎒 ${cnt20}× 20kg`);
         if (cnt23 > 0) badges.push(`🧳 ${cnt23}× 23kg`);
       } catch {}
-      if ((tr.seat_cost || 0) > 0) badges.push($t('radarSeatBadge').replace('{n}', tr.seat_cost));
+      if ((tr.seat_cost || 0) > 0) badges.push(get(t)('radarSeatBadge').replace('{n}', tr.seat_cost));
     }
     if (tr._type === 'google_flight') {
       // Parse baggage_json (JSON object) from GF tracker
@@ -648,7 +649,7 @@ async function doSearch() {
         else if (bg.baggage === '20kg' && !bg.baggage_10kg) badges.push('🎒 1× 20kg');
         if (bg.baggage_23kg > 0) badges.push(`🧳 ${bg.baggage_23kg}× 23kg`);
       } catch {}
-      if ((tr.seat_cost || 0) > 0) badges.push($t('radarSeatBadge').replace('{n}', tr.seat_cost));
+      if ((tr.seat_cost || 0) > 0) badges.push(get(t)('radarSeatBadge').replace('{n}', tr.seat_cost));
     }
     if (tr._type === 'camping') {
       const at = (tr.accommodation_type || '').toLowerCase();
@@ -1669,6 +1670,7 @@ async function doSearch() {
   </div>
 
 </div>
+
 
 
 
