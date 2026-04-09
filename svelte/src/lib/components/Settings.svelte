@@ -1,5 +1,4 @@
-Done. Lines: 850
- { apiUrl, theme, isDark, lang, currentUser, jwtToken, appStatus, isAdmin, logout } from '$lib/stores.js';
+{ apiUrl, theme, isDark, lang, currentUser, jwtToken, appStatus, isAdmin, logout } from '$lib/stores.js';
   import { toast } from '$lib/toast.js';
   import { t } from '$lib/i18n.js';
   import { checkApiStatus, api } from '$lib/api.js';
