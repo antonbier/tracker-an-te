@@ -214,7 +214,7 @@
     fl10kg * fl10kgPrice + fl20kg * fl20kgPrice + fl23kg * fl23kgPrice
   );
   const flTotalPax = $derived(flAdults + flChildren);
-  / Gesamtpreis-Aufschlag (ohne Flugpreis) für Preview-Badge
+  // Gesamtpreis-Aufschlag (ohne Flugpreis) für Preview-Badge
   function flExtrasLabel() {
     const parts = [];
     if (fl10kg > 0)     parts.push(fl10kg + '× 10kg');
