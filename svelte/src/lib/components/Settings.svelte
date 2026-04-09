@@ -210,20 +210,34 @@
   // - auth_enabled=true  → "Mein Bereich" statt "Integrationen" (Dawarich/ActualBudget per-user)
   // - auth_enabled=false → "Integrationen" (global, kein User-Kontext nötig)
   const authEnabled = $derived(!!$appStatus?.auth_enabled);
-  // $derived.by() statt $derived([...]) — vermeidet Reaktivitätsfehler mit Array-Referenzen
-  // (Svelte 5: $derived mit Array-Literal erzeugt bei jedem Re-render neue Referenz →
-  //  {#each} re-mountet Buttons → Event-Listener-Verlust → Tabs nicht klickbar)
-  const tabs = $derived.by(() => [
-    { id: 'basic',         label: $t('settingsBasic') },
-    // Integrationen nur wenn auth deaktiviert (single-user mode)
-    ...(!authEnabled ? [{ id: 'integrations', label: $t('settingsIntegrations') }] : []),
-    { id: 'notifications', label: $t('settingsNotifications') },
-    // Mein Bereich nur wenn auth aktiviert (pro User konfigurierbar)
-    ...(authEnabled ? [{ id: 'myspace', label: $t('settingsMyspace') }] : []),
-    ...(authEnabled ? [{ id: 'account', label: $t('settingsAccount') }] : []),
-    ...($isAdmin && authEnabled ? [{ id: 'admin', label: $t('settingsAdmin') }] : []),
-    { id: 'scheduler', label: '⏰ ' + ($t('settingsScheduler') || 'Scheduler') },
-  ]);
+
+  // Tabs als statische Array-Struktur — IDs sind stabile Strings, Labels werden im Template aufgelöst.
+  // WICHTIG: Kein $derived.by() mit $t()-Calls — das erzeugt in Svelte 5 bei jedem Store-Update
+  // eine neue Array-Referenz → {#each} re-mountet alle Buttons → onclick-Handler gehen verloren
+  // → Tabs nicht anklickbar. Lösung: IDs statisch, Labels direkt im Template via $t().
+  const TAB_IDS_BASE   = ['basic', 'notifications', 'scheduler'];
+  const TAB_IDS_NOAUTH = ['basic', 'integrations', 'notifications', 'scheduler'];
+  const TAB_IDS_AUTH   = ['basic', 'notifications', 'myspace', 'account', 'scheduler'];
+  const TAB_IDS_ADMIN  = ['basic', 'notifications', 'myspace', 'account', 'admin', 'scheduler'];
+
+  const tabIds = $derived.by(() => {
+    if ($isAdmin && authEnabled) return TAB_IDS_ADMIN;
+    if (authEnabled) return TAB_IDS_AUTH;
+    return TAB_IDS_NOAUTH;
+  });
+
+  function tabLabel(id) {
+    const labels = {
+      basic:         $t('settingsBasic'),
+      integrations:  $t('settingsIntegrations'),
+      notifications: $t('settingsNotifications'),
+      myspace:       $t('settingsMyspace'),
+      account:       $t('settingsAccount'),
+      admin:         $t('settingsAdmin'),
+      scheduler:     '⏰ ' + ($t('settingsScheduler') || 'Scheduler'),
+    };
+    return labels[id] || id;
+  }
   // Sub-Tab-State für Mein Bereich:
   // 'connections' = Lokale Anbindungen (Dawarich + ActualBudget) — neuer Standard-Sub-Tab
   // 'integrations' = Such-Engines (SerpAPI)
@@ -378,13 +392,13 @@
     </div>
 
     <div class="flex border-b px-2 gap-0.5 pt-2 overflow-x-auto shrink-0" style="border-color:var(--ws-border)">
-      {#each tabs as tab}
-        <button onclick={() => activeTab = tab.id}
+      {#each tabIds as tabId (tabId)}
+        <button onclick={() => { activeTab = tabId; }}
           class="px-3 py-2 text-xs rounded-t-lg font-medium whitespace-nowrap transition-colors shrink-0"
-          style={activeTab === tab.id
+          style={activeTab === tabId
             ? 'color:var(--ws-accent);border-bottom:2px solid var(--ws-accent)'
             : 'color:var(--ws-muted)'}>
-          {tab.label}
+          {tabLabel(tabId)}
         </button>
       {/each}
     </div>
