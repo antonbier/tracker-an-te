@@ -224,7 +224,7 @@
     if (fl10kg > 0)     parts.push(fl10kg + '× 10kg');
     if (fl20kg > 0)     parts.push(fl20kg + '× 20kg');
     if (fl23kg > 0)     parts.push(fl23kg + '× 23kg');
-    if (flSeatCost > 0) parts.push('Sitz ' + flSeatCost + '€/P');
+    if (flSeatCost > 0) parts.push($t('radarSeatBadge').replace('{n}', flSeatCost));
     return parts.join(' · ');
   });
 
@@ -621,7 +621,7 @@
     const parts = [];
     if (tr.outbound_date) parts.push(fmtDate(tr.outbound_date) + (tr.return_date ? ' ⇄ ' + fmtDate(tr.return_date) : ''));
     if (tr.checkin_date)  parts.push(fmtDate(tr.checkin_date)  + (tr.checkout_date ? ' – ' + fmtDate(tr.checkout_date) : ''));
-    if (tr.adults) parts.push(tr.adults + ' Erw.');
+    if (tr.adults) parts.push(tr.adults + ' ' + $t('radarAdultsShort'));
     if (tr.rooms)  parts.push(tr.rooms  + ' Zi.');
     // NOTE: airline/zeiten werden in separater Zeile gerendert (kein Doppel)
     return parts.join(' · ');
@@ -640,7 +640,7 @@
         if (cnt20 > 0) badges.push(`🎒 ${cnt20}× 20kg`);
         if (cnt23 > 0) badges.push(`🧳 ${cnt23}× 23kg`);
       } catch {}
-      if ((tr.seat_cost || 0) > 0) badges.push(`💺 Sitz ${tr.seat_cost}€/P`);
+      if ((tr.seat_cost || 0) > 0) badges.push($t('radarSeatBadge').replace('{n}', tr.seat_cost));
     }
     if (tr._type === 'google_flight') {
       // Parse baggage_json (JSON object) from GF tracker
@@ -652,7 +652,7 @@
         else if (bg.baggage === '20kg' && !bg.baggage_10kg) badges.push('🎒 1× 20kg');
         if (bg.baggage_23kg > 0) badges.push(`🧳 ${bg.baggage_23kg}× 23kg`);
       } catch {}
-      if ((tr.seat_cost || 0) > 0) badges.push(`💺 Sitz ${tr.seat_cost}€/P`);
+      if ((tr.seat_cost || 0) > 0) badges.push($t('radarSeatBadge').replace('{n}', tr.seat_cost));
     }
     if (tr._type === 'camping') {
       const at = (tr.accommodation_type || '').toLowerCase();
@@ -809,7 +809,7 @@
     <details class="rounded-xl border overflow-hidden" style="border-color:var(--ws-border)">
       <summary class="px-3 py-2.5 text-xs font-semibold cursor-pointer select-none flex items-center gap-2"
         style="background:var(--ws-surface2);color:var(--ws-muted);list-style:none">
-        <span>🧳 Gepäck & Sitzplätze</span>
+        <span>🧳 {$t('radarBaggageSeat')}</span>
         {#if fl10kg > 0 || fl20kg > 0 || fl23kg > 0 || flSeatCost > 0}
           <span class="ml-auto text-[10px] font-normal" style="color:var(--ws-accent)">aktiv</span>
         {/if}
@@ -887,7 +887,7 @@
     <details class="rounded-xl border overflow-hidden" style="border-color:var(--ws-border)">
       <summary class="px-3 py-2.5 text-xs font-semibold cursor-pointer select-none flex items-center gap-2"
         style="background:var(--ws-surface2);color:var(--ws-muted);list-style:none">
-        <span>⏱️ Zeiten & Stopps</span>
+        <span>⏱️ {$t('radarTimesStops')}</span>
         {#if flMaxStops >= 0 || flDepFrom || flDepTo || flArrFrom || flArrTo}
           <span class="ml-auto text-[10px] font-normal" style="color:var(--ws-accent)">aktiv</span>
         {/if}
@@ -1297,7 +1297,7 @@
               </div>
               {#if result.price_per_night && result.nights > 1}
                 <div class="text-[10px] font-mono whitespace-nowrap" style="color:var(--ws-muted)">
-                  Ø {result.price_per_night.toFixed(2)} €/Nacht
+                  Ø {result.price_per_night.toFixed(2)} {$t('radarPerNight')}
                 </div>
               {/if}
               <button
@@ -1336,7 +1336,7 @@
           disabled={isRefreshing}
           class="px-3 py-1.5 rounded-xl text-xs border transition-all disabled:opacity-50"
           style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)">
-          {isRefreshing ? '⏳ Aktualisierung läuft…' : '🔄 Alle aktualisieren'}
+          {isRefreshing ? '⏳ ' + $t('radarRefreshing') : '🔄 ' + $t('radarRefreshAll')}
         </button>
       {/if}
     </div>
@@ -1469,7 +1469,7 @@
                 {#if (tr._type === 'hotel' || tr._type === 'camping') && tr.checkin_date && tr.checkout_date}
                   {@const nights = Math.max(1, Math.round((new Date(tr.checkout_date) - new Date(tr.checkin_date)) / 86400000))}
                   {#if nights > 1 && price}
-                    <div class="text-[10px] font-mono" style="color:var(--ws-muted)">Ø {(price/nights).toFixed(2)} €/Nacht</div>
+                    <div class="text-[10px] font-mono" style="color:var(--ws-muted)">Ø {(price/nights).toFixed(2)} {$t('radarPerNight')}</div>
                   {/if}
                 {/if}
                 {#if chartState[cKey]?.history?.length >= 2 && isTopPrice(chartState[cKey].history, price)}
@@ -1498,7 +1498,7 @@
                     <button
                       onclick={() => wishState[wKey] = { editing: true, value: wish?.toString() || '' }}
                       class="text-xs px-2 py-0.5 rounded-lg border"
-                      style="border-color:var(--ws-border);color:var(--ws-muted)">✏️ setzen</button>
+                      style="border-color:var(--ws-border);color:var(--ws-muted)">✏️ {$t('radarSet')}</button>
                   </div>
                 {/if}
               </div>
