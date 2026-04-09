@@ -214,15 +214,15 @@
     fl10kg * fl10kgPrice + fl20kg * fl20kgPrice + fl23kg * fl23kgPrice
   );
   const flTotalPax = $derived(flAdults + flChildren);
-  // Gesamtpreis-Aufschlag (ohne Flugpreis) für Preview-Badge
-  const flExtrasLabel = $derived(() => {
+  / Gesamtpreis-Aufschlag (ohne Flugpreis) für Preview-Badge
+  function flExtrasLabel() {
     const parts = [];
     if (fl10kg > 0)     parts.push(fl10kg + '× 10kg');
     if (fl20kg > 0)     parts.push(fl20kg + '× 20kg');
     if (fl23kg > 0)     parts.push(fl23kg + '× 23kg');
     if (flSeatCost > 0) parts.push($t('radarSeatBadge').replace('{n}', flSeatCost));
     return parts.join(' · ');
-  });
+  }
 
   // ── Hotels form ───────────────────────────────────────────────────────────
   let htCity     = $state('');
@@ -259,10 +259,14 @@
   let savingTracker = $state(null); // tracker id being saved
 
   // Provider chips derived from results
-  const providerChips = $derived(() => {
-    const providers = ['all', ...new Set(searchResults.map(r => r.provider))];
-    return providers;
-  });
+  function providerChips() {
+    return ['all', ...new Set(searchResults.map(r => r.provider))];
+  }
+
+  function filteredResults() {
+    if (activeProviderFilter === 'all') return searchResults;
+    return searchResults.filter(r => r.provider === activeProviderFilter);
+  }
 
   const filteredResults = $derived(() => {
     if (activeProviderFilter === 'all') return searchResults;
