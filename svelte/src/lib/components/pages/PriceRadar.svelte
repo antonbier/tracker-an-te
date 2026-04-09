@@ -8,7 +8,9 @@ t { onMount } from 'svelte';
   // ── Category tabs ─────────────────────────────────────────────────────────
   let activeCategory = $state('flights');
 
-  const categories = $derived([
+  // $derived.by() required when array contains $store calls ($t, $lang etc.)
+  // Plain $derived([...]) fails to parse with store-subscriber syntax inside
+  const categories = $derived.by(() => [
     { id: 'flights',  label: '✈️ ' + $t('radarFlights')  },
     { id: 'hotels',   label: '🏨 ' + $t('radarHotels')   },
     { id: 'camping',  label: '⛺ ' + $t('radarCamping')  },
@@ -1666,6 +1668,8 @@ t { onMount } from 'svelte';
   </div>
 
 </div>
+
+
 
 
 
