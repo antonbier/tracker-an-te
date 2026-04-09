@@ -98,10 +98,25 @@ def scrape(tracker_id: int, user: dict = Depends(get_current_user)):
         raise HTTPException(400, "SerpAPI Key nicht konfiguriert")
     try:
         result = scrape_google_flights(t, api_key)
-        result["fetched_at"] = datetime.utcnow().isoformat()
-        save_gf_snapshot(tracker_id, result)
-        return result
+        status = result.get("status", "error")
+        # google_scraper gibt {"status":..., "snapshot":{...}} zurück
+        snap = result.get("snapshot", result)
+        snap["fetched_at"] = datetime.utcnow().isoformat()
+
+        if status == "ok" and snap.get("total_price") is not None:
+            # Nur bei Erfolg speichern — Fehler überschreiben niemals die Historie
+            save_gf_snapshot(tracker_id, snap)
+            logger.info(f"[GF] ✅ #{tracker_id} scrape ok | price={snap.get('total_price')}")
+        else:
+            err = snap.get("error_message", "Unbekannter Fehler")
+            logger.warning(
+                f"[GF] ⚠️ #{tracker_id} scrape fehlgeschlagen ({status}): {err} — Historie bleibt erhalten"
+            )
+            raise HTTPException(422, detail={"status": status, "error": err})
+
+        return snap
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"GF scrape error: {e}")
         raise HTTPException(500, str(e))
-
