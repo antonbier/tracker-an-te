@@ -20,7 +20,6 @@ from auth_jwt import get_current_user
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-
 class GFTrackerCreate(BaseModel):
     origin:        str
     destination:   str
