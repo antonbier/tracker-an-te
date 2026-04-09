@@ -103,6 +103,7 @@
   let schedPriceDrop  = $state(true);
   let schedDaily      = $state(false);
   let schedLastRun    = $state('');
+  let schedTimezone   = $state('UTC');  // Timezone aus API-Antwort
   let schedSaving     = $state(false);
   let schedRunning    = $state(false);
 
@@ -114,6 +115,7 @@
       schedPriceDrop = s.notify_price_drop ?? true;
       schedDaily     = s.notify_daily_summary ?? false;
       schedLastRun   = s.last_run_at || '';
+      schedTimezone  = s.timezone || 'UTC';
     } catch {}
   }
 
@@ -287,6 +289,7 @@
       try {
         // Persist date format for frontend components
         localStorage.setItem('ws-date-format', appDateFormat || 'DD.MM.YYYY');
+        localStorage.setItem('ws-timezone', appTimezone || 'Europe/Rome');
         const globalPayload = {
           serpapi_key: (serpApiKey && serpApiKey !== '••••••••') ? serpApiKey : null,
           gemini_key: (geminiKey && geminiKey !== '••••••••') ? geminiKey : null,
@@ -832,3 +835,4 @@
 
   </div>
 {/if}
+
