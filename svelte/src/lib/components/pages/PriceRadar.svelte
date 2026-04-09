@@ -1342,7 +1342,7 @@
     </div>
 
     {#if trackersLoading}
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch">
         {#each [1,2,3] as _}
           <div class="rounded-xl p-4 border animate-pulse" style="background:var(--ws-surface);border-color:var(--ws-border)">
             <div class="h-4 w-32 rounded mb-2" style="background:var(--ws-border)"></div>
@@ -1363,7 +1363,7 @@
       </div>
 
     {:else}
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch">
         {#each visibleTrackers as tr}
           {@const wKey   = `${tr._type}-${tr.id}`}
           {@const cKey   = wKey}
@@ -1374,20 +1374,29 @@
           {@const badges  = trackerBadges(tr)}
 
           <div
-            class="rounded-xl p-4 border flex flex-col gap-3 transition-all"
+            class="rounded-xl p-4 border flex flex-col gap-3 transition-all h-full"
             style="background:var(--ws-surface);border-color:{wishMet ? 'var(--ws-green)' : 'var(--ws-border)'};
                    {wishMet ? 'box-shadow:0 0 0 2px rgba(22,163,74,.2)' : ''}">
 
-            <!-- Provider badge + wish met -->
+            <!-- Provider badge + wish met + Buchen-Button -->
             <div class="flex items-center justify-between gap-2">
               <span class="text-xs px-2 py-0.5 rounded-full font-medium" style="background:var(--ws-surface2);color:var(--ws-muted)">
                 {providerIcon(tr._type)} {providerLabel(tr)}
               </span>
-              {#if wishMet}
-                <span class="text-xs font-bold px-2 py-0.5 rounded-full" style="background:rgba(22,163,74,.12);color:var(--ws-green)">
-                  🎯 {$t('radarWishMet')}
-                </span>
-              {/if}
+              <div class="flex items-center gap-1.5">
+                {#if wishMet}
+                  <span class="text-xs font-bold px-2 py-0.5 rounded-full" style="background:rgba(22,163,74,.12);color:var(--ws-green)">
+                    🎯 {$t('radarWishMet')}
+                  </span>
+                {/if}
+                {#if tr.booking_url}
+                  <a href={tr.booking_url} target="_blank" rel="noopener noreferrer"
+                    class="text-xs px-2.5 py-1 rounded-lg font-semibold transition-opacity hover:opacity-80"
+                    style="background:var(--ws-accent);color:#fff5ec;text-decoration:none">
+                    Buchen ↗
+                  </a>
+                {/if}
+              </div>
             </div>
 
             <!-- Title + subtitle -->
@@ -1532,13 +1541,7 @@
                 style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)">
                 ⟳
               </button>
-              {#if tr.booking_url}
-                <a href={tr.booking_url} target="_blank" rel="noopener noreferrer"
-                  class="px-3 py-1.5 rounded-xl text-xs border transition-all hover:opacity-80"
-                  style="background:var(--ws-accent);color:#fff;border-color:var(--ws-accent);text-decoration:none">
-                  Buchen ↗
-                </a>
-              {/if}
+
               <button
                 onclick={() => deleteTracker(tr)}
                 class="ml-auto px-3 py-1.5 rounded-xl text-xs border transition-colors hover:border-red-400 hover:text-red-400"
