@@ -1,9 +1,9 @@
-OK, lines: 1674
-t { onMount } from 'svelte';
+<script>
+  import { onMount } from 'svelte';
   import { api } from '$lib/api.js';
   import { apiUrl } from '$lib/stores.js';
   import { toast } from '$lib/toast.js';
-  import { t } from '$lib/i18n.js';
+  import { browser } from '$app/environment';
 
   // ── Category tabs ─────────────────────────────────────────────────────────
   let activeCategory = $state('flights');
