@@ -99,6 +99,13 @@ async def search_flights(params: FlightSearchParams) -> dict:
         logger.warning("[ORCHESTRATOR] Keine aktiven Provider konfiguriert")
         return {"results": [], "count": 0, "missing_api_keys": [], "providers_used": []}
 
+    # Load global settings fallbacks (e.g. serpapi_key for google_flights)
+    try:
+        from settings_manager import get_setting_value
+        _serpapi_key = get_setting_value("serpapi_key") or ""
+    except Exception:
+        _serpapi_key = ""
+
     # Build coroutine tasks — only for providers in the registry
     tasks = []
     names = []
@@ -108,7 +115,11 @@ async def search_flights(params: FlightSearchParams) -> dict:
         if not runner:
             logger.warning(f"[ORCHESTRATOR] Unbekannter Provider: {name} — übersprungen")
             continue
-        tasks.append(runner(params, cfg))
+        # Enrich cfg with global settings fallbacks
+        enriched_cfg = dict(cfg)
+        if name == "google_flights" and not enriched_cfg.get("api_key"):
+            enriched_cfg["api_key"] = _serpapi_key
+        tasks.append(runner(params, enriched_cfg))
         names.append(name)
 
     if not tasks:
@@ -143,3 +154,4 @@ async def search_flights(params: FlightSearchParams) -> dict:
         "missing_api_keys": missing_keys,
         "providers_used":   names,
     }
+
