@@ -1,6 +1,7 @@
 """
 WanderSuite — /api/accommodations (Multi-User)
-Homair + Booking trackers. List endpoints now include latest_snapshot.
+Homair + Booking trackers. List endpoints include latest_snapshot.
+Scrape endpoints: nur bei status=ok speichern — Fehler überschreiben niemals die Historie.
 """
 
 from fastapi import APIRouter, HTTPException, Depends
@@ -60,7 +61,6 @@ def list_homair(user: dict = Depends(get_current_user)):
 @router.post("/homair", status_code=201)
 def create_homair(data: HomairCreate, user: dict = Depends(get_current_user)):
     tid = create_homair_tracker(data.model_dump(), user_id=_uid_w(user))
-    # Save initial price snapshot from search result if provided
     if data.initial_price is not None:
         save_homair_snapshot(tid, {
             "total_price": data.initial_price,
@@ -88,9 +88,24 @@ def scrape_homair_tracker(tracker_id: int, user: dict = Depends(get_current_user
         raise HTTPException(400, "SerpAPI Key nicht konfiguriert")
     try:
         result = scrape_homair(t, api_key)
-        result["fetched_at"] = datetime.utcnow().isoformat()
-        save_homair_snapshot(tracker_id, result)
-        return result
+        status = result.get("status", "error")
+        snap = result.get("snapshot", result)
+        snap["fetched_at"] = datetime.utcnow().isoformat()
+
+        if status == "ok" and snap.get("total_price") is not None:
+            # Nur bei Erfolg speichern — Fehler überschreiben niemals die Historie
+            save_homair_snapshot(tracker_id, snap)
+            logger.info(f"[Homair] ✅ #{tracker_id} ok | price={snap.get('total_price')}")
+        else:
+            err = snap.get("error_message", "Unbekannter Fehler")
+            logger.warning(
+                f"[Homair] ⚠️ #{tracker_id} fehlgeschlagen ({status}): {err} — Historie bleibt erhalten"
+            )
+            raise HTTPException(422, detail={"status": status, "error": err})
+
+        return snap
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(500, str(e))
 
@@ -119,7 +134,6 @@ def list_booking(user: dict = Depends(get_current_user)):
 @router.post("/booking", status_code=201)
 def create_booking(data: BookingCreate, user: dict = Depends(get_current_user)):
     tid = create_booking_tracker(data.model_dump(), user_id=_uid_w(user))
-    # Save initial price snapshot from search result if provided
     if data.initial_price is not None:
         save_booking_snapshot(tid, {
             "total_price": data.initial_price,
@@ -147,9 +161,23 @@ def scrape_booking_tracker(tracker_id: int, user: dict = Depends(get_current_use
         raise HTTPException(400, "SerpAPI Key nicht konfiguriert")
     try:
         result = scrape_booking(t, api_key)
-        result["fetched_at"] = datetime.utcnow().isoformat()
-        save_booking_snapshot(tracker_id, result)
-        return result
+        status = result.get("status", "error")
+        snap = result.get("snapshot", result)
+        snap["fetched_at"] = datetime.utcnow().isoformat()
+
+        if status == "ok" and snap.get("total_price") is not None:
+            # Nur bei Erfolg speichern — Fehler überschreiben niemals die Historie
+            save_booking_snapshot(tracker_id, snap)
+            logger.info(f"[Booking] ✅ #{tracker_id} ok | price={snap.get('total_price')}")
+        else:
+            err = snap.get("error_message", "Unbekannter Fehler")
+            logger.warning(
+                f"[Booking] ⚠️ #{tracker_id} fehlgeschlagen ({status}): {err} — Historie bleibt erhalten"
+            )
+            raise HTTPException(422, detail={"status": status, "error": err})
+
+        return snap
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(500, str(e))
-
