@@ -128,7 +128,7 @@
             <div class="mt-1.5 flex items-center gap-2">
               <span class="px-2 py-0.5 rounded-full text-xs font-mono font-bold"
                 style="background:rgba(196,98,45,.1);color:var(--ws-accent)">
-                {trip.nights} {trip.nights===1?'Nacht':'Nächte'}
+                {trip.nights} {trip.nights===1?$t('night'):$t('nights')}
               </span>
               <a href={mapsUrl} target="_blank"
                 class="px-2 py-0.5 rounded-full text-xs border transition-colors hover:border-[var(--ws-accent)]"
