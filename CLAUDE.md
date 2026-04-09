@@ -1364,3 +1364,32 @@ Alle `bg-stone-50`/`bg-white/90`/`text-stone-*` → `var(--ws-surface)`/`var(--w
 - Kosten-Input in Chronik: `bg-stone-50 border-stone-200 text-stone-800` → CSS-Variablen
 
 **Ergebnis:** 0 verbleibende `text-stone-800` Klassen in MyTrips.svelte.
+---
+
+## RC Step 1 (Session 2025-04-09) — Backend-Sicherheit, Scraper & globale Formate
+
+### Fix 1 — SerpAPI Datenverlust verhindert (scheduler.py)
+**Problem:** Bei API-Fehler oder scraper-Exception wurde `save_snapshot(tid, {"status": "error", ...})`
+aufgerufen. Dieser Error-Snapshot wurde als neuester Eintrag in DB geschrieben → UI zeigte `-` als Preis.
+
+**Fix:** Snapshots werden **nur noch bei `status == "ok"`** in die DB geschrieben.
+Fehler → nur Log-Eintrag, letzter valider Preis bleibt vollständig erhalten.
+Gilt für alle 4 Provider: Ryanair, Google Flights, Homair, Booking.
+
+### Fix 2 — Ryanair Deeplink (routes/search.py)
+**Problem:** URL `ryanair.com/de/de/buchen/fluge-finden?departureAirport=...` war veraltet → 404.
+
+**Fix:** Neues URL-Format (pfadbasiert):
+`https://www.ryanair.com/de/de/buchen/fluge-finden/{ORIGIN}/{DEST}/{DATE}/{ADULTS}/0/{CHILDREN}/0`
+
+### Fix 3 — Globale Datums- & Zeitzonenformatierung (Frontend)
+**Problem:** Scheduler-Tab zeigte `UTC` hardcodiert statt der tatsächlichen User-Zeitzone.
+`fmtDate()` war nur lokal in PriceRadar definiert.
+
+**Fix:**
+- `Settings.svelte`: `schedTimezone` State aus `/api/scheduler/settings` geladen; Anzeige zeigt
+  jetzt `{schedLastRun} {schedTimezone}` statt hardcodiertem `UTC`
+- `svelte/src/lib/i18n.js`: `fmtDate(iso)` und `fmtDateRange(from, to)` als globale Exports
+  → alle Komponenten können `import { fmtDate } from '$lib/i18n.js'` nutzen
+  → liest `ws-date-format` aus localStorage (gesetzt in Settings: DD.MM.YYYY / MM/DD/YYYY / YYYY-MM-DD)
+
