@@ -413,6 +413,17 @@ async def _search_google_flights(params: FlightSearchParams, api_key: str) -> li
                 n_stops = len(fl.get("flights", [])) - 1
                 if params.max_stops >= 0 and n_stops > params.max_stops:
                     continue
+                # Layover details from SerpAPI
+                _layover_airports = [
+                    leg.get("departure_airport", {}).get("id", "")
+                    for leg in fl.get("flights", [])[1:]
+                    if leg.get("departure_airport", {}).get("id")
+                ]
+                _layover_durations = [
+                    lay.get("duration")
+                    for lay in fl.get("layovers", [])
+                    if lay.get("duration") is not None
+                ]
                 # Zeit-Filter
                 # SerpAPI "time" may be "2026-05-05 08:15" (datetime) or "08:15" (time only)
                 _dep_raw = dep.get("time", "")
@@ -453,23 +464,25 @@ async def _search_google_flights(params: FlightSearchParams, api_key: str) -> li
                     "badges":   badges + stop_badges,
                     "booking_url": f"https://www.google.com/flights#search;f={params.origin.upper()};t={params.destination.upper()};d={params.outbound_date}",
                     "detail": {
-                        "origin":          params.origin.upper(),
-                        "destination":     params.destination.upper(),
-                        "outbound_date":   params.outbound_date,
-                        "return_date":     params.return_date,
-                        "adults":          params.adults,
-                        "children":        params.children,
-                        "baggage":         params.baggage,
-                        "baggage_10kg":    params.baggage_10kg,
-                        "baggage_20kg":    params.baggage_20kg,
-                        "baggage_23kg":    params.baggage_23kg,
-                        "seat":            params.seat,
-                        "seat_cost":       params.seat_cost,
-                        "airline":         airline,
-                        "departure_time":  dep_t,
-                        "arrival_time":    arr_t,
-                        "duration_min":    fl.get("total_duration"),
-                        "stops":           n_stops,
+                        "origin":             params.origin.upper(),
+                        "destination":        params.destination.upper(),
+                        "outbound_date":      params.outbound_date,
+                        "return_date":        params.return_date,
+                        "adults":             params.adults,
+                        "children":           params.children,
+                        "baggage":            params.baggage,
+                        "baggage_10kg":       params.baggage_10kg,
+                        "baggage_20kg":       params.baggage_20kg,
+                        "baggage_23kg":       params.baggage_23kg,
+                        "seat":               params.seat,
+                        "seat_cost":          params.seat_cost,
+                        "airline":            airline,
+                        "departure_time":     dep_t,
+                        "arrival_time":       arr_t,
+                        "duration_min":       fl.get("total_duration"),
+                        "stops":              n_stops,
+                        "layover_airports":   _layover_airports,
+                        "layover_durations":  _layover_durations,
                     },
                     "_tracker_type":  "google_flight",
                     "_tracker_table": "gf_trackers",
@@ -813,9 +826,3 @@ async def search_camping(
     logger.info(f"[SEARCH] ⛺ camping total_results={len(results)}")
     return {"results": results, "count": len(results),
             "missing_api_keys": missing_keys}
-
-
-
-
-
-
