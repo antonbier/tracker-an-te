@@ -1,4 +1,4 @@
-OK, lines: 1675
+OK, lines: 1678
 t { onMount } from 'svelte';
   import { api } from '$lib/api.js';
   import { apiUrl } from '$lib/stores.js';
@@ -481,7 +481,8 @@ t { onMount } from 'svelte';
   }
 
   // ── Price chart accordion ─────────────────────────────────────────────────
-  let chartState = $state({});
+  let chartState  = $state({});
+  let stopsOpen   = $state({});  // key: 'type-id' → bool, für Layover-Accordion
 
   async function toggleChart(type, id) {
     const key = `${type}-${id}`;
@@ -1474,20 +1475,17 @@ t { onMount } from 'svelte';
                     {#if showDuration}
                       <span class="text-xs" style="color:var(--ws-muted)">({Math.floor(snap.duration_min/60)}h{snap.duration_min%60}m)</span>
                     {/if}
-                    <!-- Stopp-Badge: anklickbar wenn Layover-Daten vorhanden -->
+                    <!-- Stopp-Badge: anklickbar → Layover-Accordion (reaktiv, kein DOM) -->
                     {#if nStops > 0}
-                      {@const stopKey = `stops-${tr._type}-${tr.id}`}
+                      {@const stopKey = `${tr._type}-${tr.id}`}
                       <button
-                        onclick={() => {
-                          const el = document.getElementById(stopKey);
-                          if (el) el.style.display = el.style.display === 'none' ? 'flex' : 'none';
-                        }}
+                        onclick={() => stopsOpen[stopKey] = !stopsOpen[stopKey]}
                         class="text-xs px-1.5 py-0.5 rounded font-medium cursor-pointer transition-opacity hover:opacity-70"
                         style="background:rgba(37,99,235,.1);color:#2563eb;border:none">
-                        {nStops} Stopp{nStops > 1 ? 's' : ''} ▾
+                        {nStops} Stopp{nStops > 1 ? 's' : ''} {stopsOpen[stopKey] ? '▴' : '▾'}
                       </button>
-                      {#if layovers.length > 0}
-                        <div id={stopKey} style="display:none;flex-wrap:wrap;gap:4px;width:100%;margin-top:2px">
+                      {#if layovers.length > 0 && stopsOpen[stopKey]}
+                        <div class="flex flex-wrap gap-1" style="width:100%;margin-top:2px">
                           {#each layovers as via, i}
                             <span class="text-xs px-2 py-0.5 rounded font-mono"
                               style="background:var(--ws-surface2);color:var(--ws-muted)">
@@ -1668,6 +1666,7 @@ t { onMount } from 'svelte';
   </div>
 
 </div>
+
 
 
 
