@@ -1,5 +1,5 @@
-<script>
-  import { onMount } from 'svelte';
+OK, lines: 1675
+t { onMount } from 'svelte';
   import { api } from '$lib/api.js';
   import { apiUrl } from '$lib/stores.js';
   import { toast } from '$lib/toast.js';
@@ -682,6 +682,47 @@
     if (tr._type === 'hotel')         return tr.source === 'google_hotels' ? 'Google Hotels' : 'Booking.com';
     if (tr._type === 'camping')       return 'Homair';
     return tr._type;
+  }
+
+  /**
+   * Generiert einen Buchungs-Deeplink für gespeicherte Tracker.
+   * booking_url ist in der DB vorhanden aber nicht immer befüllt —
+   * daher fallback auf berechneten Link aus Tracker-Feldern.
+   */
+  function trackerBookingUrl(tr) {
+    // Priorität: gespeicherte URL aus DB (z.B. vom Suchergebnis übernommen)
+    if (tr.booking_url) return tr.booking_url;
+
+    if (tr._type === 'flight') {
+      // Ryanair 2025-Format
+      const o = tr.origin, d = tr.destination, dt = tr.outbound_date;
+      const ret = tr.return_date || '';
+      const adults = tr.adults || 1, children = tr.children || 0;
+      const isReturn = ret ? 'true' : 'false';
+      return `https://www.ryanair.com/de/de/trip/flights/select` +
+        `?adults=${adults}&teens=0&children=${children}&infants=0` +
+        `&dateOut=${dt}&dateIn=${ret}` +
+        `&isConnectedFlight=false&isReturn=${isReturn}` +
+        `&originIata=${o}&destinationIata=${d}` +
+        `&tpAdults=${adults}&tpTeens=0&tpChildren=${children}&tpInfants=0` +
+        `&tpStartDate=${dt}&tpEndDate=${ret}` +
+        `&tpDiscount=0&tpPromoCode=` +
+        `&tpOriginIata=${o}&tpDestinationIata=${d}`;
+    }
+    if (tr._type === 'google_flight') {
+      const o = tr.origin, d = tr.destination, dt = tr.outbound_date;
+      const ret = tr.return_date ? `&return_date=${tr.return_date}` : '';
+      return `https://www.google.com/flights#search;f=${o};t=${d};d=${dt}${ret}`;
+    }
+    if (tr._type === 'hotel') {
+      const dest = encodeURIComponent(tr.hotel_name || tr.destination || '');
+      return `https://www.google.com/travel/hotels?q=${dest}&dates=${tr.checkin_date}/${tr.checkout_date}`;
+    }
+    if (tr._type === 'camping') {
+      const q = encodeURIComponent(`Homair ${tr.campsite_name || tr.region || tr.destination || ''}`);
+      return `https://www.homair.com/`;
+    }
+    return null;
   }
 
   // ── Init ──────────────────────────────────────────────────────────────────
@@ -1379,6 +1420,7 @@
                    {wishMet ? 'box-shadow:0 0 0 2px rgba(22,163,74,.2)' : ''}">
 
             <!-- Provider badge + wish met + Buchen-Button -->
+            {@const bookingUrl = trackerBookingUrl(tr)}
             <div class="flex items-center justify-between gap-2">
               <span class="text-xs px-2 py-0.5 rounded-full font-medium" style="background:var(--ws-surface2);color:var(--ws-muted)">
                 {providerIcon(tr._type)} {providerLabel(tr)}
@@ -1389,8 +1431,8 @@
                     🎯 {$t('radarWishMet')}
                   </span>
                 {/if}
-                {#if tr.booking_url}
-                  <a href={tr.booking_url} target="_blank" rel="noopener noreferrer"
+                {#if bookingUrl}
+                  <a href={bookingUrl} target="_blank" rel="noopener noreferrer"
                     class="text-xs px-2.5 py-1 rounded-lg font-semibold transition-opacity hover:opacity-80"
                     style="background:var(--ws-accent);color:#fff5ec;text-decoration:none">
                     Buchen ↗
@@ -1409,6 +1451,8 @@
                 {@const showFlight   = snap?.flight_number || snap?.outbound_flight}
                 {@const showTimes    = snap?.departure_time && snap?.arrival_time}
                 {@const showDuration = snap?.duration_min}
+                {@const nStops       = snap?.stops ?? 0}
+                {@const layovers     = snap?.layover_airports ?? []}
                 {#if showAirline || showFlight || showTimes}
                   <div class="flex items-center gap-1.5 mt-1 flex-wrap">
                     <span class="text-xs">✈️</span>
@@ -1427,6 +1471,34 @@
                     {/if}
                     {#if showDuration}
                       <span class="text-xs" style="color:var(--ws-muted)">({Math.floor(snap.duration_min/60)}h{snap.duration_min%60}m)</span>
+                    {/if}
+                    <!-- Stopp-Badge: anklickbar wenn Layover-Daten vorhanden -->
+                    {#if nStops > 0}
+                      {@const stopKey = `stops-${tr._type}-${tr.id}`}
+                      <button
+                        onclick={() => {
+                          const el = document.getElementById(stopKey);
+                          if (el) el.style.display = el.style.display === 'none' ? 'flex' : 'none';
+                        }}
+                        class="text-xs px-1.5 py-0.5 rounded font-medium cursor-pointer transition-opacity hover:opacity-70"
+                        style="background:rgba(37,99,235,.1);color:#2563eb;border:none">
+                        {nStops} Stopp{nStops > 1 ? 's' : ''} ▾
+                      </button>
+                      {#if layovers.length > 0}
+                        <div id={stopKey} style="display:none;flex-wrap:wrap;gap:4px;width:100%;margin-top:2px">
+                          {#each layovers as via, i}
+                            <span class="text-xs px-2 py-0.5 rounded font-mono"
+                              style="background:var(--ws-surface2);color:var(--ws-muted)">
+                              {i > 0 ? '→ ' : 'via '}{via}
+                            </span>
+                          {/each}
+                        </div>
+                      {/if}
+                    {:else if tr._type === 'google_flight'}
+                      <span class="text-xs px-1.5 py-0.5 rounded font-medium"
+                        style="background:rgba(22,163,74,.1);color:var(--ws-green)">
+                        Nonstop
+                      </span>
                     {/if}
                   </div>
                 {:else}
@@ -1594,6 +1666,7 @@
   </div>
 
 </div>
+
 
 
 
