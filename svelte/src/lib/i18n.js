@@ -6,7 +6,7 @@ import de from '../locales/de.json';
 import en from '../locales/en.json';
 import it from '../locales/it.json';
 
-const allLocales = { de, en, it };
+export const allLocales = { de, en, it };
 
 // Reaktiver translations-Store
 export const translations = writable(allLocales[get(lang)] || de);
