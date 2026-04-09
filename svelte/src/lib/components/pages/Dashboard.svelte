@@ -113,7 +113,7 @@
       <button onclick={saveBudget} disabled={budgetSaving}
         class="px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
         style="background:var(--ws-accent);color:#fff5ec">
-        {budgetSaving ? '⏳' : '✓ setzen'}
+        {budgetSaving ? '⏳' : '✓ ' + $t('radarSet')}
       </button>
     </div>
   </div>
