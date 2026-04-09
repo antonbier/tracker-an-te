@@ -1,5 +1,5 @@
-"""
-WanderSuite — Database Layer (Multi-User)
+OK, lines: 1150
+— Database Layer (Multi-User)
 SQLite via sqlite3. All content tables have user_id.
 
 Global tables (no user_id): settings, webauthn_credentials, webauthn_challenges
@@ -119,6 +119,7 @@ def init_db():
                 departure_time   TEXT,
                 arrival_time     TEXT,
                 duration_min     INTEGER,
+                stops            INTEGER DEFAULT 0,
                 currency         TEXT    DEFAULT 'EUR',
                 status           TEXT    NOT NULL DEFAULT 'ok',
                 error_message    TEXT
@@ -275,6 +276,8 @@ def init_db():
             ("price_snapshots",  "departure_time TEXT DEFAULT NULL"),
             ("price_snapshots",  "arrival_time TEXT DEFAULT NULL"),
             ("price_snapshots",  "flight_number TEXT DEFAULT NULL"),
+            # gf_snapshots: stops field for layover display
+            ("gf_snapshots",    "stops INTEGER DEFAULT 0"),
             # booking_url for deeplinks
             ("trackers",         "booking_url TEXT DEFAULT NULL"),
             ("gf_trackers",      "booking_url TEXT DEFAULT NULL"),
@@ -657,12 +660,14 @@ def save_gf_snapshot(tracker_id: int, snap: dict) -> int:
         cur = conn.execute(
             """INSERT INTO gf_snapshots
                (tracker_id, fetched_at, total_price, outbound_flight, return_flight,
-                airline, departure_time, arrival_time, duration_min, currency, status, error_message)
-               VALUES (?,datetime('now'),?,?,?,?,?,?,?,?,?,?)""",
+                airline, departure_time, arrival_time, duration_min, stops,
+                currency, status, error_message)
+               VALUES (?,datetime('now'),?,?,?,?,?,?,?,?,?,?,?)""",
             (tracker_id, snap.get("total_price"), snap.get("outbound_flight"),
              snap.get("return_flight"), snap.get("airline"),
              snap.get("departure_time"), snap.get("arrival_time"),
-             snap.get("duration_min"), snap.get("currency", "EUR"),
+             snap.get("duration_min"), snap.get("stops", 0),
+             snap.get("currency", "EUR"),
              snap.get("status", "ok"), snap.get("error_message"))
         )
         snap_id = cur.lastrowid
@@ -1138,6 +1143,7 @@ def save_user_notification_settings(user_id: int, settings: dict, fernet) -> Non
             _enc(settings.get("gotify_url",          "")),
             _enc(settings.get("gotify_app_token",    "")),
         ))
+
 
 
 
