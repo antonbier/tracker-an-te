@@ -31,6 +31,10 @@ from pydantic import BaseModel
 
 from auth_jwt import get_current_user
 from settings_manager import get_setting_value
+from flight_search_orchestrator import (
+    search_flights as orchestrate_flights,
+    FlightSearchParams as OrchestratorParams,
+)
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -747,8 +751,9 @@ async def search_flights(
     user: dict = Depends(get_current_user),
 ):
     """
-    Meta-Suche Fluege: Ryanair + Google Flights parallel.
-    Faellt ein Provider aus, liefert der andere trotzdem Ergebnisse.
+    Meta-Suche Flüge via Orchestrator.
+    Aktive Provider werden aus der DB gelesen (GET /api/settings/providers).
+    Alle aktiven Provider werden parallel via asyncio.gather aufgerufen.
     """
     if not params.origin or not params.destination or not params.outbound_date:
         raise HTTPException(400, "origin, destination und outbound_date sind Pflichtfelder")
@@ -756,25 +761,15 @@ async def search_flights(
     params.origin      = params.origin.strip().upper()
     params.destination = params.destination.strip().upper()
 
-    serpapi_key = get_setting_value("serpapi_key") or ""
-
     logger.info(
         f"[SEARCH] ✈️ flights {params.origin}->{params.destination} "
-        f"{params.outbound_date} | adults={params.adults} | "
-        f"baggage={params.baggage} | seat={params.seat} | "
-        f"providers=ryanair,google_flights"
+        f"{params.outbound_date} | adults={params.adults} | via orchestrator"
     )
 
-    tasks = [
-        _search_ryanair(params),
-        _search_google_flights(params, serpapi_key),
-    ]
-    raw = await asyncio.gather(*tasks, return_exceptions=True)
-    results, missing_keys = _aggregate(list(raw))
-
-    logger.info(f"[SEARCH] ✈️ flights total_results={len(results)}")
-    return {"results": results, "count": len(results),
-            "missing_api_keys": missing_keys}
+    # Delegate entirely to orchestrator — it reads provider configs from DB
+    orch_params = OrchestratorParams(**params.model_dump())
+    result = await orchestrate_flights(orch_params)
+    return result
 
 
 @router.post("/hotels")
@@ -849,3 +844,4 @@ async def search_camping(
     logger.info(f"[SEARCH] ⛺ camping total_results={len(results)}")
     return {"results": results, "count": len(results),
             "missing_api_keys": missing_keys}
+
