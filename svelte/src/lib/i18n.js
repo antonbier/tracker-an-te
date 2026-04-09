@@ -37,3 +37,22 @@ export async function setLang(locale) {
     } catch { /* offline */ }
   }
 }
+
+// ── Globaler Datumsformat-Helper ──────────────────────────────────────────
+// Nutzt ws-date-format aus localStorage (gesetzt von Settings)
+// Format: DD.MM.YYYY (default) | MM/DD/YYYY | YYYY-MM-DD
+export function fmtDate(iso) {
+  if (!iso) return '–';
+  const parts = String(iso).slice(0, 10).split('-');
+  if (parts.length !== 3) return iso;
+  const [yyyy, mm, dd] = parts;
+  const fmt = typeof localStorage !== 'undefined' ? (localStorage.getItem('ws-date-format') || 'DD.MM.YYYY') : 'DD.MM.YYYY';
+  if (fmt === 'MM/DD/YYYY') return `${mm}/${dd}/${yyyy}`;
+  if (fmt === 'YYYY-MM-DD') return `${yyyy}-${mm}-${dd}`;
+  return `${dd}.${mm}.${yyyy}`;
+}
+
+// Datumsbereich formatieren
+export function fmtDateRange(from, to) {
+  return to ? `${fmtDate(from)} – ${fmtDate(to)}` : fmtDate(from);
+}
