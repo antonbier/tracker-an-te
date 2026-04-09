@@ -1,4 +1,4 @@
-OK, lines: 1678
+OK, lines: 1674
 t { onMount } from 'svelte';
   import { api } from '$lib/api.js';
   import { apiUrl } from '$lib/stores.js';
@@ -8,14 +8,9 @@ t { onMount } from 'svelte';
   // ── Category tabs ─────────────────────────────────────────────────────────
   let activeCategory = $state('flights');
 
-  // $derived.by() required when array contains $store calls ($t, $lang etc.)
-  // Plain $derived([...]) fails to parse with store-subscriber syntax inside
-  const categories = $derived.by(() => [
-    { id: 'flights',  label: '✈️ ' + $t('radarFlights')  },
-    { id: 'hotels',   label: '🏨 ' + $t('radarHotels')   },
-    { id: 'camping',  label: '⛺ ' + $t('radarCamping')  },
-    { id: 'rentals',  label: '🚗 ' + $t('radarRentals')  },
-  ]);
+  // Kategorie-IDs — Labels werden direkt im Template via $t() gerendert
+  const CATEGORY_IDS = ['flights', 'hotels', 'camping', 'rentals'];
+  const CATEGORY_ICONS = { flights: '✈️', hotels: '🏨', camping: '⛺', rentals: '🚗' };
 
   // ── Shared helpers ────────────────────────────────────────────────────────
   const today = new Date();
@@ -737,14 +732,14 @@ t { onMount } from 'svelte';
 
   <!-- ── Category tab bar ── -->
   <div class="flex border-b overflow-x-auto" style="border-color:var(--ws-border)">
-    {#each categories as cat}
+    {#each CATEGORY_IDS as catId}
       <button
-        onclick={() => { activeCategory = cat.id; searchResults = []; }}
+        onclick={() => { activeCategory = catId; searchResults = []; }}
         class="px-4 py-2.5 text-xs font-semibold whitespace-nowrap shrink-0 transition-colors border-b-2"
-        style={activeCategory === cat.id
+        style={activeCategory === catId
           ? 'border-color:var(--ws-accent);color:var(--ws-accent)'
           : 'border-color:transparent;color:var(--ws-muted)'}>
-        {cat.label}
+        {CATEGORY_ICONS[catId]} {$t('radar' + catId.charAt(0).toUpperCase() + catId.slice(1))}
       </button>
     {/each}
   </div>
@@ -1666,6 +1661,7 @@ t { onMount } from 'svelte';
   </div>
 
 </div>
+
 
 
 
