@@ -1,5 +1,5 @@
-<script>
-  import { apiUrl, theme, isDark, lang, currentUser, jwtToken, appStatus, isAdmin, logout } from '$lib/stores.js';
+Done. Lines: 850
+ { apiUrl, theme, isDark, lang, currentUser, jwtToken, appStatus, isAdmin, logout } from '$lib/stores.js';
   import { toast } from '$lib/toast.js';
   import { t } from '$lib/i18n.js';
   import { checkApiStatus, api } from '$lib/api.js';
@@ -210,11 +210,13 @@
   // - auth_enabled=true  → "Mein Bereich" statt "Integrationen" (Dawarich/ActualBudget per-user)
   // - auth_enabled=false → "Integrationen" (global, kein User-Kontext nötig)
   const authEnabled = $derived(!!$appStatus?.auth_enabled);
-  const tabs = $derived([
+  // $derived.by() statt $derived([...]) — vermeidet Reaktivitätsfehler mit Array-Referenzen
+  // (Svelte 5: $derived mit Array-Literal erzeugt bei jedem Re-render neue Referenz →
+  //  {#each} re-mountet Buttons → Event-Listener-Verlust → Tabs nicht klickbar)
+  const tabs = $derived.by(() => [
     { id: 'basic',         label: $t('settingsBasic') },
     // Integrationen nur wenn auth deaktiviert (single-user mode)
     ...(!authEnabled ? [{ id: 'integrations', label: $t('settingsIntegrations') }] : []),
-    // APIs-Tab entfernt — Keys sind jetzt in "Mein Bereich" unter Sub-Tabs organisiert
     { id: 'notifications', label: $t('settingsNotifications') },
     // Mein Bereich nur wenn auth aktiviert (pro User konfigurierbar)
     ...(authEnabled ? [{ id: 'myspace', label: $t('settingsMyspace') }] : []),
@@ -222,8 +224,11 @@
     ...($isAdmin && authEnabled ? [{ id: 'admin', label: $t('settingsAdmin') }] : []),
     { id: 'scheduler', label: '⏰ ' + ($t('settingsScheduler') || 'Scheduler') },
   ]);
-  // Sub-Tab-State für Mein Bereich
-  let myspaceTab = $state('integrations');
+  // Sub-Tab-State für Mein Bereich:
+  // 'connections' = Lokale Anbindungen (Dawarich + ActualBudget) — neuer Standard-Sub-Tab
+  // 'integrations' = Such-Engines (SerpAPI)
+  // 'ai'          = Smart Assistant (OpenAI / Gemini)
+  let myspaceTab = $state('connections');
 
   async function testConnection() {
     testing = true; testOk = null;
@@ -550,7 +555,7 @@
 
       {:else if activeTab === 'myspace'}
         {#if !$appStatus?.auth_enabled}
-          <!-- Auth deaktiviert: globale Integrationen werden genutzt -->
+          <!-- Auth deaktiviert -->
           <div class="rounded-xl p-4 border" style="background:rgba(42,92,69,.06);border-color:var(--ws-border)">
             <div class="text-sm font-semibold mb-1" style="color:var(--ws-green)">ℹ️ Auth ist deaktiviert</div>
             <p class="text-xs" style="color:var(--ws-muted)">
@@ -562,114 +567,120 @@
           </div>
           <hr style="border-color:var(--ws-border)"/>
         {/if}
-        <!-- Per-user settings: Dawarich + ActualBudget + Home coords -->
-        <div class="space-y-2">
-          <div class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">🧭 Dawarich</div>
-          <input bind:value={myDawarichUrl} placeholder="https://dawarich.example.com"
-            class="w-full px-3 py-2 rounded-xl border text-sm"
-            style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
-          <input bind:value={myDawarichToken} type="password" placeholder="API Token"
-            class="w-full px-3 py-2 rounded-xl border text-sm"
-            style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
-          <div class="flex gap-2">
-            <input bind:value={myHomeSearch} placeholder="Heimatort suchen (z.B. Bruneck)"
-              class="flex-1 px-3 py-2 rounded-xl border text-sm"
-              style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"
-              onkeydown={(e) => e.key === 'Enter' && geocodeHome()}/>
-            <button onclick={geocodeHome} disabled={myGeoLoading}
-              class="px-3 py-2 rounded-xl border text-sm transition-opacity hover:opacity-70 disabled:opacity-40"
-              style="border-color:var(--ws-border);color:var(--ws-muted)">
-              {myGeoLoading ? '⏳' : '📍'}
+
+        <!-- ── Sub-Tab-Navigation OBEN (direkt unter "Mein Bereich") ── -->
+        <div class="flex gap-1 p-1 rounded-xl" style="background:var(--ws-surface2)">
+          {#each [
+            {id:'connections', icon:'🔌', label:'Lokale Anbindungen'},
+            {id:'integrations',icon:'🔍', label:'Such-Engines'},
+            {id:'ai',          icon:'✨', label:'Smart Assistant'},
+          ] as st}
+            <button onclick={() => myspaceTab = st.id}
+              class="flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all"
+              style={myspaceTab === st.id
+                ? 'background:var(--ws-accent);color:#fff5ec'
+                : 'color:var(--ws-muted)'}>
+              {st.icon} {st.label}
             </button>
-          </div>
-          {#if myGeoResult}
-            <div class="text-xs px-1" style="color:{myGeoResult.startsWith('✓') ? 'var(--ws-green)' : '#dc2626'}">{myGeoResult}</div>
-          {/if}
-          <div class="grid grid-cols-2 gap-2">
-            <input bind:value={myHomeLat} placeholder="Lat: 46.7987" class="px-3 py-2 rounded-xl border text-sm"
-              style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
-            <input bind:value={myHomeLon} placeholder="Lon: 11.7188" class="px-3 py-2 rounded-xl border text-sm"
-              style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
-          </div>
-          <div class="text-xs" style="color:var(--ws-muted)">{$t('settingsHomeCoordsHint')}</div>
+          {/each}
         </div>
-        <hr style="border-color:var(--ws-border)"/>
-        <div class="space-y-2">
-          <div class="flex items-center gap-2 mb-1">
-            <span class="text-base">💶</span>
-            <div class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">ActualBudget</div>
-          </div>
-          <input bind:value={myActualUrl} placeholder="https://actual.example.com"
-            class="w-full px-3 py-2 rounded-xl border text-sm"
-            style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
-          <input bind:value={myActualToken} type="password" placeholder="Server Password"
-            class="w-full px-3 py-2 rounded-xl border text-sm"
-            style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
-          <input bind:value={myActualFile} placeholder="Budget-Dateiname (z.B. My-Finances-abc123)"
-            class="w-full px-3 py-2 rounded-xl border text-sm"
-            style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
-          <div class="text-xs" style="color:var(--ws-muted)">💡 Dateiname: ActualBudget → Budget-Name oben links anklicken → ID aus der URL entnehmen</div>
-          <input bind:value={myTravelCats} placeholder="Kategorien: Holiday, Flights, Hotel"
-            class="w-full px-3 py-2 rounded-xl border text-sm"
-            style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
-        </div>
-        <hr style="border-color:var(--ws-border)"/>
 
-        <!-- API-Kategorien: horizontale Top-Tab-Navigation -->
-        <div>
-          <div class="flex gap-1 mb-3 p-1 rounded-xl" style="background:var(--ws-surface2)">
-            {#each [{id:'integrations',icon:'🔍',label:'Such-Engines'},{id:'ai',icon:'✨',label:'Smart Assistant'}] as st}
-              <button onclick={() => myspaceTab = st.id}
-                class="flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all"
-                style={myspaceTab === st.id
-                  ? 'background:var(--ws-accent);color:#fff5ec'
-                  : 'color:var(--ws-muted)'}>
-                {st.icon} {st.label}
+        <!-- ── Sub-Tab-Inhalte ── -->
+
+        {#if myspaceTab === 'connections'}
+          <!-- 🔌 Lokale Anbindungen: Dawarich + ActualBudget -->
+          <div class="space-y-2 mt-1">
+            <div class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">🧭 Dawarich</div>
+            <input bind:value={myDawarichUrl} placeholder="https://dawarich.example.com"
+              class="w-full px-3 py-2 rounded-xl border text-sm"
+              style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
+            <input bind:value={myDawarichToken} type="password" placeholder="API Token"
+              class="w-full px-3 py-2 rounded-xl border text-sm"
+              style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
+            <div class="flex gap-2">
+              <input bind:value={myHomeSearch} placeholder="Heimatort suchen (z.B. Bruneck)"
+                class="flex-1 px-3 py-2 rounded-xl border text-sm"
+                style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"
+                onkeydown={(e) => e.key === 'Enter' && geocodeHome()}/>
+              <button onclick={geocodeHome} disabled={myGeoLoading}
+                class="px-3 py-2 rounded-xl border text-sm transition-opacity hover:opacity-70 disabled:opacity-40"
+                style="border-color:var(--ws-border);color:var(--ws-muted)">
+                {myGeoLoading ? '⏳' : '📍'}
               </button>
-            {/each}
+            </div>
+            {#if myGeoResult}
+              <div class="text-xs px-1" style="color:{myGeoResult.startsWith('✓') ? 'var(--ws-green)' : '#dc2626'}">{myGeoResult}</div>
+            {/if}
+            <div class="grid grid-cols-2 gap-2">
+              <input bind:value={myHomeLat} placeholder="Lat: 46.7987" class="px-3 py-2 rounded-xl border text-sm"
+                style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
+              <input bind:value={myHomeLon} placeholder="Lon: 11.7188" class="px-3 py-2 rounded-xl border text-sm"
+                style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
+            </div>
+            <div class="text-xs" style="color:var(--ws-muted)">{$t('settingsHomeCoordsHint')}</div>
+          </div>
+          <hr style="border-color:var(--ws-border)"/>
+          <div class="space-y-2">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-base">💶</span>
+              <div class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">ActualBudget</div>
+            </div>
+            <input bind:value={myActualUrl} placeholder="https://actual.example.com"
+              class="w-full px-3 py-2 rounded-xl border text-sm"
+              style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
+            <input bind:value={myActualToken} type="password" placeholder="Server Password"
+              class="w-full px-3 py-2 rounded-xl border text-sm"
+              style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
+            <input bind:value={myActualFile} placeholder="Budget-Dateiname (z.B. My-Finances-abc123)"
+              class="w-full px-3 py-2 rounded-xl border text-sm"
+              style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
+            <div class="text-xs" style="color:var(--ws-muted)">💡 Dateiname: ActualBudget → Budget-Name oben links anklicken → ID aus der URL entnehmen</div>
+            <input bind:value={myTravelCats} placeholder="Kategorien: Holiday, Flights, Hotel"
+              class="w-full px-3 py-2 rounded-xl border text-sm"
+              style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
           </div>
 
-          {#if myspaceTab === 'integrations'}
-            <!-- 🔍 Such-Engines -->
+        {:else if myspaceTab === 'integrations'}
+          <!-- 🔍 Such-Engines -->
+          <div class="space-y-2 mt-1">
+            <div class="text-xs" style="color:var(--ws-muted)">SerpAPI wird für Google Flights, Hotels &amp; Camping-Suche genutzt.</div>
+            <input bind:value={serpApiKey} type="password" placeholder="SerpAPI Key"
+              class="w-full px-3 py-2 rounded-xl border text-sm"
+              style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
+            <div class="text-xs" style="color:var(--ws-muted)">
+              Key generieren: <a href="https://serpapi.com/manage-api-key" target="_blank" rel="noopener" style="color:var(--ws-accent)">serpapi.com → API Key ↗</a>
+            </div>
+          </div>
+
+        {:else if myspaceTab === 'ai'}
+          <!-- ✨ Smart Assistant -->
+          <div class="space-y-3 mt-1">
             <div class="space-y-2">
-              <div class="text-xs" style="color:var(--ws-muted)">SerpAPI wird für Google Flights, Hotels &amp; Camping-Suche genutzt.</div>
-              <input bind:value={serpApiKey} type="password" placeholder="SerpAPI Key"
+              <div class="text-xs font-semibold" style="color:var(--ws-text)">OpenAI</div>
+              <div class="text-xs" style="color:var(--ws-muted)">KI-Reiseempfehlungen &amp; smarte Zusammenfassungen</div>
+              <input bind:value={openaiKey} type="password" placeholder="OpenAI Key (sk-…)"
                 class="w-full px-3 py-2 rounded-xl border text-sm"
                 style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
               <div class="text-xs" style="color:var(--ws-muted)">
-                Key generieren: <a href="https://serpapi.com/manage-api-key" target="_blank" rel="noopener" style="color:var(--ws-accent)">serpapi.com → API Key ↗</a>
+                Key: <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" style="color:var(--ws-accent)">platform.openai.com ↗</a>
               </div>
             </div>
-          {:else if myspaceTab === 'ai'}
-            <!-- ✨ Smart Assistant -->
-            <div class="space-y-3">
-              <div class="space-y-2">
-                <div class="text-xs font-semibold" style="color:var(--ws-text)">OpenAI</div>
-                <div class="text-xs" style="color:var(--ws-muted)">KI-Reiseempfehlungen &amp; smarte Zusammenfassungen</div>
-                <input bind:value={openaiKey} type="password" placeholder="OpenAI Key (sk-…)"
-                  class="w-full px-3 py-2 rounded-xl border text-sm"
-                  style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
-                <div class="text-xs" style="color:var(--ws-muted)">
-                  Key: <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" style="color:var(--ws-accent)">platform.openai.com ↗</a>
-                </div>
-              </div>
-              <div class="space-y-2">
-                <div class="text-xs font-semibold" style="color:var(--ws-text)">Google Gemini</div>
-                <div class="text-xs" style="color:var(--ws-muted)">Alternative KI-Engine</div>
-                <input bind:value={geminiKey} type="password" placeholder="Gemini Key (AIzaSy…)"
-                  class="w-full px-3 py-2 rounded-xl border text-sm"
-                  style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
-                <div class="text-xs" style="color:var(--ws-muted)">
-                  Key: <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" style="color:var(--ws-accent)">aistudio.google.com ↗</a>
-                </div>
+            <div class="space-y-2">
+              <div class="text-xs font-semibold" style="color:var(--ws-text)">Google Gemini</div>
+              <div class="text-xs" style="color:var(--ws-muted)">Alternative KI-Engine</div>
+              <input bind:value={geminiKey} type="password" placeholder="Gemini Key (AIzaSy…)"
+                class="w-full px-3 py-2 rounded-xl border text-sm"
+                style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
+              <div class="text-xs" style="color:var(--ws-muted)">
+                Key: <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" style="color:var(--ws-accent)">aistudio.google.com ↗</a>
               </div>
             </div>
-          {/if}
-        </div>
+          </div>
+        {/if}
 
-        <!-- Save button inline for myspace tab -->
+        <!-- Save button (immer sichtbar im myspace-Tab) -->
         <button onclick={saveUserSettings} disabled={mySettingsSaving}
-          class="w-full py-2.5 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80 disabled:opacity-50"
+          class="w-full py-2.5 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80 disabled:opacity-50 mt-2"
           style="background:linear-gradient(135deg,var(--ws-accent),#b84928);color:#fff5ec">
           {mySettingsSaving ? '⏳ Speichern…' : '💾 ' + $t('settingsSave')}
         </button>
@@ -835,4 +846,5 @@
 
   </div>
 {/if}
+
 
