@@ -5,8 +5,18 @@ import { browser } from '$app/environment';
 import de from '../locales/de.json';
 import en from '../locales/en.json';
 import it from '../locales/it.json';
+import es from '../locales/es.json';
 
-export const allLocales = { de, en, it };
+// Alle verfügbaren Locales — neue Sprache: JSON importieren + hier eintragen
+export const allLocales = { de, en, it, es };
+
+// Lesbare Namen für Dropdown-Labels
+export const localeLabels = {
+  de: 'DE 🇩🇪',
+  en: 'EN 🇬🇧',
+  it: 'IT 🇮🇹',
+  es: 'ES 🇪🇸',
+};
 
 // Reaktiver translations-Store
 export const translations = writable(allLocales[get(lang)] || de);
