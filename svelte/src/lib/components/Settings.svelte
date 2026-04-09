@@ -212,7 +212,7 @@
     { id: 'basic',         label: $t('settingsBasic') },
     // Integrationen nur wenn auth deaktiviert (single-user mode)
     ...(!authEnabled ? [{ id: 'integrations', label: $t('settingsIntegrations') }] : []),
-    { id: 'apis',          label: $t('settingsApis') },
+    // APIs-Tab entfernt — Keys sind jetzt in "Mein Bereich" unter Sub-Tabs organisiert
     { id: 'notifications', label: $t('settingsNotifications') },
     // Mein Bereich nur wenn auth aktiviert (pro User konfigurierbar)
     ...(authEnabled ? [{ id: 'myspace', label: $t('settingsMyspace') }] : []),
@@ -220,6 +220,8 @@
     ...($isAdmin && authEnabled ? [{ id: 'admin', label: $t('settingsAdmin') }] : []),
     { id: 'scheduler', label: '⏰ ' + ($t('settingsScheduler') || 'Scheduler') },
   ]);
+  // Sub-Tab-State für Mein Bereich
+  let myspaceTab = $state('integrations');
 
   async function testConnection() {
     testing = true; testOk = null;
@@ -518,20 +520,27 @@
       {:else if activeTab === 'notifications'}
         <div class="space-y-2">
           <div class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Telegram</div>
-          <input bind:value={telegramToken} type="password" placeholder="Bot Token"
+          <div class="text-xs rounded-lg px-3 py-2" style="background:rgba(var(--ws-accent-rgb,211,95,57),.08);color:var(--ws-muted)">
+            💡 <strong>Bot Token</strong>: Öffne <a href="https://t.me/BotFather" target="_blank" rel="noopener" style="color:var(--ws-accent)">@BotFather ↗</a> → /newbot → Token kopieren.<br/>
+            <strong>Chat ID</strong>: Schreib dem Bot, dann <a href="https://api.telegram.org/bot{DEIN_TOKEN}/getUpdates" target="_blank" rel="noopener" style="color:var(--ws-accent)">getUpdates aufrufen ↗</a> und <code>chat.id</code> entnehmen.
+          </div>
+          <input bind:value={telegramToken} type="password" placeholder="Bot Token (von @BotFather)"
             class="w-full px-3 py-2 rounded-xl border text-sm"
             style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
-          <input bind:value={telegramChat} placeholder="Chat ID"
+          <input bind:value={telegramChat} placeholder="Chat ID (z.B. 123456789)"
             class="w-full px-3 py-2 rounded-xl border text-sm"
             style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
         </div>
         <hr style="border-color:var(--ws-border)"/>
         <div class="space-y-2">
           <div class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Gotify</div>
+          <div class="text-xs rounded-lg px-3 py-2" style="background:rgba(var(--ws-accent-rgb,211,95,57),.08);color:var(--ws-muted)">
+            💡 <strong>App Token</strong>: Gotify öffnen → Apps → Neue App anlegen → Token aus App-Details kopieren.
+          </div>
           <input bind:value={gotifyUrl} placeholder="https://gotify.example.com"
             class="w-full px-3 py-2 rounded-xl border text-sm"
             style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
-          <input bind:value={gotifyToken} type="password" placeholder="App Token"
+          <input bind:value={gotifyToken} type="password" placeholder="App Token (aus Gotify Apps)"
             class="w-full px-3 py-2 rounded-xl border text-sm"
             style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
         </div>
@@ -603,41 +612,56 @@
         </div>
         <hr style="border-color:var(--ws-border)"/>
 
-        <!-- 🔍 Such-Engines -->
-        <div class="space-y-2">
-          <div class="flex items-center gap-2 mb-1">
-            <span class="text-base">🔍</span>
-            <div class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Such-Engines</div>
+        <!-- API-Kategorien: horizontale Top-Tab-Navigation -->
+        <div>
+          <div class="flex gap-1 mb-3 p-1 rounded-xl" style="background:var(--ws-surface2)">
+            {#each [{id:'integrations',icon:'🔍',label:'Such-Engines'},{id:'ai',icon:'✨',label:'Smart Assistant'}] as st}
+              <button onclick={() => myspaceTab = st.id}
+                class="flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                style={myspaceTab === st.id
+                  ? 'background:var(--ws-accent);color:#fff5ec'
+                  : 'color:var(--ws-muted)'}>
+                {st.icon} {st.label}
+              </button>
+            {/each}
           </div>
-          <div class="text-xs mb-2" style="color:var(--ws-muted)">SerpAPI — wird für Google Flights, Hotels &amp; Booking genutzt</div>
-          <input bind:value={serpApiKey} type="password" placeholder="SerpAPI Key"
-            class="w-full px-3 py-2 rounded-xl border text-sm"
-            style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
-          <div class="text-xs" style="color:var(--ws-muted)">
-            Key holen: <a href="https://serpapi.com/manage-api-key" target="_blank" rel="noopener" style="color:var(--ws-accent)">serpapi.com ↗</a>
-          </div>
-        </div>
 
-        <hr style="border-color:var(--ws-border)"/>
-
-        <!-- ✨ Smart Assistant & Automatisierung -->
-        <div class="space-y-2">
-          <div class="flex items-center gap-2 mb-1">
-            <span class="text-base">✨</span>
-            <div class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Smart Assistant &amp; Automatisierung</div>
-          </div>
-          <div class="text-xs mb-1" style="color:var(--ws-muted)">OpenAI — KI-Reiseempfehlungen &amp; smarte Zusammenfassungen</div>
-          <input bind:value={openaiKey} type="password" placeholder="OpenAI Key (sk-…)"
-            class="w-full px-3 py-2 rounded-xl border text-sm"
-            style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
-          <div class="text-xs mt-1 mb-1" style="color:var(--ws-muted)">Google Gemini — Alternative für KI-Features</div>
-          <input bind:value={geminiKey} type="password" placeholder="Gemini Key (AIzaSy…)"
-            class="w-full px-3 py-2 rounded-xl border text-sm"
-            style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
-          <div class="text-xs" style="color:var(--ws-muted)">
-            Keys: <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" style="color:var(--ws-accent)">OpenAI ↗</a>
-            · <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" style="color:var(--ws-accent)">Gemini ↗</a>
-          </div>
+          {#if myspaceTab === 'integrations'}
+            <!-- 🔍 Such-Engines -->
+            <div class="space-y-2">
+              <div class="text-xs" style="color:var(--ws-muted)">SerpAPI wird für Google Flights, Hotels &amp; Camping-Suche genutzt.</div>
+              <input bind:value={serpApiKey} type="password" placeholder="SerpAPI Key"
+                class="w-full px-3 py-2 rounded-xl border text-sm"
+                style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
+              <div class="text-xs" style="color:var(--ws-muted)">
+                Key generieren: <a href="https://serpapi.com/manage-api-key" target="_blank" rel="noopener" style="color:var(--ws-accent)">serpapi.com → API Key ↗</a>
+              </div>
+            </div>
+          {:else if myspaceTab === 'ai'}
+            <!-- ✨ Smart Assistant -->
+            <div class="space-y-3">
+              <div class="space-y-2">
+                <div class="text-xs font-semibold" style="color:var(--ws-text)">OpenAI</div>
+                <div class="text-xs" style="color:var(--ws-muted)">KI-Reiseempfehlungen &amp; smarte Zusammenfassungen</div>
+                <input bind:value={openaiKey} type="password" placeholder="OpenAI Key (sk-…)"
+                  class="w-full px-3 py-2 rounded-xl border text-sm"
+                  style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
+                <div class="text-xs" style="color:var(--ws-muted)">
+                  Key: <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" style="color:var(--ws-accent)">platform.openai.com ↗</a>
+                </div>
+              </div>
+              <div class="space-y-2">
+                <div class="text-xs font-semibold" style="color:var(--ws-text)">Google Gemini</div>
+                <div class="text-xs" style="color:var(--ws-muted)">Alternative KI-Engine</div>
+                <input bind:value={geminiKey} type="password" placeholder="Gemini Key (AIzaSy…)"
+                  class="w-full px-3 py-2 rounded-xl border text-sm"
+                  style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
+                <div class="text-xs" style="color:var(--ws-muted)">
+                  Key: <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" style="color:var(--ws-accent)">aistudio.google.com ↗</a>
+                </div>
+              </div>
+            </div>
+          {/if}
         </div>
 
         <!-- Save button inline for myspace tab -->
