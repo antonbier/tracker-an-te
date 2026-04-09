@@ -1,12 +1,12 @@
-OK: No more $t/$apiUrl in script block
-get(t)() calls: 12
-  L225: if (flSeatCost > 0) parts.push(get(t)('radarSeatBadge').replace('{n}', flSeatCos
-  L274: if (!get(apiUrl)) { toast(get(t)('radarNoBackend'), 'warning'); return; }
-  L336: if (searchResults.length === 0 && !res.missing_api_keys?.length) toast(get(t)('r
-  L350: if (!get(apiUrl)) { toast(get(t)('radarNoBackend'), 'warning'); return; }
-  L434: toast(get(t)('radarTrackerSaved'), 'success');
-Written: 1685 lines
-��─
+OK, lines: 1674
+t { onMount } from 'svelte';
+  import { api } from '$lib/api.js';
+    import { get } from 'svelte/store';
+  import { apiUrl } from '$lib/stores.js';
+  import { toast } from '$lib/toast.js';
+  import { t } from '$lib/i18n.js';
+
+  // ── Category tabs ─────────────────────────────────────────────────────────
   let activeCategory = $state('flights');
 
   // Kategorie-IDs — Labels+Icons im Template, kein Emoji im Script (Svelte-5 Parser-Bug)
@@ -216,14 +216,14 @@ Written: 1685 lines
   );
   const flTotalPax = $derived(flAdults + flChildren);
   // Gesamtpreis-Aufschlag (ohne Flugpreis) für Preview-Badge
-  function flExtrasLabel() {
+  const flExtrasLabel = $derived(() => {
     const parts = [];
     if (fl10kg > 0)     parts.push(fl10kg + '× 10kg');
     if (fl20kg > 0)     parts.push(fl20kg + '× 20kg');
     if (fl23kg > 0)     parts.push(fl23kg + '× 23kg');
     if (flSeatCost > 0) parts.push(get(t)('radarSeatBadge').replace('{n}', flSeatCost));
     return parts.join(' · ');
-  }
+  });
 
   // ── Hotels form ───────────────────────────────────────────────────────────
   let htCity     = $state('');
@@ -260,16 +260,17 @@ Written: 1685 lines
   let savingTracker = $state(null); // tracker id being saved
 
   // Provider chips derived from results
-  function providerChips() {
-    return ['all', ...new Set(searchResults.map(r => r.provider))];
-  }
+  const providerChips = $derived(() => {
+    const providers = ['all', ...new Set(searchResults.map(r => r.provider))];
+    return providers;
+  });
 
-  function filteredResults() {
+  const filteredResults = $derived(() => {
     if (activeProviderFilter === 'all') return searchResults;
     return searchResults.filter(r => r.provider === activeProviderFilter);
-  }
+  });
 
-async function doSearch() {
+  async function doSearch() {
     if (!get(apiUrl)) { toast(get(t)('radarNoBackend'), 'warning'); return; }
     searching = true;
     searchResults = [];
@@ -1670,7 +1671,6 @@ async function doSearch() {
   </div>
 
 </div>
-
 
 
 
