@@ -226,18 +226,17 @@
     return TAB_IDS_NOAUTH;
   });
 
-  function tabLabel(id) {
-    const labels = {
-      basic:         $t('settingsBasic'),
-      integrations:  $t('settingsIntegrations'),
-      notifications: $t('settingsNotifications'),
-      myspace:       $t('settingsMyspace'),
-      account:       $t('settingsAccount'),
-      admin:         $t('settingsAdmin'),
-      scheduler:     '⏰ ' + ($t('settingsScheduler') || 'Scheduler'),
-    };
-    return labels[id] || id;
-  }
+  // tabLabels als $derived — $t() muss im reaktiven Kontext stehen
+  // In einer plain function wäre $t das Store-Objekt, nicht der String-Wert
+  const tabLabels = $derived({
+    basic:         $t('settingsBasic'),
+    integrations:  $t('settingsIntegrations'),
+    notifications: $t('settingsNotifications'),
+    myspace:       $t('settingsMyspace'),
+    account:       $t('settingsAccount'),
+    admin:         $t('settingsAdmin'),
+    scheduler:     '⏰ ' + ($t('settingsScheduler') || 'Scheduler'),
+  });
   // Sub-Tab-State für Mein Bereich:
   // 'connections' = Lokale Anbindungen (Dawarich + ActualBudget) — neuer Standard-Sub-Tab
   // 'integrations' = Such-Engines (SerpAPI)
@@ -398,7 +397,7 @@
           style={activeTab === tabId
             ? 'color:var(--ws-accent);border-bottom:2px solid var(--ws-accent)'
             : 'color:var(--ws-muted)'}>
-          {tabLabel(tabId)}
+          {tabLabels[tabId] ?? tabId}
         </button>
       {/each}
     </div>
