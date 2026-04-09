@@ -1426,4 +1426,25 @@ Gilt für alle 4 Provider: Ryanair, Google Flights, Homair, Booking.
 - Geplante Reisen (plannedTrips): komplett von Karte entfernt (`planned = []`)
 - Bucket-Ziele: unveraendert (jahresunabhaengig, mit Geocoding)
 - Jahresfilter bleibt: `.filter(t => t.start_date.slice(0,4) === selectedYear)`
+---
+
+## RC Step 3 (Session 2025-04-09) — Tracker UI & Desktop Layout
+
+### S3-1 — Buchen-Button in aktiven Tracker-Karten (PriceRadar.svelte)
+**Vorher**: `Buchen ↗` Button nur in Suchergebnissen und versteckt in Action-Row unten.
+**Nachher**: Button sitzt **prominent im Karten-Header** rechts neben Provider-Badge:
+```
+[✈️ Ryanair]              [🎯 Ziel erreicht!]  [Buchen ↗]
+```
+- Nur sichtbar wenn `tr.booking_url` vorhanden (analog Suchergebnisse)
+- Style: `var(--ws-accent)` Background, `#fff5ec` Text — konsistent mit Rest
+- Duplizierter Button aus Action-Row entfernt
+
+### S3-2 — Desktop CSS-Grid fix (PriceRadar.svelte)
+**Vorher**: Karten hatten `height:auto` → unterschiedliche Hoehen in einer Reihe.
+**Nachher**: Sauberes gleichmaessiges Grid:
+- Grid-Container: `items-stretch` hinzugefuegt
+- Tracker-Karte: `h-full` hinzugefuegt
+- Karten umbrechen synchron, gleiche Hoehe pro Zeile, gleiche Abstaende
+- Layout: `grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch`
 
