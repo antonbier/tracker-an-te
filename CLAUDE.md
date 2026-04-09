@@ -1447,4 +1447,49 @@ Gilt für alle 4 Provider: Ryanair, Google Flights, Homair, Booking.
 - Tracker-Karte: `h-full` hinzugefuegt
 - Karten umbrechen synchron, gleiche Hoehe pro Zeile, gleiche Abstaende
 - Layout: `grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch`
+---
+
+## RC Step 4 (Session 2025-04-09) — i18n Refactoring
+
+### S4-1 — Neue Locale-Keys (de.json / en.json / it.json)
+10 neue Keys in allen 3 Sprachen:
+
+| Key | DE | EN | IT |
+|---|---|---|---|
+| `radarBaggageSeat` | Gepäck & Sitzplätze | Baggage & Seats | Bagaglio & Posti |
+| `radarTimesStops` | Zeiten & Stopps | Times & Stops | Orari & Scali |
+| `radarRefreshAll` | Alle aktualisieren | Refresh all | Aggiorna tutto |
+| `radarRefreshing` | Aktualisierung läuft… | Updating… | Aggiornamento… |
+| `radarSet` | setzen | set | imposta |
+| `radarAdultsShort` | Erw. | Ad. | Ad. |
+| `radarSeatBadge` | 💺 Sitz {n}€/P | 💺 Seat {n}€/p | 💺 Posto {n}€/p |
+| `radarPerNight` | €/Nacht | €/night | €/notte |
+| `night` | Nacht | night | notte |
+| `nights` | Nächte | nights | notti |
+
+`radarSeatBadge` enthält `{n}` als Platzhalter → wird via `.replace('{n}', value)` befüllt.
+
+### S4-2 — allLocales als named export (i18n.js)
+`const allLocales` → `export const allLocales`
+Ermöglicht dynamischen Zugriff auf verfügbare Sprachen ohne Duplizierung.
+
+### S4-3 — Dynamischer Lang-Dropdown (Header.svelte)
+- Import: `allLocales` aus `$lib/i18n.js` ergänzt
+- Vorher: `{#each ['de','it','en'] as l}` — hardcodiertes Array
+- Nachher: `{#each Object.keys(allLocales) as l}` — automatisch aus Locale-Map
+- Neue Sprache hinzufügen: nur `de/en/it.json` Schema in neuem `xx.json` → `i18n.js` import → fertig
+
+### S4-4 — PriceRadar.svelte: 9 hardcodierte Strings → $t()
+- `'Sitz ' + n + '€/P'` → `$t('radarSeatBadge').replace('{n}', n)`
+- `tr.adults + ' Erw.'` → `tr.adults + ' ' + $t('radarAdultsShort')`
+- `` `💺 Sitz ${n}€/P` `` (2x) → `$t('radarSeatBadge').replace('{n}', n)`
+- `🧳 Gepäck & Sitzplätze` → `$t('radarBaggageSeat')`
+- `⏱️ Zeiten & Stopps` → `$t('radarTimesStops')`
+- `€/Nacht` (2x, Suchergebnisse + Tracker) → `$t('radarPerNight')`
+- `🔄 Alle aktualisieren` / `⏳ Aktualisierung läuft…` → `$t('radarRefreshAll')` / `$t('radarRefreshing')`
+- `✏️ setzen` → `$t('radarSet')`
+
+### S4-5 — Dashboard.svelte / MyTrips.svelte / Journal.svelte
+- Dashboard: `'✓ setzen'` → `'✓ ' + $t('radarSet')`
+- MyTrips + Journal: `trip.nights===1?'Nacht':'Nächte'` → `$t('night')`/`$t('nights')`
 
