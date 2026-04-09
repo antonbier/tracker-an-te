@@ -97,11 +97,32 @@
     <p class="text-sm mt-0.5" style="color:var(--ws-muted)">{$t('dashSubtitle')}</p>
   </div>
 
-  <div class="grid grid-cols-3 gap-3">
+  <!-- Primäre JAHRESBUDGET-Kachel mit Eingabefeld -->
+  <div class="rounded-xl p-4 border" style="background:var(--ws-surface);border-color:var(--ws-border)">
+    <div class="text-xs font-bold tracking-widest uppercase mb-2" style="color:var(--ws-muted)">📅 Jahresbudget {currentYear}</div>
+    <div class="text-2xl font-bold mb-3" style="color:var(--ws-accent2);font-family:var(--ws-serif)">{totalBudget > 0 ? totalBudget.toFixed(2) + ' €' : '–'}</div>
+    <div class="flex gap-2">
+      <input
+        type="number"
+        bind:value={budgetInput}
+        placeholder="Budget für {currentYear} festlegen (€)"
+        class="flex-1 min-w-0 px-3 py-2 rounded-lg border text-sm"
+        style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"
+        onkeydown={(e) => e.key === 'Enter' && saveBudget()}
+      />
+      <button onclick={saveBudget} disabled={budgetSaving}
+        class="px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
+        style="background:var(--ws-accent);color:#fff5ec">
+        {budgetSaving ? '⏳' : '✓ setzen'}
+      </button>
+    </div>
+  </div>
+
+  <!-- 2 Stats-Kacheln: Ausgaben + Verfügbar -->
+  <div class="grid grid-cols-2 gap-3">
     {#each [
-      { labelKey:'dashActiveTrackers', value:activeTrackers.length,                                      color:'var(--ws-accent)' },
-      { labelKey:'dashBudget',         value:totalBudget>0?totalBudget.toFixed(0)+' €':'–',              color:'var(--ws-accent2)' },
-      { labelKey:'dashRemaining',      value:totalBudget>0?remaining.toFixed(0)+' €':'–',               color:'var(--ws-green)' },
+      { labelKey:'dashActiveTrackers', value:activeTrackers.length, color:'var(--ws-accent)' },
+      { labelKey:'dashRemaining',      value:totalBudget>0?remaining.toFixed(0)+' €':'–', color:'var(--ws-green)' },
     ] as s}
       <div class="rounded-xl p-3 border" style="background:var(--ws-surface);border-color:var(--ws-border)">
         <div class="text-xs font-bold tracking-widest uppercase mb-1" style="color:var(--ws-muted)">{$t(s.labelKey)}</div>
@@ -134,22 +155,7 @@
           {/each}
         </div>
       </div>
-      <!-- Inline budget input -->
-      <div class="flex gap-2 mt-3 pt-3 border-t" style="border-color:var(--ws-border)">
-        <input
-          type="number"
-          bind:value={budgetInput}
-          placeholder="{currentYear} Budget (€)"
-          class="flex-1 min-w-0 px-3 py-1.5 rounded-lg border text-xs"
-          style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"
-          onkeydown={(e) => e.key === 'Enter' && saveBudget()}
-        />
-        <button onclick={saveBudget} disabled={budgetSaving}
-          class="px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-50"
-          style="background:var(--ws-accent);color:#fff5ec">
-          {budgetSaving ? '⏳' : '✓'}
-        </button>
-      </div>
+
     </div>
 
     <div class="rounded-xl p-4 border" style="background:var(--ws-surface);border-color:var(--ws-border)">
