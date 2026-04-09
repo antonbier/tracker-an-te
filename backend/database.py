@@ -242,6 +242,15 @@ def init_db():
                 created_at     TEXT    NOT NULL
             );
 
+            -- Flight provider configuration (enabled/disabled + API keys)
+            CREATE TABLE IF NOT EXISTS provider_configs (
+                name       TEXT PRIMARY KEY,
+                enabled    INTEGER NOT NULL DEFAULT 0,
+                api_key    TEXT    DEFAULT NULL,
+                test_mode  INTEGER NOT NULL DEFAULT 0,
+                updated_at TEXT    NOT NULL DEFAULT (datetime('now'))
+            );
+
             -- Per-user data (trips list, budget, bucketlist)
             CREATE TABLE IF NOT EXISTS user_data (
                 user_id    INTEGER NOT NULL DEFAULT 1,
@@ -251,6 +260,9 @@ def init_db():
                 PRIMARY KEY (user_id, key)
             );
         """)
+
+        # ── Seed default provider configs (idempotent) ────────────────────
+        _seed_provider_configs(conn)
 
         # ── Safe migrations (idempotent ALTER TABLE) ──────────────────────────
         migrations = [
@@ -1153,3 +1165,60 @@ def save_user_notification_settings(user_id: int, settings: dict, fernet) -> Non
             _enc(settings.get("gotify_url",          "")),
             _enc(settings.get("gotify_app_token",    "")),
         ))
+
+# ── Provider config functions ──────────────────────────────────────────────
+
+_DEFAULT_PROVIDERS = [
+    # name               enabled  test_mode
+    ("ryanair_native",   1,       0),   # No key needed, on by default
+    ("google_flights",   1,       0),   # Uses global serpapi_key
+    ("kiwi",             0,       0),   # Requires kiwi_api_key
+    ("duffel",           0,       1),   # Test mode by default
+]
+
+
+def _seed_provider_configs(conn) -> None:
+    """Insert default provider rows if they don't exist yet (idempotent)."""
+    for name, enabled, test_mode in _DEFAULT_PROVIDERS:
+        existing = conn.execute(
+            "SELECT name FROM provider_configs WHERE name=?", (name,)
+        ).fetchone()
+        if not existing:
+            conn.execute(
+                """INSERT INTO provider_configs (name, enabled, test_mode, updated_at)
+                   VALUES (?, ?, ?, datetime('now'))""",
+                (name, enabled, test_mode),
+            )
+    conn.commit()
+
+
+def get_provider_configs() -> list[dict]:
+    """Return all provider configs (name, enabled, api_key, test_mode)."""
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT name, enabled, api_key, test_mode FROM provider_configs ORDER BY name"
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def save_provider_config(name: str, enabled: bool, api_key: str | None = None, test_mode: bool = False) -> None:
+    """Upsert a single provider config."""
+    with db() as conn:
+        existing = conn.execute(
+            "SELECT name FROM provider_configs WHERE name=?", (name,)
+        ).fetchone()
+        if existing:
+            conn.execute(
+                """UPDATE provider_configs
+                   SET enabled=?, api_key=COALESCE(?, api_key), test_mode=?, updated_at=datetime('now')
+                   WHERE name=?""",
+                (1 if enabled else 0, api_key if api_key and api_key != "••••••••" else None,
+                 1 if test_mode else 0, name),
+            )
+        else:
+            conn.execute(
+                """INSERT INTO provider_configs (name, enabled, api_key, test_mode, updated_at)
+                   VALUES (?, ?, ?, ?, datetime('now'))""",
+                (name, 1 if enabled else 0, api_key, 1 if test_mode else 0),
+            )
+
