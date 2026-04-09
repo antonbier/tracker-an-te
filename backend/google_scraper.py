@@ -1,3 +1,4 @@
+"""
 — Google Flights Scraper
 SerpAPI Google Flights endpoint — returns airline, flight number,
 departure/arrival times, and duration.
