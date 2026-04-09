@@ -8,6 +8,18 @@
 
   let { open = $bindable(false) } = $props();
 
+  // ── Datumsformat-Helper ─────────────────────────────────────────────────────
+  function fmtDate(iso) {
+    if (!iso) return '–';
+    const parts = String(iso).slice(0, 10).split('-');
+    if (parts.length !== 3) return iso;
+    const [yyyy, mm, dd] = parts;
+    const fmt = typeof localStorage !== 'undefined' ? (localStorage.getItem('ws-date-format') || 'DD.MM.YYYY') : 'DD.MM.YYYY';
+    if (fmt === 'MM/DD/YYYY') return `${mm}/${dd}/${yyyy}`;
+    if (fmt === 'YYYY-MM-DD') return `${yyyy}-${mm}-${dd}`;
+    return `${dd}.${mm}.${yyyy}`;
+  }
+
   let activeTab = $state('basic');
   let urlInput  = $state('');
   let testing   = $state(false);
@@ -761,7 +773,7 @@
 
           {#if schedLastRun}
             <p class="text-xs px-3 py-1.5 rounded-lg" style="background:var(--ws-surface2);color:var(--ws-muted)">
-              Letzter Lauf: {schedLastRun.slice(0,16).replace('T',' ')} UTC
+              Letzter Lauf: {schedLastRun.slice(0,16).replace('T',' ')} {schedTimezone || 'UTC'}
             </p>
           {/if}
 
