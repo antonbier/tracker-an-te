@@ -98,7 +98,7 @@
     geocoding = false;
 
     const allMarkers = [...visited, ...planned, ...bucket];
-    debugInfo = `${visited.length} besucht · ${planned.length} geplant · ${bucket.length} wunsch`;
+    debugInfo = `${visited.length} besucht`;
 
     map = new jsVMClass({
       selector: mapEl,
@@ -193,11 +193,7 @@
       <span class="flex items-center gap-1.5" style="color:var(--ws-text)">
         <span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#2d6a4f"></span>Besucht
       </span>
-      {#if debugInfo}
-        <span class="ml-1" style="color:var(--ws-muted)">{debugInfo}</span>
-      {/if}
+
     </div>
   {/if}
 </div>
-
-
