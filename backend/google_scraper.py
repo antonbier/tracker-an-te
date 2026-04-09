@@ -1,5 +1,5 @@
-"""
-WanderSuite — Google Flights Scraper
+OK, lines: 179
+ — Google Flights Scraper
 SerpAPI Google Flights endpoint — returns airline, flight number,
 departure/arrival times, and duration.
 Free plan: 100 searches/month (shared with Booking scraper).
@@ -77,21 +77,23 @@ def fetch_google_flights(tracker: dict, api_key: str) -> dict:
     logger.info(f"✅ [GF] {outbound_details.get('airline','?')} | {outbound_details.get('departure_time','?')} → {outbound_details.get('arrival_time','?')} | {total} EUR")
 
     return {"status": "ok", "snapshot": {
-        "fetched_at":      datetime.utcnow().isoformat(),
-        "flight_price":    round(total, 2),
-        "baggage_price":   0.0,
-        "seat_price":      0.0,
-        "total_price":     total,
-        "outbound_flight": outbound_details.get("flight_number", ""),
-        "return_flight":   return_details.get("flight_number", "") if return_details else None,
-        "airline":         outbound_details.get("airline", ""),
-        "departure_time":  outbound_details.get("departure_time", ""),
-        "arrival_time":    outbound_details.get("arrival_time", ""),
-        "duration_min":    outbound_details.get("duration_min", 0),
-        "currency":        "EUR",
-        "baggage_fallback": False,
-        "status":          "ok",
-        "source":          "google_flights",
+        "fetched_at":        datetime.utcnow().isoformat(),
+        "flight_price":      round(total, 2),
+        "baggage_price":     0.0,
+        "seat_price":        0.0,
+        "total_price":       total,
+        "outbound_flight":   outbound_details.get("flight_number", ""),
+        "return_flight":     return_details.get("flight_number", "") if return_details else None,
+        "airline":           outbound_details.get("airline", ""),
+        "departure_time":    outbound_details.get("departure_time", ""),
+        "arrival_time":      outbound_details.get("arrival_time", ""),
+        "duration_min":      outbound_details.get("duration_min", 0),
+        "stops":             outbound_details.get("stops", 0),
+        "layover_airports":  outbound_details.get("layover_airports", []),
+        "currency":          "EUR",
+        "baggage_fallback":  False,
+        "status":            "ok",
+        "source":            "google_flights",
     }}
 
 
@@ -145,6 +147,7 @@ def _search_flight(origin, destination, date, adults, children, trip_type, api_k
         dep_airport = first_leg.get("departure_airport", {})
         arr_airport = last_leg.get("arrival_airport", {})
 
+        legs_count = len(fg.get("flights", []))
         best = {
             "price":          price,
             "flight_number":  _fmt_flight_number(first_leg.get("flight_number", "")),
@@ -152,6 +155,13 @@ def _search_flight(origin, destination, date, adults, children, trip_type, api_k
             "departure_time": _parse_serpapi_time(dep_airport.get("time", "")),
             "arrival_time":   _parse_serpapi_time(arr_airport.get("time", "")),
             "duration_min":   fg.get("total_duration", 0),
+            "stops":          max(legs_count - 1, 0),
+            # Layover details: intermediate airports for stops badge
+            "layover_airports": [
+                leg.get("departure_airport", {}).get("id", "")
+                for leg in fg.get("flights", [])[1:]
+                if leg.get("departure_airport", {}).get("id")
+            ],
         }
 
     if not best:
@@ -165,4 +175,5 @@ def _error_snap(msg):
         "status": "error", "error_message": msg,
         "fetched_at": datetime.utcnow().isoformat(),
     }}
+
 
