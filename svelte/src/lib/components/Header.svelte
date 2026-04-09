@@ -1,6 +1,6 @@
 <script>
   import { isDark, lang, appVersion } from '$lib/stores.js';
-  import { setLang } from '$lib/i18n.js';
+  import { setLang, allLocales } from '$lib/i18n.js';
   let { onFieldGuide, onSettings, onToggleDark } = $props();
 </script>
 
@@ -22,10 +22,10 @@
   </div>
 
   <div class="flex items-center gap-2">
-    <!-- Lang switcher -->
+    <!-- Lang switcher — dynamisch aus allLocales -->
     <div class="flex gap-0.5 rounded-lg p-0.5 border text-xs font-bold"
       style="background:var(--ws-surface2);border-color:var(--ws-border)">
-      {#each ['de','it','en'] as l}
+      {#each Object.keys(allLocales) as l}
         <button
           onclick={() => setLang(l)}
           class="px-2 py-1 rounded-md transition-all uppercase"
