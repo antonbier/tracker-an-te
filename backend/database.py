@@ -1,4 +1,3 @@
-OK, lines: 1150
 — Database Layer (Multi-User)
 SQLite via sqlite3. All content tables have user_id.
 
