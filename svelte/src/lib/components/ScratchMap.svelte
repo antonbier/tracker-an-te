@@ -1,5 +1,5 @@
-<script>
-  import { onMount, onDestroy } from 'svelte';
+OK, lines: 202
+rt { onMount, onDestroy } from 'svelte';
   import { bucketlist, apiUrl } from '$lib/stores.js';
   import { api } from '$lib/api.js';
 
@@ -192,16 +192,11 @@
       <span class="flex items-center gap-1.5" style="color:var(--ws-text)">
         <span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#2d6a4f"></span>Besucht
       </span>
-      <span class="flex items-center gap-1.5" style="color:var(--ws-text)">
-        <span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#2563eb"></span>Geplant
-      </span>
-      <span class="flex items-center gap-1.5" style="color:var(--ws-text)">
-        <span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#c4622d"></span>Wunschziel
-      </span>
       {#if debugInfo}
         <span class="ml-1" style="color:var(--ws-muted)">{debugInfo}</span>
       {/if}
     </div>
   {/if}
 </div>
+
 
