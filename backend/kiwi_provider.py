@@ -42,8 +42,7 @@ async def search(params: FlightSearchParams, cfg: dict) -> list[dict]:
             "limit":           10,
             "sort":            "price",
             "asc":             1,
-            "one_for_city":    0,  # 0 = mehrere Flüge pro Tag
-            "flight_type":     "round" if params.return_date else "oneway",
+            "one_per_date":    0,  # 0 = mehrere Flüge pro Tag (Kiwi v2 korrekte param)
         }
 
         # Kiwi date format: DD/MM/YYYY
@@ -75,8 +74,8 @@ async def search(params: FlightSearchParams, cfg: dict) -> list[dict]:
 
         async with httpx.AsyncClient(timeout=TIMEOUT) as client:
             resp = await client.get(f"{BASE_URL}/v2/search", params=req_params, headers=headers)
-            if resp.status_code == 401:
-                logger.error("[KIWI] status=unauthorized | invalid api_key")
+            if resp.status_code in (401, 403):
+                logger.error(f"[KIWI] status=unauthorized | http={resp.status_code} | {resp.text[:100]}")
                 return [{"_api_key_missing": True, "provider": "Kiwi"}]
             resp.raise_for_status()
             data = resp.json()
@@ -98,10 +97,14 @@ async def search(params: FlightSearchParams, cfg: dict) -> list[dict]:
 
             dep_time = _fmt_time(first_leg.get("local_departure", ""))
             arr_time = _fmt_time(last_leg.get("local_arrival", ""))
-            airline  = first_leg.get("airline", "")
-            flight_num = f"{first_leg.get('airline', '')}{first_leg.get('flight_no', '')}".strip()
+            # Kiwi: "airline" = IATA code (e.g. "FR"), "airline_name" = full name
+            airline_code = first_leg.get("airline", "")
+            airline      = first_leg.get("airline_name", "") or airline_code
+            flight_num   = f"{airline_code}{first_leg.get('flight_no', '')}".strip()
             n_stops  = max(len(route) - 1, 0)
-            duration_min = fl.get("duration", {}).get("departure", 0) // 60 if fl.get("duration") else None
+            # Kiwi: duration.departure is in SECONDS
+            _dur_raw = fl.get("duration", {}).get("departure") if fl.get("duration") else None
+            duration_min = int(_dur_raw // 60) if _dur_raw else None
 
             # Layover airports (intermediate stops)
             lay_airports = [
@@ -177,3 +180,4 @@ def _fmt_time(iso: str) -> str:
         if " " in iso: return iso.split(" ")[1][:5]
     except Exception: pass
     return ""
+
