@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from typing import Optional
 import requests, logging
 
+from database import get_provider_configs, save_provider_config
 from settings_manager import (
     save_settings_bulk, get_settings_all, get_setting_value,
     save_user_settings_bulk, get_user_settings_all, get_user_setting_value,
@@ -116,6 +117,61 @@ def geocode_place(
         raise HTTPException(503, f"Geocoding nicht erreichbar: {e}")
 
 
+
+# ── Provider configs (flight search provider management) ──────────────────
+
+class ProviderConfigItem(BaseModel):
+    name:      str
+    enabled:   bool
+    api_key:   Optional[str] = None
+    test_mode: bool = False
+
+
+class ProviderConfigsPayload(BaseModel):
+    providers: list[ProviderConfigItem]
+
+
+_PROVIDER_LABELS = {
+    "ryanair_native": {"label": "Ryanair (Native)",  "icon": "🟠", "key_required": False},
+    "google_flights":  {"label": "Google Flights",    "icon": "🔵", "key_required": True},
+    "kiwi":            {"label": "Kiwi Tequila",      "icon": "🟢", "key_required": True},
+    "duffel":          {"label": "Duffel",            "icon": "🟣", "key_required": True},
+}
+
+
+@router.get("/providers")
+def get_providers(user: dict = Depends(get_current_user)):
+    """Return all provider configs with labels for UI rendering."""
+    configs = get_provider_configs()
+    result = []
+    for cfg in configs:
+        meta = _PROVIDER_LABELS.get(cfg["name"], {"label": cfg["name"], "icon": "⚙️", "key_required": True})
+        result.append({
+            "name":         cfg["name"],
+            "label":        meta["label"],
+            "icon":         meta["icon"],
+            "key_required": meta["key_required"],
+            "enabled":      bool(cfg["enabled"]),
+            "has_key":      bool(cfg.get("api_key")),
+            "test_mode":    bool(cfg["test_mode"]),
+        })
+    return result
+
+
+@router.put("/providers")
+def update_providers(data: ProviderConfigsPayload, user: dict = Depends(get_current_user)):
+    """Update enabled state, api_key and test_mode per provider."""
+    for item in data.providers:
+        save_provider_config(
+            name=item.name,
+            enabled=item.enabled,
+            api_key=item.api_key,
+            test_mode=item.test_mode,
+        )
+    logger.info(f"[SETTINGS] providers updated by user={user.get('id')} | {[p.name for p in data.providers]}")
+    return {"message": "Provider-Einstellungen gespeichert", "updated": len(data.providers)}
+
+
 # ── SerpAPI quota ─────────────────────────────────────────────────────────────
 
 @router.get("/serpapi-quota")
@@ -139,3 +195,4 @@ def get_serpapi_quota():
                 "plan": data.get("plan_name", "unknown"), "account": data.get("email", "")}
     except requests.RequestException as e:
         return {"error": f"SerpAPI nicht erreichbar: {e}"}
+
