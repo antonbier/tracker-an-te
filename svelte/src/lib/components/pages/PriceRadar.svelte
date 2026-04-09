@@ -32,6 +32,15 @@
   function fmtRange(from, to) {
     return to ? `${fmtDate(from)} – ${fmtDate(to)}` : fmtDate(from);
   }
+  function overnightSuffix(depTime, arrTime, durationMin) {
+    if (!depTime || !arrTime || !durationMin) return '';
+    try {
+      const [dh, dm] = String(depTime).slice(0,5).split(':').map(Number);
+      const days = Math.floor((dh * 60 + dm + durationMin) / 1440);
+      return days > 0 ? `(+${days})` : '';
+    } catch { return ''; }
+  }
+
   const inputCls   = 'w-full px-3 py-2 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-[var(--ws-accent)]';
   const inputStyle = 'background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)';
   const labelCls   = 'block text-xs font-bold uppercase tracking-wider mb-1';
@@ -388,11 +397,14 @@
           seat:              d.seat || false,
           seat_cost:         d.seat_cost || 0.0,
           // Initial snapshot data from search result
-          initial_price:     result.price || null,
-          initial_airline:   d.airline || null,
-          initial_dep_time:  d.departure_time || null,
-          initial_arr_time:  d.arrival_time || null,
-          initial_duration:  d.duration_min || null,
+          initial_price:             result.price || null,
+          initial_airline:           d.airline || null,
+          initial_dep_time:          d.departure_time || null,
+          initial_arr_time:          d.arrival_time || null,
+          initial_duration:          d.duration_min || null,
+          initial_stops:             d.stops ?? 0,
+          initial_layover_airports:  d.layover_airports || [],
+          initial_layover_durations: d.layover_durations || [],
         };
       } else if (result._tracker_type === 'camping') {
         endpoint = '/api/accommodations/homair';
@@ -477,6 +489,18 @@
   // ── Price chart accordion ─────────────────────────────────────────────────
   let chartState = $state({});
   let stopsOpen  = $state({});
+
+  function parseJsonField(val) {
+    if (!val) return [];
+    if (Array.isArray(val)) return val;
+    try { return JSON.parse(val) || []; } catch { return []; }
+  }
+  function fmtLayoverDur(minutes) {
+    if (!minutes || minutes <= 0) return '';
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    return h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
+  }
 
   async function toggleChart(type, id) {
     const key = `${type}-${id}`;
@@ -1303,7 +1327,8 @@
                     <span class="text-xs font-mono px-1.5 py-0.5 rounded" style="background:var(--ws-surface2);color:var(--ws-muted)">{d.flight_number}</span>
                   {/if}
                   {#if d.departure_time && d.arrival_time}
-                    <span class="text-xs font-mono" style="color:var(--ws-muted)">{String(d.departure_time).slice(0,5)} → {String(d.arrival_time).slice(0,5)}</span>
+                    {@const onSfx = overnightSuffix(d.departure_time, d.arrival_time, d.duration_min)}
+                    <span class="text-xs font-mono" style="color:var(--ws-muted)">{String(d.departure_time).slice(0,5)} → {String(d.arrival_time).slice(0,5)}{onSfx ? ' ' + onSfx : ''}</span>
                   {/if}
                   {#if d.duration_min}
                     <span class="text-xs" style="color:var(--ws-muted)">({Math.floor(d.duration_min/60)}h{d.duration_min%60}m)</span>
@@ -1448,8 +1473,9 @@
                       <span class="text-xs font-mono px-1.5 py-0.5 rounded" style="background:var(--ws-surface2);color:var(--ws-muted)">{snap.flight_number || snap.outbound_flight}</span>
                     {/if}
                     {#if showTimes}
+                      {@const onSfx = overnightSuffix(snap.departure_time, snap.arrival_time, snap.duration_min)}
                       <span class="text-xs font-mono" style="color:var(--ws-muted)">
-                        {snap.departure_time.slice(0,5)} → {snap.arrival_time.slice(0,5)}
+                        {snap.departure_time.slice(0,5)} → {snap.arrival_time.slice(0,5)}{onSfx ? ' ' + onSfx : ''}
                       </span>
                     {/if}
                     {#if showDuration}
@@ -1462,15 +1488,20 @@
                         style="background:rgba(37,99,235,.1);color:#2563eb;border:none">
                         {snap.stops} Stopp{snap.stops > 1 ? 's' : ''} {stopsOpen[stopKey] ? '▴' : '▾'}
                       </button>
-                      {#if (snap?.layover_airports ?? []).length > 0 && stopsOpen[stopKey]}
-                        <div class="flex flex-wrap gap-1" style="width:100%;margin-top:2px">
-                          {#each snap.layover_airports as via, i}
-                            <span class="text-xs px-2 py-0.5 rounded font-mono"
-                              style="background:var(--ws-surface2);color:var(--ws-muted)">
-                              {i > 0 ? '→ ' : 'via '}{via}
-                            </span>
-                          {/each}
-                        </div>
+                      {#if stopsOpen[stopKey]}
+                        {@const layAirports = parseJsonField(snap?.layover_airports)}
+                        {@const layDurations = parseJsonField(snap?.layover_durations)}
+                        {#if layAirports.length > 0}
+                          <div class="flex flex-wrap gap-1" style="width:100%;margin-top:2px">
+                            {#each layAirports as via, i}
+                              {@const dur = layDurations[i]}
+                              <span class="text-xs px-2 py-0.5 rounded font-mono"
+                                style="background:var(--ws-surface2);color:var(--ws-muted)">
+                                via {via}{dur ? ` (${fmtLayoverDur(dur)} Aufenthalt)` : ''}
+                              </span>
+                            {/each}
+                          </div>
+                        {/if}
                       {/if}
                     {:else if tr._type === 'google_flight'}
                       <span class="text-xs px-1.5 py-0.5 rounded font-medium"
@@ -1642,9 +1673,3 @@
   </div>
 
 </div>
-
-
-
-
-
-
