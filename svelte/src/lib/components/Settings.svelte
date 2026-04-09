@@ -290,11 +290,11 @@
     localStorage.setItem('s-telegramChat',      telegramChat);
     localStorage.setItem('s-gotifyUrl',         gotifyUrl);
     localStorage.setItem('s-gotifyToken',       gotifyToken);
+    // Persist date format and timezone unconditionally (used by frontend regardless of backend)
+    localStorage.setItem('ws-date-format', appDateFormat || 'DD.MM.YYYY');
+    localStorage.setItem('ws-timezone', appTimezone || 'Europe/Rome');
     if ($apiUrl) {
       try {
-        // Persist date format for frontend components
-        localStorage.setItem('ws-date-format', appDateFormat || 'DD.MM.YYYY');
-        localStorage.setItem('ws-timezone', appTimezone || 'Europe/Rome');
         const globalPayload = {
           serpapi_key: (serpApiKey && serpApiKey !== '••••••••') ? serpApiKey : null,
           gemini_key: (geminiKey && geminiKey !== '••••••••') ? geminiKey : null,
@@ -846,5 +846,3 @@
 
   </div>
 {/if}
-
-
