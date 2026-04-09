@@ -1562,4 +1562,41 @@ Dawarich und ActualBudget aus dem Fließtext herausgelöst und in eigenem Sub-Ta
 | `ai` | ✨ | OpenAI Key + Google Gemini Key (Smart Assistant) |
 
 Default-Sub-Tab ist jetzt `connections` (war: `integrations`).
+---
+
+## RC Step 3 (Session 2025-04-09) — Frontend UI & Tracker
+
+### S3-1 — Buchen-Button auf Tracker-Karten (PriceRadar.svelte)
+**Root Cause:** `tr.booking_url` ist in der DB als Spalte vorhanden (via ALTER TABLE Migration),
+aber beim Erstellen von Trackern aus Suchergebnissen nicht persistiert. Gespeicherte Tracker
+hatten daher immer `booking_url = null` → Button nie sichtbar.
+
+**Fix:** Neue Hilfsfunktion `trackerBookingUrl(tr)` im Frontend:
+1. Prüft zuerst `tr.booking_url` aus DB (falls gesetzt)
+2. Fallback: berechnet Deep-Link aus Tracker-Feldern:
+   - `flight` → Ryanair `/trip/flights/select?...` (selbes Format wie search.py)
+   - `google_flight` → Google Flights `#search;f=...;t=...;d=...`
+   - `hotel` → Google Travel Hotels mit Destination + Dates
+   - `camping` → Homair Homepage (keine Deep-Link-Struktur bekannt)
+
+Tracker-Karte: `{#if tr.booking_url}` → `{@const bookingUrl = trackerBookingUrl(tr)}` + `{#if bookingUrl}`
+
+### S3-2 — Stopp-Badge mit Layover-Accordion (3 Dateien)
+**database.py:** `stops INTEGER DEFAULT 0` Spalte zu `gf_snapshots` hinzugefügt
+(CREATE TABLE + idempotente ALTER TABLE Migration + INSERT in `save_gf_snapshot`).
+
+**google_scraper.py:** `_search_flight()` berechnet `stops = len(flights) - 1`
+und `layover_airports = [leg.departure_airport.id for leg in flights[1:]]`.
+Snapshot-Return enthält jetzt `stops` + `layover_airports`.
+
+**PriceRadar.svelte:** Auf Tracker-Karten:
+- `nStops > 0` → anklickbarer Badge `"N Stopp(s) ▾"` (blau)
+- Click → verstecktes Div mit Layover-Airports (via, dann IATA-Codes) aufklappen
+- `nStops === 0` + GF-Tracker → `"Nonstop"` Badge (grün)
+- Ryanair: immer Nonstop (API gibt nur direkte Verbindungen zurück)
+
+### S3-3 — ScratchMap Legende bereinigt (ScratchMap.svelte)
+"Geplant" (blau) und "Wunschziel" (orange) aus der Legende entfernt.
+Nur noch "Besucht" (grün) sichtbar — entspricht den tatsächlich gerenderten Pins
+(planned-Array ist leer, bucket-Pins werden nicht mehr verwendet).
 
