@@ -407,6 +407,10 @@ async def _search_google_flights(params: FlightSearchParams, api_key: str) -> li
                     badges.append("💺 Sitzplatz")
 
                 airline = leg.get("airline", "")
+                # Skip Ryanair-operated flights — they are covered by the dedicated
+                # Ryanair scraper and cannot be booked via Google Flights anyway.
+                if "ryanair" in airline.lower():
+                    continue
                 dep = leg.get("departure_airport", {})
                 arr = leg.get("arrival_airport", {})
                 # Stopp-Anzahl
