@@ -838,7 +838,7 @@
                       {/if}
                     </div>
                     <span class="shrink-0 px-2.5 py-1 rounded-full text-xs font-bold" style="background:rgba(196,98,45,.1);color:#c4622d">
-                      {trip.nights} {trip.nights===1?'Nacht':'Nächte'}
+                      {trip.nights} {trip.nights===1?$t('night'):$t('nights')}
                     </span>
                   </div>
 
