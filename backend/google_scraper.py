@@ -90,6 +90,7 @@ def fetch_google_flights(tracker: dict, api_key: str) -> dict:
         "duration_min":      outbound_details.get("duration_min", 0),
         "stops":             outbound_details.get("stops", 0),
         "layover_airports":  outbound_details.get("layover_airports", []),
+        "layover_durations": outbound_details.get("layover_durations", []),
         "currency":          "EUR",
         "baggage_fallback":  False,
         "status":            "ok",
@@ -156,11 +157,17 @@ def _search_flight(origin, destination, date, adults, children, trip_type, api_k
             "arrival_time":   _parse_serpapi_time(arr_airport.get("time", "")),
             "duration_min":   fg.get("total_duration", 0),
             "stops":          max(legs_count - 1, 0),
-            # Layover details: intermediate airports for stops badge
+            # Layover details: intermediate airports + durations for stops badge
             "layover_airports": [
                 leg.get("departure_airport", {}).get("id", "")
                 for leg in fg.get("flights", [])[1:]
                 if leg.get("departure_airport", {}).get("id")
+            ],
+            # SerpAPI: fg["layovers"] = [{"duration": 135, "name": "LIS", ...}, ...]
+            "layover_durations": [
+                lay.get("duration")
+                for lay in fg.get("layovers", [])
+                if lay.get("duration") is not None
             ],
         }
 
@@ -175,5 +182,3 @@ def _error_snap(msg):
         "status": "error", "error_message": msg,
         "fetched_at": datetime.utcnow().isoformat(),
     }}
-
-
