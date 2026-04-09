@@ -25,7 +25,8 @@ async def search(params: FlightSearchParams, cfg: dict) -> list[dict]:
         logger.warning("[DUFFEL] status=skip | reason=no_api_key")
         return [{"_api_key_missing": True, "provider": "Duffel"}]
 
-    is_test = api_key.startswith("duffel_test_") or cfg.get("test_mode", False)
+    # Test mode: explicit flag OR key prefix (duffel_test_ = sandbox, duffel_live_ = production)
+    is_test = api_key.startswith("duffel_test_") or bool(cfg.get("test_mode", False))
     t0 = time.time()
 
     try:
@@ -68,10 +69,14 @@ async def search(params: FlightSearchParams, cfg: dict) -> list[dict]:
                 json=payload, headers=headers,
             )
             if resp.status_code == 401:
-                logger.error("[DUFFEL] status=unauthorized | invalid api_key")
+                logger.error(f"[DUFFEL] status=unauthorized | {resp.text[:100]}")
                 return [{"_api_key_missing": True, "provider": "Duffel"}]
             if resp.status_code == 422:
-                logger.warning(f"[DUFFEL] status=422 | {resp.text[:200]}")
+                err = resp.json().get("errors", [{}])[0].get("message", resp.text[:100])
+                logger.warning(f"[DUFFEL] status=422 | {err}")
+                return []
+            if resp.status_code not in (200, 201):
+                logger.warning(f"[DUFFEL] status={resp.status_code} | {resp.text[:100]}")
                 return []
             resp.raise_for_status()
             data = resp.json()
@@ -88,7 +93,9 @@ async def search(params: FlightSearchParams, cfg: dict) -> list[dict]:
 
         for offer in offers[:8]:
             try:
-                price = float(offer.get("total_amount", 0))
+                _raw_price = offer.get("total_amount", 0)
+                price = float(_raw_price) if _raw_price else 0.0
+                if not price: continue
                 currency = offer.get("total_currency", "EUR")
                 slices_data = offer.get("slices", [])
                 if not slices_data: continue
@@ -201,3 +208,4 @@ def _parse_iso_duration(iso: str) -> int | None:
     h = int(m.group(1) or 0)
     mins = int(m.group(2) or 0)
     return h * 60 + mins
+
