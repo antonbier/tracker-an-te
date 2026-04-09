@@ -59,34 +59,26 @@
       await new Promise(r => setTimeout(r, 100));
     }
 
-    // ── Visited: nur trips des selectedYear ─────────────────────────────────
-    const visitedRaw = journalTrips
-      .filter(t => (t.start_date || '').slice(0, 4) === String(selectedYear));
-    const visited = [];
-    for (const t of visitedRaw) {
-      const name = [t.location_name, t.country].filter(Boolean).join(', ') || t.name || '';
-      if (t.lat && t.lon) {
-        visited.push({ lat: +t.lat, lng: +t.lon, type: 'visited', name: name || `${t.lat},${t.lon}` });
-      } else if (name) {
-        const c = await geocode(name);
-        if (c) visited.push({ ...c, type: 'visited', name });
-      }
-    }
+    // ── Visited: ausschliesslich Dawarich GPS-Daten (lat/lon vorhanden) ────────
+    // Nur echte GPS-Koordinaten aus Dawarich werden angezeigt.
+    // Manuell erfasste Reisen ohne GPS-Daten werden ignoriert (kein Geocoding).
+    // Jahresfilter: nur Reisen des im Header gewaehlten Jahres.
+    const visited = journalTrips
+      .filter(t =>
+        (t.start_date || '').slice(0, 4) === String(selectedYear) &&
+        t.lat && t.lon  // nur echte GPS-Koordinaten
+      )
+      .map(t => ({
+        lat: +t.lat,
+        lng: +t.lon,
+        type: 'visited',
+        name: [t.location_name, t.country].filter(Boolean).join(', ') || t.name || `${t.lat},${t.lon}`
+      }));
 
-    // ── Planned: nur selectedYear (Zukunft ist jahresbezogen) ────────────────
-    const yr = String(selectedYear);
-    const plannedBase = plannedTrips.filter(t =>
-      (t.dateStart || t.date || '').slice(0, 4) === yr
-    );
+    // ── Planned: werden auf der Karte nicht mehr angezeigt ───────────────────
+    // Nur besuchte Orte (Dawarich GPS) sind relevant — geplante Reisen ohne
+    // verifizierte GPS-Daten werden ignoriert.
     const planned = [];
-    for (const t of plannedBase) {
-      if (t.lat && (t.lng || t.lon)) {
-        planned.push({ lat: +t.lat, lng: +(t.lng || t.lon), type: 'planned', name: t.name });
-      } else if (t.name) {
-        const c = await geocode(t.name);
-        if (c) planned.push({ ...c, type: 'planned', name: t.name });
-      }
-    }
 
     // ── Bucket: alle Wunschziele ──────────────────────────────────────────────
     const bucket = [];
