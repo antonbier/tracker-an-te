@@ -1392,4 +1392,38 @@ Gilt für alle 4 Provider: Ryanair, Google Flights, Homair, Booking.
 - `svelte/src/lib/i18n.js`: `fmtDate(iso)` und `fmtDateRange(from, to)` als globale Exports
   → alle Komponenten können `import { fmtDate } from '$lib/i18n.js'` nutzen
   → liest `ws-date-format` aus localStorage (gesetzt in Settings: DD.MM.YYYY / MM/DD/YYYY / YYYY-MM-DD)
+---
+
+## RC Step 2 (Session 2025-04-09) — Settings, Dashboard UX & Weltkarte
+
+### S2-1 — APIs-Tab entfernt (Settings.svelte)
+- Tab `{ id: 'apis', label: 'APIs & KI' }` aus Hauptmenü-Liste entfernt
+- Alle API-Key-Felder sind jetzt ausschliesslich unter **Mein Bereich** zugaenglich
+- Backward-compat: Tab-State `apis` rendert implizit nichts mehr (kein 404)
+
+### S2-2 — Top-Tabs in Mein Bereich (Settings.svelte)
+- Neuer State: `myspaceTab = $state('integrations')`
+- Horizontale 2er Tab-Nav im Mein-Bereich-Tab:
+  - `🔍 Such-Engines` → SerpAPI Key + Link
+  - `✨ Smart Assistant` → OpenAI Key + Gemini Key + Links
+- Design: Pill-Nav mit `var(--ws-accent)` Aktiv-Highlighting, `var(--ws-surface2)` Container
+
+### S2-3 — Alert-Hilfetexte Telegram & Gotify (Settings.svelte)
+- **Telegram**: Info-Box mit Link zu @BotFather (Bot-Token) + getUpdates-Link (Chat-ID)
+- **Gotify**: Info-Box mit Schritt-Beschreibung fuer App-Token-Generierung
+- Style: `rgba(accent, .08)` Hintergrund, konsistent mit bestehenden Hilfe-Elementen
+
+### S2-4 — Dashboard Jahresbudget primae Kachel (Dashboard.svelte)
+- Budget-Eingabefeld nach **ganz oben** verschoben (erstes UI-Element)
+- Neue prominente Kachel: "📅 Jahresbudget {currentYear}" + aktueller Wert + Eingabefeld
+- Beschriftung: `placeholder="Budget fuer {currentYear} festlegen (€)"` — klar kommuniziert
+- 3 Stats → 2 Stats (Tracker-Anzahl + Verfuegbar): Donut-Karte bleibt als Detailansicht
+- Altes verstecktes Eingabefeld am Ende der Donut-Karte entfernt
+
+### S2-5 — Weltkarte nur Dawarich GPS-Daten (ScratchMap.svelte)
+- **Vorher**: journalTrips ohne lat/lon wurden via Nominatim geocodet (Netz-Request)
+- **Nachher**: nur Trips mit echten `lat` + `lon` Koordinaten werden als Pin angezeigt
+- Geplante Reisen (plannedTrips): komplett von Karte entfernt (`planned = []`)
+- Bucket-Ziele: unveraendert (jahresunabhaengig, mit Geocoding)
+- Jahresfilter bleibt: `.filter(t => t.start_date.slice(0,4) === selectedYear)`
 
