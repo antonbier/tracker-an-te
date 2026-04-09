@@ -278,6 +278,9 @@ def init_db():
             ("price_snapshots",  "flight_number TEXT DEFAULT NULL"),
             # gf_snapshots: stops field for layover display
             ("gf_snapshots",    "stops INTEGER DEFAULT 0"),
+            # gf_snapshots: layover details (airports + durations as JSON)
+            ("gf_snapshots",    "layover_airports TEXT DEFAULT NULL"),
+            ("gf_snapshots",    "layover_durations TEXT DEFAULT NULL"),
             # booking_url for deeplinks
             ("trackers",         "booking_url TEXT DEFAULT NULL"),
             ("gf_trackers",      "booking_url TEXT DEFAULT NULL"),
@@ -656,17 +659,24 @@ def toggle_gf_tracker(tracker_id: int, active: bool, user_id: int | None = None)
 
 
 def save_gf_snapshot(tracker_id: int, snap: dict) -> int:
+    import json as _json
+    _lay_airports = snap.get("layover_airports")
+    _lay_durations = snap.get("layover_durations")
+    lay_airports_json = _json.dumps(_lay_airports) if _lay_airports is not None else None
+    lay_durations_json = _json.dumps(_lay_durations) if _lay_durations is not None else None
     with db() as conn:
         cur = conn.execute(
             """INSERT INTO gf_snapshots
                (tracker_id, fetched_at, total_price, outbound_flight, return_flight,
                 airline, departure_time, arrival_time, duration_min, stops,
+                layover_airports, layover_durations,
                 currency, status, error_message)
-               VALUES (?,datetime('now'),?,?,?,?,?,?,?,?,?,?,?)""",
+               VALUES (?,datetime('now'),?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (tracker_id, snap.get("total_price"), snap.get("outbound_flight"),
              snap.get("return_flight"), snap.get("airline"),
              snap.get("departure_time"), snap.get("arrival_time"),
              snap.get("duration_min"), snap.get("stops", 0),
+             lay_airports_json, lay_durations_json,
              snap.get("currency", "EUR"),
              snap.get("status", "ok"), snap.get("error_message"))
         )
@@ -1143,8 +1153,3 @@ def save_user_notification_settings(user_id: int, settings: dict, fernet) -> Non
             _enc(settings.get("gotify_url",          "")),
             _enc(settings.get("gotify_app_token",    "")),
         ))
-
-
-
-
-
