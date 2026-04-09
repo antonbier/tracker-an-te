@@ -273,7 +273,7 @@ async def _search_ryanair(params: FlightSearchParams) -> list[dict]:
                             "price":       total,
                             "currency":    "EUR",
                             "badges":      badges,
-                            "booking_url":     f"https://www.ryanair.com/de/de/buchen/fluge-finden?departureAirport={params.origin.upper()}&arrivalAirport={params.destination.upper()}&departureDate={params.outbound_date}&adults={params.adults}&teens=0&children={params.children}&infants=0",
+                            "booking_url":     f"https://www.ryanair.com/de/de/buchen/fluge-finden/{params.origin.upper()}/{params.destination.upper()}/{params.outbound_date}/{params.adults}/0/{params.children}/0",
                                 "detail": {
                                 "origin":          params.origin.upper(),
                                 "destination":     params.destination.upper(),
