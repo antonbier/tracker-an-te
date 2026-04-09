@@ -199,151 +199,170 @@ class CampingSearchParams(BaseModel):
 # ── Provider functions (async) ─────────────────────────────────────────────
 
 async def _search_ryanair(params: FlightSearchParams) -> list[dict]:
-    """Ryanair availability API — returns cheapest flights."""
+    """
+    Ryanair Suche via farfnd/cheapestPerDay API.
+    Die alte booking/v4 availability API liefert seit 2025 generell 409 "Availability declined"
+    für externe Requests. Neue Strategie: cheapestPerDay gibt den günstigsten Flug pro Tag
+    inkl. exakter Abflug-/Ankunftszeit zurück.
+    Bei Hin- und Rückflug werden beide Richtungen parallel abgefragt und kombiniert.
+    """
     t0 = time.time()
+    origin = params.origin.upper()
+    dest   = params.destination.upper()
+
+    def _parse_iso_time(iso: str | None) -> str | None:
+        if not iso: return None
+        # "2026-05-01T16:05:00" → "16:05"
+        if "T" in iso:
+            return iso.split("T")[1][:5]
+        return None
+
+    def _build_extras(base_price: float) -> tuple[float, list[str]]:
+        total_pax = params.adults + params.children
+        baggage_cost = 0.0
+        if params.baggage_10kg > 0:
+            baggage_cost += params.baggage_10kg * 22.99
+        elif params.baggage == "10kg":
+            baggage_cost = 22.99 * total_pax
+        if params.baggage_20kg > 0:
+            baggage_cost += params.baggage_20kg * 34.99
+        elif params.baggage == "20kg" and params.baggage_10kg == 0:
+            baggage_cost = 34.99 * total_pax
+        if params.baggage_23kg > 0:
+            baggage_cost += params.baggage_23kg * 42.99
+        _seat_cpp = params.seat_cost if params.seat_cost > 0 else (8.99 if params.seat else 0.0)
+        seat_total = _seat_cpp * total_pax
+        total = round((base_price * total_pax) + baggage_cost + seat_total, 2)
+        badges = []
+        if params.baggage_10kg > 0: badges.append(f"🎒 {params.baggage_10kg}x 10kg")
+        elif params.baggage == "10kg": badges.append("🎒 1x 10kg")
+        if params.baggage_20kg > 0: badges.append(f"🎒 {params.baggage_20kg}x 20kg")
+        elif params.baggage == "20kg" and params.baggage_10kg == 0: badges.append("🎒 1x 20kg")
+        if params.baggage_23kg > 0: badges.append(f"🧳 {params.baggage_23kg}x 23kg")
+        if _seat_cpp > 0: badges.append(f"💺 Sitz {_seat_cpp:.0f}€/P")
+        if params.children > 0: badges.append(f"👶 {params.children} Kind{'er' if params.children>1 else ''}")
+        return total, badges, _seat_cpp
+
+    async def _fetch_cheapest_per_day(client, dep, arr, date_str):
+        """Gibt liste von verfügbaren Fares für den gewünschten Monat zurück."""
+        year, month, day = date_str.split("-")
+        month_start = f"{year}-{month}-01"
+        url = f"https://www.ryanair.com/api/farfnd/3/oneWayFares/{dep}/{arr}/cheapestPerDay"
+        resp = await client.get(url, params={
+            "outboundMonthOfDate": month_start,
+            "currency": "EUR",
+        })
+        if resp.status_code != 200:
+            return []
+        raw = resp.json().get("outbound", {}).get("fares", [])
+        # Filter: nur der gesuchte Tag (exact match auf "day" field)
+        return [f for f in raw if f.get("day") == date_str and f.get("price") and not f.get("unavailable")]
+
     try:
-        async with httpx.AsyncClient(headers=HEADERS_RYANAIR, timeout=TIMEOUT) as client:
-            # Step 1: get session cookie
-            await client.get("https://www.ryanair.com/de/de", follow_redirects=True)
-
-            url = "https://www.ryanair.com/api/booking/v4/de-de/availability"
-            params_req = {
-                "ADT": params.adults,
-                "CHD": 0,
-                "DateOut": params.outbound_date,
-                "Destination": params.destination.upper(),
-                "FlexDaysBeforeOut": 0,
-                "FlexDaysOut": 0,
-                "Origin": params.origin.upper(),
-                "RoundTrip": "true" if params.return_date else "false",
-                "ToUs": "AGREED",
-            }
+        headers = {**HEADERS_RYANAIR, "Referer": "https://www.ryanair.com/"}
+        async with httpx.AsyncClient(headers=headers, timeout=TIMEOUT, follow_redirects=True) as client:
+            # Parallel: Hinflug + ggf. Rückflug
+            tasks = [_fetch_cheapest_per_day(client, origin, dest, params.outbound_date)]
             if params.return_date:
-                params_req["DateIn"] = params.return_date
+                tasks.append(_fetch_cheapest_per_day(client, dest, origin, params.return_date))
+            raw_results = await asyncio.gather(*tasks, return_exceptions=True)
 
-            resp = await client.get(url, params=params_req)
-            elapsed = round(time.time() - t0, 1)
+        outbound_fares = raw_results[0] if not isinstance(raw_results[0], Exception) else []
+        return_fares   = raw_results[1] if len(raw_results) > 1 and not isinstance(raw_results[1], Exception) else []
 
-            if resp.status_code == 403:
-                logger.warning(f"[RYANAIR] ✈️ #search status=blocked_by_cf | elapsed={elapsed}s")
-                return []
+        elapsed = round(time.time() - t0, 1)
 
-            resp.raise_for_status()
-            data = resp.json()
+        if not outbound_fares:
+            logger.warning(f"[RYANAIR] ✈️ #search status=no_flights | {origin}->{dest} {params.outbound_date} | elapsed={elapsed}s")
+            return []
 
-            results = []
-            trips = data.get("trips", [])
-            for trip in trips:
-                for date_info in trip.get("dates", []):
-                    for flight in date_info.get("flights", []):
-                        regular = flight.get("regularFare")
-                        if not regular:
-                            continue
-                        fares = regular.get("fares", [])
-                        if not fares:
-                            continue
-                        base_price = fares[0].get("amount", 0)
-                        if not base_price:
-                            continue
+        results = []
+        for fare in outbound_fares[:5]:
+            ob = fare.get("outbound") or fare  # API wraps in "outbound" key
+            # cheapestPerDay structure: fare = {"day": "...", "price": {"value": 39.27}, "departureDate": "...", "arrivalDate": "...", "flightNumber": "FR4845"}
+            # But sometimes the fare itself IS the outbound object
+            price_val = None
+            dep_time  = None
+            arr_time  = None
+            flight_num = None
 
-                        # Gepäck-Kosten (neue Stepper-Logik + Legacy-Fallback)
-                        total_pax = params.adults + params.children
-                        baggage_cost = 0.0
-                        if params.baggage_10kg > 0:
-                            baggage_cost += params.baggage_10kg * 22.99
-                        elif params.baggage == "10kg":
-                            baggage_cost = 22.99 * total_pax
-                        if params.baggage_20kg > 0:
-                            baggage_cost += params.baggage_20kg * 34.99
-                        elif params.baggage == "20kg" and params.baggage_10kg == 0:
-                            baggage_cost = 34.99 * total_pax
-                        if params.baggage_23kg > 0:
-                            baggage_cost += params.baggage_23kg * 42.99
+            if "price" in fare and "departureDate" in fare:
+                # Direct structure
+                price_val  = fare["price"].get("value") if isinstance(fare.get("price"), dict) else fare.get("price")
+                dep_time   = _parse_iso_time(fare.get("departureDate"))
+                arr_time   = _parse_iso_time(fare.get("arrivalDate"))
+                flight_num = fare.get("flightNumber", "")
+            elif "outbound" in fare:
+                ob2 = fare["outbound"]
+                price_val  = ob2.get("price", {}).get("value")
+                dep_time   = _parse_iso_time(ob2.get("departureDate"))
+                arr_time   = _parse_iso_time(ob2.get("arrivalDate"))
+                flight_num = ob2.get("flightNumber", "")
 
-                        # Sitzplatz: seat_cost €/Person/Flug (neue Logik) oder Legacy bool
-                        _seat_cost_per_pax = params.seat_cost if params.seat_cost > 0 else (8.99 if params.seat else 0.0)
-                        seat_total = _seat_cost_per_pax * total_pax
+            if not price_val:
+                continue
 
-                        total = round((base_price * total_pax) + baggage_cost + seat_total, 2)
-
-                        badges = []
-                        if params.baggage_10kg > 0: badges.append(f"🎒 {params.baggage_10kg}x 10kg")
-                        elif params.baggage == "10kg": badges.append("🎒 1x 10kg")
-                        if params.baggage_20kg > 0: badges.append(f"🎒 {params.baggage_20kg}x 20kg")
-                        elif params.baggage == "20kg" and params.baggage_10kg == 0: badges.append("🎒 1x 20kg")
-                        if params.baggage_23kg > 0: badges.append(f"🧳 {params.baggage_23kg}x 23kg")
-                        if _seat_cost_per_pax > 0: badges.append(f"💺 Sitz {_seat_cost_per_pax:.0f}€/P")
-                        if params.children > 0: badges.append(f"👶 {params.children} Kind{'er' if params.children>1 else ''}")
-
-                        seg = flight.get("segments", [{}])[0]
-                        # Use seg.time (LOCAL airport time), NOT timeUTC
-                        # Ryanair API: seg.time = [dep_local, arr_local] as plain "HH:MM"
-                        #              seg.timeUTC = [dep_utc, arr_utc] — do NOT use for display
-                        local_times = seg.get("time") or []
-                        utc_times   = seg.get("timeUTC") or []
-                        dep_time = _parse_ryanair_time(local_times, utc_times, 0)
-                        arr_time = _parse_ryanair_time(local_times, utc_times, 1)
-                        flight_num = _fmt_ryanair_flight_num(
-                            flight.get("flightNumber") or seg.get("flightNumber") or ""
-                        )
-
-                        # Update subtitle with times if available
-                        time_label = f" · {dep_time} ✈ {arr_time}" if dep_time and arr_time else ""
-                        results.append({
-                            "id":          f"ry-{params.origin}-{params.destination}-{params.outbound_date}-{len(results)}",
-                            "provider":    "Ryanair",
-                            "title":       f"{params.origin.upper()} → {params.destination.upper()}",
-                            "subtitle":    f"{params.outbound_date}{' ⇄ ' + params.return_date if params.return_date else ''} · {params.adults} Pers.{time_label}",
-                            "price":       total,
-                            "currency":    "EUR",
-                            "badges":      badges,
-                            "booking_url":     _ryanair_deeplink(params.origin.upper(), params.destination.upper(), params.outbound_date, params.return_date, params.adults, params.children),
-                                "detail": {
-                                "origin":          params.origin.upper(),
-                                "destination":     params.destination.upper(),
-                                "outbound_date":   params.outbound_date,
-                                "return_date":     params.return_date,
-                                "adults":          params.adults,
-                                "children":        params.children,
-                                "baggage":         params.baggage,
-                                "baggage_10kg":    params.baggage_10kg,
-                                "baggage_20kg":    params.baggage_20kg,
-                                "baggage_23kg":    params.baggage_23kg,
-                                "seat":            params.seat,
-                                "seat_cost":       params.seat_cost,
-                                "departure_time":  dep_time,
-                                "arrival_time":    arr_time,
-                                "flight_number":   flight_num,
-                                "airline":         "Ryanair",
-                            },
-                            "_tracker_type": "flight",
-                            "_tracker_table": "trackers",
-                        })
-
-            # Zeit- & Stopp-Filter anwenden
-            def _time_in(t, from_t, to_t):
-                if not t or (not from_t and not to_t): return True
+            # Zeit-Filter anwenden
+            def _tin(t, f, to):
+                if not t or (not f and not to): return True
                 try:
-                    th, tm = int(t[:2]), int(t[3:5])
-                    if from_t:
-                        fh, fm = int(from_t[:2]), int(from_t[3:5])
-                        if (th*60+tm) < (fh*60+fm): return False
-                    if to_t:
-                        toh, tom = int(to_t[:2]), int(to_t[3:5])
-                        if (th*60+tm) > (toh*60+tom): return False
+                    tv = int(t[:2])*60+int(t[3:5])
+                    if f and tv < int(f[:2])*60+int(f[3:5]): return False
+                    if to and tv > int(to[:2])*60+int(to[3:5]): return False
                 except Exception: pass
                 return True
+            if not _tin(dep_time, params.dep_from, params.dep_to): continue
 
-            filtered = []
-            for res in results:
-                dep_t = res.get("detail", {}).get("departure_time") or ""
-                if not _time_in(dep_t, params.dep_from, params.dep_to): continue
-                filtered.append(res)
+            # Rückflug-Aufschlag
+            ret_price = 0.0
+            if return_fares:
+                cheapest_ret = min(
+                    (f.get("price", {}).get("value") or f.get("outbound", {}).get("price", {}).get("value") or 0
+                     for f in return_fares), default=0
+                )
+                ret_price = float(cheapest_ret)
 
-            found = len(filtered)
-            cheapest = min((r["price"] for r in filtered), default=0)
-            logger.info(f"[RYANAIR] ✈️ #search status=ok | found={found} | cheapest={cheapest:.2f} EUR | elapsed={elapsed}s")
-            return filtered[:10]
+            base_price = float(price_val) + ret_price
+            total, badges, _ = _build_extras(base_price)
+            flight_num_fmt = _fmt_ryanair_flight_num(flight_num or "")
+            time_label = f" · {dep_time} ✈ {arr_time}" if dep_time and arr_time else ""
+
+            results.append({
+                "id":        f"ry-{origin}-{dest}-{params.outbound_date}-{len(results)}",
+                "provider":  "Ryanair",
+                "title":     f"{origin} → {dest}",
+                "subtitle":  f"{params.outbound_date}{' ⇄ ' + params.return_date if params.return_date else ''} · {params.adults} Pers.{time_label}",
+                "price":     total,
+                "currency":  "EUR",
+                "badges":    badges,
+                "booking_url": _ryanair_deeplink(origin, dest, params.outbound_date, params.return_date, params.adults, params.children),
+                "detail": {
+                    "origin":         origin,
+                    "destination":    dest,
+                    "outbound_date":  params.outbound_date,
+                    "return_date":    params.return_date,
+                    "adults":         params.adults,
+                    "children":       params.children,
+                    "baggage":        params.baggage,
+                    "baggage_10kg":   params.baggage_10kg,
+                    "baggage_20kg":   params.baggage_20kg,
+                    "baggage_23kg":   params.baggage_23kg,
+                    "seat":           params.seat,
+                    "seat_cost":      params.seat_cost,
+                    "departure_time": dep_time,
+                    "arrival_time":   arr_time,
+                    "flight_number":  flight_num_fmt,
+                    "airline":        "Ryanair",
+                    "stops":          0,
+                },
+                "_tracker_type":  "flight",
+                "_tracker_table": "trackers",
+            })
+
+        found = len(results)
+        cheapest = min((r["price"] for r in results), default=0)
+        logger.info(f"[RYANAIR] ✈️ #search status=ok | found={found} | cheapest={cheapest:.2f} EUR | elapsed={elapsed}s")
+        return results
 
     except httpx.TimeoutException:
         elapsed = round(time.time() - t0, 1)
