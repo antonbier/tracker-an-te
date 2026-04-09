@@ -1397,7 +1397,8 @@
           {@const price  = s?.total_price}
           {@const wish   = tr.wish_price}
           {@const wishMet = wish && price && price <= wish}
-          {@const badges  = trackerBadges(tr)}
+          {@const badges     = trackerBadges(tr)}
+          {@const bookingUrl = trackerBookingUrl(tr)}
 
           <div
             class="rounded-xl p-4 border flex flex-col gap-3 transition-all h-full"
@@ -1415,7 +1416,6 @@
                     🎯 {$t('radarWishMet')}
                   </span>
                 {/if}
-                {@const bookingUrl = trackerBookingUrl(tr)}
                 {#if bookingUrl}
                   <a href={bookingUrl} target="_blank" rel="noopener noreferrer"
                     class="text-xs px-2.5 py-1 rounded-lg font-semibold transition-opacity hover:opacity-80"
