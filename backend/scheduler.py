@@ -47,12 +47,12 @@ def run_ryanair_trackers(user_id: int | None = None):
         try:
             result = fetch_flights(tracker)
             snap = result["snapshot"]
-            save_snapshot(tid, snap)
-
             status = result.get("status", "error")
             price = snap.get("total_price")
 
             if status == "ok":
+                # Nur bei Erfolg speichern — Fehler ueberschreiben niemals die Historie
+                save_snapshot(tid, snap)
                 _log_provider("ryanair", "ok", tid, "scrape=success", price)
                 _check_and_notify(tracker, snap, result.get("previous_price"))
             else:
@@ -60,7 +60,7 @@ def run_ryanair_trackers(user_id: int | None = None):
 
         except Exception as e:
             logger.error(f"  ❌ Ryanair #{tid}: {e}", exc_info=True)
-            save_snapshot(tid, {"status": "error", "error_message": str(e)})
+            # Kein Error-Snapshot — alte Preisdaten bleiben erhalten
 
         if i < len(trackers) - 1:
             time.sleep(random.uniform(8, 20))
@@ -85,16 +85,17 @@ def run_gf_trackers(user_id: int | None = None):
                     f"{tracker['origin']}→{tracker['destination']} {tracker['outbound_date']}")
         try:
             snap = fetch_google_flights(tracker, api_key=api_key)
-            save_gf_snapshot(tid, snap)
             status = snap.get("status", "error")
             if status == "ok":
+                # Nur bei Erfolg speichern
+                save_gf_snapshot(tid, snap)
                 _log_provider("google_flights", "ok", tid, "source=serpapi", snap.get("total_price"))
                 _check_and_notify_generic(tracker, snap)
             else:
                 _log_provider("google_flights", status, tid, snap.get("error_message", ""))
         except Exception as e:
             logger.error(f"  ❌ GF #{tid}: {e}", exc_info=True)
-            save_gf_snapshot(tid, {"status": "error", "error_message": str(e)})
+            # Kein Error-Snapshot — alte Preisdaten bleiben erhalten
 
         if i < len(trackers) - 1:
             time.sleep(random.uniform(5, 15))
@@ -118,16 +119,17 @@ def run_homair_trackers(user_id: int | None = None):
         logger.info(f"  [{i+1}/{len(trackers)}] Homair #{tid}: {tracker.get('region')}")
         try:
             snap = fetch_homair(tracker, api_key=api_key)
-            save_homair_snapshot(tid, snap)
             status = snap.get("status", "error")
             if status == "ok":
+                # Nur bei Erfolg speichern
+                save_homair_snapshot(tid, snap)
                 _log_provider("homair", "ok", tid, "source=serpapi", snap.get("total_price"))
                 _check_and_notify_generic(tracker, snap)
             else:
                 _log_provider("homair", status, tid, snap.get("error_message", ""))
         except Exception as e:
             logger.error(f"  ❌ Homair #{tid}: {e}", exc_info=True)
-            save_homair_snapshot(tid, {"status": "error", "error_message": str(e)})
+            # Kein Error-Snapshot — alte Preisdaten bleiben erhalten
 
         if i < len(trackers) - 1:
             time.sleep(random.uniform(5, 15))
@@ -151,16 +153,17 @@ def run_booking_trackers(user_id: int | None = None):
         logger.info(f"  [{i+1}/{len(trackers)}] Booking #{tid}: {tracker.get('destination')}")
         try:
             snap = fetch_booking(tracker, api_key=api_key)
-            save_booking_snapshot(tid, snap)
             status = snap.get("status", "error")
             if status == "ok":
+                # Nur bei Erfolg speichern
+                save_booking_snapshot(tid, snap)
                 _log_provider("booking", "ok", tid, "source=serpapi", snap.get("total_price"))
                 _check_and_notify_generic(tracker, snap)
             else:
                 _log_provider("booking", status, tid, snap.get("error_message", ""))
         except Exception as e:
             logger.error(f"  ❌ Booking #{tid}: {e}", exc_info=True)
-            save_booking_snapshot(tid, {"status": "error", "error_message": str(e)})
+            # Kein Error-Snapshot — alte Preisdaten bleiben erhalten
 
         if i < len(trackers) - 1:
             time.sleep(random.uniform(5, 12))
