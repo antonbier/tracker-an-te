@@ -358,6 +358,12 @@
     if (!get(apiUrl)) { toast(get(t)('radarNoBackend'), 'warning'); return; }
     savingTracker = result.id;
     try {
+      // Duffel test-mode results must never be saved as trackers — prices are simulated
+      if (result._test_mode) {
+        toast('🧪 Testpreise können nicht als Tracker gespeichert werden.', 'warning');
+        savingTracker = null;
+        return;
+      }
       const d = result.detail || {};
       let endpoint, payload;
 
@@ -1336,7 +1342,10 @@
                 </div>
               {/if}
               <div class="flex gap-1.5 flex-wrap mt-1.5">
-                <span class="text-xs px-2 py-0.5 rounded-full" style="background:var(--ws-surface2);color:var(--ws-muted)">{result.provider}</span>
+                <span class="text-xs px-2 py-0.5 rounded-full"
+                  style="background:{result._test_mode ? 'rgba(234,179,8,.15)' : 'var(--ws-surface2)'};color:{result._test_mode ? '#ca8a04' : 'var(--ws-muted)'}">
+                  {result.provider}
+                </span>
                 {#each (result.badges || []) as badge}
                   <span class="text-xs px-2 py-0.5 rounded-full" style="background:rgba(196,98,45,.08);color:var(--ws-accent)">{badge}</span>
                 {/each}
@@ -1353,10 +1362,11 @@
               {/if}
               <button
                 onclick={() => saveAsTracker(result)}
-                disabled={savingTracker === result.id}
+                disabled={savingTracker === result.id || result._test_mode}
+                title={result._test_mode ? 'Testpreise können nicht gespeichert werden' : ''}
                 class="mt-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-opacity hover:opacity-80 disabled:opacity-50"
-                style="background:linear-gradient(135deg,var(--ws-accent),#b84928);color:#fff5ec">
-                {savingTracker === result.id ? '⏳…' : $t('radarSaveTracker')}
+                style="background:{result._test_mode ? 'var(--ws-surface2)' : 'linear-gradient(135deg,var(--ws-accent),#b84928)'};color:{result._test_mode ? 'var(--ws-muted)' : '#fff5ec'};border:1px solid {result._test_mode ? 'var(--ws-border)' : 'transparent'}">
+                {result._test_mode ? '🧪 Nur Test' : savingTracker === result.id ? '⏳…' : $t('radarSaveTracker')}
               </button>
               {#if result.booking_url}
                 <a href={result.booking_url} target="_blank" rel="noopener noreferrer"
@@ -1673,3 +1683,4 @@
   </div>
 
 </div>
+
