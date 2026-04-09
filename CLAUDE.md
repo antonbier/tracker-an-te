@@ -1492,4 +1492,47 @@ Ermöglicht dynamischen Zugriff auf verfügbare Sprachen ohne Duplizierung.
 ### S4-5 — Dashboard.svelte / MyTrips.svelte / Journal.svelte
 - Dashboard: `'✓ setzen'` → `'✓ ' + $t('radarSet')`
 - MyTrips + Journal: `trip.nights===1?'Nacht':'Nächte'` → `$t('night')`/`$t('nights')`
+---
+
+## RC Step 1 (Session 2025-04-09) — Backend Core, Scraper & Kritische Logik
+
+### S1-1 — SerpAPI Datenverlust fix (Google Flights, Homair, Booking)
+**Root Cause:** `routes/google_flights.py`, `routes/accommodations.py` — `/scrape` POST-Handler
+riefen `save_*_snapshot()` **bedingungslos** auf, ohne `status` zu prüfen.
+Bei API-Fehler (z.B. ungültiger Key, keine Ergebnisse) → `total_price=None` → NULL in DB → Preishistorie zerstört.
+
+**Fix (alle 3 Scraper-Routen):**
+```python
+status = result.get("status", "error")
+snap = result.get("snapshot", result)
+if status == "ok" and snap.get("total_price") is not None:
+    save_*_snapshot(tracker_id, snap)   # nur bei Erfolg
+else:
+    raise HTTPException(422, ...)        # kein DB-Write bei Fehler
+```
+
+### S1-2 — run_single_tracker Status Guard (scheduler.py)
+**Root Cause:** `run_single_tracker()` rief `save_snapshot()` immer auf, unabhängig vom Ergebnis.
+**Fix:** Status-Check vor `save_snapshot` — bei Fehler `ValueError` statt DB-Write.
+
+### S1-3 — Ryanair Deeplink 404-Fix (routes/search.py)
+**Root Cause:** Altes URL-Format `/de/de/buchen/fluge-finden/BGY/DUB/2026-05-09/1/0/0/0` → seit 2024 404.
+**Fix:** Neue Hilfsfunktion `_ryanair_deeplink()` generiert korrektes 2025-Format:
+```
+https://www.ryanair.com/de/de/trip/flights/select?adults=1&dateOut=2026-05-09
+  &originIata=BGY&destinationIata=DUB&tpAdults=1&...
+```
+Gültig für One-Way und Round-Trip.
+
+### S1-4 — Scheduler Timezone-Anzeige (Settings.svelte)
+**Root Cause:** `schedTimezone` im Template referenziert, aber nie als `$state` deklariert → `undefined`.
+Das Backend in `routes/scheduler.py` lieferte `timezone` in der API-Antwort bereits korrekt.
+**Fix:**
+- `let schedTimezone = $state('UTC')` hinzugefügt
+- `loadSchedulerSettings()` liest `s.timezone` und setzt `schedTimezone`
+- `save()` persistiert `ws-timezone` zusätzlich zu `ws-date-format` in localStorage
+
+### S1-5 — Timezone in localStorage (Settings.svelte)
+`localStorage.setItem('ws-timezone', appTimezone)` in `save()` ergänzt.
+Frontend-Komponenten können damit ohne Backend-Request die User-Timezone lesen.
 
