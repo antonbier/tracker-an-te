@@ -1,5 +1,5 @@
-OK, lines: 202
-rt { onMount, onDestroy } from 'svelte';
+<script>
+  import { onMount, onDestroy } from 'svelte';
   import { bucketlist, apiUrl } from '$lib/stores.js';
   import { api } from '$lib/api.js';
 
@@ -20,6 +20,7 @@ rt { onMount, onDestroy } from 'svelte';
     try { const v = sessionStorage.getItem(`ws-geo:${name}`); return v ? JSON.parse(v) : null; }
     catch { return null; }
   }
+  
   function setCached(name, c) {
     try { sessionStorage.setItem(`ws-geo:${name}`, JSON.stringify(c)); } catch {}
   }
