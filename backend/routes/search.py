@@ -36,6 +36,30 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
+def _ryanair_deeplink(origin: str, destination: str, date_out: str,
+                       date_in, adults: int, children: int) -> str:
+    """
+    Generiert einen gültigen Ryanair Deeplink (2025-Format).
+    Altes Format /buchen/fluge-finden/... war veraltet und lieferte 404.
+    Neues Format: /trip/flights/select?... (gültig ab 2024).
+    """
+    base = "https://www.ryanair.com/de/de/trip/flights/select"
+    is_return = "true" if date_in else "false"
+    qs = (
+        f"?adults={adults}&teens=0&children={children}&infants=0"
+        f"&dateOut={date_out}"
+        f"&dateIn={date_in or ''}"
+        f"&isConnectedFlight=false&isReturn={is_return}"
+        f"&originIata={origin}&destinationIata={destination}"
+        f"&tpAdults={adults}&tpTeens=0&tpChildren={children}&tpInfants=0"
+        f"&tpStartDate={date_out}"
+        f"&tpEndDate={date_in or ''}"
+        f"&tpDiscount=0&tpPromoCode="
+        f"&tpOriginIata={origin}&tpDestinationIata={destination}"
+    )
+    return base + qs
+
+
 def _parse_ryanair_time(local_list, utc_list, idx: int) -> str | None:
     """
     Extrahiert HH:MM als LOKALE Abflug-/Ankunftszeit.
@@ -273,7 +297,7 @@ async def _search_ryanair(params: FlightSearchParams) -> list[dict]:
                             "price":       total,
                             "currency":    "EUR",
                             "badges":      badges,
-                            "booking_url":     f"https://www.ryanair.com/de/de/buchen/fluge-finden/{params.origin.upper()}/{params.destination.upper()}/{params.outbound_date}/{params.adults}/0/{params.children}/0",
+                            "booking_url":     _ryanair_deeplink(params.origin.upper(), params.destination.upper(), params.outbound_date, params.return_date, params.adults, params.children),
                                 "detail": {
                                 "origin":          params.origin.upper(),
                                 "destination":     params.destination.upper(),
@@ -789,6 +813,7 @@ async def search_camping(
     logger.info(f"[SEARCH] ⛺ camping total_results={len(results)}")
     return {"results": results, "count": len(results),
             "missing_api_keys": missing_keys}
+
 
 
 
