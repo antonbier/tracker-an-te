@@ -268,12 +268,7 @@
     return searchResults.filter(r => r.provider === activeProviderFilter);
   }
 
-  const filteredResults = $derived(() => {
-    if (activeProviderFilter === 'all') return searchResults;
-    return searchResults.filter(r => r.provider === activeProviderFilter);
-  });
-
-  async function doSearch() {
+async function doSearch() {
     if (!$apiUrl) { toast($t('radarNoBackend'), 'warning'); return; }
     searching = true;
     searchResults = [];
