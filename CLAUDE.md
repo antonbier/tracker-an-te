@@ -1599,4 +1599,45 @@ Snapshot-Return enthält jetzt `stops` + `layover_airports`.
 "Geplant" (blau) und "Wunschziel" (orange) aus der Legende entfernt.
 Nur noch "Besucht" (grün) sichtbar — entspricht den tatsächlich gerenderten Pins
 (planned-Array ist leer, bucket-Pins werden nicht mehr verwendet).
+---
+
+## RC Step 4 (Session 2025-04-09) — i18n Dynamischer Sprachumschalter
+
+### S4-1 — ES-Locale aktiviert + localeLabels (i18n.js)
+`es.json` war vorhanden aber nicht importiert. Jetzt vollständig eingebunden:
+```js
+import es from '../locales/es.json';
+export const allLocales = { de, en, it, es };
+export const localeLabels = { de: 'DE 🇩🇪', en: 'EN 🇬🇧', it: 'IT 🇮🇹', es: 'ES 🇪🇸' };
+```
+**Neue Sprache hinzufügen:** JSON-Datei in `svelte/src/locales/xx.json` anlegen →
+in `i18n.js` importieren → zu `allLocales` + `localeLabels` hinzufügen → fertig.
+
+### S4-2 — Dynamisches `<select>`-Dropdown (Header.svelte)
+**Vorher:** Statische Button-Gruppe `{#each ['de','it','en'] as l}` — hardcodiert,
+kein neues Locale ohne Code-Änderung in Header.svelte.
+**Nachher:** `<select>` mit `{#each Object.keys(allLocales) as l}` — vollständig dynamisch:
+```svelte
+<select value={$lang} onchange={(e) => setLang(e.currentTarget.value)}>
+  {#each availableLangs as l}
+    <option value={l}>{localeLabels[l] ?? l.toUpperCase()}</option>
+  {/each}
+</select>
+```
+- Styled mit CSS `appearance:none` + Custom-Arrow via `background-image` SVG
+- `localeLabels` liefert lesbare Labels mit Flaggen-Emoji
+- Fallback: `l.toUpperCase()` falls Locale kein Label hat
+
+---
+
+## RC Release Candidate — Alle Steps abgeschlossen
+
+### Gesamtübersicht aller Fixes (Session 2025-04-09)
+
+| Step | Bereich | Fixes |
+|------|---------|-------|
+| S1 | Backend Core | SerpAPI Datenverlust (3 Routen), run_single_tracker, Ryanair Deeplink, schedTimezone |
+| S2 | Settings UI | $derived.by() Tab-Fix, Sub-Tabs oben, neuer Tab Lokale Anbindungen |
+| S3 | Frontend/Tracker | Buchen-Button, Stopp-Badge+Layover, Weltkarte Legende |
+| S4 | i18n | ES-Locale, dynamisches Select-Dropdown |
 
