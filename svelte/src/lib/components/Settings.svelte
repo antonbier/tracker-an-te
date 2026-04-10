@@ -111,6 +111,13 @@
   let fDepMax     = $state('');
   let fArrMin     = $state('');
   let fArrMax     = $state('');
+  // Reisepersönlichkeit
+  let travelStyle   = $state('');
+  let climatePref   = $state('');
+  let landscapePref = $state('');
+  let companions    = $state('');
+  let wishText      = $state('');
+  let unsplashKey   = $state('');
 
   // ── Load functions ────────────────────────────────────────────────────────
   async function loadUserSettings() {
@@ -145,6 +152,13 @@
       fDepMax     = us.ww_dep_max || '';
       fArrMin     = us.ww_arr_min || '';
       fArrMax     = us.ww_arr_max || '';
+      // Reisepersönlichkeit
+      travelStyle   = us.travel_style   || '';
+      climatePref   = us.climate_pref   || '';
+      landscapePref = us.landscape_pref || '';
+      companions    = us.companions      || '';
+      wishText      = us.wish_text       || '';
+      unsplashKey   = us.unsplash_key    ? '••••••••' : '';
     } catch {}
   }
 
@@ -290,6 +304,13 @@
       payload.ww_dep_max       = fDepMax || null;
       payload.ww_arr_min       = fArrMin || null;
       payload.ww_arr_max       = fArrMax || null;
+      // Reisepersönlichkeit
+      if (travelStyle)   payload.travel_style   = travelStyle;
+      if (climatePref)   payload.climate_pref   = climatePref;
+      if (landscapePref) payload.landscape_pref = landscapePref;
+      if (companions)    payload.companions      = companions;
+      payload.wish_text = wishText || null;
+      if (unsplashKey && unsplashKey !== '••••••••') payload.unsplash_key = unsplashKey;
       if (myDawarichUrl)  localStorage.setItem('s-dawarichUrl',      myDawarichUrl);
       if (myHomeLat)      localStorage.setItem('s-homeLat',          myHomeLat);
       if (myHomeLon)      localStorage.setItem('s-homeLon',          myHomeLon);
@@ -401,6 +422,8 @@
           bind:lugS10 bind:lugS20 bind:lugS23
           bind:lugL10 bind:lugL20 bind:lugL23
           bind:fDepMin bind:fDepMax bind:fArrMin bind:fArrMax
+          bind:travelStyle bind:climatePref bind:landscapePref
+          bind:companions bind:wishText bind:unsplashKey
           bind:serpApiKey bind:openaiKey bind:geminiKey
           bind:providers bind:providerKeys
           {providersLoading} {providersSaving} {mySettingsSaving}
