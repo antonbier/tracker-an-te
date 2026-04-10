@@ -11,8 +11,6 @@
   import CompactTripsList   from '$lib/components/dashboard/CompactTripsList.svelte';
   import CompactTrackerGrid from '$lib/components/dashboard/CompactTrackerGrid.svelte';
 
-  let { onopenSettings = () => {} } = $props();
-
   // ── Loading / raw data ────────────────────────────────────────────────────
   let loading       = $state(true);
   let dawarichTrips = $state([]);
@@ -211,7 +209,6 @@
     {recentDawarich}
     onstartwizard={(data) => openWizzard(data)}
     onnavto={(page) => currentPage.set(page)}
-    onopenSettings={onopenSettings}
   />
 
   <!-- ── Bottom split: trips + trackers ── -->
