@@ -7,7 +7,7 @@ Geocode:        GET /api/settings/geocode?q=... (backend proxy for Nominatim)
 """
 
 from fastapi import APIRouter, HTTPException, Depends, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 import requests, logging
 
@@ -38,6 +38,7 @@ class GlobalSettingsPayload(BaseModel):
 
 
 class UserSettingsPayload(BaseModel):
+    # ── Bestehende Felder ────────────────────────────────────────────────
     dawarich_url:      Optional[str] = None
     dawarich_token:    Optional[str] = None
     actual_url:        Optional[str] = None
@@ -46,8 +47,26 @@ class UserSettingsPayload(BaseModel):
     home_lat:          Optional[str] = None
     home_lon:          Optional[str] = None
     travel_categories: Optional[str] = None
-    timezone:          Optional[str] = None  # NEW per-user override
-    date_format:       Optional[str] = None  # NEW per-user override
+    timezone:          Optional[str] = None
+    date_format:       Optional[str] = None
+    # ── Immich ───────────────────────────────────────────────────────────
+    immich_url:      Optional[str]  = None
+    immich_api_key:  Optional[str]  = None
+    immich_geo_sync: Optional[bool] = None
+    # ── WanderWizzard Defaults ────────────────────────────────────────
+    ww_adults:       Optional[int]  = None
+    ww_children:     Optional[int]  = None
+    ww_home_airport: Optional[str]  = None
+    ww_lug_s10:      Optional[int]  = None
+    ww_lug_s20:      Optional[int]  = None
+    ww_lug_s23:      Optional[int]  = None
+    ww_lug_l10:      Optional[int]  = None
+    ww_lug_l20:      Optional[int]  = None
+    ww_lug_l23:      Optional[int]  = None
+    ww_dep_min:      Optional[str]  = None
+    ww_dep_max:      Optional[str]  = None
+    ww_arr_min:      Optional[str]  = None
+    ww_arr_max:      Optional[str]  = None
 
 
 # ── Global settings (admin configures once for all) ───────────────────────────
@@ -73,8 +92,16 @@ def get_my_settings(user: dict = Depends(get_current_user)):
 
 @router.post("/user")
 def update_my_settings(data: UserSettingsPayload, user: dict = Depends(get_current_user)):
-    payload = {k: v for k, v in data.model_dump().items() if v is not None and v != ""}
+    """Save per-user settings including Immich + WanderWizzard defaults."""
+    raw = data.model_dump()
+    payload = {}
+    for k, v in raw.items():
+        if v is None:
+            continue
+        # Bool → "true"/"false" for consistent TEXT storage
+        payload[k] = "true" if v is True else "false" if v is False else str(v)
     save_user_settings_bulk(user["id"], payload)
+    logger.info(f"[SETTINGS/USER] updated user={user.get('id')} fields={list(payload.keys())}")
     return {"message": "Gespeichert", "updated": list(payload.keys())}
 
 
