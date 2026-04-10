@@ -167,6 +167,9 @@ Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
                 resp.raise_for_status()
                 text = resp.json()["choices"][0]["message"]["content"]
                 return self._parse_json_array(text)
+        except httpx.HTTPStatusError as e:
+            logger.warning(f"[Discovery] OpenAI HTTP Fehler: {e.response.status_code} - {e.response.text}")
+            return []
         except Exception as e:
             logger.warning(f"[Discovery] OpenAI call failed: {e}")
             return []
