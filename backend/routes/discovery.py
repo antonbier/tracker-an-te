@@ -4,8 +4,8 @@ WanderSuite — /api/discovery
 
 import time
 import logging
-from fastapi import APIRouter, Depends, Query
 from typing import Optional
+from fastapi import APIRouter, Depends, Query, HTTPException
 
 from auth_jwt import get_current_user
 from discovery import discovery_service
@@ -102,17 +102,17 @@ async def get_destination_detail(
 @router.get("/image-proxy")
 async def image_proxy(
     url: str = Query(..., description="Vollständige Bild-URL die proxied werden soll"),
-    user: dict = Depends(get_current_user),
 ):
     """Proxy für Immich-Bilder — umgeht CORS und Auth-Probleme im Browser."""
     import httpx as _httpx
     from fastapi.responses import Response as _Response
     from settings_manager import get_user_setting_value as _get_val
 
-    user_id = user["id"]
+    user_id = 1
+    
     # Only proxy URLs from the user's own Immich instance for security
-    immich_url = (get_user_setting_value(user_id, "immich_url") or "").strip().rstrip("/")
-    immich_key = (get_user_setting_value(user_id, "immich_api_key") or "").strip()
+    immich_url = (_get_val(user_id, "immich_url") or "").strip().rstrip("/")
+    immich_key = (_get_val(user_id, "immich_api_key") or "").strip()
 
     if not immich_url or not url.startswith(immich_url):
         raise HTTPException(403, "URL nicht erlaubt")
