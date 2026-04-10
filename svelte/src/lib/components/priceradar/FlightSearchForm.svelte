@@ -30,14 +30,14 @@
   // ── Derived ───────────────────────────────────────────────────────────────
   const flBaggageCost = $derived(fl10kg * fl10kgPrice + fl20kg * fl20kgPrice + fl23kg * fl23kgPrice);
   const flTotalPax    = $derived(flAdults + flChildren);
-  const flExtrasLabel = $derived(() => {
-    const parts = [];
-    if (fl10kg > 0)     parts.push(fl10kg + '× 10kg');
-    if (fl20kg > 0)     parts.push(fl20kg + '× 20kg');
-    if (fl23kg > 0)     parts.push(fl23kg + '× 23kg');
-    if (flSeatCost > 0) parts.push(get(t)('radarSeatBadge').replace('{n}', flSeatCost));
-    return parts.join(' · ');
-  });
+  const flExtrasLabel = $derived.by(() => {
+  const parts = [];
+  if (fl10kg > 0)     parts.push(fl10kg + '× 10kg');
+  if (fl20kg > 0)     parts.push(fl20kg + '× 20kg');
+  if (fl23kg > 0)     parts.push(fl23kg + '× 23kg');
+  if (flSeatCost > 0) parts.push(get(t)('radarSeatBadge').replace('{n}', flSeatCost));
+  return parts.join(' · ');
+});
 
   // ── Autocomplete helpers ──────────────────────────────────────────────────
   function acFilter(key, value) {
@@ -212,7 +212,10 @@
                   style="background:var(--ws-accent);border-color:var(--ws-accent);color:#fff">+</button>
               </div>
               <div class="flex items-center gap-1 flex-1 min-w-0">
-                <input type="number" bind:value={() => pGetter(), v => pSetter(v)} min="0" step="0.01"
+                <input type="number"
+                  value={pGetter()}
+                  oninput={(e) => pSetter(parseFloat(e.currentTarget.value) || 0)}
+                  min="0" step="0.01"
                   placeholder="€/Koffer"
                   class="flex-1 min-w-0 px-2 py-1 rounded-lg border text-xs font-mono text-center outline-none"
                   style="{inputStyle};opacity:{getter()>0?1:0.4}"
@@ -319,7 +322,7 @@
   </details>
 
   <!-- Extras-Vorschau + Suche-Button -->
-  {#if flExtrasLabel()}
+  {#if flExtrasLabel}
     <div class="text-xs px-1" style="color:var(--ws-muted)">
       ℹ️ Aufschlag wird auf Flugpreis addiert: {flExtrasLabel()}
     </div>
