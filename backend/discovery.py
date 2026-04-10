@@ -133,10 +133,16 @@ Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
             "Kein Markdown, keine Einleitung, kein Kommentar."
         )
 
+            # Try the configured provider first, then fallback to the other
         if llm_provider == "gemini":
-            return await self._gemini_call(system_prompt, user_prompt)
+            result = await self._gemini_call(system_prompt, user_prompt)
+            if not result:
+                result = await self._openai_call(system_prompt, user_prompt)
         else:
-            return await self._openai_call(system_prompt, user_prompt)
+            result = await self._openai_call(system_prompt, user_prompt)
+            if not result:
+                result = await self._gemini_call(system_prompt, user_prompt)
+        return result
 
     async def _openai_call(self, system_prompt: str, user_prompt: str) -> list[dict]:
         api_key = get_setting_value("openai_key")
