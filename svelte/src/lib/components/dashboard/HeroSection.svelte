@@ -1,6 +1,8 @@
 <script>
+  import { onMount } from 'svelte';
   import { t } from '$lib/i18n.js';
-  import { currentPage } from '$lib/stores.js';
+  import { currentPage, apiUrl } from '$lib/stores.js';
+  import { api } from '$lib/api.js';
 
   let {
     nextTrip,
@@ -19,6 +21,19 @@
     onsavebudget,
     onopenWizzard,
   } = $props();
+
+  // ── Nostalgie background image ────────────────────────────────────────────
+  let heroImageUrl = $state(null);
+
+  $effect(() => {
+    const dest = hasLastTrip
+      ? (lastTrip?.location_name || lastTrip?.name || lastTrip?.country || '')
+      : '';
+    if (!dest || !$apiUrl) { heroImageUrl = null; return; }
+    api(`/api/discovery/trip-image?destination=${encodeURIComponent(dest)}`)
+      .then(res => { heroImageUrl = res?.image_url || null; })
+      .catch(() => { heroImageUrl = null; });
+  });
 
   // ── Hero content derived from trip state ──────────────────────────────────
   const hasNextTrip  = $derived(nextTrip !== null);
@@ -70,6 +85,19 @@
 
 <!-- ── Hero Container ── -->
 <div class="relative rounded-2xl overflow-hidden" style="min-height:220px;background:{heroBg}">
+
+  <!-- Nostalgie background image (lastTrip only) -->
+  {#if heroImageUrl && hasLastTrip}
+    <img
+      src={heroImageUrl}
+      alt=""
+      class="absolute inset-0 w-full h-full object-cover"
+      style="opacity:.35"
+      onerror={(e) => { e.currentTarget.style.display='none'; }}
+    />
+    <!-- Extra dark overlay so text stays readable over image -->
+    <div class="absolute inset-0" style="background:rgba(0,0,0,.45)"></div>
+  {/if}
 
   <!-- Texture overlay for depth -->
   <div class="absolute inset-0 opacity-20"
