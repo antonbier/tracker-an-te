@@ -2,7 +2,7 @@
   import { t } from '$lib/i18n.js';
   import TrackerCard from './TrackerCard.svelte';
 
-  const {
+  let {
     trackers,
     allCount,
     loading,
