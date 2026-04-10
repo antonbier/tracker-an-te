@@ -1,4 +1,7 @@
 <script>
+  import { onMount } from 'svelte';
+  import { api } from '$lib/api.js';
+  import { apiUrl } from '$lib/stores.js';
   import { t } from '$lib/i18n.js';
 
   let {
@@ -7,11 +10,34 @@
     onnavto,
   } = $props();
 
-  // Third card: last Dawarich trip as nostalgia suggestion
+  // Third card: last Dawarich trip as nostalgia fallback
   const nostalgiaTrip = $derived(recentDawarich[0] ?? null);
   const nostalgiaName = $derived.by(() => {
     if (!nostalgiaTrip) return null;
     return nostalgiaTrip.location_name || nostalgiaTrip.country || null;
+  });
+
+  // ── AI Suggestions (cards 2+3) ─────────────────────────────────────────────
+  let suggestions   = $state([]);
+  let loadingSugg   = $state(false);
+
+  // CSS-Fallback gradients for cards without image
+  const FALLBACK_GRADIENTS = [
+    'linear-gradient(135deg,#1a3a4a 0%,#0f2a38 100%)',
+    'linear-gradient(135deg,#2d6a4f 0%,#1e4a37 100%)',
+    'linear-gradient(135deg,#3b1f5e 0%,#1e1035 100%)',
+  ];
+
+  onMount(async () => {
+    if (!$apiUrl) return;
+    loadingSugg = true;
+    try {
+      const data = await api('/api/discovery/suggestions?count=2');
+      suggestions = Array.isArray(data) ? data : [];
+    } catch (e) {
+      suggestions = [];
+    }
+    loadingSugg = false;
   });
 </script>
 
@@ -22,7 +48,7 @@
 
   <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
 
-    <!-- Card 1: Neuen Trip planen -->
+    <!-- Card 1: Neuen Trip planen (fix) -->
     <button
       onclick={() => onnavto('mytrips')}
       class="group relative rounded-2xl p-5 text-left overflow-hidden transition-all hover:scale-[1.02] active:scale-[.98]"
@@ -40,64 +66,140 @@
       </div>
     </button>
 
-    <!-- Card 2: PriceRadar / Preise beobachten -->
-    <button
-      onclick={() => onnavto('priceradar')}
-      class="group relative rounded-2xl p-5 text-left overflow-hidden transition-all hover:scale-[1.02] active:scale-[.98]"
-      style="background:linear-gradient(135deg,#1a3a4a 0%,#0f2a38 100%);min-height:140px">
-      <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
-        style="background:rgba(255,255,255,.06)"></div>
-      <div class="relative z-10 flex flex-col h-full" style="min-height:100px">
-        <div class="text-2xl mb-2">📡</div>
-        <div class="font-bold text-sm leading-snug mb-1" style="color:#fff;font-family:var(--ws-serif)">
-          Preise beobachten
-        </div>
-        <div class="text-xs mt-auto" style="color:rgba(255,255,255,.45)">
-          PriceRadar öffnen →
-        </div>
-      </div>
-      <!-- Accent dot -->
-      <div class="absolute top-4 right-4 w-2 h-2 rounded-full animate-pulse" style="background:var(--ws-green)"></div>
-    </button>
+    <!-- Cards 2+3: AI Suggestions or Skeleton / Fallback -->
+    {#each [0, 1] as cardIdx}
+      {@const sugg = suggestions[cardIdx]}
+      {@const fallbackGrad = FALLBACK_GRADIENTS[cardIdx + 1]}
 
-    <!-- Card 3: Nostalgie / WanderWizzard (dynamic) -->
-    {#if nostalgiaName}
-      <button
-        onclick={() => onstartwizard({ destination: nostalgiaName })}
-        class="group relative rounded-2xl p-5 text-left overflow-hidden transition-all hover:scale-[1.02] active:scale-[.98]"
-        style="background:linear-gradient(135deg,#2d6a4f 0%,#1e4a37 100%);min-height:140px">
-        <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
-          style="background:rgba(255,255,255,.06)"></div>
-        <div class="relative z-10 flex flex-col h-full" style="min-height:100px">
-          <div class="text-2xl mb-2">🔁</div>
-          <div class="font-bold text-sm leading-snug mb-1" style="color:#ecfdf5;font-family:var(--ws-serif)">
-            Wieder nach {nostalgiaName}?
-          </div>
-          <div class="text-xs mt-auto" style="color:rgba(236,253,245,.5)">
-            WanderWizzard starten →
+      {#if loadingSugg}
+        <!-- Skeleton -->
+        <div class="rounded-2xl overflow-hidden animate-pulse"
+          style="background:var(--ws-surface2);min-height:140px">
+          <div class="h-full p-5 flex flex-col gap-3">
+            <div class="w-12 h-4 rounded" style="background:var(--ws-border)"></div>
+            <div class="w-3/4 h-4 rounded" style="background:var(--ws-border)"></div>
+            <div class="w-1/2 h-3 rounded mt-auto" style="background:var(--ws-border)"></div>
           </div>
         </div>
-        <span class="absolute top-4 right-4 text-[10px] font-bold px-2 py-0.5 rounded-full"
-          style="background:rgba(255,255,255,.15);color:rgba(255,255,255,.7)">Nostalgie</span>
-      </button>
 
-    {:else}
-      <!-- Fallback: Discover -->
-      <button
-        onclick={() => onnavto('discover')}
-        class="group relative rounded-2xl p-5 text-left overflow-hidden transition-all hover:scale-[1.02] active:scale-[.98] border-2 border-dashed"
-        style="background:var(--ws-surface);border-color:var(--ws-border);min-height:140px">
-        <div class="relative z-10 flex flex-col h-full" style="min-height:100px">
-          <div class="text-2xl mb-2">🌍</div>
-          <div class="font-bold text-sm leading-snug mb-1" style="color:var(--ws-text);font-family:var(--ws-serif)">
-            Neue Ziele entdecken
+      {:else if sugg}
+        <!-- AI Suggestion card -->
+        <button
+          onclick={() => onstartwizard(sugg.prefill)}
+          class="group relative rounded-2xl text-left overflow-hidden transition-all hover:scale-[1.02] active:scale-[.98]"
+          style="min-height:140px;background:{fallbackGrad}">
+
+          <!-- Background image if available -->
+          {#if sugg.image_url}
+            <img
+              src={sugg.image_url}
+              alt={sugg.destination}
+              class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+              style="opacity:.55"
+              onerror={(e) => { e.currentTarget.style.display='none'; }}
+            />
+          {/if}
+
+          <!-- Dark overlay for readability -->
+          <div class="absolute inset-0"
+            style="background:linear-gradient(to top,rgba(0,0,0,.75) 0%,rgba(0,0,0,.2) 60%,transparent 100%)"></div>
+
+          <!-- Hover shimmer -->
+          <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
+            style="background:rgba(255,255,255,.06)"></div>
+
+          <!-- Content -->
+          <div class="relative z-10 flex flex-col h-full p-5" style="min-height:140px">
+            <!-- AI badge -->
+            <div class="flex justify-between items-start mb-auto">
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                style="background:rgba(255,255,255,.18);color:rgba(255,255,255,.85)">
+                ✨ KI-Vorschlag
+              </span>
+              {#if sugg.image_source === 'immich'}
+                <span class="text-[9px] px-1.5 py-0.5 rounded-full"
+                  style="background:rgba(0,0,0,.35);color:rgba(255,255,255,.6)">📸 Immich</span>
+              {:else if sugg.image_source === 'unsplash'}
+                <span class="text-[9px] px-1.5 py-0.5 rounded-full"
+                  style="background:rgba(0,0,0,.35);color:rgba(255,255,255,.6)">🖼️ Unsplash</span>
+              {/if}
+            </div>
+
+            <div class="mt-auto">
+              <div class="font-bold text-sm leading-snug mb-1 truncate"
+                style="color:#fff;font-family:var(--ws-serif);text-shadow:0 1px 6px rgba(0,0,0,.6)">
+                {sugg.destination}
+              </div>
+              <div class="text-xs leading-relaxed line-clamp-2"
+                style="color:rgba(255,255,255,.75);text-shadow:0 1px 4px rgba(0,0,0,.5)">
+                {sugg.reason}
+              </div>
+              <div class="text-xs mt-2 font-semibold" style="color:rgba(255,255,255,.6)">
+                WanderWizzard starten →
+              </div>
+            </div>
           </div>
-          <div class="text-xs mt-auto" style="color:var(--ws-muted)">
-            Discover öffnen →
+        </button>
+
+      {:else if cardIdx === 0}
+        <!-- Fallback card 2: PriceRadar -->
+        <button
+          onclick={() => onnavto('priceradar')}
+          class="group relative rounded-2xl p-5 text-left overflow-hidden transition-all hover:scale-[1.02] active:scale-[.98]"
+          style="background:linear-gradient(135deg,#1a3a4a 0%,#0f2a38 100%);min-height:140px">
+          <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
+            style="background:rgba(255,255,255,.06)"></div>
+          <div class="relative z-10 flex flex-col h-full" style="min-height:100px">
+            <div class="text-2xl mb-2">📡</div>
+            <div class="font-bold text-sm leading-snug mb-1" style="color:#fff;font-family:var(--ws-serif)">
+              Preise beobachten
+            </div>
+            <div class="text-xs mt-auto" style="color:rgba(255,255,255,.45)">
+              PriceRadar öffnen →
+            </div>
           </div>
-        </div>
-      </button>
-    {/if}
+          <div class="absolute top-4 right-4 w-2 h-2 rounded-full animate-pulse" style="background:var(--ws-green)"></div>
+        </button>
+
+      {:else if nostalgiaName}
+        <!-- Fallback card 3: Nostalgie -->
+        <button
+          onclick={() => onstartwizard({ destination: nostalgiaName })}
+          class="group relative rounded-2xl p-5 text-left overflow-hidden transition-all hover:scale-[1.02] active:scale-[.98]"
+          style="background:linear-gradient(135deg,#2d6a4f 0%,#1e4a37 100%);min-height:140px">
+          <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
+            style="background:rgba(255,255,255,.06)"></div>
+          <div class="relative z-10 flex flex-col h-full" style="min-height:100px">
+            <div class="text-2xl mb-2">🔁</div>
+            <div class="font-bold text-sm leading-snug mb-1" style="color:#ecfdf5;font-family:var(--ws-serif)">
+              Wieder nach {nostalgiaName}?
+            </div>
+            <div class="text-xs mt-auto" style="color:rgba(236,253,245,.5)">
+              WanderWizzard starten →
+            </div>
+          </div>
+          <span class="absolute top-4 right-4 text-[10px] font-bold px-2 py-0.5 rounded-full"
+            style="background:rgba(255,255,255,.15);color:rgba(255,255,255,.7)">Nostalgie</span>
+        </button>
+
+      {:else}
+        <!-- Fallback card 3: Discover -->
+        <button
+          onclick={() => onnavto('discover')}
+          class="group relative rounded-2xl p-5 text-left overflow-hidden transition-all hover:scale-[1.02] active:scale-[.98] border-2 border-dashed"
+          style="background:var(--ws-surface);border-color:var(--ws-border);min-height:140px">
+          <div class="relative z-10 flex flex-col h-full" style="min-height:100px">
+            <div class="text-2xl mb-2">🌍</div>
+            <div class="font-bold text-sm leading-snug mb-1" style="color:var(--ws-text);font-family:var(--ws-serif)">
+              Neue Ziele entdecken
+            </div>
+            <div class="text-xs mt-auto" style="color:var(--ws-muted)">
+              Discover öffnen →
+            </div>
+          </div>
+        </button>
+      {/if}
+    {/each}
 
   </div>
 </div>
