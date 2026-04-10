@@ -65,6 +65,13 @@ USER_KEYS = [
     "ww_dep_max",
     "ww_arr_min",
     "ww_arr_max",
+    # WanderWizzard: Reisepersönlichkeit
+    "travel_style",
+    "climate_pref",
+    "landscape_pref",
+    "companions",
+    "wish_text",
+    "unsplash_key",   # Fernet-verschlüsselt
 ]
 
 ALL_KEYS = GLOBAL_KEYS + USER_KEYS
