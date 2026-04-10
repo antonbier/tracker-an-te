@@ -5,11 +5,11 @@
   import { browser } from '$app/environment';
   import { t } from '$lib/i18n.js';
 
-  import PageHeader   from '$lib/components/mytrips/PageHeader.svelte';
-  import OverviewTab  from '$lib/components/mytrips/OverviewTab.svelte';
-  // import TripsTab     from '$lib/components/mytrips/TripsTab.svelte';
-  // import JournalTab   from '$lib/components/mytrips/JournalTab.svelte';
-  // import BucketListTab from '$lib/components/mytrips/BucketListTab.svelte';
+  import PageHeader    from '$lib/components/mytrips/PageHeader.svelte';
+  import OverviewTab   from '$lib/components/mytrips/OverviewTab.svelte';
+  import TripsTab      from '$lib/components/mytrips/TripsTab.svelte';
+  import JournalTab    from '$lib/components/mytrips/JournalTab.svelte';
+  import BucketListTab from '$lib/components/mytrips/BucketListTab.svelte';
 
   // ── Tabs ──────────────────────────────────────────────────────────────────
   let activeTab = $state('overview');
@@ -340,18 +340,17 @@
     />
 
   {:else if activeTab === 'trips'}
-    <!-- <TripsTab
+    <TripsTab
       bind:tripName bind:tripDateStart bind:tripDateEnd bind:tripCost
       {upcomingTrips} {pastTrips}
       {yearBudget} {pctYear} {totalSpentYear} {remainingYear} {selectedYear}
       {inp} {card} {btn}
       onaddtrip={addTrip}
       onremovetrip={removeTrip}
-    /> -->
-    <p class="text-xs" style="color:var(--ws-muted)">Geplante Reisen — coming soon</p>
+    />
 
   {:else if activeTab === 'journal'}
-    <!-- <JournalTab
+    <JournalTab
       bind:budgetInput bind:mName bind:mStart bind:mEnd bind:mCountry bind:mCost
       bind:forceFull
       {selectedYear} {journalYear} {journalTrips} {journalLoad}
@@ -370,18 +369,16 @@
       onsyncactual={syncActual}
       onlistactualfiles={listActualFiles}
       onrunautocost={runAutoCost}
-    /> -->
-    <p class="text-xs" style="color:var(--ws-muted)">Reisechronik — coming soon</p>
+    />
 
   {:else if activeTab === 'bucketlist'}
-    <!-- <BucketListTab
+    <BucketListTab
       bind:bucketItem bind:bucketDest
       {card} {inp} {btn}
       onadd={addBucketItem}
       ontoggle={toggleBucket}
       onremove={removeBucket}
-    /> -->
-    <p class="text-xs" style="color:var(--ws-muted)">Bucket List — coming soon</p>
+    />
   {/if}
 
 </div>
