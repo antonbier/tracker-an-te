@@ -42,6 +42,20 @@
     }
     loadingSugg = false;
   });
+
+  async function refreshSuggestions() {
+    if (!$apiUrl || loadingSugg) return;
+    loadingSugg = true;
+    apiError = '';
+    try {
+      const data = await api('/api/discovery/refresh?count=3', { method: 'POST' });
+      suggestions = Array.isArray(data) ? data : [];
+      if (suggestions.length === 0) apiError = 'Keine neuen Vorschläge verfügbar.';
+    } catch (e) {
+      apiError = e?.message || 'Fehler beim Aktualisieren.';
+    }
+    loadingSugg = false;
+  }
 </script>
 
 <div class="space-y-5">
@@ -126,10 +140,17 @@
       <h2 class="text-xs font-bold uppercase tracking-widest" style="color:var(--ws-muted)">
         🤖 KI-Reisevorschläge
       </h2>
-      {#if !loadingSugg && suggestions.length > 0}
-        <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold"
-          style="background:rgba(196,98,45,.12);color:var(--ws-accent)">✨ personalisiert</span>
-      {/if}
+      <div class="flex items-center gap-2">
+        {#if !loadingSugg && suggestions.length > 0}
+          <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+            style="background:rgba(196,98,45,.12);color:var(--ws-accent)">✨ personalisiert</span>
+        {/if}
+        <button onclick={refreshSuggestions} disabled={loadingSugg}
+          class="text-[10px] px-2 py-1 rounded-lg border transition-opacity hover:opacity-70 disabled:opacity-30 flex items-center gap-1"
+          style="border-color:var(--ws-border);color:var(--ws-muted);background:var(--ws-surface2)">
+          {loadingSugg ? '⏳' : '🔄'} Neue Vorschläge
+        </button>
+      </div>
     </div>
 
     {#if loadingSugg}
