@@ -7,6 +7,7 @@
     recentDawarich,
     onstartwizard,
     onnavto,
+    onopenSettings = () => {},
   } = $props();
 
   // Nostalgia fallback from Dawarich
@@ -219,7 +220,7 @@
           <p class="text-xs leading-relaxed" style="color:var(--ws-muted)">
             {apiError || 'Konfiguriere einen OpenAI- oder Gemini-Key in den Einstellungen unter ✨ KI, um personalisierte Reisevorschläge zu erhalten.'}
           </p>
-          <button onclick={() => onnavto('settings')}
+          <button onclick={onopenSettings}
             class="mt-2 text-xs font-semibold px-3 py-1.5 rounded-lg transition-opacity hover:opacity-80"
             style="background:var(--ws-accent);color:#fff5ec">
             ⚙️ Einstellungen öffnen
