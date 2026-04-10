@@ -7,10 +7,10 @@
 
   // ── Tab-Komponenten (werden schrittweise aktiviert) ────────────────────
   import BasicTab         from './settings/BasicTab.svelte';
-  // import IntegrationsTab  from './settings/IntegrationsTab.svelte';
-  // import NotificationsTab from './settings/NotificationsTab.svelte';
+  import IntegrationsTab  from './settings/IntegrationsTab.svelte';
+  import NotificationsTab from './settings/NotificationsTab.svelte';
   // import MyspaceTab       from './settings/MyspaceTab.svelte';
-  // import AccountTab       from './settings/AccountTab.svelte';
+  import AccountTab       from './settings/AccountTab.svelte';
   // import AdminTab         from './settings/AdminTab.svelte';
   // import SchedulerTab     from './settings/SchedulerTab.svelte';
 
@@ -319,21 +319,19 @@
         />
 
       {:else if activeTab === 'integrations'}
-        <!-- <IntegrationsTab
+        <IntegrationsTab
           bind:dawarichUrl bind:dawarichToken
           bind:homeLat bind:homeLon
           bind:actualUrl bind:actualToken bind:actualFile bind:travelCats
           {authEnabled}
           onswitchtomyspace={() => activeTab = 'myspace'}
-        /> -->
-        <p class="text-xs" style="color:var(--ws-muted)">Integrations Tab — coming soon</p>
+        />
 
       {:else if activeTab === 'notifications'}
-        <!-- <NotificationsTab
+        <NotificationsTab
           bind:telegramToken bind:telegramChat
           bind:gotifyUrl bind:gotifyToken
-        /> -->
-        <p class="text-xs" style="color:var(--ws-muted)">Notifications Tab — coming soon</p>
+        />
 
       {:else if activeTab === 'myspace'}
         <!-- <MyspaceTab
@@ -352,12 +350,11 @@
         <p class="text-xs" style="color:var(--ws-muted)">Mein Bereich Tab — coming soon</p>
 
       {:else if activeTab === 'account'}
-        <!-- <AccountTab
+        <AccountTab
           userId={$currentUser?.id}
           userEmail={$currentUser?.email}
           userRole={$currentUser?.role}
-        /> -->
-        <p class="text-xs" style="color:var(--ws-muted)">Account Tab — coming soon</p>
+        />
 
       {:else if activeTab === 'admin'}
         <!-- <AdminTab currentUserId={$currentUser?.id} /> -->
