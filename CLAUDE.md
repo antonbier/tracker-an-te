@@ -1641,3 +1641,106 @@ kein neues Locale ohne Code-Änderung in Header.svelte.
 | S3 | Frontend/Tracker | Buchen-Button, Stopp-Badge+Layover, Weltkarte Legende |
 | S4 | i18n | ES-Locale, dynamisches Select-Dropdown |
 
+
+
+---
+
+## Technical Debt Abbau — Frontend Modularisierung (Session 2025-04-10)
+
+### Ziel
+Die drei größten Monolithen im Frontend wurden in saubere, modulare Svelte 5 Komponenten aufgeteilt.
+**Goldene Regeln:** Zero Logic Change · Pure Svelte 5 Runes (`$props`, `$state`, `$derived`) · `$bindable` immer mit `let` · `$derived.by()` für mehrzeilige Blöcke.
+
+---
+
+### 1. PriceRadar.svelte Refactoring (1687 → ~165 Zeilen)
+
+**Neue Dateistruktur:**
+```
+svelte/src/lib/components/
+├── pages/PriceRadar.svelte                    ← Orchestrator (~165 Zeilen)
+└── priceradar/
+    ├── constants.js                           ← AIRPORTS, DESTINATIONS, CSS-Konstanten
+    ├── helpers.js                             ← Pure Functions (fmtDate, chartPts, trackerTitle, etc.)
+    ├── CategoryTabs.svelte                    ← Tab-Leiste (Flüge/Hotels/Camping/Mietwagen)
+    ├── FlightSearchForm.svelte                ← Suchmaske Flüge inkl. Gepäck- & Zeit-Akkordeons
+    ├── HotelSearchForm.svelte                 ← Suchmaske Hotels
+    ├── CampingSearchForm.svelte               ← Suchmaske Camping
+    ├── SearchResults.svelte                   ← Skeleton + Provider-Chips + Ergebnis-Karten
+    ├── TrackerGrid.svelte                     ← Header + Grid + Leer-Zustand
+    └── TrackerCard.svelte                     ← Einzelne Tracker-Karte inkl. Chart-Akkordeon
+```
+
+**Architektur-Entscheidungen:**
+- `constants.js` + `helpers.js`: Reine JS-Exports, keine Svelte-Komponenten — ermöglicht Import in allen Sub-Komponenten ohne zirkuläre Abhängigkeiten.
+- Formular-State (flOrigin, htCity, cpRegion etc.) lebt vollständig in den jeweiligen Form-Komponenten — kein Lift-Up nötig, da Payload per `onsearch(payload)`-Callback an Orchestrator gesendet wird.
+- `chartState`, `wishState`, `stopsOpen` sind `$bindable` im Orchestrator und werden als gebundene Props an TrackerGrid/TrackerCard weitergegeben.
+- `saveAsTracker()`, `loadAllTrackers()`, `deleteTracker()`, `scrapeTracker()`, `saveWishPrice()`, `toggleChart()`, `refreshAllTrackers()` — alle API-Calls bleiben im Orchestrator.
+
+---
+
+### 2. Settings.svelte Refactoring (1013 → ~230 Zeilen)
+
+**Neue Dateistruktur:**
+```
+svelte/src/lib/components/
+├── Settings.svelte                            ← Orchestrator (~230 Zeilen)
+└── settings/
+    ├── BasicTab.svelte                        ← Backend-URL, Theme, Timezone, Datumsformat
+    ├── IntegrationsTab.svelte                 ← Dawarich + ActualBudget (global/Fallback)
+    ├── NotificationsTab.svelte                ← Telegram + Gotify (inkl. Hilfe-Alerts)
+    ├── MyspaceTab.svelte                      ← Mein Bereich Shell (Sub-Tab-Navigation)
+    │   ├── MyspaceConnections.svelte          ← Dawarich + ActualBudget per-user + Geocoding
+    │   ├── MyspaceProviders.svelte            ← Provider-Toggle-Liste + API-Key-Inputs
+    │   └── MyspaceAI.svelte                   ← OpenAI + Gemini Keys
+    ├── AccountTab.svelte                      ← Passwort ändern + PasskeyManager (self-contained)
+    ├── AdminTab.svelte                        ← User-Liste + anlegen/löschen (self-contained)
+    └── SchedulerTab.svelte                    ← Intervall + Notifications + Ausführen (self-contained)
+```
+
+**Architektur-Entscheidungen:**
+- `AccountTab`, `AdminTab`, `SchedulerTab` sind vollständig self-contained: eigener `$state`, eigene API-Calls, kein shared State nötig. Nur `userId`/`currentUserId` als read-only Prop.
+- Geteilte API-Key-State (`serpApiKey`, `openaiKey`, `geminiKey`) bleibt im Orchestrator, da er in `saveUserSettings()` UND `save()` gleichzeitig gebraucht wird.
+- Tab-Array ist statisch (`TAB_IDS_*` Konstanten) — Labels werden via `$derived({...})` aus `$t()` aufgelöst. Kein `$derived.by()` mit Labels nötig (vermeidet Re-Mount-Bug durch neue Array-Referenz).
+- `MyspaceConnections` verwaltet `myGeoLoading` + `myGeoResult` + `geocodeHome()` lokal — Geocoding-Callback braucht keinen Lift-Up.
+- `providerKeys` ist ein `$state({})` Objekt im Orchestrator; `MyspaceProviders` nutzt `oninput`-Getter/Setter-Pattern (kein `bind:value` mit Zwei-Funktionen) für korrekte Svelte 5 Kompatibilität.
+
+---
+
+### 3. MyTrips.svelte Refactoring (917 → ~240 Zeilen)
+
+**Neue Dateistruktur:**
+```
+svelte/src/lib/components/
+├── pages/MyTrips.svelte                       ← Orchestrator (~240 Zeilen)
+└── mytrips/
+    ├── PageHeader.svelte                      ← Titel + Sync-Button + Jahr-Switcher + Badges + Tab-Leiste
+    ├── OverviewTab.svelte                     ← Stats-Karten, Donut-Chart, ScratchMap, Previews
+    ├── TripsTab.svelte                        ← Smart Planer Teaser, Formular, Upcoming/Past Listen
+    ├── JournalTab.svelte                      ← Shell: Budget, Formular, Tipp, Sync-Karten, Timeline
+    │   ├── JournalSyncDawarich.svelte         ← Sync-Karte 1 (Force-Full-Checkbox, self-contained)
+    │   ├── JournalSyncActual.svelte           ← Sync-Karte 2 (Datei-Liste, Auto-Cost, self-contained)
+    │   └── JournalTimeline.svelte             ← Timeline mit Kosten-Inline-Edit
+    └── BucketListTab.svelte                   ← Formular + Grid der Wunschziele
+```
+
+**Architektur-Entscheidungen:**
+- `donutGradient` bleibt als `$derived.by()` im Orchestrator (mehrzeilige Berechnung) und wird als fertiger String an `OverviewTab` übergeben — kein `BudgetDonut`-Split nötig.
+- `editingCost` + `costDraft` im Orchestrator: `JournalTimeline` meldet via `oneditcost(id, draft)` + `oncanceledit()` zurück → Orchestrator setzt State → Props fließen zurück.
+- `forceFull` ist `$bindable` zwischen Orchestrator und `JournalSyncDawarich`.
+- `visibleYears` wird als fertiges Array-Prop an `PageHeader` übergeben (kein eigener `$derived` in PageHeader).
+- CSS-Konstanten `inp`, `card`, `btn` werden als Props weitergegeben — keine Duplizierung in Sub-Komponenten.
+- `TripsTab.onremovetrip(idx)` — Index bezieht sich auf `upcomingTrips`/`pastTrips` Array, nicht auf den globalen `$trips` Store. Orchestrator mappt zurück via `$trips.indexOf(tr)`.
+
+---
+
+### Svelte 5 Pitfalls — Gelernte Regeln
+
+| Regel | Falsch | Richtig |
+|-------|--------|---------|
+| `$bindable` Destrukturierung | `const { x = $bindable() }` | `let { x = $bindable() }` |
+| Mehrzeilige Derived-Blöcke | `$derived(() => { ... })` | `$derived.by(() => { ... })` |
+| Input mit Getter/Setter | `bind:value={getter(), setter}` | `value={getter()} oninput={(e) => setter(e.target.value)}` |
+| i18n reaktiv | `get(t)('key')` im Script | `$t('key')` im Template oder `$derived($t('key'))` |
+| Tab-Array mit Labels | `$derived.by(() => [{label: $t(...)}])` | Statische IDs + `$derived({id: $t(...)})` für Labels |
+
