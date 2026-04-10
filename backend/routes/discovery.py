@@ -28,12 +28,22 @@ def _set_cached(user_id: int, data: list) -> None:
     _cache[user_id] = {"ts": time.time(), "data": data}
 
 
+def _proxy_url(image_url: str | None, image_source: str) -> tuple:
+    """Wrap Immich URLs through our proxy endpoint to avoid CORS issues."""
+    if image_source == "immich_proxy" and image_url:
+        from urllib.parse import quote
+        proxied = f"/api/discovery/image-proxy?url={quote(image_url, safe='')}"
+        return proxied, "immich"
+    return image_url, image_source
+
+
 def _serialize(s) -> dict:
+    url, src = _proxy_url(s.image_url, s.image_source)
     return {
         "destination":  s.destination,
         "reason":       s.reason,
-        "image_url":    s.image_url,
-        "image_source": s.image_source,
+        "image_url":    url,
+        "image_source": src,
         "prefill":      s.prefill,
     }
 
@@ -73,7 +83,8 @@ async def get_trip_image(
 ):
     user_id = user["id"]
     image_url, image_source = await discovery_service.get_trip_image(user_id, destination)
-    return {"image_url": image_url, "image_source": image_source}
+    url, src = _proxy_url(image_url, image_source)
+    return {"image_url": url, "image_source": src}
 
 
 @router.get("/detail")
