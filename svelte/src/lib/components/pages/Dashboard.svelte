@@ -5,6 +5,7 @@
   import { toast } from '$lib/toast.js';
   import { t } from '$lib/i18n.js';
 
+  import WanderWizzard      from '$lib/components/WanderWizzard.svelte';
   import HeroSection        from '$lib/components/dashboard/HeroSection.svelte';
   import TravelInspo        from '$lib/components/dashboard/TravelInspo.svelte';
   import CompactTripsList   from '$lib/components/dashboard/CompactTripsList.svelte';
@@ -159,6 +160,7 @@
     onopenbodgetedit={() => { budgetEditing = true; }}
     onclosebodgetedit={() => { budgetEditing = false; }}
     onsavebudget={saveBudget}
+    onopenWizzard={() => wizzardOpen = true}
   />
 
   <!-- ── Travel Inspiration ── -->
@@ -202,4 +204,5 @@
 
 
 <WanderWizzard bind:open={wizzardOpen} />
+
 </div>
