@@ -1,5 +1,6 @@
 <script>
   import { t } from '$lib/i18n.js';
+  import { currentPage } from '$lib/stores.js';
 
   let {
     nextTrip,
@@ -16,6 +17,7 @@
     onopenbodgetedit,
     onclosebodgetedit,
     onsavebudget,
+    onopenWizzard,
   } = $props();
 
   // ── Hero content derived from trip state ──────────────────────────────────
