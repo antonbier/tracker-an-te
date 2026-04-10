@@ -92,6 +92,26 @@
   let myDateFormat     = $state('');
   let mySettingsSaving = $state(false);
 
+  // ── Immich (per-user) ─────────────────────────────────────────────────────
+  let myImmichUrl     = $state('');
+  let myImmichKey     = $state('');
+  let myImmichGeoSync = $state(false);
+
+  // ── WanderWizzard Defaults (per-user) ─────────────────────────────────────
+  let defAdults   = $state(2);
+  let defChildren = $state(0);
+  let homeAirport = $state('');
+  let lugS10      = $state(0);
+  let lugS20      = $state(0);
+  let lugS23      = $state(0);
+  let lugL10      = $state(0);
+  let lugL20      = $state(1);
+  let lugL23      = $state(0);
+  let fDepMin     = $state('');
+  let fDepMax     = $state('');
+  let fArrMin     = $state('');
+  let fArrMax     = $state('');
+
   // ── Load functions ────────────────────────────────────────────────────────
   async function loadUserSettings() {
     if (!$apiUrl) return;
@@ -107,6 +127,24 @@
       myTravelCats    = us.travel_categories    || ls('s-travelCategories');
       myTimezone      = us.timezone || '';
       myDateFormat    = us.date_format || '';
+      // Immich
+      myImmichUrl     = us.immich_url     || '';
+      myImmichKey     = us.immich_api_key ? '••••••••' : '';
+      myImmichGeoSync = us.immich_geo_sync === 'true' || us.immich_geo_sync === true;
+      // WanderWizzard Defaults
+      defAdults   = parseInt(us.ww_adults)   || 2;
+      defChildren = parseInt(us.ww_children) || 0;
+      homeAirport = us.ww_home_airport || '';
+      lugS10      = parseInt(us.ww_lug_s10)  || 0;
+      lugS20      = parseInt(us.ww_lug_s20)  || 0;
+      lugS23      = parseInt(us.ww_lug_s23)  || 0;
+      lugL10      = parseInt(us.ww_lug_l10)  || 0;
+      lugL20      = parseInt(us.ww_lug_l20)  || 1;
+      lugL23      = parseInt(us.ww_lug_l23)  || 0;
+      fDepMin     = us.ww_dep_min || '';
+      fDepMax     = us.ww_dep_max || '';
+      fArrMin     = us.ww_arr_min || '';
+      fArrMax     = us.ww_arr_max || '';
     } catch {}
   }
 
@@ -234,6 +272,24 @@
       if (myTravelCats)   payload.travel_categories = myTravelCats;
       if (myTimezone)     payload.timezone          = myTimezone;
       if (myDateFormat)   payload.date_format       = myDateFormat;
+      // Immich
+      if (myImmichUrl && myImmichUrl !== '••••••••') payload.immich_url     = myImmichUrl;
+      if (myImmichKey && myImmichKey !== '••••••••') payload.immich_api_key = myImmichKey;
+      payload.immich_geo_sync = myImmichGeoSync;
+      // WanderWizzard Defaults
+      payload.ww_adults        = defAdults;
+      payload.ww_children      = defChildren;
+      payload.ww_home_airport  = homeAirport || null;
+      payload.ww_lug_s10       = lugS10;
+      payload.ww_lug_s20       = lugS20;
+      payload.ww_lug_s23       = lugS23;
+      payload.ww_lug_l10       = lugL10;
+      payload.ww_lug_l20       = lugL20;
+      payload.ww_lug_l23       = lugL23;
+      payload.ww_dep_min       = fDepMin || null;
+      payload.ww_dep_max       = fDepMax || null;
+      payload.ww_arr_min       = fArrMin || null;
+      payload.ww_arr_max       = fArrMax || null;
       if (myDawarichUrl)  localStorage.setItem('s-dawarichUrl',      myDawarichUrl);
       if (myHomeLat)      localStorage.setItem('s-homeLat',          myHomeLat);
       if (myHomeLon)      localStorage.setItem('s-homeLon',          myHomeLon);
@@ -340,6 +396,11 @@
           bind:myHomeLat bind:myHomeLon
           bind:myActualUrl bind:myActualToken bind:myActualFile bind:myTravelCats
           bind:myTimezone bind:myDateFormat
+          bind:myImmichUrl bind:myImmichKey bind:myImmichGeoSync
+          bind:defAdults bind:defChildren bind:homeAirport
+          bind:lugS10 bind:lugS20 bind:lugS23
+          bind:lugL10 bind:lugL20 bind:lugL23
+          bind:fDepMin bind:fDepMax bind:fArrMin bind:fArrMax
           bind:serpApiKey bind:openaiKey bind:geminiKey
           bind:providers bind:providerKeys
           {providersLoading} {providersSaving} {mySettingsSaving}
