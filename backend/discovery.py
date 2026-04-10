@@ -249,7 +249,7 @@ Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
             try:
                 async with httpx.AsyncClient(timeout=TIMEOUT) as client:
                     resp = await client.get(
-                        "[https://api.unsplash.com/photos/random](https://api.unsplash.com/photos/random)",
+                        "https://api.unsplash.com/photos/random",
                         params={"query": f"{destination} travel", "orientation": "landscape"},
                         headers={"Authorization": f"Client-ID {unsplash_key}"},
                     )
@@ -266,9 +266,18 @@ Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
         return None, "css_fallback"
 
     def _build_prefill(self, prefs: dict, raw: dict) -> dict:
-        trip_type = raw.get("trip_type", "")
+        # Derive sensible trip_type from landscape/climate rather than trusting LLM blindly
+        landscape = raw.get("landscape", "") or raw.get("climate", "")
+        llm_type  = raw.get("trip_type", "") or ""
+        # Only accept flight/hotel/camping — reject car (nearly never correct as primary)
+        valid_types = {"flight", "hotel", "camping"}
+        trip_type = llm_type if llm_type in valid_types else "flight"
+        # Camping only if landscape explicitly says mountains/forest or LLM said camping
+        if llm_type == "camping" and landscape in ("mountains", "forest"):
+            trip_type = "camping"
         return {
             "destination": raw.get("destination", ""),
+            "country":     raw.get("country", ""),
             "tripType":    trip_type,
             "adults":      int(prefs.get("ww_adults") or 2),
             "children":    int(prefs.get("ww_children") or 0),
