@@ -298,6 +298,24 @@ def init_db():
             ("gf_trackers",      "booking_url TEXT DEFAULT NULL"),
             ("homair_trackers",  "booking_url TEXT DEFAULT NULL"),
             ("booking_trackers", "booking_url TEXT DEFAULT NULL"),
+            # user_settings: Immich integration (per-user)
+            ("user_settings",    "immich_url TEXT DEFAULT NULL"),
+            ("user_settings",    "immich_api_key TEXT DEFAULT NULL"),
+            ("user_settings",    "immich_geo_sync INTEGER DEFAULT 0"),
+            # user_settings: WanderWizzard defaults (per-user)
+            ("user_settings",    "ww_adults INTEGER DEFAULT 2"),
+            ("user_settings",    "ww_children INTEGER DEFAULT 0"),
+            ("user_settings",    "ww_home_airport TEXT DEFAULT NULL"),
+            ("user_settings",    "ww_lug_s10 INTEGER DEFAULT 0"),
+            ("user_settings",    "ww_lug_s20 INTEGER DEFAULT 0"),
+            ("user_settings",    "ww_lug_s23 INTEGER DEFAULT 0"),
+            ("user_settings",    "ww_lug_l10 INTEGER DEFAULT 0"),
+            ("user_settings",    "ww_lug_l20 INTEGER DEFAULT 1"),
+            ("user_settings",    "ww_lug_l23 INTEGER DEFAULT 0"),
+            ("user_settings",    "ww_dep_min TEXT DEFAULT NULL"),
+            ("user_settings",    "ww_dep_max TEXT DEFAULT NULL"),
+            ("user_settings",    "ww_arr_min TEXT DEFAULT NULL"),
+            ("user_settings",    "ww_arr_max TEXT DEFAULT NULL"),
         ]
         for table, col_def in migrations:
             col_name = col_def.split()[0]
