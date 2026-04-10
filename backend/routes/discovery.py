@@ -103,33 +103,55 @@ async def get_destination_detail(
 async def image_proxy(
     url: str = Query(..., description="Vollständige Bild-URL die proxied werden soll"),
 ):
-    """Proxy für Immich-Bilder — umgeht CORS und Auth-Probleme im Browser."""
+    """Proxy für Immich- und Unsplash-Bilder — umgeht CORS und Auth-Probleme."""
     import httpx as _httpx
     from fastapi.responses import Response as _Response
     from settings_manager import get_user_setting_value as _get_val
 
     user_id = 1
     
-    # Only proxy URLs from the user's own Immich instance for security
+    # 1. Validierung: Was darf durch den Proxy?
     immich_url = (_get_val(user_id, "immich_url") or "").strip().rstrip("/")
-    immich_key = (_get_val(user_id, "immich_api_key") or "").strip()
-
-    if not immich_url or not url.startswith(immich_url):
+    
+    is_immich = immich_url and url.startswith(immich_url)
+    is_unsplash = "unsplash.com" in url
+    
+    if not is_immich and not is_unsplash:
+        logger.warning(f"[Proxy] Blockierte URL: {url}")
         raise HTTPException(403, "URL nicht erlaubt")
 
-    try:
-        async with _httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
-            resp = await client.get(url, headers={"x-api-key": immich_key})
-            if resp.status_code != 200:
-                raise HTTPException(resp.status_code, "Immich Fehler")
-            content_type = resp.headers.get("content-type", "image/jpeg")
-            return _Response(content=resp.content, media_type=content_type,
-                             headers={"Cache-Control": "public, max-age=3600"})
-    except _httpx.TimeoutException:
-        raise HTTPException(504, "Immich Timeout")
-    except Exception as e:
-        raise HTTPException(502, str(e))
+    # 2. Header vorbereiten
+    headers = {
+        "User-Agent": "WanderSuite/1.0"
+    }
+    
+    # Nur wenn es Immich ist, schicken wir den Key mit
+    if is_immich:
+        immich_key = (_get_val(user_id, "immich_api_key") or "").strip()
+        if immich_key:
+            headers["x-api-key"] = immich_key
 
+    # 3. Bild abrufen und ausliefern
+    try:
+        async with _httpx.AsyncClient(timeout=10.0, follow_redirects=True, trust_env=False) as client:
+            resp = await client.get(url, headers=headers)
+            
+            if resp.status_code != 200:
+                logger.error(f"[Proxy] Fehler beim Abruf ({resp.status_code}) für: {url}")
+                raise HTTPException(resp.status_code, "Bildquelle Fehler")
+                
+            content_type = resp.headers.get("content-type", "image/jpeg")
+            return _Response(
+                content=resp.content, 
+                media_type=content_type,
+                headers={"Cache-Control": "public, max-age=86400"} # 24h Cache für Bilder
+            )
+            
+    except _httpx.TimeoutException:
+        raise HTTPException(504, "Proxy Timeout")
+    except Exception as e:
+        logger.error(f"[Proxy] Systemfehler: {e}")
+        raise HTTPException(502, str(e))
 
 @router.get("/debug-image")
 async def debug_image(
