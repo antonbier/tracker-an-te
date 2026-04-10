@@ -91,20 +91,22 @@ async def get_destination_detail(
 @router.get("/debug-image")
 async def debug_image(
     destination: str = Query(default="Meran"),
-    user: dict = Depends(get_current_user),
+    user_id: int = Query(default=1),
 ):
-    """Debug: check which image provider works and why."""
-    user_id = user["id"]
+    """Debug: no auth required. Check which image provider works."""
     from settings_manager import get_user_setting_value
     unsplash_key = (get_user_setting_value(user_id, "unsplash_key") or "").strip()
     immich_key   = (get_user_setting_value(user_id, "immich_api_key") or "").strip()
     immich_url   = (get_user_setting_value(user_id, "immich_url") or "").strip()
     image_url, image_source = await discovery_service.get_trip_image(user_id, destination)
     return {
-        "destination": destination,
+        "destination":      destination,
+        "user_id":          user_id,
         "has_unsplash_key": bool(unsplash_key),
+        "unsplash_key_len": len(unsplash_key),
         "has_immich_key":   bool(immich_key),
         "has_immich_url":   bool(immich_url),
-        "image_url":    image_url,
-        "image_source": image_source,
+        "immich_url_val":   immich_url or "(leer)",
+        "image_url":        image_url,
+        "image_source":     image_source,
     }
