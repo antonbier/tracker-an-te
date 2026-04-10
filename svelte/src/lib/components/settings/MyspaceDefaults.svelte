@@ -17,6 +17,11 @@
     fDepMax     = $bindable(),
     fArrMin     = $bindable(),
     fArrMax     = $bindable(),
+    travelStyle   = $bindable(),
+    climatePref   = $bindable(),
+    landscapePref = $bindable(),
+    companions    = $bindable(),
+    wishText      = $bindable(),
   } = $props();
 
   function stepper(getter, setter, min = 0, max = 9) {
@@ -47,7 +52,111 @@
             class="w-7 h-7 rounded-lg border text-base font-bold flex items-center justify-center"
             style="background:var(--ws-accent);border-color:var(--ws-accent);color:#fff">+</button>
         </div>
+      
+  <hr style="border-color:var(--ws-border)"/>
+
+  <!-- ── Reisepersönlichkeit ── -->
+  <div>
+    <div class="text-xs font-bold uppercase tracking-wider mb-3" style="color:var(--ws-muted)">🧭 Reisepersönlichkeit</div>
+
+    <!-- Reisestil -->
+    <div class="mb-4">
+      <div class="text-xs font-semibold mb-2" style="color:var(--ws-text)">✈️ Reisestil</div>
+      <div class="flex flex-wrap gap-2">
+        {#each [
+          ['adventure',   '🏔️ Abenteuer'],
+          ['relaxation',  '🏖️ Entspannung'],
+          ['culture',     '🏛️ Kultur'],
+          ['nature',      '🌿 Natur'],
+          ['city',        '🌆 City'],
+        ] as [val, label]}
+          <button onclick={() => travelStyle = travelStyle === val ? '' : val}
+            class="px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all"
+            style={travelStyle === val
+              ? 'background:var(--ws-accent);border-color:var(--ws-accent);color:#fff5ec'
+              : 'background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)'}>
+            {label}
+          </button>
+        {/each}
       </div>
+    </div>
+
+    <!-- Klima -->
+    <div class="mb-4">
+      <div class="text-xs font-semibold mb-2" style="color:var(--ws-text)">🌡️ Klimapräferenz</div>
+      <div class="flex flex-wrap gap-2">
+        {#each [
+          ['warm', '☀️ Warm'],
+          ['mild', '🌤️ Mild'],
+          ['cold', '❄️ Kalt'],
+          ['any',  '🌍 Egal'],
+        ] as [val, label]}
+          <button onclick={() => climatePref = climatePref === val ? '' : val}
+            class="px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all"
+            style={climatePref === val
+              ? 'background:var(--ws-accent);border-color:var(--ws-accent);color:#fff5ec'
+              : 'background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)'}>
+            {label}
+          </button>
+        {/each}
+      </div>
+    </div>
+
+    <!-- Landschaft -->
+    <div class="mb-4">
+      <div class="text-xs font-semibold mb-2" style="color:var(--ws-text)">🗺️ Landschaft</div>
+      <div class="flex flex-wrap gap-2">
+        {#each [
+          ['mountains', '⛰️ Berge'],
+          ['sea',       '🌊 Meer'],
+          ['forest',    '🌲 Wald'],
+          ['city',      '🏙️ Stadt'],
+          ['mix',       '🎲 Mix'],
+        ] as [val, label]}
+          <button onclick={() => landscapePref = landscapePref === val ? '' : val}
+            class="px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all"
+            style={landscapePref === val
+              ? 'background:var(--ws-accent);border-color:var(--ws-accent);color:#fff5ec'
+              : 'background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)'}>
+            {label}
+          </button>
+        {/each}
+      </div>
+    </div>
+
+    <!-- Reisebegleitung -->
+    <div class="mb-4">
+      <div class="text-xs font-semibold mb-2" style="color:var(--ws-text)">👥 Reisebegleitung</div>
+      <div class="flex flex-wrap gap-2">
+        {#each [
+          ['solo',    '🧍 Solo'],
+          ['couple',  '👫 Pärchen'],
+          ['family',  '👨‍👩‍👧 Familie'],
+          ['friends', '👯 Freunde'],
+        ] as [val, label]}
+          <button onclick={() => companions = companions === val ? '' : val}
+            class="px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all"
+            style={companions === val
+              ? 'background:var(--ws-accent);border-color:var(--ws-accent);color:#fff5ec'
+              : 'background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)'}>
+            {label}
+          </button>
+        {/each}
+      </div>
+    </div>
+
+    <!-- Wunschtext -->
+    <div>
+      <div class="text-xs font-semibold mb-2" style="color:var(--ws-text)">💭 Reisewunsch (Freitext)</div>
+      <textarea bind:value={wishText} maxlength="500" rows="3"
+        placeholder="Beschreibe deinen Traumurlaub… z.B. Strand, Sonne, gutes Essen, keine Touristenmassen"
+        class="w-full px-3 py-2 rounded-xl border text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[var(--ws-accent)]"
+        style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"></textarea>
+      <div class="text-xs mt-1 text-right" style="color:var(--ws-muted)">{(wishText||'').length}/500</div>
+    </div>
+  </div>
+
+</div>
 
       <!-- Kinder -->
       <div class="rounded-xl border p-3 flex flex-col items-center gap-2"
