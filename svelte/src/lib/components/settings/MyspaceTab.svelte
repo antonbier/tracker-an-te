@@ -4,6 +4,7 @@
   import MyspaceConnections from './MyspaceConnections.svelte';
   import MyspaceProviders   from './MyspaceProviders.svelte';
   import MyspaceAI          from './MyspaceAI.svelte';
+  import MyspaceDefaults    from './MyspaceDefaults.svelte';
 
   let {
     authEnabled,
@@ -17,6 +18,22 @@
     myTravelCats    = $bindable(),
     myTimezone      = $bindable(),
     myDateFormat    = $bindable(),
+    myImmichUrl     = $bindable(),
+    myImmichKey     = $bindable(),
+    myImmichGeoSync = $bindable(),
+    defAdults       = $bindable(),
+    defChildren     = $bindable(),
+    homeAirport     = $bindable(),
+    lugS10          = $bindable(),
+    lugS20          = $bindable(),
+    lugS23          = $bindable(),
+    lugL10          = $bindable(),
+    lugL20          = $bindable(),
+    lugL23          = $bindable(),
+    fDepMin         = $bindable(),
+    fDepMax         = $bindable(),
+    fArrMin         = $bindable(),
+    fArrMax         = $bindable(),
     serpApiKey      = $bindable(),
     openaiKey       = $bindable(),
     geminiKey       = $bindable(),
@@ -48,14 +65,15 @@
 {/if}
 
 <!-- Sub-Tab-Navigation -->
-<div class="flex gap-1 p-1 rounded-xl" style="background:var(--ws-surface2)">
+<div class="flex gap-1 p-1 rounded-xl overflow-x-auto" style="background:var(--ws-surface2)">
   {#each [
-    { id: 'connections',  icon: '🔌', label: 'Lokale Anbindungen' },
+    { id: 'connections',  icon: '🔌', label: 'Anbindungen' },
+    { id: 'defaults',     icon: '🧳', label: 'Reise-Defaults' },
     { id: 'integrations', icon: '🔍', label: 'Such-Engines' },
-    { id: 'ai',           icon: '✨', label: 'Smart Assistant' },
+    { id: 'ai',           icon: '✨', label: 'KI' },
   ] as st}
     <button onclick={() => myspaceTab = st.id}
-      class="flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all"
+      class="flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap shrink-0"
       style={myspaceTab === st.id
         ? 'background:var(--ws-accent);color:#fff5ec'
         : 'color:var(--ws-muted)'}>
@@ -70,6 +88,15 @@
     bind:myDawarichUrl bind:myDawarichToken
     bind:myHomeLat bind:myHomeLon bind:myHomeSearch
     bind:myActualUrl bind:myActualToken bind:myActualFile bind:myTravelCats
+    bind:myImmichUrl bind:myImmichKey bind:myImmichGeoSync
+  />
+
+{:else if myspaceTab === 'defaults'}
+  <MyspaceDefaults
+    bind:defAdults bind:defChildren bind:homeAirport
+    bind:lugS10 bind:lugS20 bind:lugS23
+    bind:lugL10 bind:lugL20 bind:lugL23
+    bind:fDepMin bind:fDepMax bind:fArrMin bind:fArrMax
   />
 
 {:else if myspaceTab === 'integrations'}
@@ -83,7 +110,7 @@
   <MyspaceAI bind:openaiKey bind:geminiKey />
 {/if}
 
-<!-- Save button (immer sichtbar im myspace-Tab) -->
+<!-- Save button -->
 <button onclick={onsave} disabled={mySettingsSaving}
   class="w-full py-2.5 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80 disabled:opacity-50 mt-2"
   style="background:linear-gradient(135deg,var(--ws-accent),#b84928);color:#fff5ec">
