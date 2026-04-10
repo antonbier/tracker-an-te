@@ -5,7 +5,6 @@
     chartPts, priceTrend, isTopPrice,
     trackerTitle, trackerSubtitle, trackerBadges, providerIcon, providerLabel, trackerBookingUrl,
   } from './helpers.js';
-  import { get } from 'svelte/store';
   import { inputStyle } from './constants.js';
 
   const {
@@ -20,16 +19,18 @@
     onwishedit,
   } = $props();
 
-  const tFn       = () => get(t);
-  const wKey      = `${tr._type}-${tr.id}`;
-  const s         = tr.latest_snapshot;
-  const price     = s?.total_price;
-  const wish      = tr.wish_price;
-  const wishMet   = wish && price && price <= wish;
-  const badges    = trackerBadges(tr, get(t));
-  const bookingUrl = trackerBookingUrl(tr);
-  const subtitle  = trackerSubtitle(tr, get(t));
-  const title     = trackerTitle(tr);
+  // ── Derived Variablen (Reagieren automatisch auf Änderungen von 'tr') ──
+  const wKey       = $derived(`${tr._type}-${tr.id}`);
+  const s          = $derived(tr.latest_snapshot);
+  const price      = $derived(s?.total_price);
+  const wish       = $derived(tr.wish_price);
+  const wishMet    = $derived(wish && price && price <= wish);
+  
+  // Nutze $t statt get(t), damit auch Sprachwechsel live aktualisiert werden
+  const badges     = $derived(trackerBadges(tr, $t));
+  const bookingUrl = $derived(trackerBookingUrl(tr));
+  const subtitle   = $derived(trackerSubtitle(tr, $t));
+  const title      = $derived(trackerTitle(tr));
 </script>
 
 <div
