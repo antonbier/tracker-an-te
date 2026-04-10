@@ -332,21 +332,15 @@ Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
         system = ("Du bist ein Reise-Experte. Antworte NUR als JSON-Objekt. "
                   "Kein Markdown, keine Erklärung.")
         user_msg = (
-            f"Beschreibe das Reiseziel '{dest_label}' detailliert.
-"
+            f"Beschreibe das Reiseziel '{dest_label}' detailliert. "
             f"Nutzer-Profil: Reisestil={prefs.get('travel_style','?')}, "
             f"Klima={prefs.get('climate_pref','?')}, "
-            f"Begleitung={prefs.get('companions','?')}.
-"
-            f"Antworte als JSON mit:
-"
-            f"  description (3-4 Sätze warum ideal für dieses Profil),
-"
-            f"  things_to_do (Array mit 5-7 Aktivitäten als kurze Strings),
-"
-            f"  best_season (Frühling/Sommer/Herbst/Winter oder Kombination),
-"
-            f"  vibe (2-3 Adjektive)"
+            f"Begleitung={prefs.get('companions','?')}. "
+            "Antworte als JSON mit: "
+            "description (3-4 Saetze warum ideal fuer dieses Profil), "
+            "things_to_do (Array mit 5-7 Aktivitaeten als kurze Strings), "
+            "best_season (Fruehling/Sommer/Herbst/Winter oder Kombination), "
+            "vibe (2-3 Adjektive)"
         )
 
         llm_provider = get_setting_value("llm_provider") or "openai"
