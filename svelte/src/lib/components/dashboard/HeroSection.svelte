@@ -237,4 +237,19 @@
     </div>
 
   </div>
+
+  <!-- ── Action Buttons ── -->
+  <div class="absolute top-4 right-4 flex gap-2 z-20">
+    <button onclick={() => currentPage.set('mytrips')}
+      class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all hover:opacity-90 active:scale-[.97]"
+      style="background:rgba(0,0,0,.35);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.85)">
+      📍 Details
+    </button>
+    <button onclick={onopenWizzard}
+      class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all hover:opacity-90 active:scale-[.97]"
+      style="background:var(--ws-accent);color:#fff5ec;box-shadow:0 2px 8px rgba(196,98,45,.4)">
+      🧳 Trip planen
+    </button>
+  </div>
+
 </div>
