@@ -67,6 +67,13 @@ class UserSettingsPayload(BaseModel):
     ww_dep_max:      Optional[str]  = None
     ww_arr_min:      Optional[str]  = None
     ww_arr_max:      Optional[str]  = None
+    # ── Reisepersönlichkeit ───────────────────────────────────────────────
+    travel_style:    Optional[str]  = None   # adventure|relaxation|culture|nature|city
+    climate_pref:    Optional[str]  = None   # warm|mild|cold|any
+    landscape_pref:  Optional[str]  = None   # mountains|sea|forest|city|mix
+    companions:      Optional[str]  = None   # solo|couple|family|friends
+    wish_text:       Optional[str]  = None   # Freitext max ~500 Zeichen
+    unsplash_key:    Optional[str]  = None   # Fernet-verschlüsselt
 
 
 # ── Global settings (admin configures once for all) ───────────────────────────
