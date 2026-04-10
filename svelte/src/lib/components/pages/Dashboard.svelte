@@ -6,9 +6,9 @@
   import { t } from '$lib/i18n.js';
 
   import HeroSection        from '$lib/components/dashboard/HeroSection.svelte';
-  // import TravelInspo        from '$lib/components/dashboard/TravelInspo.svelte';
-  // import CompactTripsList   from '$lib/components/dashboard/CompactTripsList.svelte';
-  // import CompactTrackerGrid from '$lib/components/dashboard/CompactTrackerGrid.svelte';
+  import TravelInspo        from '$lib/components/dashboard/TravelInspo.svelte';
+  import CompactTripsList   from '$lib/components/dashboard/CompactTripsList.svelte';
+  import CompactTrackerGrid from '$lib/components/dashboard/CompactTrackerGrid.svelte';
 
   // ── Loading / raw data ────────────────────────────────────────────────────
   let loading       = $state(true);
@@ -161,16 +161,16 @@
   />
 
   <!-- ── Travel Inspiration ── -->
-  <!-- <TravelInspo
+  <TravelInspo
     {recentDawarich}
     onstartwizard={(data) => currentPage.set('discover')}
     onnavto={(page) => currentPage.set(page)}
-  /> -->
+  />
 
   <!-- ── Bottom split: trips + trackers ── -->
   <div class="grid md:grid-cols-2 gap-4">
 
-    <!-- <CompactTripsList
+    <CompactTripsList
       {upcoming}
       {completed}
       {recentDawarich}
@@ -183,63 +183,13 @@
       {CIRC}
       {loading}
       onnavto={(page) => currentPage.set(page)}
-    /> -->
+    />
 
-    <!-- <CompactTrackerGrid
+    <CompactTrackerGrid
       {allTrackers}
       {loading}
       onnavto={(page) => currentPage.set(page)}
-    /> -->
-
-    <!-- Temporary placeholders until Etappe 2 -->
-    <div class="rounded-xl p-4 border space-y-2" style="background:var(--ws-surface);border-color:var(--ws-border)">
-      <h2 class="text-sm font-semibold italic" style="font-family:var(--ws-serif);color:var(--ws-accent2)">{$t('dashUpcoming')}</h2>
-      {#if upcoming.length === 0}
-        <p class="text-xs" style="color:var(--ws-muted)">{$t('dashNoUpcoming')}</p>
-      {:else}
-        {#each upcoming.slice(0, 3) as tr}
-          <div class="flex items-center gap-3 p-2 rounded-lg" style="background:var(--ws-surface2)">
-            <span>✈️</span>
-            <div class="flex-1 min-w-0">
-              <div class="text-sm font-semibold italic truncate" style="font-family:var(--ws-serif)">{tr.name}</div>
-              <div class="text-xs font-mono" style="color:var(--ws-muted)">{tr.dateStart || tr.date}</div>
-            </div>
-            <div class="text-sm font-bold font-mono shrink-0" style="color:var(--ws-accent2)">{parseFloat(tr.cost).toFixed(0)} €</div>
-          </div>
-        {/each}
-      {/if}
-    </div>
-
-    <div class="rounded-xl p-4 border space-y-2" style="background:var(--ws-surface);border-color:var(--ws-border)">
-      <h2 class="text-sm font-semibold italic" style="font-family:var(--ws-serif);color:var(--ws-accent2)">{$t('dashActiveTrackersCard')}</h2>
-      {#if loading}
-        <p class="text-xs" style="color:var(--ws-muted)">{$t('dashLoading')}</p>
-      {:else if allTrackers.length === 0}
-        <p class="text-xs" style="color:var(--ws-muted)">{$t('dashNoTrackers')}</p>
-      {:else}
-        {#each allTrackers.slice(0, 4) as tr}
-          {@const snap = tr.latest_snapshot}
-          <button onclick={() => currentPage.set('priceradar')}
-            class="w-full flex items-center justify-between p-2.5 rounded-lg border text-left transition-colors hover:border-[var(--ws-accent)]"
-            style="background:var(--ws-surface2);border-color:var(--ws-border)">
-            <div class="flex-1 min-w-0">
-              <div class="text-sm font-bold font-mono truncate" style="color:var(--ws-text)">
-                {tr.origin && tr.destination ? tr.origin + ' → ' + tr.destination : tr.destination || tr.region || '–'}
-              </div>
-              <div class="text-xs mt-0.5" style="color:var(--ws-muted)">{tr.outbound_date || tr.checkin_date || '–'}</div>
-            </div>
-            <div class="text-sm font-bold font-mono shrink-0 ml-2" style="color:var(--ws-green)">
-              {snap?.total_price ? snap.total_price.toFixed(2) + ' €' : '–'}
-            </div>
-          </button>
-        {/each}
-      {/if}
-      <button onclick={() => currentPage.set('priceradar')}
-        class="mt-1 w-full py-2 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80"
-        style="background:linear-gradient(135deg,var(--ws-accent),#b84928);color:#fff5ec">
-        {$t('dashStartTracker')}
-      </button>
-    </div>
+    />
 
   </div>
 
