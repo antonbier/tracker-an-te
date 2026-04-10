@@ -1,7 +1,7 @@
 <script>
   import { t } from '$lib/i18n.js';
 
-  const { activeCategory = $bindable(), oncategorychange } = $props();
+  let { activeCategory = $bindable(), oncategorychange } = $props();
 </script>
 
 <div class="flex border-b overflow-x-auto" style="border-color:var(--ws-border)">
