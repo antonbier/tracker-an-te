@@ -29,7 +29,7 @@
   } = $props();
 
   // ── Step State ─────────────────────────────────────────────────────────────
-  let step = $state(destination ? 2 : 1);
+  let step = $state(1);  // always start at step 1, even with prefill
 
   // Step 1
   let s1Dest       = $state(destination);
@@ -38,10 +38,26 @@
   let s1Adults     = $state(adults);
   let s1Children   = $state(children);
   let s1Home       = $state(homeAirport);
-  let s1DestInput  = $state(destination);
+  // Show destination name clearly — if it's an IATA code keep as-is, else show as typed
+  let s1DestInput  = $state(destination || '');
   let s1AcSuggestions = $state([]);
-  let s1HomeInput  = $state(homeAirport);
+  let s1HomeInput  = $state(homeAirport || '');
   let s1HomeAcSugg = $state([]);
+
+  // When open prop changes, re-sync prefill values
+  $effect(() => {
+    if (open) {
+      s1Dest      = destination || '';
+      s1DestInput = destination || '';
+      s1DateFrom  = dateFrom || '';
+      s1DateTo    = dateTo   || '';
+      s1Adults    = adults   || 2;
+      s1Children  = children || 0;
+      s1Home      = homeAirport || '';
+      s1HomeInput = homeAirport || '';
+      step = 1;
+    }
+  });
 
   // Step 2
   let s2TripTypes  = $state(tripType ? [tripType] : []);
