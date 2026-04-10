@@ -113,29 +113,20 @@ class DiscoveryService:
         visited_str = ", ".join(visited) if visited else "keine"
         budget_hint = ""  # no budget API call in this service for now
 
-        user_prompt = (
-            f"Schlage {count} Reiseziele vor.
-"
-            f"Nutzer-Profil:
-"
-            f"  Reisestil: {prefs.get('travel_style') or 'nicht angegeben'}
-"
-            f"  Klima: {prefs.get('climate_pref') or 'nicht angegeben'}
-"
-            f"  Landschaft: {prefs.get('landscape_pref') or 'nicht angegeben'}
-"
-            f"  Begleitung: {prefs.get('companions') or 'nicht angegeben'}
-"
-            f"  Wünsche: {prefs.get('wish_text') or 'keine'}
-"
-            f"  Bereits besucht (nicht vorschlagen): {visited_str}
-"
-            f"Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
-"
-            f"  destination (Stadtname/Region), country, reason (1 Satz warum), "
-            f"climate (warm/mild/cold), landscape (mountains/sea/forest/city/mix), "
-            f"trip_type (flight/hotel/camping/car)"
-        )
+        user_prompt = f"""Schlage {count} Reiseziele vor.
+Nutzer-Profil:
+  Reisestil: {prefs.get('travel_style') or 'nicht angegeben'}
+  Klima: {prefs.get('climate_pref') or 'nicht angegeben'}
+  Landschaft: {prefs.get('landscape_pref') or 'nicht angegeben'}
+  Begleitung: {prefs.get('companions') or 'nicht angegeben'}
+  Wünsche: {prefs.get('wish_text') or 'keine'}
+  Bereits besucht (nicht vorschlagen): {visited_str}
+
+Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
+  destination (Stadtname/Region), country, reason (1 Satz warum), 
+  climate (warm/mild/cold), landscape (mountains/sea/forest/city/mix), 
+  trip_type (flight/hotel/camping/car)"""
+
         system_prompt = (
             "Du bist ein Reise-Experte. "
             "Antworte AUSSCHLIESSLICH als valides JSON-Array. "
@@ -205,6 +196,11 @@ class DiscoveryService:
                 cleaned = cleaned.split("\n", 1)[-1]
                 if "```" in cleaned:
                     cleaned = cleaned.rsplit("```", 1)[0]
+            
+            # Remove lingering 'json' keyword at the start if it exists
+            if cleaned.startswith("json\n"):
+                cleaned = cleaned[5:]
+
             result = json.loads(cleaned)
             if isinstance(result, list):
                 return result
@@ -225,14 +221,13 @@ class DiscoveryService:
             try:
                 async with httpx.AsyncClient(timeout=TIMEOUT) as client:
                     resp = await client.get(
-                        f"{immich_url.rstrip('/')}/api/assets",
-                        params={"query": destination, "size": 1, "type": "IMAGE"},
+                        f"{immich_url.rstrip('/')}/api/search/smart",
+                        params={"q": destination, "size": 1},
                         headers={"x-api-key": immich_key},
                     )
                     if resp.status_code == 200:
                         data = resp.json()
-                        # Immich returns list or {"assets": {"items": [...]}}
-                        items = data if isinstance(data, list) else data.get("assets", {}).get("items", [])
+                        items = data.get("assets", {}).get("items", [])
                         if items:
                             asset_id = items[0].get("id")
                             if asset_id:
@@ -248,7 +243,7 @@ class DiscoveryService:
             try:
                 async with httpx.AsyncClient(timeout=TIMEOUT) as client:
                     resp = await client.get(
-                        "https://api.unsplash.com/photos/random",
+                        "[https://api.unsplash.com/photos/random](https://api.unsplash.com/photos/random)",
                         params={"query": f"{destination} travel", "orientation": "landscape"},
                         headers={"Authorization": f"Client-ID {unsplash_key}"},
                     )
