@@ -250,9 +250,10 @@ Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
                                 # Use the public /api/assets/{id}/original fallback or proxy.
                                 # For now: return URL and let frontend add header via img tag won't work.
                                 # Instead: return a data URL or use /api/assets/{id}/thumbnail with key in query
-                                img_url = f"{immich_url}/api/assets/{asset_id}/thumbnail?size=preview&key={immich_key}"
+                                # Return clean URL without key — proxy endpoint will add auth header
+                                img_url = f"{immich_url}/api/assets/{asset_id}/thumbnail?size=preview"
                                 logger.info(f"[Discovery] Immich hit: {asset_id}")
-                                return img_url, "immich"
+                                return img_url, "immich_proxy"
             except Exception as e:
                 logger.warning(f"[Discovery/Immich] search/metadata failed: {e}")
 
@@ -270,9 +271,9 @@ Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
                         if isinstance(items, list) and items:
                             asset_id = items[0].get("id")
                             if asset_id:
-                                img_url = f"{immich_url}/api/assets/{asset_id}/thumbnail?size=preview&key={immich_key}"
+                                img_url = f"{immich_url}/api/assets/{asset_id}/thumbnail?size=preview"
                                 logger.info(f"[Discovery] Immich assets hit: {asset_id}")
-                                return img_url, "immich"
+                                return img_url, "immich_proxy"
             except Exception as e:
                 logger.warning(f"[Discovery/Immich] GET /assets failed: {e}")
 
