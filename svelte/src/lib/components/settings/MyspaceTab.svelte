@@ -34,6 +34,12 @@
     fDepMax         = $bindable(),
     fArrMin         = $bindable(),
     fArrMax         = $bindable(),
+    travelStyle     = $bindable(),
+    climatePref     = $bindable(),
+    landscapePref   = $bindable(),
+    companions      = $bindable(),
+    wishText        = $bindable(),
+    unsplashKey     = $bindable(),
     serpApiKey      = $bindable(),
     openaiKey       = $bindable(),
     geminiKey       = $bindable(),
@@ -89,6 +95,7 @@
     bind:myHomeLat bind:myHomeLon bind:myHomeSearch
     bind:myActualUrl bind:myActualToken bind:myActualFile bind:myTravelCats
     bind:myImmichUrl bind:myImmichKey bind:myImmichGeoSync
+    bind:unsplashKey
   />
 
 {:else if myspaceTab === 'defaults'}
@@ -97,6 +104,8 @@
     bind:lugS10 bind:lugS20 bind:lugS23
     bind:lugL10 bind:lugL20 bind:lugL23
     bind:fDepMin bind:fDepMax bind:fArrMin bind:fArrMax
+    bind:travelStyle bind:climatePref bind:landscapePref
+    bind:companions bind:wishText
   />
 
 {:else if myspaceTab === 'integrations'}
