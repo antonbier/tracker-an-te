@@ -210,11 +210,14 @@ Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
             result = json.loads(cleaned)
             if isinstance(result, list):
                 return result
-            # Sometimes LLM wraps in {"suggestions": [...]}
+            # Plain object (for detail endpoint) → wrap in list
             if isinstance(result, dict):
+                # Check if it wraps a list
                 for v in result.values():
-                    if isinstance(v, list):
+                    if isinstance(v, list) and len(v) > 0 and isinstance(v[0], dict) and "destination" in v[0]:
                         return v
+                # Otherwise treat the dict itself as single item
+                return [result]
         except Exception as e:
             logger.warning(f"[Discovery] JSON parse failed: {e} | text={text[:200]}")
         return []
@@ -317,6 +320,96 @@ Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
             "children":    int(prefs.get("ww_children") or 0),
             "homeAirport": prefs.get("ww_home_airport") or "",
         }
+
+
+
+    async def get_destination_detail(self, user_id: int, destination: str, country: str = "") -> dict:
+        """Full detail: LLM description + things_to_do + multiple images."""
+        prefs = self._load_prefs(user_id)
+
+        # LLM: detailed description
+        dest_label = f"{destination}, {country}" if country else destination
+        system = ("Du bist ein Reise-Experte. Antworte NUR als JSON-Objekt. "
+                  "Kein Markdown, keine Erklärung.")
+        user_msg = (
+            f"Beschreibe das Reiseziel '{dest_label}' detailliert.
+"
+            f"Nutzer-Profil: Reisestil={prefs.get('travel_style','?')}, "
+            f"Klima={prefs.get('climate_pref','?')}, "
+            f"Begleitung={prefs.get('companions','?')}.
+"
+            f"Antworte als JSON mit:
+"
+            f"  description (3-4 Sätze warum ideal für dieses Profil),
+"
+            f"  things_to_do (Array mit 5-7 Aktivitäten als kurze Strings),
+"
+            f"  best_season (Frühling/Sommer/Herbst/Winter oder Kombination),
+"
+            f"  vibe (2-3 Adjektive)"
+        )
+
+        llm_provider = get_setting_value("llm_provider") or "openai"
+        raw_list = []
+        if llm_provider == "gemini":
+            raw_list = await self._gemini_call(system, user_msg)
+        else:
+            raw_list = await self._openai_call(system, user_msg)
+        if not raw_list:
+            if llm_provider == "gemini":
+                raw_list = await self._openai_call(system, user_msg)
+            else:
+                raw_list = await self._gemini_call(system, user_msg)
+
+        # _parse_json_array wraps in list; detail is an object → unwrap
+        detail_raw = raw_list[0] if raw_list else {}
+        if not isinstance(detail_raw, dict):
+            detail_raw = {}
+
+        # Multiple images (up to 4)
+        images = await self._get_multiple_images(user_id, prefs, destination, count=4)
+
+        return {
+            "destination":  destination,
+            "country":      country,
+            "description":  detail_raw.get("description", ""),
+            "things_to_do": detail_raw.get("things_to_do", []),
+            "best_season":  detail_raw.get("best_season", ""),
+            "vibe":         detail_raw.get("vibe", ""),
+            "images":       images,   # list of {url, source}
+        }
+
+    async def _get_multiple_images(self, user_id: int, prefs: dict, destination: str, count: int = 4) -> list:
+        """Fetch multiple images: Unsplash first (supports multiple), then Immich."""
+        images = []
+
+        # Unsplash: /photos/search returns multiple results
+        unsplash_key = (get_user_setting_value(user_id, "unsplash_key") or "").strip()
+        if unsplash_key and len(images) < count:
+            try:
+                async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+                    resp = await client.get(
+                        "https://api.unsplash.com/search/photos",
+                        params={"query": f"{destination} travel", "orientation": "landscape",
+                                "per_page": count, "content_filter": "high"},
+                        headers={"Authorization": f"Client-ID {unsplash_key}"},
+                    )
+                    logger.info(f"[Discovery/Unsplash-multi] status={resp.status_code}")
+                    if resp.status_code == 200:
+                        for item in resp.json().get("results", [])[:count]:
+                            url = item.get("urls", {}).get("regular")
+                            if url:
+                                images.append({"url": url, "source": "unsplash"})
+            except Exception as e:
+                logger.warning(f"[Discovery/Unsplash-multi] {e}")
+
+        # Single Unsplash fallback if search returned nothing
+        if not images and unsplash_key:
+            url, src = await self._get_image(user_id, prefs, destination)
+            if url:
+                images.append({"url": url, "source": src})
+
+        return images
 
 
 # ── Module-level singleton ────────────────────────────────────────────────────
