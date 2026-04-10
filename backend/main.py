@@ -14,7 +14,7 @@ from database import init_db
 from auth_db import init_auth_tables
 from scheduler import run_all_trackers, run_cleanup_job
 from routes import (
-    trackers, prices, google_flights, discover,
+    trackers, prices, google_flights, discover, discovery as discovery_route,
     accommodations, budget, settings as settings_route,
     dashboard as dashboard_route,
     userdata as userdata_route,
@@ -104,6 +104,7 @@ app.include_router(userdata_route.router,      prefix="/api/userdata",         t
 app.include_router(notifications_route.router, prefix="/api/notifications",    tags=["Notifications"])
 app.include_router(scheduler_route.router,     prefix="/api/scheduler",        tags=["Scheduler"])
 app.include_router(search_route.router,        prefix="/api/search",           tags=["Search"])
+app.include_router(discovery_route.router,     prefix="/api/discovery",        tags=["Discovery"])
 app.include_router(router_status, prefix="/api", tags=["Status"])
 app.include_router(router_auth,   prefix="/api", tags=["Auth"])
 app.include_router(router_admin,  prefix="/api", tags=["Admin"])
