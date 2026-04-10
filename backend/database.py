@@ -316,6 +316,13 @@ def init_db():
             ("user_settings",    "ww_dep_max TEXT DEFAULT NULL"),
             ("user_settings",    "ww_arr_min TEXT DEFAULT NULL"),
             ("user_settings",    "ww_arr_max TEXT DEFAULT NULL"),
+            # WanderWizzard: Reisepersönlichkeit
+            ("user_settings",    "travel_style TEXT DEFAULT NULL"),
+            ("user_settings",    "climate_pref TEXT DEFAULT NULL"),
+            ("user_settings",    "landscape_pref TEXT DEFAULT NULL"),
+            ("user_settings",    "companions TEXT DEFAULT NULL"),
+            ("user_settings",    "wish_text TEXT DEFAULT NULL"),
+            ("user_settings",    "unsplash_key TEXT DEFAULT NULL"),
         ]
         for table, col_def in migrations:
             col_name = col_def.split()[0]
