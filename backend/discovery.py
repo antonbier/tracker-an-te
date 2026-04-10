@@ -220,49 +220,83 @@ Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
         return []
 
     async def _get_image(self, user_id: int, prefs: dict, destination: str) -> tuple[Optional[str], str]:
-        # a) Immich
-        immich_url = prefs.get("immich_url", "")
-        immich_key = get_user_setting_value(user_id, "immich_api_key") or ""
+        # ── a) Immich ─────────────────────────────────────────────────────────
+        immich_url = (prefs.get("immich_url") or "").strip().rstrip("/")
+        immich_key = (get_user_setting_value(user_id, "immich_api_key") or "").strip()
+
+        logger.info(f"[Discovery/img] dest={destination!r} immich_url={bool(immich_url)} immich_key={bool(immich_key)} unsplash_key={bool(get_user_setting_value(user_id, 'unsplash_key'))}")
+
         if immich_url and immich_key:
+            # Try POST /api/search/metadata (works across Immich versions)
             try:
-                async with httpx.AsyncClient(timeout=TIMEOUT) as client:
-                    resp = await client.get(
-                        f"{immich_url.rstrip('/')}/api/search/smart",
-                        params={"q": destination, "size": 1},
-                        headers={"x-api-key": immich_key},
+                async with httpx.AsyncClient(timeout=TIMEOUT, follow_redirects=True) as client:
+                    resp = await client.post(
+                        f"{immich_url}/api/search/metadata",
+                        headers={"x-api-key": immich_key, "Content-Type": "application/json"},
+                        json={"query": destination, "size": 1, "type": "IMAGE", "withExif": False},
                     )
+                    logger.info(f"[Discovery/Immich] POST /search/metadata status={resp.status_code}")
                     if resp.status_code == 200:
                         data = resp.json()
                         items = data.get("assets", {}).get("items", [])
                         if items:
                             asset_id = items[0].get("id")
                             if asset_id:
-                                img_url = f"{immich_url.rstrip('/')}/api/assets/{asset_id}/thumbnail"
-                                logger.info(f"[Discovery] Immich image for {destination}: {img_url}")
+                                img_url = f"{immich_url}/api/assets/{asset_id}/thumbnail?size=preview"
+                                # Thumbnail needs auth header — frontend can't send it directly.
+                                # Use the public /api/assets/{id}/original fallback or proxy.
+                                # For now: return URL and let frontend add header via img tag won't work.
+                                # Instead: return a data URL or use /api/assets/{id}/thumbnail with key in query
+                                img_url = f"{immich_url}/api/assets/{asset_id}/thumbnail?size=preview&key={immich_key}"
+                                logger.info(f"[Discovery] Immich hit: {asset_id}")
                                 return img_url, "immich"
             except Exception as e:
-                logger.debug(f"[Discovery] Immich failed for {destination}: {e}")
+                logger.warning(f"[Discovery/Immich] search/metadata failed: {e}")
 
-        # b) Unsplash
-        unsplash_key = get_user_setting_value(user_id, "unsplash_key") or ""
+            # Fallback: GET /api/search/quick-transform (older Immich)
+            try:
+                async with httpx.AsyncClient(timeout=TIMEOUT, follow_redirects=True) as client:
+                    resp = await client.get(
+                        f"{immich_url}/api/assets",
+                        params={"q": destination, "size": 1, "type": "IMAGE"},
+                        headers={"x-api-key": immich_key},
+                    )
+                    logger.info(f"[Discovery/Immich] GET /assets status={resp.status_code}")
+                    if resp.status_code == 200:
+                        items = resp.json()
+                        if isinstance(items, list) and items:
+                            asset_id = items[0].get("id")
+                            if asset_id:
+                                img_url = f"{immich_url}/api/assets/{asset_id}/thumbnail?size=preview&key={immich_key}"
+                                logger.info(f"[Discovery] Immich assets hit: {asset_id}")
+                                return img_url, "immich"
+            except Exception as e:
+                logger.warning(f"[Discovery/Immich] GET /assets failed: {e}")
+
+        # ── b) Unsplash ───────────────────────────────────────────────────────
+        unsplash_key = (get_user_setting_value(user_id, "unsplash_key") or "").strip()
         if unsplash_key:
             try:
                 async with httpx.AsyncClient(timeout=TIMEOUT) as client:
                     resp = await client.get(
                         "https://api.unsplash.com/photos/random",
-                        params={"query": f"{destination} travel", "orientation": "landscape"},
+                        params={"query": f"{destination} travel landscape", "orientation": "landscape", "content_filter": "high"},
                         headers={"Authorization": f"Client-ID {unsplash_key}"},
                     )
+                    logger.info(f"[Discovery/Unsplash] status={resp.status_code} dest={destination!r}")
                     if resp.status_code == 200:
                         data = resp.json()
                         img_url = data.get("urls", {}).get("regular")
                         if img_url:
-                            logger.info(f"[Discovery] Unsplash image for {destination}")
+                            logger.info(f"[Discovery] Unsplash hit for {destination}")
                             return img_url, "unsplash"
+                    else:
+                        logger.warning(f"[Discovery/Unsplash] error: {resp.text[:200]}")
             except Exception as e:
-                logger.debug(f"[Discovery] Unsplash failed for {destination}: {e}")
+                logger.warning(f"[Discovery/Unsplash] exception: {e}")
 
-        # c) CSS Fallback
+        # ── c) CSS Fallback ───────────────────────────────────────────────────
+        logger.info(f"[Discovery/img] css_fallback for {destination!r}")
         return None, "css_fallback"
 
     def _build_prefill(self, prefs: dict, raw: dict) -> dict:
