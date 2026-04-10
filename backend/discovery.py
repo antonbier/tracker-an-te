@@ -179,7 +179,7 @@ Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
         try:
             async with httpx.AsyncClient(timeout=TIMEOUT) as client:
                 resp = await client.post(
-                    f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}",
+                    f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}",
                     json={
                         "contents": [{
                             "parts": [{"text": f"{system_prompt}\n\n{user_prompt}"}]
