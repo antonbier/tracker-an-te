@@ -1,13 +1,13 @@
 <script>
   import { onMount } from 'svelte';
   import { api } from '$lib/api.js';
-  import { apiUrl } from '$lib/stores.js';
+  import { apiUrl, settingsOpen } from '$lib/stores.js';
 
   let {
     recentDawarich,
     onstartwizard,
     onnavto,
-    onopenSettings = () => {},
+
   } = $props();
 
   // Nostalgia fallback from Dawarich
@@ -220,7 +220,7 @@
           <p class="text-xs leading-relaxed" style="color:var(--ws-muted)">
             {apiError || 'Konfiguriere einen OpenAI- oder Gemini-Key in den Einstellungen unter ✨ KI, um personalisierte Reisevorschläge zu erhalten.'}
           </p>
-          <button onclick={onopenSettings}
+          <button onclick={() => settingsOpen.set(true)}
             class="mt-2 text-xs font-semibold px-3 py-1.5 rounded-lg transition-opacity hover:opacity-80"
             style="background:var(--ws-accent);color:#fff5ec">
             ⚙️ Einstellungen öffnen
