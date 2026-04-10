@@ -285,9 +285,10 @@ Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
         unsplash_key = (get_user_setting_value(user_id, "unsplash_key") or "").strip()
         if unsplash_key:
             try:
-                async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+                # trust_env=False schützt vor falschen Docker-Proxy-Variablen
+                async with httpx.AsyncClient(timeout=TIMEOUT, trust_env=False) as client:
                     resp = await client.get(
-                        "[https://api.unsplash.com/photos/random](https://api.unsplash.com/photos/random)",
+                        "https://api.unsplash.com/photos/random",
                         params={"query": f"{destination} travel landscape", "orientation": "landscape", "content_filter": "high"},
                         headers={"Authorization": f"Client-ID {unsplash_key}"},
                     )
@@ -376,7 +377,7 @@ Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
             "images":       images,   # list of {url, source}
         }
 
-    async def _get_multiple_images(self, user_id: int, prefs: dict, destination: str, count: int = 4) -> list:
+ async def _get_multiple_images(self, user_id: int, prefs: dict, destination: str, count: int = 4) -> list:
         """Fetch multiple images: Unsplash first (supports multiple), then Immich."""
         images = []
 
@@ -384,9 +385,10 @@ Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
         unsplash_key = (get_user_setting_value(user_id, "unsplash_key") or "").strip()
         if unsplash_key and len(images) < count:
             try:
-                async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+                # Hier ist trust_env=False drin und die URL ist repariert!
+                async with httpx.AsyncClient(timeout=TIMEOUT, trust_env=False) as client:
                     resp = await client.get(
-                        "[https://api.unsplash.com/search/photos](https://api.unsplash.com/search/photos)",
+                        "https://api.unsplash.com/search/photos",
                         params={"query": f"{destination} travel", "orientation": "landscape",
                                 "per_page": count, "content_filter": "high"},
                         headers={"Authorization": f"Client-ID {unsplash_key}"},
