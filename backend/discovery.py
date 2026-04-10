@@ -24,7 +24,7 @@ from database import list_detected_trips
 
 logger = logging.getLogger(__name__)
 
-TIMEOUT = 14.0
+TIMEOUT = 20.0
 
 
 # ── Data Model ────────────────────────────────────────────────────────────────
