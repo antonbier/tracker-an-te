@@ -388,7 +388,7 @@ Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
                 # trust_env=False schützt vor Proxy-Problemen
                 async with httpx.AsyncClient(timeout=TIMEOUT, trust_env=False) as client:
                     resp = await client.get(
-                        "[https://api.unsplash.com/search/photos](https://api.unsplash.com/search/photos)",
+                        "https://api.unsplash.com/search/photos",
                         params={"query": f"{destination} travel", "orientation": "landscape",
                                 "per_page": count, "content_filter": "high"},
                         headers={"Authorization": f"Client-ID {unsplash_key}"},
