@@ -9,10 +9,10 @@
   import BasicTab         from './settings/BasicTab.svelte';
   import IntegrationsTab  from './settings/IntegrationsTab.svelte';
   import NotificationsTab from './settings/NotificationsTab.svelte';
-  // import MyspaceTab       from './settings/MyspaceTab.svelte';
+  import MyspaceTab       from './settings/MyspaceTab.svelte';
   import AccountTab       from './settings/AccountTab.svelte';
-  // import AdminTab         from './settings/AdminTab.svelte';
-  // import SchedulerTab     from './settings/SchedulerTab.svelte';
+  import AdminTab         from './settings/AdminTab.svelte';
+  import SchedulerTab     from './settings/SchedulerTab.svelte';
 
   let { open = $bindable(false) } = $props();
 
@@ -334,7 +334,7 @@
         />
 
       {:else if activeTab === 'myspace'}
-        <!-- <MyspaceTab
+        <MyspaceTab
           {authEnabled}
           bind:myDawarichUrl bind:myDawarichToken
           bind:myHomeLat bind:myHomeLon
@@ -346,8 +346,7 @@
           onsave={saveUserSettings}
           onsaveproviders={saveProviders}
           onswitchtointegrations={() => activeTab = 'integrations'}
-        /> -->
-        <p class="text-xs" style="color:var(--ws-muted)">Mein Bereich Tab — coming soon</p>
+        />
 
       {:else if activeTab === 'account'}
         <AccountTab
@@ -357,12 +356,10 @@
         />
 
       {:else if activeTab === 'admin'}
-        <!-- <AdminTab currentUserId={$currentUser?.id} /> -->
-        <p class="text-xs" style="color:var(--ws-muted)">Admin Tab — coming soon</p>
+        <AdminTab currentUserId={$currentUser?.id} />
 
       {:else if activeTab === 'scheduler'}
-        <!-- <SchedulerTab /> -->
-        <p class="text-xs" style="color:var(--ws-muted)">Scheduler Tab — coming soon</p>
+        <SchedulerTab />
 
       {/if}
     </div>
