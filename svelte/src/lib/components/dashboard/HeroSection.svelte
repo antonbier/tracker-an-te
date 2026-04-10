@@ -26,9 +26,12 @@
   let heroImageUrl = $state(null);
 
   $effect(() => {
+    // Try to get image for last trip (Nostalgie) OR next trip
     const dest = hasLastTrip
       ? (lastTrip?.location_name || lastTrip?.name || lastTrip?.country || '')
-      : '';
+      : hasNextTrip
+        ? (nextTrip?.name || nextTrip?.location_name || '')
+        : '';
     if (!dest || !$apiUrl) { heroImageUrl = null; return; }
     api(`/api/discovery/trip-image?destination=${encodeURIComponent(dest)}`)
       .then(res => { heroImageUrl = res?.image_url || null; })
@@ -87,7 +90,7 @@
 <div class="relative rounded-2xl overflow-hidden" style="min-height:220px;background:{heroBg}">
 
   <!-- Nostalgie background image (lastTrip only) -->
-  {#if heroImageUrl && hasLastTrip}
+  {#if heroImageUrl && (hasLastTrip || hasNextTrip)}
     <img
       src={heroImageUrl}
       alt=""
