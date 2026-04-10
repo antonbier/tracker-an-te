@@ -20,7 +20,8 @@
   let budgetByYear  = $state({});
   let budgetInput   = $state('');
   let budgetSaving  = $state(false);
-  let budgetEditing = $state(false);
+  let budgetEditing  = $state(false);
+  let wizzardOpen    = $state(false);
 
   const yearBudget    = $derived(parseFloat(budgetByYear[String(currentYear)]) || 0);
   const CIRC          = 2 * Math.PI * 38;
@@ -199,4 +200,6 @@
     </div>
   {/if}
 
+
+<WanderWizzard bind:open={wizzardOpen} />
 </div>
