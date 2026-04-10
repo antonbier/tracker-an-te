@@ -32,7 +32,7 @@
     if (!$apiUrl) return;
     loadingSugg = true;
     try {
-      const data = await api('/api/discovery/suggestions?count=2');
+      const data = await api('/api/discovery/suggestions?count=3');
       suggestions = Array.isArray(data) ? data : [];
     } catch (e) {
       suggestions = [];
@@ -202,4 +202,113 @@
     {/each}
 
   </div>
+
+  <!-- ── KI Discovery Panel ── -->
+  {#if loadingSugg || suggestions.length > 0}
+    <div class="mt-5">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-xs font-bold uppercase tracking-widest" style="color:var(--ws-muted)">
+          🤖 KI-Reisevorschläge
+        </h2>
+        {#if !loadingSugg && suggestions.length > 0}
+          <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+            style="background:rgba(196,98,45,.12);color:var(--ws-accent)">
+            ✨ personalisiert
+          </span>
+        {/if}
+      </div>
+
+      {#if loadingSugg}
+        <!-- Skeleton rows -->
+        <div class="space-y-3">
+          {#each [1,2,3] as _}
+            <div class="rounded-2xl overflow-hidden animate-pulse flex gap-4 p-4"
+              style="background:var(--ws-surface2);min-height:96px">
+              <div class="w-24 h-full rounded-xl shrink-0" style="background:var(--ws-border);min-height:64px"></div>
+              <div class="flex-1 flex flex-col gap-2 justify-center">
+                <div class="w-1/3 h-4 rounded" style="background:var(--ws-border)"></div>
+                <div class="w-3/4 h-3 rounded" style="background:var(--ws-border)"></div>
+                <div class="w-1/2 h-3 rounded" style="background:var(--ws-border)"></div>
+              </div>
+            </div>
+          {/each}
+        </div>
+
+      {:else}
+        <div class="space-y-3">
+          {#each suggestions as sugg, i}
+            {@const panelGrads = [
+              'linear-gradient(135deg,#1a3a4a,#0f2a38)',
+              'linear-gradient(135deg,#2d6a4f,#1e4a37)',
+              'linear-gradient(135deg,#3b1f5e,#1e1035)',
+            ]}
+            <button
+              onclick={() => onstartwizard(sugg.prefill)}
+              class="group w-full rounded-2xl overflow-hidden flex text-left transition-all hover:scale-[1.01] active:scale-[.99] hover:shadow-lg"
+              style="background:var(--ws-surface2);border:1px solid var(--ws-border)">
+
+              <!-- Thumbnail -->
+              <div class="relative w-28 sm:w-36 shrink-0 overflow-hidden"
+                style="background:{panelGrads[i % 3]};min-height:96px">
+                {#if sugg.image_url}
+                  <img
+                    src={sugg.image_url}
+                    alt={sugg.destination}
+                    class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    onerror={(e) => { e.currentTarget.style.display='none'; }}
+                  />
+                {:else}
+                  <!-- CSS gradient placeholder with destination initial -->
+                  <div class="absolute inset-0 flex items-center justify-center text-3xl opacity-40">🌍</div>
+                {/if}
+                <!-- Image source badge -->
+                {#if sugg.image_source === 'immich'}
+                  <span class="absolute bottom-1 left-1 text-[8px] px-1 py-0.5 rounded"
+                    style="background:rgba(0,0,0,.6);color:rgba(255,255,255,.7)">📸</span>
+                {:else if sugg.image_source === 'unsplash'}
+                  <span class="absolute bottom-1 left-1 text-[8px] px-1 py-0.5 rounded"
+                    style="background:rgba(0,0,0,.6);color:rgba(255,255,255,.7)">🖼️</span>
+                {/if}
+              </div>
+
+              <!-- Content -->
+              <div class="flex-1 p-4 flex flex-col justify-between min-w-0">
+                <div>
+                  <div class="flex items-start justify-between gap-2 mb-1">
+                    <span class="font-bold text-sm leading-snug truncate"
+                      style="color:var(--ws-text);font-family:var(--ws-serif)">
+                      {sugg.destination}
+                    </span>
+                    <span class="text-[10px] shrink-0 px-1.5 py-0.5 rounded-full font-semibold"
+                      style="background:rgba(196,98,45,.1);color:var(--ws-accent)">✨ KI</span>
+                  </div>
+                  <p class="text-xs leading-relaxed line-clamp-2" style="color:var(--ws-muted)">
+                    {sugg.reason}
+                  </p>
+                </div>
+
+                <div class="flex items-center justify-between mt-3 gap-2">
+                  <!-- Trip type chips from prefill -->
+                  <div class="flex gap-1 flex-wrap">
+                    {#if sugg.prefill?.tripType}
+                      {@const icons = { flight: '✈️', hotel: '🏨', camping: '⛺', car: '🚗' }}
+                      <span class="text-[10px] px-2 py-0.5 rounded-full"
+                        style="background:var(--ws-surface);border:1px solid var(--ws-border);color:var(--ws-muted)">
+                        {icons[sugg.prefill.tripType] || '🗺️'} {sugg.prefill.tripType}
+                      </span>
+                    {/if}
+                  </div>
+                  <span class="text-xs font-semibold shrink-0 transition-colors group-hover:opacity-80"
+                    style="color:var(--ws-accent)">
+                    Planen →
+                  </span>
+                </div>
+              </div>
+            </button>
+          {/each}
+        </div>
+      {/if}
+    </div>
+  {/if}
+
 </div>
