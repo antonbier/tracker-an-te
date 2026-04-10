@@ -69,6 +69,30 @@ async def get_suggestions(
     return result
 
 
+@router.post("/refresh")
+async def refresh_suggestions(
+    count: int = Query(default=3, ge=1, le=6),
+    user: dict = Depends(get_current_user),
+):
+    """Clear cache + fetch fresh suggestions."""
+    user_id = user["id"]
+    _cache.pop(user_id, None)
+    logger.info(f"[Discovery] Cache cleared for user={user_id}, fetching fresh")
+    suggestions = await discovery_service.get_suggestions(user_id, count=count)
+    result = [
+        {
+            "destination":  s.destination,
+            "reason":       s.reason,
+            "image_url":    s.image_url,
+            "image_source": s.image_source,
+            "prefill":      s.prefill,
+        }
+        for s in suggestions
+    ]
+    _set_cached(user_id, result)
+    return result
+
+
 @router.get("/trip-image")
 async def get_trip_image(
     destination: str = Query(..., description="Stadtname oder Region"),
