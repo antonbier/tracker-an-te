@@ -9,7 +9,7 @@ Pipeline:
   4. Bild-Pipeline pro Suggestion (Immich → Unsplash → CSS-Fallback)
 
 Fehlerbehandlung: Jeder externe Call in try/except — kein Schritt bricht
-die Pipeline komplett ab. Timeout: 8 Sekunden pro Call.
+die Pipeline komplett ab. Timeout: 20 Sekunden pro Call.
 """
 
 import json
@@ -34,7 +34,7 @@ class Suggestion:
     destination:  str
     reason:       str
     image_url:    Optional[str]
-    image_source: str          # immich | unsplash | css_fallback
+    image_source: str          # immich_proxy | unsplash | css_fallback
     prefill:      dict = field(default_factory=dict)
 
 
@@ -133,7 +133,7 @@ Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
             "Kein Markdown, keine Einleitung, kein Kommentar."
         )
 
-            # Try the configured provider first, then fallback to the other
+        # Try the configured provider first, then fallback to the other
         if llm_provider == "gemini":
             result = await self._gemini_call(system_prompt, user_prompt)
             if not result:
@@ -226,67 +226,68 @@ Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
         return []
 
     async def _get_image(self, user_id: int, prefs: dict, destination: str) -> tuple[Optional[str], str]:
-        # ── a) Immich ─────────────────────────────────────────────────────────
-        immich_url = (prefs.get("immich_url") or "").strip().rstrip("/")
-        immich_key = (get_user_setting_value(user_id, "immich_api_key") or "").strip()
+        # NEU: Prüfen, ob wir das Ziel schon besucht haben
+        visited = self._load_visited(user_id)
+        is_visited = any(destination.lower() in v.lower() for v in visited)
 
-        logger.info(f"[Discovery/img] dest={destination!r} immich_url={bool(immich_url)} immich_key={bool(immich_key)} unsplash_key={bool(get_user_setting_value(user_id, 'unsplash_key'))}")
+        # ── a) Immich (NUR wenn bereits besucht) ──────────────────────────────
+        if is_visited:
+            immich_url = (prefs.get("immich_url") or "").strip().rstrip("/")
+            immich_key = (get_user_setting_value(user_id, "immich_api_key") or "").strip()
 
-        if immich_url and immich_key:
-            # Try POST /api/search/metadata (works across Immich versions)
-            try:
-                async with httpx.AsyncClient(timeout=TIMEOUT, follow_redirects=True) as client:
-                    resp = await client.post(
-                        f"{immich_url}/api/search/metadata",
-                        headers={"x-api-key": immich_key, "Content-Type": "application/json"},
-                        json={"query": destination, "size": 1, "type": "IMAGE", "withExif": False},
-                    )
-                    logger.info(f"[Discovery/Immich] POST /search/metadata status={resp.status_code}")
-                    if resp.status_code == 200:
-                        data = resp.json()
-                        items = data.get("assets", {}).get("items", [])
-                        if items:
-                            asset_id = items[0].get("id")
-                            if asset_id:
-                                img_url = f"{immich_url}/api/assets/{asset_id}/thumbnail?size=preview"
-                                # Thumbnail needs auth header — frontend can't send it directly.
-                                # Use the public /api/assets/{id}/original fallback or proxy.
-                                # For now: return URL and let frontend add header via img tag won't work.
-                                # Instead: return a data URL or use /api/assets/{id}/thumbnail with key in query
-                                # Return clean URL without key — proxy endpoint will add auth header
-                                img_url = f"{immich_url}/api/assets/{asset_id}/thumbnail?size=preview"
-                                logger.info(f"[Discovery] Immich hit: {asset_id}")
-                                return img_url, "immich_proxy"
-            except Exception as e:
-                logger.warning(f"[Discovery/Immich] search/metadata failed: {e}")
+            logger.info(f"[Discovery/img] dest={destination!r} is_visited=True immich_url={bool(immich_url)} immich_key={bool(immich_key)}")
 
-            # Fallback: GET /api/search/quick-transform (older Immich)
-            try:
-                async with httpx.AsyncClient(timeout=TIMEOUT, follow_redirects=True) as client:
-                    resp = await client.get(
-                        f"{immich_url}/api/assets",
-                        params={"q": destination, "size": 1, "type": "IMAGE"},
-                        headers={"x-api-key": immich_key},
-                    )
-                    logger.info(f"[Discovery/Immich] GET /assets status={resp.status_code}")
-                    if resp.status_code == 200:
-                        items = resp.json()
-                        if isinstance(items, list) and items:
-                            asset_id = items[0].get("id")
-                            if asset_id:
-                                img_url = f"{immich_url}/api/assets/{asset_id}/thumbnail?size=preview"
-                                logger.info(f"[Discovery] Immich assets hit: {asset_id}")
-                                return img_url, "immich_proxy"
-            except Exception as e:
-                logger.warning(f"[Discovery/Immich] GET /assets failed: {e}")
+            if immich_url and immich_key:
+                # Try POST /api/search/metadata (works across Immich versions)
+                try:
+                    async with httpx.AsyncClient(timeout=TIMEOUT, follow_redirects=True) as client:
+                        resp = await client.post(
+                            f"{immich_url}/api/search/metadata",
+                            headers={"x-api-key": immich_key, "Content-Type": "application/json"},
+                            json={"query": destination, "size": 1, "type": "IMAGE", "withExif": False},
+                        )
+                        logger.info(f"[Discovery/Immich] POST /search/metadata status={resp.status_code}")
+                        if resp.status_code == 200:
+                            data = resp.json()
+                            items = data.get("assets", {}).get("items", [])
+                            if items:
+                                asset_id = items[0].get("id")
+                                if asset_id:
+                                    img_url = f"{immich_url}/api/assets/{asset_id}/thumbnail?size=preview"
+                                    logger.info(f"[Discovery] Immich hit: {asset_id}")
+                                    return img_url, "immich_proxy"
+                except Exception as e:
+                    logger.warning(f"[Discovery/Immich] search/metadata failed: {e}")
 
-        # ── b) Unsplash ───────────────────────────────────────────────────────
+                # Fallback: GET /api/search/quick-transform (older Immich)
+                try:
+                    async with httpx.AsyncClient(timeout=TIMEOUT, follow_redirects=True) as client:
+                        resp = await client.get(
+                            f"{immich_url}/api/assets",
+                            params={"q": destination, "size": 1, "type": "IMAGE"},
+                            headers={"x-api-key": immich_key},
+                        )
+                        logger.info(f"[Discovery/Immich] GET /assets status={resp.status_code}")
+                        if resp.status_code == 200:
+                            items = resp.json()
+                            if isinstance(items, list) and items:
+                                asset_id = items[0].get("id")
+                                if asset_id:
+                                    img_url = f"{immich_url}/api/assets/{asset_id}/thumbnail?size=preview"
+                                    logger.info(f"[Discovery] Immich assets hit: {asset_id}")
+                                    return img_url, "immich_proxy"
+                except Exception as e:
+                    logger.warning(f"[Discovery/Immich] GET /assets failed: {e}")
+        else:
+            logger.info(f"[Discovery/img] dest={destination!r} is_visited=False -> Überspringe Immich")
+
+        # ── b) Unsplash (Standard für neue Ziele) ─────────────────────────────
         unsplash_key = (get_user_setting_value(user_id, "unsplash_key") or "").strip()
         if unsplash_key:
             try:
                 async with httpx.AsyncClient(timeout=TIMEOUT) as client:
                     resp = await client.get(
-                        "https://api.unsplash.com/photos/random",
+                        "[https://api.unsplash.com/photos/random](https://api.unsplash.com/photos/random)",
                         params={"query": f"{destination} travel landscape", "orientation": "landscape", "content_filter": "high"},
                         headers={"Authorization": f"Client-ID {unsplash_key}"},
                     )
@@ -324,8 +325,6 @@ Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
             "children":    int(prefs.get("ww_children") or 0),
             "homeAirport": prefs.get("ww_home_airport") or "",
         }
-
-
 
     async def get_destination_detail(self, user_id: int, destination: str, country: str = "") -> dict:
         """Full detail: LLM description + things_to_do + multiple images."""
@@ -387,7 +386,7 @@ Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
             try:
                 async with httpx.AsyncClient(timeout=TIMEOUT) as client:
                     resp = await client.get(
-                        "https://api.unsplash.com/search/photos",
+                        "[https://api.unsplash.com/search/photos](https://api.unsplash.com/search/photos)",
                         params={"query": f"{destination} travel", "orientation": "landscape",
                                 "per_page": count, "content_filter": "high"},
                         headers={"Authorization": f"Client-ID {unsplash_key}"},
