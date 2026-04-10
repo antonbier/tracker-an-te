@@ -40,13 +40,31 @@ USER_KEYS = [
     "dawarich_url",
     "dawarich_token",
     "actual_url",
-    "actual_token",    # ActualBudget server password
-    "actual_file",     # Budget display name
+    "actual_token",      # ActualBudget server password
+    "actual_file",       # Budget display name
     "home_lat",
     "home_lon",
     "travel_categories",
-    "timezone",        # Per-user timezone override
-    "date_format",     # Per-user date format override
+    "timezone",          # Per-user timezone override
+    "date_format",       # Per-user date format override
+    # Immich
+    "immich_url",
+    "immich_api_key",    # Fernet-verschlüsselt
+    "immich_geo_sync",
+    # WanderWizzard Defaults
+    "ww_adults",
+    "ww_children",
+    "ww_home_airport",
+    "ww_lug_s10",
+    "ww_lug_s20",
+    "ww_lug_s23",
+    "ww_lug_l10",
+    "ww_lug_l20",
+    "ww_lug_l23",
+    "ww_dep_min",
+    "ww_dep_max",
+    "ww_arr_min",
+    "ww_arr_max",
 ]
 
 ALL_KEYS = GLOBAL_KEYS + USER_KEYS
