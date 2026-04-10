@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { api } from '$lib/api.js';
   import { apiUrl, settingsOpen } from '$lib/stores.js';
+  import DestinationDetail from '$lib/components/dashboard/DestinationDetail.svelte';
 
   let {
     recentDawarich,
@@ -20,7 +21,9 @@
   // AI Suggestions
   let suggestions  = $state([]);
   let loadingSugg  = $state(false);
-  let apiError     = $state('');
+  let apiError        = $state('');
+  let detailOpen      = $state(false);
+  let detailSuggestion = $state(null);
 
   const PANEL_GRADS = [
     'linear-gradient(135deg,#1a3a4a,#0f2a38)',
@@ -174,7 +177,7 @@
       <div class="space-y-3">
         {#each suggestions as sugg, i}
           <button
-            onclick={() => onstartwizard(sugg.prefill)}
+            onclick={() => { detailSuggestion = sugg; detailOpen = true; }}
             class="group w-full rounded-2xl overflow-hidden flex text-left transition-all hover:scale-[1.005] active:scale-[.995]"
             style="background:var(--ws-surface2);border:1px solid var(--ws-border)">
 
@@ -250,5 +253,12 @@
       </div>
     {/if}
   </div>
+
+
+<DestinationDetail
+  bind:open={detailOpen}
+  suggestion={detailSuggestion}
+  onplan={(prefill) => onstartwizard(prefill)}
+/>
 
 </div>
