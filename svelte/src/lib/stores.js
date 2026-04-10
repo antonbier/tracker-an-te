@@ -39,6 +39,9 @@ export const appVersion = writable('');
 // WanderWizzard: Suchparameter-Store (wird von WanderWizzard gesetzt, von PriceRadar gelesen)
 export const priceradarParams = writable(null);
 
+// Global settings modal trigger — set to true from anywhere to open Settings
+export const settingsOpen = writable(false);
+
 export const isDark       = derived(theme,       ($t) => $t === 'dark');
 export const isConfigured = derived(apiUrl,      ($u) => $u.length > 0);
 export const isAdmin      = derived(currentUser, ($u) => $u?.role === 'admin');
