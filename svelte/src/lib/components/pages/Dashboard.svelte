@@ -23,6 +23,47 @@
   let budgetSaving  = $state(false);
   let budgetEditing  = $state(false);
   let wizzardOpen    = $state(false);
+  let wizzardPrefill = $state({});
+
+  // ── WanderWizzard user defaults ───────────────────────────────────────────
+  let wwAdults   = $state(2);
+  let wwChildren = $state(0);
+  let wwHome     = $state('');
+  let wwLugS10   = $state(0);
+  let wwLugS20   = $state(0);
+  let wwLugS23   = $state(0);
+  let wwLugL10   = $state(0);
+  let wwLugL20   = $state(1);
+  let wwLugL23   = $state(0);
+  let wwDepMin   = $state('');
+  let wwDepMax   = $state('');
+  let wwArrMin   = $state('');
+  let wwArrMax   = $state('');
+
+  async function loadWwDefaults() {
+    if (!$apiUrl) return;
+    try {
+      const us = await api('/api/settings/user');
+      wwAdults   = parseInt(us.ww_adults)       || 2;
+      wwChildren = parseInt(us.ww_children)     || 0;
+      wwHome     = us.ww_home_airport           || '';
+      wwLugS10   = parseInt(us.ww_lug_s10)      || 0;
+      wwLugS20   = parseInt(us.ww_lug_s20)      || 0;
+      wwLugS23   = parseInt(us.ww_lug_s23)      || 0;
+      wwLugL10   = parseInt(us.ww_lug_l10)      || 0;
+      wwLugL20   = parseInt(us.ww_lug_l20)      || 1;
+      wwLugL23   = parseInt(us.ww_lug_l23)      || 0;
+      wwDepMin   = us.ww_dep_min                || '';
+      wwDepMax   = us.ww_dep_max                || '';
+      wwArrMin   = us.ww_arr_min                || '';
+      wwArrMax   = us.ww_arr_max                || '';
+    } catch {}
+  }
+
+  function openWizzard(prefill = {}) {
+    wizzardPrefill = prefill;
+    wizzardOpen = true;
+  }
 
   const yearBudget    = $derived(parseFloat(budgetByYear[String(currentYear)]) || 0);
   const CIRC          = 2 * Math.PI * 38;
@@ -139,7 +180,7 @@
     loading = false;
   });
 
-  $effect(() => { if ($apiUrl) loadBudget(); });
+  $effect(() => { if ($apiUrl) { loadBudget(); loadWwDefaults(); } });
 </script>
 
 <div class="space-y-5">
@@ -160,13 +201,13 @@
     onopenbodgetedit={() => { budgetEditing = true; }}
     onclosebodgetedit={() => { budgetEditing = false; }}
     onsavebudget={saveBudget}
-    onopenWizzard={() => wizzardOpen = true}
+    onopenWizzard={() => openWizzard()}
   />
 
   <!-- ── Travel Inspiration ── -->
   <TravelInspo
     {recentDawarich}
-    onstartwizard={(data) => currentPage.set('discover')}
+    onstartwizard={(data) => openWizzard(data)}
     onnavto={(page) => currentPage.set(page)}
   />
 
@@ -203,6 +244,23 @@
   {/if}
 
 
-<WanderWizzard bind:open={wizzardOpen} />
+<WanderWizzard
+  bind:open={wizzardOpen}
+  destination={wizzardPrefill.destination || ''}
+  tripType={wizzardPrefill.tripType || ''}
+  adults={wizzardPrefill.adults || wwAdults}
+  children={wizzardPrefill.children || wwChildren}
+  homeAirport={wizzardPrefill.homeAirport || wwHome}
+  lugS10={wwLugS10}
+  lugS20={wwLugS20}
+  lugS23={wwLugS23}
+  lugL10={wwLugL10}
+  lugL20={wwLugL20}
+  lugL23={wwLugL23}
+  depMin={wwDepMin}
+  depMax={wwDepMax}
+  arrMin={wwArrMin}
+  arrMax={wwArrMax}
+/>
 
 </div>
