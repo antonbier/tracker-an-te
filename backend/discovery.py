@@ -80,11 +80,17 @@ class DiscoveryService:
                 prefill = json.loads(r.get("prefill_json") or "{}")
             except Exception:
                 prefill = {}
+            img_url = r.get("image_url")
+            img_src = r.get("image_source", "css_fallback")
+            # Alte Pool-Einträge mit falsch gespeicherten Proxy-URLs reparieren
+            if img_url and img_url.startswith("/api/discovery/image-proxy") and img_src == "unsplash":
+                img_url = None
+                img_src = "css_fallback"
             suggestions.append(Suggestion(
                 destination=r["destination"],
                 reason=r["reason"],
-                image_url=r.get("image_url"),
-                image_source=r.get("image_source", "css_fallback"),
+                image_url=img_url,
+                image_source=img_src,
                 prefill=prefill,
             ))
         return suggestions
@@ -126,7 +132,7 @@ class DiscoveryService:
                 "trip_type":    raw.get("trip_type"),
                 "image_url":    image_url,
                 "image_source": image_source,
-                "prefill":      self._build_prefill(defaults, raw),
+                "prefill":      self._build_prefill(defaults, raw, personality),
             }
             if discovery_pool_upsert(user_id, entry):
                 inserted += 1
@@ -268,8 +274,7 @@ class DiscoveryService:
             else:
                 mobility_block = (
                     f"  Reiseart: Auto — maximale Fahrtzeit {max_time}. "
-                    f"Schlage NUR Ziele vor, die per Auto in maximal {max_time} erreichbar sind "
-                    f"(ausgehend von den Heimatkoordinaten lat={personality.travel_style or '?'})."
+                    f"Schlage NUR Ziele vor, die per Auto in maximal {max_time} Fahrtzeit erreichbar sind."
                 )
         else:
             if max_time == "any":
@@ -505,13 +510,19 @@ Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
 
         return images
 
-    def _build_prefill(self, defaults: TravelDefaults, raw: dict) -> dict:
+    def _build_prefill(self, defaults: TravelDefaults, raw: dict,
+                        personality: "TravelPersonality | None" = None) -> dict:
         landscape = raw.get("landscape", "") or raw.get("climate", "")
         llm_type = raw.get("trip_type", "") or ""
-        valid_types = {"flight", "hotel", "camping"}
-        trip_type = llm_type if llm_type in valid_types else "flight"
-        if llm_type == "camping" and landscape in ("mountains", "forest"):
-            trip_type = "camping"
+
+        # travel_mode=car → immer tripType=car setzen
+        if personality and personality.travel_mode == "car":
+            trip_type = "car"
+        else:
+            valid_types = {"flight", "hotel", "camping"}
+            trip_type = llm_type if llm_type in valid_types else "flight"
+            if llm_type == "camping" and landscape in ("mountains", "forest"):
+                trip_type = "camping"
         return {
             "destination": raw.get("destination", ""),
             "country":     raw.get("country", ""),
