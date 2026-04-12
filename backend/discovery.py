@@ -52,7 +52,7 @@ class Suggestion:
     destination:  str
     reason:       str
     image_url:    Optional[str]
-    image_source: str          # immich | unsplash | css_fallback
+    image_source: str          # immich | unsplash | local_fallback | css_fallback
     prefill:      dict = field(default_factory=dict)
 
 
@@ -87,8 +87,8 @@ class DiscoveryService:
             img_src = r.get("image_source", "css_fallback")
             # Alte Pool-Einträge mit falsch gespeicherten Proxy-URLs reparieren
             if img_url and img_url.startswith("/api/discovery/image-proxy") and img_src == "unsplash":
-                img_url = None
-                img_src = "css_fallback"
+                img_url = get_fallback_url(r.get("landscape") or "mix")
+                img_src = "local_fallback"
             suggestions.append(Suggestion(
                 destination=r["destination"],
                 reason=r["reason"],
@@ -122,7 +122,7 @@ class DiscoveryService:
             if not dest:
                 continue
             if isinstance(img_result, Exception):
-                image_url, image_source = None, "css_fallback"
+                image_url, image_source = None, "local_fallback"
             else:
                 image_url, image_source = img_result
 
