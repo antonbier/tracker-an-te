@@ -393,7 +393,8 @@ Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
     # ── Bild-Pipeline ─────────────────────────────────────────────────────────
 
     def _make_proxy_url(self, url: str) -> str:
-        """Alle externen Bild-URLs durch Backend-Proxy schleusen."""
+        """Nur Immich-URLs durch Backend-Proxy schleusen (brauchen x-api-key).
+        Unsplash-URLs werden DIREKT zurückgegeben — CDN akzeptiert nur Browser-Requests."""
         return f"/api/discovery/image-proxy?url={quote(url, safe='')}"
 
     async def _get_image(self, user_id: int, defaults: TravelDefaults,
@@ -457,7 +458,7 @@ Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
                         img_url = resp.json().get("urls", {}).get("regular")
                         if img_url:
                             logger.info(f"[Discovery] Unsplash hit for {destination}")
-                            return self._make_proxy_url(img_url), "unsplash"
+                            return img_url, "unsplash"  # Direkt — Unsplash CDN nur Browser
                     else:
                         logger.warning(f"[Discovery/Unsplash] {resp.status_code}: {resp.text[:200]}")
             except Exception as e:
@@ -489,7 +490,7 @@ Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
                             url = item.get("urls", {}).get("regular")
                             if url:
                                 images.append({
-                                    "url": self._make_proxy_url(url),
+                                    "url": url,  # Direkt — kein Proxy für Unsplash
                                     "source": "unsplash"
                                 })
             except Exception as e:
