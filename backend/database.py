@@ -251,6 +251,25 @@ def init_db():
                 updated_at TEXT    NOT NULL DEFAULT (datetime('now'))
             );
 
+
+            -- Discovery Pool: pre-generated AI suggestions per user (max ~200)
+            CREATE TABLE IF NOT EXISTS discovery_pool (
+                id             INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id        INTEGER NOT NULL,
+                destination    TEXT    NOT NULL,
+                country        TEXT    NOT NULL DEFAULT '',
+                reason         TEXT    NOT NULL DEFAULT '',
+                climate        TEXT    DEFAULT NULL,
+                landscape      TEXT    DEFAULT NULL,
+                trip_type      TEXT    DEFAULT NULL,
+                image_url      TEXT    DEFAULT NULL,
+                image_source   TEXT    NOT NULL DEFAULT 'css_fallback',
+                prefill_json   TEXT    NOT NULL DEFAULT '{}',
+                shown          INTEGER NOT NULL DEFAULT 0,
+                created_at     TEXT    NOT NULL DEFAULT (datetime('now')),
+                UNIQUE(user_id, destination)
+            );
+
             -- Per-user data (trips list, budget, bucketlist)
             CREATE TABLE IF NOT EXISTS user_data (
                 user_id    INTEGER NOT NULL DEFAULT 1,
@@ -323,6 +342,12 @@ def init_db():
             ("user_settings",    "companions TEXT DEFAULT NULL"),
             ("user_settings",    "wish_text TEXT DEFAULT NULL"),
             ("user_settings",    "unsplash_key TEXT DEFAULT NULL"),
+            # WanderWizzard: Reisepersönlichkeit — Mobilitäts-Prefs
+            ("user_settings",    "travel_mode TEXT DEFAULT NULL"),
+            ("user_settings",    "max_travel_time TEXT DEFAULT NULL"),
+            ("user_settings",    "history_mode TEXT DEFAULT NULL"),
+            # Discovery Pool
+            ("discovery_pool",   "shown INTEGER NOT NULL DEFAULT 0"),
         ]
         for table, col_def in migrations:
             col_name = col_def.split()[0]
@@ -1247,3 +1272,109 @@ def save_provider_config(name: str, enabled: bool, api_key: str | None = None, t
                 (name, 1 if enabled else 0, api_key, 1 if test_mode else 0),
             )
 
+
+
+# ── Discovery Pool ────────────────────────────────────────────────────────────
+
+DISCOVERY_POOL_MAX = 200
+DISCOVERY_POOL_REFILL_THRESHOLD = 10  # Refill wenn weniger als N ungesehene
+
+
+def discovery_pool_count(user_id: int) -> tuple[int, int]:
+    """Returns (total, unseen) entries in pool for user."""
+    with db() as conn:
+        total = conn.execute(
+            "SELECT COUNT(*) FROM discovery_pool WHERE user_id=?", (user_id,)
+        ).fetchone()[0]
+        unseen = conn.execute(
+            "SELECT COUNT(*) FROM discovery_pool WHERE user_id=? AND shown=0", (user_id,)
+        ).fetchone()[0]
+    return total, unseen
+
+
+def discovery_pool_get_unseen(user_id: int, limit: int = 6) -> list[dict]:
+    """Return up to `limit` unseen suggestions from pool."""
+    with db() as conn:
+        rows = conn.execute(
+            """SELECT * FROM discovery_pool
+               WHERE user_id=? AND shown=0
+               ORDER BY created_at DESC LIMIT ?""",
+            (user_id, limit)
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def discovery_pool_mark_shown(user_id: int, destination: str) -> None:
+    """Mark a suggestion as shown."""
+    with db() as conn:
+        conn.execute(
+            "UPDATE discovery_pool SET shown=1 WHERE user_id=? AND destination=?",
+            (user_id, destination)
+        )
+
+
+def discovery_pool_upsert(user_id: int, entry: dict) -> bool:
+    """Insert or ignore (UNIQUE constraint: user_id + destination).
+    Returns True if inserted, False if already existed."""
+    with db() as conn:
+        cur = conn.execute(
+            """INSERT OR IGNORE INTO discovery_pool
+               (user_id, destination, country, reason, climate, landscape,
+                trip_type, image_url, image_source, prefill_json, shown, created_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?,0,datetime('now'))""",
+            (
+                user_id,
+                entry.get("destination", ""),
+                entry.get("country", ""),
+                entry.get("reason", ""),
+                entry.get("climate"),
+                entry.get("landscape"),
+                entry.get("trip_type"),
+                entry.get("image_url"),
+                entry.get("image_source", "css_fallback"),
+                json.dumps(entry.get("prefill", {})),
+            )
+        )
+    return cur.rowcount > 0
+
+
+def discovery_pool_rotate(user_id: int) -> int:
+    """If pool exceeds DISCOVERY_POOL_MAX, delete oldest shown entries first.
+    Returns number of deleted rows."""
+    with db() as conn:
+        total = conn.execute(
+            "SELECT COUNT(*) FROM discovery_pool WHERE user_id=?", (user_id,)
+        ).fetchone()[0]
+        if total <= DISCOVERY_POOL_MAX:
+            return 0
+        to_delete = total - DISCOVERY_POOL_MAX
+        # Delete oldest shown entries first
+        ids = conn.execute(
+            """SELECT id FROM discovery_pool WHERE user_id=? AND shown=1
+               ORDER BY created_at ASC LIMIT ?""",
+            (user_id, to_delete)
+        ).fetchall()
+        if not ids:
+            # Fallback: delete oldest overall
+            ids = conn.execute(
+                """SELECT id FROM discovery_pool WHERE user_id=?
+                   ORDER BY created_at ASC LIMIT ?""",
+                (user_id, to_delete)
+            ).fetchall()
+        if ids:
+            placeholders = ",".join("?" * len(ids))
+            id_list = [r[0] for r in ids]
+            conn.execute(
+                f"DELETE FROM discovery_pool WHERE id IN ({placeholders})", id_list
+            )
+            return len(ids)
+    return 0
+
+
+def discovery_pool_clear(user_id: int) -> int:
+    """Clear all pool entries for a user (force full refresh)."""
+    with db() as conn:
+        r = conn.execute(
+            "DELETE FROM discovery_pool WHERE user_id=?", (user_id,)
+        )
+    return r.rowcount
