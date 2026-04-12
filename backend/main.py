@@ -23,6 +23,7 @@ from routes import (
 )
 from routes import notifications as notifications_route
 from discovery import discovery_service
+from discovery_fallbacks import router as fallback_router
 from routes.auth import router_status, router_auth, router_admin
 from routes import dawarich as dawarich_route
 from routes import trips as trips_route
@@ -73,8 +74,27 @@ async def lifespan(app: FastAPI):
         misfire_grace_time=3600,
     )
 
+    # Sync wrapper für APScheduler
+    def _run_image_retry():
+        import asyncio as _asyncio
+        try:
+            loop = _asyncio.get_event_loop()
+            if loop.is_running():
+                _asyncio.ensure_future(discovery_service.retry_missing_images(1))
+            else:
+                loop.run_until_complete(discovery_service.retry_missing_images(1))
+        except Exception as e:
+            logger.warning(f"[Discovery] Retry-Job Fehler: {e}")
+
+    scheduler.add_job(
+        _run_image_retry,
+        trigger="interval", hours=2,
+        id="discovery_image_retry",
+        replace_existing=True,
+    )
+
     scheduler.start()
-    logger.info(f"Scheduler started — price fetch 07:00, cleanup 03:00 ({TZ})")
+    logger.info(f"Scheduler started — price fetch 07:00, cleanup 03:00, img-retry 2h ({TZ})")
 
     # Discovery pool warmup — im Hintergrund, blockiert nicht den Start
     async def _warmup_pool():
@@ -120,6 +140,7 @@ app.include_router(notifications_route.router, prefix="/api/notifications",    t
 app.include_router(scheduler_route.router,     prefix="/api/scheduler",        tags=["Scheduler"])
 app.include_router(search_route.router,        prefix="/api/search",           tags=["Search"])
 app.include_router(discovery_route.router,     prefix="/api/discovery",        tags=["Discovery"])
+app.include_router(fallback_router,            prefix="/api/discovery/fallback", tags=["Discovery"])
 app.include_router(router_status, prefix="/api", tags=["Status"])
 app.include_router(router_auth,   prefix="/api", tags=["Auth"])
 app.include_router(router_admin,  prefix="/api", tags=["Admin"])
