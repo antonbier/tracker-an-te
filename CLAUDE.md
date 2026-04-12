@@ -1744,3 +1744,80 @@ svelte/src/lib/components/
 | i18n reaktiv | `get(t)('key')` im Script | `$t('key')` im Template oder `$derived($t('key'))` |
 | Tab-Array mit Labels | `$derived.by(() => [{label: $t(...)}])` | Statische IDs + `$derived({id: $t(...)})` für Labels |
 
+
+
+---
+
+## Discovery-Pipeline Refactoring (April 2026)
+
+### Übersicht
+Vollständiges Refactoring der Discovery-Pipeline zur Beseitigung von Technical Debt und Vorbereitung auf zukünftige Features.
+
+### Neue Dateien
+
+**`backend/discovery_models.py`** (neu)
+Pydantic-Modelle zur strukturellen Trennung der Settings:
+- `TravelPersonality` — steuert LLM-Prompt: `travel_style`, `climate_pref`, `landscape_pref`, `companions`, `wish_text`, `history_mode`, `travel_mode`, `max_travel_time`
+- `TravelDefaults` — technische Reise-Parameter für Prefill: `home_airport`, `home_lat`, `home_lon`, `adults`, `children`, `unsplash_key`, `immich_url`, `immich_api_key`
+
+### Geänderte Backend-Dateien
+
+**`backend/database.py`**
+- Neue Tabelle `discovery_pool` — persistenter Cache für KI-Vorschläge pro User (max. 200 Einträge, UNIQUE auf `user_id + destination`)
+- Neue CRUD-Funktionen: `discovery_pool_get_unseen()`, `discovery_pool_upsert()`, `discovery_pool_mark_shown()`, `discovery_pool_rotate()`, `discovery_pool_clear()`, `discovery_pool_count()`
+- Neue Migration-Keys: `travel_mode`, `max_travel_time`, `history_mode` in `user_settings`
+- Konstanten: `DISCOVERY_POOL_MAX = 200`, `DISCOVERY_POOL_REFILL_THRESHOLD = 10`
+
+**`backend/settings_manager.py`**
+- `USER_KEYS` erweitert um: `travel_mode`, `max_travel_time`, `history_mode`
+
+**`backend/discovery.py`** (vollständig refactored)
+- `_load_prefs()` aufgespalten in `_load_personality() → TravelPersonality` und `_load_defaults() → TravelDefaults`
+- `get_suggestions()` liest primär aus `discovery_pool` statt on-the-fly zu generieren; triggert `background_refresh_suggestions()` als `asyncio.create_task` wenn Pool < Threshold
+- `background_refresh_suggestions()` — neuer Cronjob-Einstiegspunkt: LLM → `asyncio.gather` für parallele Bild-Anreicherung → Pool schreiben
+- `_make_proxy_url()` — Proxy-URL-Erzeugung (`/api/discovery/image-proxy?url={quote(url, safe='')}`) jetzt in `_get_image()` statt in routes/; gilt für **beide** Quellen (Immich + Unsplash)
+- `_build_prompt()` — neue Methode mit Smart History Toggle:
+  - `history_mode=blacklist` → besuchte Orte werden ausgeschlossen
+  - `history_mode=context` → besuchte Orte als KI-Inspiration für ähnliche, unbekannte Ziele
+- `_build_prompt()` integriert `travel_mode` + `max_travel_time` in Prompt:
+  - `travel_mode=car` → nur per Auto erreichbare Ziele
+  - `travel_mode=flight` + `max_travel_time=Xh` → Flugzeit-Constraint
+- Alle `httpx.AsyncClient`: `trust_env=False`, `timeout=25.0` (vorher: 20s, Immich fehlte `trust_env=False`)
+- `_load_visited()` wird nicht mehr doppelt aufgerufen (war redundanter DB-Hit pro Suggestion)
+
+**`backend/routes/discovery.py`**
+- `_proxy_url()` Hilfsfunktion entfernt (Logik liegt jetzt in `discovery.py`)
+- In-Memory-Cache (`_cache`) entfernt — Pool in SQLite ersetzt ihn
+- Neuer Endpoint `POST /mark-shown` — Suggestion als gesehen markieren
+- `GET /image-proxy` — jetzt user-scoped (liest `immich_url`/`immich_api_key` per `user_id` aus Settings statt hardcoded `user_id=1`); Unsplash-URLs explizit erlaubt (`images.unsplash.com`)
+- `POST /refresh` — leert Pool via `discovery_pool_clear()` und befüllt neu
+
+### Geänderte Frontend-Dateien
+
+**`svelte/src/lib/components/settings/MyspaceDefaults.svelte`**
+- Reisepersönlichkeit als eigenständiges Panel (strukturell getrennt von Reise-Defaults)
+- Neue Props: `travelMode` (`$bindable`), `maxTravelTime` (`$bindable`), `historyMode` (`$bindable`)
+- **Neuer Block „Reisemodus"**: Toggle Flugreise ✈️ / Autoreise 🚗 mit kontextsensitivem Hinweistext
+- **Neuer Block „Max. Reisezeit"**: Buttons 2h / 4h / 8h / 12h / 12h+ / Egal; Label wechselt je nach `travelMode` zwischen „Flugzeit" und „Fahrzeit"
+- **Neuer Block „Reisehistorie verwenden als"**: Toggle Ausschlussliste 🚫 / KI-Kontext 💡 mit erklärendem Hinweistext
+
+**`svelte/src/lib/components/settings/MyspaceTab.svelte`**
+- Neue Props: `travelMode`, `maxTravelTime`, `historyMode` als `$bindable`
+- Props werden an `MyspaceDefaults` weitergereicht
+
+**`svelte/src/lib/components/Settings.svelte`**
+- Neue `$state`-Variablen: `travelMode` (default: `'flight'`), `maxTravelTime` (default: `'any'`), `historyMode` (default: `'blacklist'`)
+- `loadUserSettings()`: lädt `us.travel_mode`, `us.max_travel_time`, `us.history_mode` aus API
+- `saveUserSettings()`: schreibt alle drei in Payload (`payload.travel_mode`, `payload.max_travel_time`, `payload.history_mode`)
+- Alle drei Props an `MyspaceTab` gebunden
+
+### API-Contracts (unverändert, weiterhin gültig)
+- Image Proxy URL-Format: `/api/discovery/image-proxy?url={urllib.parse.quote(url, safe='')}`
+- Gilt jetzt für Immich **und** Unsplash (vorher nur Immich)
+
+### Architektur-Entscheidungen
+- Pool-first statt on-the-fly: Suggestions kommen aus SQLite, LLM läuft im Hintergrund
+- `asyncio.create_task` für non-blocking Refresh wenn Pool < `DISCOVERY_POOL_REFILL_THRESHOLD`
+- Synchroner Fallback wenn Pool komplett leer (erster Start)
+- `_make_proxy_url()` als Single Source of Truth für Proxy-URLs — keine doppelte Logik in routes/
+- `TravelPersonality` / `TravelDefaults` als Pydantic-Modelle — Frontend kann Personality später isoliert über eigenes API-Panel ansprechen
