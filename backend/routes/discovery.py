@@ -93,35 +93,12 @@ async def image_proxy(
     immich_url = (get_user_setting_value(user_id, "immich_url") or "").strip().rstrip("/")
 
     is_immich = bool(immich_url) and url.startswith(immich_url)
-    is_unsplash = "unsplash.com" in url or "images.unsplash.com" in url
 
-    # Unsplash-URLs direkt weiterleiten — CDN erfordert Browser-Referrer, kein Auth
-    # Immich-URLs brauchen x-api-key → müssen durch Proxy
-    if not is_immich and not is_unsplash:
-        logger.warning(f"[Proxy] Blockierte URL: {url}")
+    # Nur Immich durch Proxy — Unsplash-CDN akzeptiert nur Browser-Requests direkt
+    # discovery.py gibt Unsplash-URLs bereits ungeproxied zurück
+    if not is_immich:
+        logger.warning(f"[Proxy] Blockierte URL (nicht Immich): {url}")
         raise HTTPException(403, "URL nicht erlaubt")
-
-    # Unsplash: Referrer setzen damit CDN die Anfrage akzeptiert
-    if is_unsplash:
-        headers = {"User-Agent": "Mozilla/5.0", "Referer": "https://unsplash.com/"}
-        try:
-            async with httpx.AsyncClient(timeout=25.0, follow_redirects=True, trust_env=False) as client:
-                resp = await client.get(url, headers=headers)
-                if resp.status_code != 200:
-                    raise HTTPException(resp.status_code, "Bildquelle Fehler")
-                content_type = resp.headers.get("content-type", "image/jpeg")
-                return Response(
-                    content=resp.content,
-                    media_type=content_type,
-                    headers={"Cache-Control": "public, max-age=86400"},
-                )
-        except httpx.TimeoutException:
-            raise HTTPException(504, "Proxy Timeout")
-        except HTTPException:
-            raise
-        except Exception as e:
-            logger.error(f"[Proxy/Unsplash] {e}")
-            raise HTTPException(502, str(e))
 
     headers = {"User-Agent": "WanderSuite/1.0"}
     if is_immich:
