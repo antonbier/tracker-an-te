@@ -27,6 +27,7 @@ from urllib.parse import quote
 import httpx
 
 from discovery_models import TravelPersonality, TravelDefaults
+from discovery_fallbacks import get_fallback_url
 from settings_manager import get_user_setting_value, get_setting_value
 from database import (
     list_detected_trips,
@@ -34,6 +35,8 @@ from database import (
     discovery_pool_upsert,
     discovery_pool_rotate,
     discovery_pool_count,
+    discovery_pool_get_without_image,
+    discovery_pool_update_image,
     DISCOVERY_POOL_REFILL_THRESHOLD,
 )
 
@@ -123,12 +126,16 @@ class DiscoveryService:
             else:
                 image_url, image_source = img_result
 
+            landscape = raw.get("landscape") or raw.get("climate") or "mix"
+            # Bei Fallback: landscape-spezifische SVG-URL setzen
+            if image_source == "local_fallback":
+                image_url = get_fallback_url(landscape)
             entry = {
                 "destination":  dest,
                 "country":      raw.get("country", ""),
                 "reason":       raw.get("reason", ""),
                 "climate":      raw.get("climate"),
-                "landscape":    raw.get("landscape"),
+                "landscape":    landscape,
                 "trip_type":    raw.get("trip_type"),
                 "image_url":    image_url,
                 "image_source": image_source,
@@ -469,8 +476,8 @@ Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
             except Exception as e:
                 logger.warning(f"[Discovery/Unsplash] exception: {e}")
 
-        # ── c) CSS Fallback ───────────────────────────────────────────────────
-        return None, "css_fallback"
+        # ── c) Local SVG Fallback ─────────────────────────────────────────────
+        return None, "local_fallback"
 
     async def _get_multiple_images(self, user_id: int, defaults: TravelDefaults,
                                     destination: str, count: int = 4) -> list:
@@ -531,6 +538,35 @@ Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
             "children":    defaults.children,
             "homeAirport": defaults.home_airport,
         }
+
+
+    async def retry_missing_images(self, user_id: int) -> int:
+        """2h-Job: versucht für alle local_fallback-Einträge echte Bilder nachzuladen."""
+        entries = discovery_pool_get_without_image(user_id, limit=20)
+        if not entries:
+            return 0
+
+        defaults = self._load_defaults(user_id)
+        visited = self._load_visited(user_id)
+        updated = 0
+
+        tasks = [
+            self._get_image(user_id, defaults, visited, e["destination"])
+            for e in entries
+        ]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        for entry, result in zip(entries, results):
+            if isinstance(result, Exception):
+                continue
+            image_url, image_source = result
+            if image_source in ("immich", "unsplash") and image_url:
+                if discovery_pool_update_image(user_id, entry["destination"],
+                                               image_url, image_source):
+                    logger.info(f"[Discovery] Retry-Bild OK: {entry['destination']} → {image_source}")
+                    updated += 1
+
+        return updated
 
 
 # ── Module-level singleton ────────────────────────────────────────────────────
