@@ -1,30 +1,45 @@
 """
-WanderSuite — DiscoveryService
-Liefert personalisierte Reiseziel-Vorschläge via LLM + Bild-Pipeline.
+WanderSuite — DiscoveryService (refactored)
 
 Pipeline:
-  1. User-Settings laden (travel_style, climate_pref, …)
-  2. Letzte 5 Dawarich-Trips als "bereits besucht"-Kontext
-  3. LLM-Call (OpenAI oder Gemini)
-  4. Bild-Pipeline pro Suggestion (Immich → Unsplash → CSS-Fallback)
+  1. TravelPersonality + TravelDefaults laden
+  2. Dawarich-History laden
+  3. Pool aus SQLite bedienen (get_suggestions)
+  4. Hintergrund-Refresh: LLM → parallel Bild-Anreicherung → Pool schreiben
 
-Fehlerbehandlung: Jeder externe Call in try/except — kein Schritt bricht
-die Pipeline komplett ab. Timeout: 20 Sekunden pro Call.
+Fixes in dieser Version:
+  - asyncio.gather für parallele Bild-Pipeline
+  - Alle httpx.AsyncClient: trust_env=False, timeout=25.0
+  - Proxy-URL-Erzeugung in _get_image() statt in routes/
+  - Unsplash-URLs ebenfalls durch Image-Proxy geschleust
+  - _load_visited() wird nicht mehr doppelt aufgerufen
+  - Smart History Toggle: blacklist | context
+  - travel_mode + max_travel_time in LLM-Prompt integriert
 """
 
+import asyncio
 import json
 import logging
 from dataclasses import dataclass, field
 from typing import Optional
+from urllib.parse import quote
 
 import httpx
 
+from discovery_models import TravelPersonality, TravelDefaults
 from settings_manager import get_user_setting_value, get_setting_value
-from database import list_detected_trips
+from database import (
+    list_detected_trips,
+    discovery_pool_get_unseen,
+    discovery_pool_upsert,
+    discovery_pool_rotate,
+    discovery_pool_count,
+    DISCOVERY_POOL_REFILL_THRESHOLD,
+)
 
 logger = logging.getLogger(__name__)
 
-TIMEOUT = 20.0
+TIMEOUT = 25.0
 
 
 # ── Data Model ────────────────────────────────────────────────────────────────
@@ -34,7 +49,7 @@ class Suggestion:
     destination:  str
     reason:       str
     image_url:    Optional[str]
-    image_source: str          # immich_proxy | unsplash | css_fallback
+    image_source: str          # immich | unsplash | css_fallback
     prefill:      dict = field(default_factory=dict)
 
 
@@ -42,58 +57,179 @@ class Suggestion:
 
 class DiscoveryService:
 
-    async def get_suggestions(self, user_id: int, count: int = 3) -> list[Suggestion]:
-        """Main entry point — returns `count` personalised travel suggestions."""
-        # 1. Load user preferences
-        prefs = self._load_prefs(user_id)
+    # ── Public API ────────────────────────────────────────────────────────────
 
-        # 2. Load "already visited" trips (last 5)
+    async def get_suggestions(self, user_id: int, count: int = 3) -> list[Suggestion]:
+        """Liefert `count` Vorschläge — primär aus Pool, triggert Refresh wenn nötig."""
+        _, unseen = discovery_pool_count(user_id)
+
+        # Hintergrund-Refresh anstoßen wenn Pool fast leer
+        if unseen < DISCOVERY_POOL_REFILL_THRESHOLD:
+            asyncio.create_task(self.background_refresh_suggestions(user_id, batch=6))
+
+        rows = discovery_pool_get_unseen(user_id, limit=count)
+
+        # Pool war komplett leer → synchron warten
+        if not rows:
+            await self.background_refresh_suggestions(user_id, batch=count)
+            rows = discovery_pool_get_unseen(user_id, limit=count)
+
+        suggestions = []
+        for r in rows:
+            try:
+                prefill = json.loads(r.get("prefill_json") or "{}")
+            except Exception:
+                prefill = {}
+            suggestions.append(Suggestion(
+                destination=r["destination"],
+                reason=r["reason"],
+                image_url=r.get("image_url"),
+                image_source=r.get("image_source", "css_fallback"),
+                prefill=prefill,
+            ))
+        return suggestions
+
+    async def background_refresh_suggestions(self, user_id: int, batch: int = 6) -> int:
+        """LLM-Call + parallele Bild-Anreicherung → Pool befüllen.
+        Returns number of new entries inserted."""
+        personality = self._load_personality(user_id)
+        defaults = self._load_defaults(user_id)
         visited = self._load_visited(user_id)
 
-        # 3. LLM call
-        raw_suggestions = await self._llm_suggest(prefs, visited, count)
+        raw_suggestions = await self._llm_suggest(personality, visited, batch)
+        if not raw_suggestions:
+            return 0
 
-        # 4. Build Suggestion objects with images
-        suggestions = []
-        for raw in raw_suggestions[:count]:
+        # Parallele Bild-Anreicherung
+        tasks = [
+            self._get_image(user_id, defaults, visited, r.get("destination", ""))
+            for r in raw_suggestions
+        ]
+        images = await asyncio.gather(*tasks, return_exceptions=True)
+
+        inserted = 0
+        for raw, img_result in zip(raw_suggestions, images):
             dest = raw.get("destination", "")
             if not dest:
                 continue
-            reason = raw.get("reason", "")
-            image_url, image_source = await self._get_image(user_id, prefs, dest)
-            prefill = self._build_prefill(prefs, raw)
-            suggestions.append(Suggestion(
-                destination=dest,
-                reason=reason,
-                image_url=image_url,
-                image_source=image_source,
-                prefill=prefill,
-            ))
+            if isinstance(img_result, Exception):
+                image_url, image_source = None, "css_fallback"
+            else:
+                image_url, image_source = img_result
 
-        return suggestions
+            entry = {
+                "destination":  dest,
+                "country":      raw.get("country", ""),
+                "reason":       raw.get("reason", ""),
+                "climate":      raw.get("climate"),
+                "landscape":    raw.get("landscape"),
+                "trip_type":    raw.get("trip_type"),
+                "image_url":    image_url,
+                "image_source": image_source,
+                "prefill":      self._build_prefill(defaults, raw),
+            }
+            if discovery_pool_upsert(user_id, entry):
+                inserted += 1
+
+        discovery_pool_rotate(user_id)
+        logger.info(f"[Discovery] Pool refresh: {inserted} new entries for user={user_id}")
+        return inserted
 
     async def get_trip_image(self, user_id: int, destination: str) -> tuple[Optional[str], str]:
         """Bild-Pipeline ohne LLM — für HeroSection Nostalgie-Bild."""
-        prefs = self._load_prefs(user_id)
-        return await self._get_image(user_id, prefs, destination)
+        defaults = self._load_defaults(user_id)
+        visited = self._load_visited(user_id)
+        return await self._get_image(user_id, defaults, visited, destination)
 
-    # ── Internals ─────────────────────────────────────────────────────────────
+    async def get_destination_detail(self, user_id: int, destination: str, country: str = "") -> dict:
+        """Full detail: LLM description + things_to_do + multiple images (mit Proxy)."""
+        personality = self._load_personality(user_id)
+        defaults = self._load_defaults(user_id)
 
-    def _load_prefs(self, user_id: int) -> dict:
-        keys = [
-            "travel_style", "climate_pref", "landscape_pref",
-            "companions", "wish_text",
-            "immich_url", "immich_api_key", "immich_geo_sync",
-            "unsplash_key",
-            "ww_adults", "ww_children", "ww_home_airport",
-        ]
-        prefs = {}
+        dest_label = f"{destination}, {country}" if country else destination
+        system = ("Du bist ein Reise-Experte. Antworte NUR als JSON-Objekt. "
+                  "Kein Markdown, keine Erklärung.")
+        user_msg = (
+            f"Beschreibe das Reiseziel '{dest_label}' detailliert. "
+            f"Nutzer-Profil: Reisestil={personality.travel_style or '?'}, "
+            f"Klima={personality.climate_pref or '?'}, "
+            f"Begleitung={personality.companions or '?'}. "
+            "Antworte als JSON mit: "
+            "description (3-4 Saetze warum ideal fuer dieses Profil), "
+            "things_to_do (Array mit 5-7 Aktivitaeten als kurze Strings), "
+            "best_season (Fruehling/Sommer/Herbst/Winter oder Kombination), "
+            "vibe (2-3 Adjektive)"
+        )
+
+        llm_provider = get_setting_value("llm_provider") or "openai"
+        raw_list = []
+        if llm_provider == "gemini":
+            raw_list = await self._gemini_call(system, user_msg)
+            if not raw_list:
+                raw_list = await self._openai_call(system, user_msg)
+        else:
+            raw_list = await self._openai_call(system, user_msg)
+            if not raw_list:
+                raw_list = await self._gemini_call(system, user_msg)
+
+        detail_raw = raw_list[0] if raw_list and isinstance(raw_list[0], dict) else {}
+
+        # Mehrere Bilder parallel laden
+        images = await self._get_multiple_images(user_id, defaults, destination, count=4)
+
+        return {
+            "destination":  destination,
+            "country":      country,
+            "description":  detail_raw.get("description", ""),
+            "things_to_do": detail_raw.get("things_to_do", []),
+            "best_season":  detail_raw.get("best_season", ""),
+            "vibe":         detail_raw.get("vibe", ""),
+            "images":       images,
+        }
+
+    # ── Settings laden ────────────────────────────────────────────────────────
+
+    def _load_personality(self, user_id: int) -> TravelPersonality:
+        keys = ["travel_style", "climate_pref", "landscape_pref",
+                "companions", "wish_text", "history_mode",
+                "travel_mode", "max_travel_time"]
+        data = {}
         for k in keys:
             try:
-                prefs[k] = get_user_setting_value(user_id, k) or ""
+                data[k] = get_user_setting_value(user_id, k) or ""
             except Exception:
-                prefs[k] = ""
-        return prefs
+                data[k] = ""
+        return TravelPersonality(
+            travel_style=data["travel_style"],
+            climate_pref=data["climate_pref"],
+            landscape_pref=data["landscape_pref"],
+            companions=data["companions"],
+            wish_text=data["wish_text"],
+            history_mode=data["history_mode"] or "blacklist",
+            travel_mode=data["travel_mode"] or "flight",
+            max_travel_time=data["max_travel_time"] or "any",
+        )
+
+    def _load_defaults(self, user_id: int) -> TravelDefaults:
+        keys = ["ww_home_airport", "home_lat", "home_lon",
+                "ww_adults", "ww_children", "unsplash_key",
+                "immich_url", "immich_api_key"]
+        data = {}
+        for k in keys:
+            try:
+                data[k] = get_user_setting_value(user_id, k) or ""
+            except Exception:
+                data[k] = ""
+        return TravelDefaults(
+            home_airport=data["ww_home_airport"],
+            home_lat=data["home_lat"],
+            home_lon=data["home_lon"],
+            adults=int(data["ww_adults"] or 2),
+            children=int(data["ww_children"] or 0),
+            unsplash_key=data["unsplash_key"],
+            immich_url=data["immich_url"].rstrip("/"),
+            immich_api_key=data["immich_api_key"],
+        )
 
     def _load_visited(self, user_id: int) -> list[str]:
         try:
@@ -108,32 +244,68 @@ class DiscoveryService:
             logger.warning(f"[Discovery] Failed to load visited trips: {e}")
             return []
 
-    async def _llm_suggest(self, prefs: dict, visited: list[str], count: int) -> list[dict]:
-        llm_provider = get_setting_value("llm_provider") or "openai"
-        visited_str = ", ".join(visited) if visited else "keine"
-        budget_hint = ""  # no budget API call in this service for now
+    # ── LLM ──────────────────────────────────────────────────────────────────
 
-        user_prompt = f"""Schlage {count} Reiseziele vor.
+    def _build_prompt(self, personality: TravelPersonality,
+                      visited: list[str], count: int) -> str:
+        visited_str = ", ".join(visited) if visited else "keine"
+
+        # History-Modus
+        if personality.history_mode == "context" and visited:
+            history_block = (
+                f"  Bereits bereiste Orte (als Kontext nutzen, NICHT nochmals vorschlagen): {visited_str}\n"
+                f"  → Leite daraus neue, unbesuchte Ziele ab, die zum gleichen Reiseprofil passen."
+            )
+        else:
+            history_block = f"  Bereits besucht (nicht vorschlagen): {visited_str}"
+
+        # Mobilitäts-Block
+        mode = personality.travel_mode
+        max_time = personality.max_travel_time
+        if mode == "car":
+            if max_time == "any":
+                mobility_block = "  Reiseart: Auto — keine Zeitbeschränkung."
+            else:
+                mobility_block = (
+                    f"  Reiseart: Auto — maximale Fahrtzeit {max_time}. "
+                    f"Schlage NUR Ziele vor, die per Auto in maximal {max_time} erreichbar sind "
+                    f"(ausgehend von den Heimatkoordinaten lat={personality.travel_style or '?'})."
+                )
+        else:
+            if max_time == "any":
+                mobility_block = "  Reiseart: Flug — keine Flugzeitbeschränkung."
+            else:
+                mobility_block = (
+                    f"  Reiseart: Flug — maximale Flugzeit {max_time}. "
+                    f"Schlage NUR Ziele vor, die per Direktflug oder mit max. 1 Umstieg "
+                    f"in {max_time} erreichbar sind."
+                )
+
+        return f"""Schlage {count} Reiseziele vor.
 Nutzer-Profil:
-  Reisestil: {prefs.get('travel_style') or 'nicht angegeben'}
-  Klima: {prefs.get('climate_pref') or 'nicht angegeben'}
-  Landschaft: {prefs.get('landscape_pref') or 'nicht angegeben'}
-  Begleitung: {prefs.get('companions') or 'nicht angegeben'}
-  Wünsche: {prefs.get('wish_text') or 'keine'}
-  Bereits besucht (nicht vorschlagen): {visited_str}
+  Reisestil: {personality.travel_style or 'nicht angegeben'}
+  Klima: {personality.climate_pref or 'nicht angegeben'}
+  Landschaft: {personality.landscape_pref or 'nicht angegeben'}
+  Begleitung: {personality.companions or 'nicht angegeben'}
+  Wünsche: {personality.wish_text or 'keine'}
+{history_block}
+{mobility_block}
 
 Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
   destination (Stadtname/Region), country, reason (1 Satz warum), 
   climate (warm/mild/cold), landscape (mountains/sea/forest/city/mix), 
   trip_type (flight/hotel/camping/car)"""
 
+    async def _llm_suggest(self, personality: TravelPersonality,
+                            visited: list[str], count: int) -> list[dict]:
         system_prompt = (
             "Du bist ein Reise-Experte. "
             "Antworte AUSSCHLIESSLICH als valides JSON-Array. "
             "Kein Markdown, keine Einleitung, kein Kommentar."
         )
+        user_prompt = self._build_prompt(personality, visited, count)
 
-        # Try the configured provider first, then fallback to the other
+        llm_provider = get_setting_value("llm_provider") or "openai"
         if llm_provider == "gemini":
             result = await self._gemini_call(system_prompt, user_prompt)
             if not result:
@@ -150,7 +322,7 @@ Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
             logger.warning("[Discovery] OpenAI key not configured")
             return []
         try:
-            async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+            async with httpx.AsyncClient(timeout=TIMEOUT, trust_env=False) as client:
                 resp = await client.post(
                     "https://api.openai.com/v1/chat/completions",
                     headers={"Authorization": f"Bearer {api_key}"},
@@ -168,7 +340,7 @@ Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
                 text = resp.json()["choices"][0]["message"]["content"]
                 return self._parse_json_array(text)
         except httpx.HTTPStatusError as e:
-            logger.warning(f"[Discovery] OpenAI HTTP Fehler: {e.response.status_code} - {e.response.text}")
+            logger.warning(f"[Discovery] OpenAI HTTP {e.response.status_code}: {e.response.text}")
             return []
         except Exception as e:
             logger.warning(f"[Discovery] OpenAI call failed: {e}")
@@ -180,7 +352,7 @@ Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
             logger.warning("[Discovery] Gemini key not configured")
             return []
         try:
-            async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+            async with httpx.AsyncClient(timeout=TIMEOUT, trust_env=False) as client:
                 resp = await client.post(
                     f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}",
                     json={
@@ -199,216 +371,154 @@ Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
 
     def _parse_json_array(self, text: str) -> list[dict]:
         try:
-            # Strip markdown code fences if present
             cleaned = text.strip()
             if cleaned.startswith("```"):
                 cleaned = cleaned.split("\n", 1)[-1]
                 if "```" in cleaned:
                     cleaned = cleaned.rsplit("```", 1)[0]
-            
-            # Remove lingering 'json' keyword at the start if it exists
             if cleaned.startswith("json\n"):
                 cleaned = cleaned[5:]
-
             result = json.loads(cleaned)
             if isinstance(result, list):
                 return result
-            # Plain object (for detail endpoint) → wrap in list
             if isinstance(result, dict):
-                # Check if it wraps a list
                 for v in result.values():
-                    if isinstance(v, list) and len(v) > 0 and isinstance(v[0], dict) and "destination" in v[0]:
+                    if isinstance(v, list) and v and isinstance(v[0], dict) and "destination" in v[0]:
                         return v
-                # Otherwise treat the dict itself as single item
                 return [result]
         except Exception as e:
             logger.warning(f"[Discovery] JSON parse failed: {e} | text={text[:200]}")
         return []
 
-    async def _get_image(self, user_id: int, prefs: dict, destination: str) -> tuple[Optional[str], str]:
-        # Prüfen, ob wir das Ziel schon besucht haben
-        visited = self._load_visited(user_id)
+    # ── Bild-Pipeline ─────────────────────────────────────────────────────────
+
+    def _make_proxy_url(self, url: str) -> str:
+        """Alle externen Bild-URLs durch Backend-Proxy schleusen."""
+        return f"/api/discovery/image-proxy?url={quote(url, safe='')}"
+
+    async def _get_image(self, user_id: int, defaults: TravelDefaults,
+                          visited: list[str], destination: str) -> tuple[Optional[str], str]:
         is_visited = any(destination.lower() in v.lower() for v in visited)
 
-        # ── a) Immich (NUR wenn bereits besucht) ──────────────────────────────
-        if is_visited:
-            immich_url = (prefs.get("immich_url") or "").strip().rstrip("/")
-            immich_key = (get_user_setting_value(user_id, "immich_api_key") or "").strip()
-
-            logger.info(f"[Discovery/img] dest={destination!r} is_visited=True immich_url={bool(immich_url)} immich_key={bool(immich_key)}")
-
-            if immich_url and immich_key:
-                # Try POST /api/search/metadata (works across Immich versions)
-                try:
-                    async with httpx.AsyncClient(timeout=TIMEOUT, follow_redirects=True) as client:
-                        resp = await client.post(
-                            f"{immich_url}/api/search/metadata",
-                            headers={"x-api-key": immich_key, "Content-Type": "application/json"},
-                            json={"query": destination, "size": 1, "type": "IMAGE", "withExif": False},
-                        )
-                        logger.info(f"[Discovery/Immich] POST /search/metadata status={resp.status_code}")
-                        if resp.status_code == 200:
-                            data = resp.json()
-                            items = data.get("assets", {}).get("items", [])
-                            if items:
-                                asset_id = items[0].get("id")
-                                if asset_id:
-                                    img_url = f"{immich_url}/api/assets/{asset_id}/thumbnail?size=preview"
-                                    logger.info(f"[Discovery] Immich hit: {asset_id}")
-                                    return img_url, "immich_proxy"
-                except Exception as e:
-                    logger.warning(f"[Discovery/Immich] search/metadata failed: {e}")
-
-                # Fallback: GET /api/search/quick-transform (older Immich)
-                try:
-                    async with httpx.AsyncClient(timeout=TIMEOUT, follow_redirects=True) as client:
-                        resp = await client.get(
-                            f"{immich_url}/api/assets",
-                            params={"q": destination, "size": 1, "type": "IMAGE"},
-                            headers={"x-api-key": immich_key},
-                        )
-                        logger.info(f"[Discovery/Immich] GET /assets status={resp.status_code}")
-                        if resp.status_code == 200:
-                            items = resp.json()
-                            if isinstance(items, list) and items:
-                                asset_id = items[0].get("id")
-                                if asset_id:
-                                    img_url = f"{immich_url}/api/assets/{asset_id}/thumbnail?size=preview"
-                                    logger.info(f"[Discovery] Immich assets hit: {asset_id}")
-                                    return img_url, "immich_proxy"
-                except Exception as e:
-                    logger.warning(f"[Discovery/Immich] GET /assets failed: {e}")
-        else:
-            logger.info(f"[Discovery/img] dest={destination!r} is_visited=False -> Überspringe Immich")
-
-        # ── b) Unsplash (Standard für neue Ziele) ─────────────────────────────
-        unsplash_key = (get_user_setting_value(user_id, "unsplash_key") or "").strip()
-        if unsplash_key:
+        # ── a) Immich (nur für bereits besuchte Orte) ─────────────────────────
+        if is_visited and defaults.immich_url and defaults.immich_api_key:
+            immich_url = defaults.immich_url
+            immich_key = defaults.immich_api_key
             try:
-                # trust_env=False schützt vor Proxy-Problemen
+                async with httpx.AsyncClient(timeout=TIMEOUT, trust_env=False, follow_redirects=True) as client:
+                    resp = await client.post(
+                        f"{immich_url}/api/search/metadata",
+                        headers={"x-api-key": immich_key, "Content-Type": "application/json"},
+                        json={"query": destination, "size": 1, "type": "IMAGE", "withExif": False},
+                    )
+                    if resp.status_code == 200:
+                        items = resp.json().get("assets", {}).get("items", [])
+                        if items:
+                            asset_id = items[0].get("id")
+                            if asset_id:
+                                raw_url = f"{immich_url}/api/assets/{asset_id}/thumbnail?size=preview"
+                                logger.info(f"[Discovery] Immich hit: {asset_id}")
+                                return self._make_proxy_url(raw_url), "immich"
+            except Exception as e:
+                logger.warning(f"[Discovery/Immich] search/metadata failed: {e}")
+
+            # Fallback: GET /api/assets
+            try:
+                async with httpx.AsyncClient(timeout=TIMEOUT, trust_env=False, follow_redirects=True) as client:
+                    resp = await client.get(
+                        f"{immich_url}/api/assets",
+                        params={"q": destination, "size": 1, "type": "IMAGE"},
+                        headers={"x-api-key": immich_key},
+                    )
+                    if resp.status_code == 200:
+                        items = resp.json()
+                        if isinstance(items, list) and items:
+                            asset_id = items[0].get("id")
+                            if asset_id:
+                                raw_url = f"{immich_url}/api/assets/{asset_id}/thumbnail?size=preview"
+                                return self._make_proxy_url(raw_url), "immich"
+            except Exception as e:
+                logger.warning(f"[Discovery/Immich] GET /assets failed: {e}")
+
+        # ── b) Unsplash ────────────────────────────────────────────────────────
+        if defaults.unsplash_key:
+            try:
                 async with httpx.AsyncClient(timeout=TIMEOUT, trust_env=False) as client:
                     resp = await client.get(
                         "https://api.unsplash.com/photos/random",
-                        params={"query": f"{destination} travel landscape", "orientation": "landscape", "content_filter": "high"},
-                        headers={"Authorization": f"Client-ID {unsplash_key}"},
+                        params={
+                            "query": f"{destination} travel landscape",
+                            "orientation": "landscape",
+                            "content_filter": "high",
+                        },
+                        headers={"Authorization": f"Client-ID {defaults.unsplash_key}"},
                     )
-                    logger.info(f"[Discovery/Unsplash] status={resp.status_code} dest={destination!r}")
                     if resp.status_code == 200:
-                        data = resp.json()
-                        img_url = data.get("urls", {}).get("regular")
+                        img_url = resp.json().get("urls", {}).get("regular")
                         if img_url:
                             logger.info(f"[Discovery] Unsplash hit for {destination}")
-                            return img_url, "unsplash"
+                            return self._make_proxy_url(img_url), "unsplash"
                     else:
-                        logger.warning(f"[Discovery/Unsplash] error: {resp.text[:200]}")
+                        logger.warning(f"[Discovery/Unsplash] {resp.status_code}: {resp.text[:200]}")
             except Exception as e:
                 logger.warning(f"[Discovery/Unsplash] exception: {e}")
 
         # ── c) CSS Fallback ───────────────────────────────────────────────────
-        logger.info(f"[Discovery/img] css_fallback for {destination!r}")
         return None, "css_fallback"
 
-    def _build_prefill(self, prefs: dict, raw: dict) -> dict:
-        # Derive sensible trip_type from landscape/climate rather than trusting LLM blindly
+    async def _get_multiple_images(self, user_id: int, defaults: TravelDefaults,
+                                    destination: str, count: int = 4) -> list:
+        """Mehrere Bilder parallel: Unsplash search + Immich kombiniert."""
+        images = []
+
+        if defaults.unsplash_key:
+            try:
+                async with httpx.AsyncClient(timeout=TIMEOUT, trust_env=False) as client:
+                    resp = await client.get(
+                        "https://api.unsplash.com/search/photos",
+                        params={
+                            "query": f"{destination} travel",
+                            "orientation": "landscape",
+                            "per_page": count,
+                            "content_filter": "high",
+                        },
+                        headers={"Authorization": f"Client-ID {defaults.unsplash_key}"},
+                    )
+                    if resp.status_code == 200:
+                        for item in resp.json().get("results", [])[:count]:
+                            url = item.get("urls", {}).get("regular")
+                            if url:
+                                images.append({
+                                    "url": self._make_proxy_url(url),
+                                    "source": "unsplash"
+                                })
+            except Exception as e:
+                logger.warning(f"[Discovery/Unsplash-multi] {e}")
+
+        # Einzel-Fallback wenn search leer
+        if not images and defaults.unsplash_key:
+            visited = []  # detail view: kein visited-kontext nötig
+            url, src = await self._get_image(user_id, defaults, visited, destination)
+            if url:
+                images.append({"url": url, "source": src})
+
+        return images
+
+    def _build_prefill(self, defaults: TravelDefaults, raw: dict) -> dict:
         landscape = raw.get("landscape", "") or raw.get("climate", "")
-        llm_type  = raw.get("trip_type", "") or ""
-        # Only accept flight/hotel/camping — reject car (nearly never correct as primary)
+        llm_type = raw.get("trip_type", "") or ""
         valid_types = {"flight", "hotel", "camping"}
         trip_type = llm_type if llm_type in valid_types else "flight"
-        # Camping only if landscape explicitly says mountains/forest or LLM said camping
         if llm_type == "camping" and landscape in ("mountains", "forest"):
             trip_type = "camping"
         return {
             "destination": raw.get("destination", ""),
             "country":     raw.get("country", ""),
             "tripType":    trip_type,
-            "adults":      int(prefs.get("ww_adults") or 2),
-            "children":    int(prefs.get("ww_children") or 0),
-            "homeAirport": prefs.get("ww_home_airport") or "",
+            "adults":      defaults.adults,
+            "children":    defaults.children,
+            "homeAirport": defaults.home_airport,
         }
-
-    async def get_destination_detail(self, user_id: int, destination: str, country: str = "") -> dict:
-        """Full detail: LLM description + things_to_do + multiple images."""
-        prefs = self._load_prefs(user_id)
-
-        # LLM: detailed description
-        dest_label = f"{destination}, {country}" if country else destination
-        system = ("Du bist ein Reise-Experte. Antworte NUR als JSON-Objekt. "
-                  "Kein Markdown, keine Erklärung.")
-        user_msg = (
-            f"Beschreibe das Reiseziel '{dest_label}' detailliert. "
-            f"Nutzer-Profil: Reisestil={prefs.get('travel_style','?')}, "
-            f"Klima={prefs.get('climate_pref','?')}, "
-            f"Begleitung={prefs.get('companions','?')}. "
-            "Antworte als JSON mit: "
-            "description (3-4 Saetze warum ideal fuer dieses Profil), "
-            "things_to_do (Array mit 5-7 Aktivitaeten als kurze Strings), "
-            "best_season (Fruehling/Sommer/Herbst/Winter oder Kombination), "
-            "vibe (2-3 Adjektive)"
-        )
-
-        llm_provider = get_setting_value("llm_provider") or "openai"
-        raw_list = []
-        if llm_provider == "gemini":
-            raw_list = await self._gemini_call(system, user_msg)
-        else:
-            raw_list = await self._openai_call(system, user_msg)
-        if not raw_list:
-            if llm_provider == "gemini":
-                raw_list = await self._openai_call(system, user_msg)
-            else:
-                raw_list = await self._gemini_call(system, user_msg)
-
-        # _parse_json_array wraps in list; detail is an object → unwrap
-        detail_raw = raw_list[0] if raw_list else {}
-        if not isinstance(detail_raw, dict):
-            detail_raw = {}
-
-        # Multiple images (up to 4)
-        images = await self._get_multiple_images(user_id, prefs, destination, count=4)
-
-        return {
-            "destination":  destination,
-            "country":      country,
-            "description":  detail_raw.get("description", ""),
-            "things_to_do": detail_raw.get("things_to_do", []),
-            "best_season":  detail_raw.get("best_season", ""),
-            "vibe":         detail_raw.get("vibe", ""),
-            "images":       images,   # list of {url, source}
-        }
-
-    async def _get_multiple_images(self, user_id: int, prefs: dict, destination: str, count: int = 4) -> list:
-        """Fetch multiple images: Unsplash first (supports multiple), then Immich."""
-        images = []
-
-        # Unsplash: /photos/search returns multiple results
-        unsplash_key = (get_user_setting_value(user_id, "unsplash_key") or "").strip()
-        if unsplash_key and len(images) < count:
-            try:
-                # trust_env=False schützt vor Proxy-Problemen
-                async with httpx.AsyncClient(timeout=TIMEOUT, trust_env=False) as client:
-                    resp = await client.get(
-                        "https://api.unsplash.com/search/photos",
-                        params={"query": f"{destination} travel", "orientation": "landscape",
-                                "per_page": count, "content_filter": "high"},
-                        headers={"Authorization": f"Client-ID {unsplash_key}"},
-                    )
-                    logger.info(f"[Discovery/Unsplash-multi] status={resp.status_code}")
-                    if resp.status_code == 200:
-                        for item in resp.json().get("results", [])[:count]:
-                            url = item.get("urls", {}).get("regular")
-                            if url:
-                                images.append({"url": url, "source": "unsplash"})
-            except Exception as e:
-                logger.warning(f"[Discovery/Unsplash-multi] {e}")
-
-        # Single Unsplash fallback if search returned nothing
-        if not images and unsplash_key:
-            url, src = await self._get_image(user_id, prefs, destination)
-            if url:
-                images.append({"url": url, "source": src})
-
-        return images
 
 
 # ── Module-level singleton ────────────────────────────────────────────────────
