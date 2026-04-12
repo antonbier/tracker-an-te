@@ -40,6 +40,9 @@
     companions      = $bindable(),
     wishText        = $bindable(),
     unsplashKey     = $bindable(),
+    travelMode      = $bindable(),
+    maxTravelTime   = $bindable(),
+    historyMode     = $bindable(),
     serpApiKey      = $bindable(),
     openaiKey       = $bindable(),
     geminiKey       = $bindable(),
@@ -106,6 +109,7 @@
     bind:fDepMin bind:fDepMax bind:fArrMin bind:fArrMax
     bind:travelStyle bind:climatePref bind:landscapePref
     bind:companions bind:wishText
+    bind:travelMode bind:maxTravelTime bind:historyMode
   />
 
 {:else if myspaceTab === 'integrations'}
