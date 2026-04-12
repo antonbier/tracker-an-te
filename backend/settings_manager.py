@@ -72,6 +72,10 @@ USER_KEYS = [
     "companions",
     "wish_text",
     "unsplash_key",   # Fernet-verschlüsselt
+    # Discovery: Mobilitäts-Präferenzen
+    "travel_mode",       # flight | car
+    "max_travel_time",   # 2h | 4h | 8h | 12h | 12h+
+    "history_mode",      # blacklist | context
 ]
 
 ALL_KEYS = GLOBAL_KEYS + USER_KEYS
