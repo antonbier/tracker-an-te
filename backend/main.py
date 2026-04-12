@@ -10,7 +10,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from apscheduler.schedulers.background import BackgroundScheduler
 from contextlib import asynccontextmanager
 
-from database import init_db
+import asyncio
+from database import init_db, discovery_pool_count
 from auth_db import init_auth_tables
 from scheduler import run_all_trackers, run_cleanup_job
 from routes import (
@@ -21,6 +22,7 @@ from routes import (
     search as search_route,
 )
 from routes import notifications as notifications_route
+from discovery import discovery_service
 from routes.auth import router_status, router_auth, router_admin
 from routes import dawarich as dawarich_route
 from routes import trips as trips_route
@@ -73,6 +75,19 @@ async def lifespan(app: FastAPI):
 
     scheduler.start()
     logger.info(f"Scheduler started — price fetch 07:00, cleanup 03:00 ({TZ})")
+
+    # Discovery pool warmup — im Hintergrund, blockiert nicht den Start
+    async def _warmup_pool():
+        try:
+            _, unseen = discovery_pool_count(1)  # user_id=1 (guest/admin)
+            if unseen < 3:
+                logger.info("[Discovery] Pool leer — starte Hintergrund-Warmup")
+                await discovery_service.background_refresh_suggestions(1, batch=6)
+                logger.info("[Discovery] Pool-Warmup abgeschlossen")
+        except Exception as e:
+            logger.warning(f"[Discovery] Pool-Warmup fehlgeschlagen: {e}")
+
+    asyncio.ensure_future(_warmup_pool())
 
     yield
     scheduler.shutdown(wait=False)
