@@ -89,7 +89,7 @@ async def image_proxy(
     user: dict = Depends(get_current_user),
 ):
     """Proxy für Immich- und Unsplash-Bilder — umgeht CORS und Auth-Probleme."""
-    user_id = user["id"]
+    user_id = user["id"] or 1  # guest (id=0) → settings unter user_id=1
     immich_url = (get_user_setting_value(user_id, "immich_url") or "").strip().rstrip("/")
 
     is_immich = bool(immich_url) and url.startswith(immich_url)
