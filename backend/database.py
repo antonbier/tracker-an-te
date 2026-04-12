@@ -1378,3 +1378,27 @@ def discovery_pool_clear(user_id: int) -> int:
             "DELETE FROM discovery_pool WHERE user_id=?", (user_id,)
         )
     return r.rowcount
+
+
+def discovery_pool_update_image(user_id: int, destination: str,
+                                 image_url: str, image_source: str) -> bool:
+    """Bild-URL eines Pool-Eintrags aktualisieren (z.B. nach Retry-Job)."""
+    with db() as conn:
+        r = conn.execute(
+            """UPDATE discovery_pool SET image_url=?, image_source=?
+               WHERE user_id=? AND destination=?""",
+            (image_url, image_source, user_id, destination)
+        )
+    return r.rowcount > 0
+
+
+def discovery_pool_get_without_image(user_id: int, limit: int = 20) -> list[dict]:
+    """Alle Pool-Einträge ohne echtes Bild (local_fallback oder css_fallback)."""
+    with db() as conn:
+        rows = conn.execute(
+            """SELECT * FROM discovery_pool
+               WHERE user_id=? AND image_source IN ('local_fallback', 'css_fallback')
+               ORDER BY created_at DESC LIMIT ?""",
+            (user_id, limit)
+        ).fetchall()
+    return [dict(r) for r in rows]
