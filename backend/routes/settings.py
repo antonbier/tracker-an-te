@@ -74,6 +74,10 @@ class UserSettingsPayload(BaseModel):
     companions:      Optional[str]  = None   # solo|couple|family|friends
     wish_text:       Optional[str]  = None   # Freitext max ~500 Zeichen
     unsplash_key:    Optional[str]  = None   # Fernet-verschlüsselt
+    # ── Discovery: Mobilitäts-Präferenzen ────────────────────────────────────
+    travel_mode:     Optional[str]  = None   # flight | car
+    max_travel_time: Optional[str]  = None   # 2h | 4h | 8h | 12h | 12h+
+    history_mode:    Optional[str]  = None   # blacklist | context
 
 
 # ── Global settings (admin configures once for all) ───────────────────────────
