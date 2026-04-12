@@ -118,6 +118,9 @@
   let companions    = $state('');
   let wishText      = $state('');
   let unsplashKey   = $state('');
+  let travelMode    = $state('flight');
+  let maxTravelTime = $state('any');
+  let historyMode   = $state('blacklist');
 
   // ── Load functions ────────────────────────────────────────────────────────
   async function loadUserSettings() {
@@ -159,6 +162,9 @@
       companions    = us.companions      || '';
       wishText      = us.wish_text       || '';
       unsplashKey   = us.unsplash_key    ? '••••••••' : '';
+      travelMode    = us.travel_mode     || 'flight';
+      maxTravelTime = us.max_travel_time || 'any';
+      historyMode   = us.history_mode    || 'blacklist';
     } catch {}
   }
 
@@ -311,6 +317,9 @@
       if (companions)    payload.companions      = companions;
       payload.wish_text = wishText || null;
       if (unsplashKey && unsplashKey !== '••••••••') payload.unsplash_key = unsplashKey;
+      payload.travel_mode     = travelMode     || 'flight';
+      payload.max_travel_time = maxTravelTime  || 'any';
+      payload.history_mode    = historyMode    || 'blacklist';
       if (myDawarichUrl)  localStorage.setItem('s-dawarichUrl',      myDawarichUrl);
       if (myHomeLat)      localStorage.setItem('s-homeLat',          myHomeLat);
       if (myHomeLon)      localStorage.setItem('s-homeLon',          myHomeLon);
@@ -424,6 +433,7 @@
           bind:fDepMin bind:fDepMax bind:fArrMin bind:fArrMax
           bind:travelStyle bind:climatePref bind:landscapePref
           bind:companions bind:wishText bind:unsplashKey
+          bind:travelMode bind:maxTravelTime bind:historyMode
           bind:serpApiKey bind:openaiKey bind:geminiKey
           bind:providers bind:providerKeys
           {providersLoading} {providersSaving} {mySettingsSaving}
