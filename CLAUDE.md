@@ -2057,3 +2057,86 @@ Wird gesetzt von:
 - Trip-Hub Smart-Slots: Leer / Tracking aktiv / Gebucht
 - Hub-Budget-Rechnung: Gesamt - gebuchte Komponenten = Rest vor Ort
 - Backend: Archiv-Nachträge überspringen KI-Todo-Generierung
+
+
+
+---
+
+## Etappe 5 Phase B — Tracker-Verknüpfung & Budget (Session 2025-04-13)
+
+### DB-Änderungen
+
+Neue Spalten (idempotente ALTER TABLE Migration in `init_db`):
+
+| Tabelle | Spalte | Typ |
+|---------|--------|-----|
+| trackers, gf_trackers, homair_trackers, booking_trackers | `trip_id` | INTEGER DEFAULT NULL → ws_trips FK |
+| alle 4 | `is_booked` | INTEGER DEFAULT 0 |
+| alle 4 | `booked_price` | REAL DEFAULT NULL |
+
+Neue DB-Funktionen: `mark_tracker_booked`, `unmark_tracker_booked`, `link_tracker_to_trip`, `get_trackers_for_trip`
+
+### Neue Backend-Endpoints (`/api/ws-trips/{id}/...`)
+
+| Method | Path | Funktion |
+|--------|------|---------|
+| GET | `/trackers` | Alle Tracker des Trips, gruppiert nach Typ |
+| POST | `/trackers/{tracker_id}/book` | Tracker als gebucht markieren + booked_price setzen |
+| DELETE | `/trackers/{tracker_id}/book` | Buchung zurücksetzen |
+| GET | `/budget` | Budget-Aufschlüsselung: Gesamt − Flug − Hotel = Vor-Ort |
+
+### Backend-Sonderfall: Vergangene Archiv-Reisen
+
+```python
+is_past = start_date < date.today().isoformat()
+if is_past:
+    # KI-Todo-Generierung wird übersprungen
+    todos = []
+```
+
+### TripHub.svelte — Smart Action Slots (3 Zustände)
+
+```
+Zustand A (kein Tracker):
+  → Button "Flug suchen / Unterkunft suchen"
+  → Deep-Link zu PriceRadar via priceradarParams (destination, dateFrom, dateTo vorausgefüllt)
+
+Zustand B (Tracker vorhanden, nicht gebucht):
+  → Zeigt aktuellen Preis aus latest_snapshot
+  → "Buchen ↗" Button (booking_url)
+  → "Als gebucht markieren" → Book-Modal
+
+Zustand C (is_booked = 1):
+  → Grüner Border + ✅-Badge
+  → Zeigt booked_price (finaler Preis)
+  → "Buchen ↗" Link bleibt sichtbar
+  → "↩ zurücksetzen" zum Entmarkieren
+```
+
+### Budget-Breakdown im Hub
+
+```
+Gesamtbudget  4000 €
+− Flug           380 €
+− Unterkunft     620 €
+────────────────────
+Vor Ort        3000 €
+```
+
+Grüner Progressbalken zeigt gebuchten Anteil. Rot wenn > 85%.
+
+### Deep-Link: TripHub → PriceRadar
+
+```js
+priceradarParams.set({
+  destination:  trip.destination,
+  dateFrom:     trip.start_date,
+  dateTo:       trip.end_date,
+  adults:       trip.adults,
+  _fromTripHub: trip.id,
+  _searchType:  'flight' | 'hotel',
+});
+currentPage.set('priceradar');
+```
+
+PriceRadar liest `priceradarParams` beim Mount und füllt Formular vor.
