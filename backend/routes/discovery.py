@@ -9,7 +9,7 @@ from fastapi.responses import Response
 
 import httpx
 
-from auth_jwt import get_current_user
+from auth_jwt import get_current_user, get_optional_user
 from discovery import discovery_service
 from database import discovery_pool_mark_shown, discovery_pool_clear
 from settings_manager import get_user_setting_value
@@ -86,18 +86,17 @@ async def get_destination_detail(
 @router.get("/image-proxy")
 async def image_proxy(
     url: str = Query(..., description="Vollständige Bild-URL die proxied werden soll"),
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(get_optional_user),
 ):
     """Proxy für Immich- und Unsplash-Bilder — umgeht CORS und Auth-Probleme."""
     user_id = user["id"] or 1  # guest (id=0) → settings unter user_id=1
     immich_url = (get_user_setting_value(user_id, "immich_url") or "").strip().rstrip("/")
 
-    is_immich = bool(immich_url) and url.startswith(immich_url)
+    is_immich   = bool(immich_url) and url.startswith(immich_url)
+    is_unsplash = "images.unsplash.com" in url or "source.unsplash.com" in url
 
-    # Nur Immich durch Proxy — Unsplash-CDN akzeptiert nur Browser-Requests direkt
-    # discovery.py gibt Unsplash-URLs bereits ungeproxied zurück
-    if not is_immich:
-        logger.warning(f"[Proxy] Blockierte URL (nicht Immich): {url}")
+    if not is_immich and not is_unsplash:
+        logger.warning(f"[Proxy] Blockierte URL: {url}")
         raise HTTPException(403, "URL nicht erlaubt")
 
     headers = {"User-Agent": "WanderSuite/1.0"}
@@ -146,3 +145,4 @@ async def debug_image(
         "image_url":        image_url,
         "image_source":     image_source,
     }
+
