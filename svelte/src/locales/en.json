@@ -361,5 +361,17 @@
   "dashTripHub": "Go to trip",
   "dashTripHubNew": "Plan a trip",
   "wizzardSuccess": "Trip created! ✓",
-  "wizzardCreating": "Creating…"
+  "wizzardCreating": "Creating…",
+  "inspireLoading": "AI is finding perfect destinations…",
+  "inspireLoadingHint": "This takes a moment",
+  "inspireCardOf": "{current} of {total}",
+  "inspireSkip": "Next destination",
+  "inspireChoose": "Plan this trip",
+  "inspireTravelTime": "Travel time",
+  "inspireBudget": "Budget / person",
+  "inspireNoMore": "All suggestions seen",
+  "inspireNoMoreHint": "Nothing caught your eye? No problem.",
+  "inspireReload": "🔄 New suggestions",
+  "inspireBackToWizard": "← Back to wizard",
+  "inspireCreating": "Creating trip…"
 }
