@@ -4,6 +4,7 @@
   import PriceRadar from '$lib/components/pages/PriceRadar.svelte';
   import MyTrips    from '$lib/components/pages/MyTrips.svelte';
   import Discover   from '$lib/components/pages/Discover.svelte';
+  import TripHub    from '$lib/components/pages/TripHub.svelte';
 </script>
 
 {#if $currentPage === 'home'}
@@ -14,4 +15,6 @@
   <MyTrips />
 {:else if $currentPage === 'discover'}
   <Discover />
+{:else if $currentPage === 'triphub'}
+  <TripHub />
 {/if}
