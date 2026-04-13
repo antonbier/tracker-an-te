@@ -1661,8 +1661,8 @@ def link_tracker_to_trip(tracker_id: int, tracker_type: str, trip_id: int | None
 
 def get_trackers_for_trip(trip_id: int) -> dict:
     """
-    Return all trackers linked to a ws_trip, grouped by type.
-    Only returns booked or active trackers.
+    Return all trackers linked to a ws_trip, grouped by type,
+    including latest_snapshot for each tracker.
     """
     result = {"flight": None, "hotel": None, "camping": None, "car": None}
 
@@ -1673,24 +1673,35 @@ def get_trackers_for_trip(trip_id: int) -> dict:
             (trip_id,)
         ).fetchone()
         if row:
-            result["flight"] = dict(row)
+            d = dict(row)
+            d["latest_snapshot"] = get_latest_snapshot(d["id"])
+            result["flight"] = d
 
-        # Google Flights
+        # Google Flights (fallback if no Ryanair)
         if not result["flight"]:
             row = conn.execute(
                 "SELECT *, 'google_flight' as _type FROM gf_trackers WHERE trip_id=? ORDER BY id DESC LIMIT 1",
                 (trip_id,)
             ).fetchone()
             if row:
-                result["flight"] = dict(row)
+                d = dict(row)
+                d["latest_snapshot"] = get_latest_gf_snapshot(d["id"])
+                result["flight"] = d
 
         # Hotel / Camping
-        for tbl, key in [("booking_trackers", "hotel"), ("homair_trackers", "camping")]:
+        snap_fns = {
+            "booking_trackers": ("hotel",   get_latest_booking_snapshot),
+            "homair_trackers":  ("camping", get_latest_homair_snapshot),
+        }
+        for tbl, (key, snap_fn) in snap_fns.items():
             row = conn.execute(
                 f"SELECT *, '{key}' as _type FROM {tbl} WHERE trip_id=? ORDER BY id DESC LIMIT 1",
                 (trip_id,)
             ).fetchone()
             if row:
-                result[key] = dict(row)
+                d = dict(row)
+                d["latest_snapshot"] = snap_fn(d["id"])
+                result[key] = d
 
     return result
+
