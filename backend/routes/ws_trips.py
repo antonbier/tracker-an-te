@@ -16,7 +16,7 @@ from database import (
     toggle_trip_todo, delete_trip_todo,
 )
 from auth_jwt import get_current_user
-from settings_manager import get_setting
+from settings_manager import get_setting_value
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -68,7 +68,7 @@ async def _generate_todos(trip: dict) -> list[dict]:
     Generiert 5 kontextbezogene To-Dos via OpenAI gpt-4o-mini.
     Gibt bei Fehler eine sinnvolle Fallback-Liste zurück.
     """
-    openai_key = get_setting("openai_key") or os.getenv("OPENAI_API_KEY", "")
+    openai_key = get_setting_value("openai_key") or os.getenv("OPENAI_API_KEY", "")
     if not openai_key:
         logger.info("[WsTrips] Kein OpenAI Key — nutze Fallback-Todos")
         return _fallback_todos(trip)
@@ -265,3 +265,4 @@ def remove_todo(trip_id: int, todo_id: int, user=Depends(get_current_user)):
     if not delete_trip_todo(todo_id, trip_id):
         raise HTTPException(404, "To-Do nicht gefunden")
     return {"message": "To-Do gelöscht ✓"}
+
