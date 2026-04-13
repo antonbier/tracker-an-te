@@ -2,7 +2,11 @@
   import { onMount } from 'svelte';
   import { api } from '$lib/api.js';
   import { get } from 'svelte/store';
-  import { apiUrl } from '$lib/stores.js';
+  import { apiUrl, priceradarParams, activeWsTripId } from '$lib/stores.js';
+  import { writable } from 'svelte/store';
+
+  // Local store for prefilling search forms from deep-link
+  const prefillParams = writable(null);
   import { toast } from '$lib/toast.js';
   import { t } from '$lib/i18n.js';
 
@@ -27,6 +31,57 @@
   let allTrackers     = $state([]);
   let trackersLoading = $state(true);
   let isRefreshing    = $state(false);
+
+  // ── Trip linking (trip_id for tracker) ────────────────────────────────────
+  let wsTrips         = $state([]);
+  let selectedTripId  = $state(null);   // trip_id to link when saving tracker
+
+  async function loadWsTrips() {
+    if (!get(apiUrl)) return;
+    try {
+      const trips = await api('/api/ws-trips');
+      // Only upcoming/active trips
+      const today = new Date().toISOString().slice(0, 10);
+      wsTrips = (trips || []).filter(t =>
+        t.status !== 'completed' &&
+        (!t.start_date || t.start_date >= today)
+      );
+    } catch {}
+  }
+
+
+  // ── Read priceradarParams (from TripHub deep-link or WanderWizzard) ────────
+  function applyPriceradarParams() {
+    const p = get(priceradarParams);
+    if (!p) return;
+
+    // Set category based on _searchType
+    if (p._searchType === 'hotel' || p._searchType === 'camping') {
+      activeCategory = p._searchType === 'camping' ? 'camping' : 'hotels';
+    } else {
+      activeCategory = 'flights';
+    }
+
+    // Store the trip_id for tracker linking
+    if (p._fromTripHub) {
+      selectedTripId = p._fromTripHub;
+    }
+
+    // Dispatch the prefill as a custom event — each SearchForm listens for it
+    // via a shared prefillParams store
+    prefillParams.set({
+      destination:  p.destination  || '',
+      dateFrom:     p.dateFrom     || '',
+      dateTo:       p.dateTo       || '',
+      adults:       p.adults       || 2,
+      homeAirport:  p.homeAirport  || '',
+    });
+
+    // Clear to avoid re-applying on navigation
+    priceradarParams.set(null);
+  }
+
+
   let chartState      = $state({});
   let wishState       = $state({});
   let stopsOpen       = $state({});
@@ -89,6 +144,7 @@
           children:      d.children || 0,
           baggage:       bagList,
           seat_cost:     d.seat_cost ?? (d.seat ? 8.99 : 0.0),
+          trip_id:       selectedTripId || null,
         };
       } else if (result._tracker_type === 'google_flight') {
         endpoint = '/api/google-flights';
@@ -113,6 +169,7 @@
           initial_stops:             d.stops ?? 0,
           initial_layover_airports:  d.layover_airports || [],
           initial_layover_durations: d.layover_durations || [],
+          trip_id:                   selectedTripId || null,
         };
       } else if (result._tracker_type === 'camping') {
         endpoint = '/api/accommodations/homair';
@@ -130,6 +187,7 @@
           campsite_name:      d.campsite_name || result.title || null,
           initial_price:      result.price || null,
           final_cleaning:     d.final_cleaning || false,
+          trip_id:            selectedTripId || null,
         };
       } else if (result._tracker_type === 'hotel') {
         endpoint = '/api/accommodations/booking';
@@ -142,6 +200,7 @@
           source:        d.source || 'booking',
           hotel_name:    d.hotel_name || result.title || null,
           initial_price: result.price || null,
+          trip_id:       selectedTripId || null,
         };
       } else {
         toast('Unbekannter Tracker-Typ', 'error');
@@ -255,7 +314,11 @@
     }
   }
 
-  onMount(() => { loadAllTrackers(); });
+  onMount(() => {
+    loadAllTrackers();
+    loadWsTrips();
+    applyPriceradarParams();
+  });
 </script>
 
 <!-- ── Page ── -->
@@ -268,7 +331,7 @@
 
   <!-- Search forms -->
   {#if activeCategory === 'flights'}
-    <FlightSearchForm {searching} onsearch={doSearch} />
+    <FlightSearchForm {searching} onsearch={doSearch} {prefillParams} />
   {:else if activeCategory === 'hotels'}
     <HotelSearchForm {searching} onsearch={doSearch} />
   {:else if activeCategory === 'camping'}
@@ -282,6 +345,31 @@
         🔜 {$t('radarComingSoon')}
       </span>
       <p class="text-xs" style="color:var(--ws-muted)">Mietwagen-Vergleich von mehreren Anbietern — demnächst verfügbar.</p>
+    </div>
+  {/if}
+
+  <!-- Trip linking selector (shown when wsTrips available) -->
+  {#if wsTrips.length > 0}
+    <div class="flex items-center gap-3 px-4 py-2.5 rounded-xl border text-sm"
+      style="background:var(--ws-surface2);border-color:var(--ws-border)">
+      <span class="text-sm shrink-0" style="color:var(--ws-muted)">🔗 {$t('radarLinkTrip')}</span>
+      <select
+        value={selectedTripId}
+        onchange={(e) => selectedTripId = e.target.value ? parseInt(e.target.value) : null}
+        class="flex-1 px-2 py-1 rounded-lg border text-sm focus:outline-none"
+        style="background:var(--ws-surface);border-color:var(--ws-border);color:var(--ws-text)">
+        <option value="">{$t('radarNoTripLink')}</option>
+        {#each wsTrips as trip}
+          <option value={trip.id}>{trip.title || trip.destination || 'Trip #' + trip.id}
+            {#if trip.start_date} · {trip.start_date}{/if}
+          </option>
+        {/each}
+      </select>
+      {#if selectedTripId}
+        <button onclick={() => selectedTripId = null}
+          class="text-xs px-2 py-1 rounded-lg hover:opacity-70"
+          style="color:var(--ws-muted)">✕</button>
+      {/if}
     </div>
   {/if}
 
@@ -311,3 +399,4 @@
   />
 
 </div>
+
