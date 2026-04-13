@@ -14,6 +14,8 @@ from database import (
     update_ws_trip_status, delete_ws_trip,
     create_trip_todos, list_trip_todos,
     toggle_trip_todo, delete_trip_todo,
+    get_trackers_for_trip, mark_tracker_booked, unmark_tracker_booked,
+    link_tracker_to_trip,
 )
 from auth_jwt import get_current_user
 from settings_manager import get_setting_value
@@ -186,11 +188,21 @@ async def create_trip(data: WsTripCreate, user=Depends(get_current_user)):
     trip_id = create_ws_trip(trip_data, user_id=uid)
     logger.info(f"[WsTrips] Trip #{trip_id} angelegt für user {uid}: {trip_data['title']}")
 
-    # KI To-Dos generieren
-    trip_data["id"] = trip_id
-    todos = await _generate_todos(trip_data)
-    n_todos = create_trip_todos(trip_id, todos)
-    logger.info(f"[WsTrips] {n_todos} To-Dos für Trip #{trip_id} gespeichert")
+    # KI To-Dos: überspringen wenn Reise in der Vergangenheit liegt
+    from datetime import date
+    start = trip_data.get("start_date") or ""
+    is_past = start and start < date.today().isoformat()
+
+    if is_past:
+        logger.info(f"[WsTrips] Trip #{trip_id} ist vergangen — KI-Todos übersprungen")
+        n_todos = 0
+        todos = []
+    else:
+        # KI To-Dos generieren
+        trip_data["id"] = trip_id
+        todos = await _generate_todos(trip_data)
+        n_todos = create_trip_todos(trip_id, todos)
+        logger.info(f"[WsTrips] {n_todos} To-Dos für Trip #{trip_id} gespeichert")
 
     return {
         "id":      trip_id,
@@ -266,3 +278,78 @@ def remove_todo(trip_id: int, todo_id: int, user=Depends(get_current_user)):
         raise HTTPException(404, "To-Do nicht gefunden")
     return {"message": "To-Do gelöscht ✓"}
 
+
+
+
+# ── Tracker Slots ─────────────────────────────────────────────────────────────
+
+@router.get("/{trip_id}/trackers")
+def get_trip_trackers(trip_id: int, user=Depends(get_current_user)):
+    """Return all trackers linked to this trip, grouped by type."""
+    if not get_ws_trip(trip_id, _uid(user)):
+        raise HTTPException(404, "Trip nicht gefunden")
+    return get_trackers_for_trip(trip_id)
+
+
+class BookPayload(BaseModel):
+    booked_price: float
+    tracker_type: str   # 'flight' | 'google_flight' | 'hotel' | 'camping'
+
+
+@router.post("/{trip_id}/trackers/{tracker_id}/book")
+def book_tracker(trip_id: int, tracker_id: int, data: BookPayload, user=Depends(get_current_user)):
+    """Mark a tracker as booked with a confirmed price."""
+    if not get_ws_trip(trip_id, _uid(user)):
+        raise HTTPException(404, "Trip nicht gefunden")
+    ok = mark_tracker_booked(tracker_id, data.tracker_type, data.booked_price, trip_id=trip_id)
+    if not ok:
+        raise HTTPException(404, "Tracker nicht gefunden")
+    return {"message": "Als gebucht markiert ✓", "booked_price": data.booked_price}
+
+
+@router.delete("/{trip_id}/trackers/{tracker_id}/book")
+def unbook_tracker(trip_id: int, tracker_id: int, tracker_type: str, user=Depends(get_current_user)):
+    """Reset booking state on a tracker."""
+    if not get_ws_trip(trip_id, _uid(user)):
+        raise HTTPException(404, "Trip nicht gefunden")
+    ok = unmark_tracker_booked(tracker_id, tracker_type)
+    if not ok:
+        raise HTTPException(404, "Tracker nicht gefunden")
+    return {"message": "Buchung zurückgesetzt ✓"}
+
+
+# ── Budget Breakdown ──────────────────────────────────────────────────────────
+
+@router.get("/{trip_id}/budget")
+def get_trip_budget(trip_id: int, user=Depends(get_current_user)):
+    """
+    Return budget breakdown:
+      total_budget - booked_flight - booked_hotel = on_site_budget
+    """
+    trip = get_ws_trip(trip_id, _uid(user))
+    if not trip:
+        raise HTTPException(404, "Trip nicht gefunden")
+
+    trackers = get_trackers_for_trip(trip_id)
+
+    booked_flight = 0.0
+    booked_hotel  = 0.0
+
+    flight_tr = trackers.get("flight")
+    if flight_tr and flight_tr.get("is_booked") and flight_tr.get("booked_price"):
+        booked_flight = float(flight_tr["booked_price"])
+
+    hotel_tr = trackers.get("hotel") or trackers.get("camping")
+    if hotel_tr and hotel_tr.get("is_booked") and hotel_tr.get("booked_price"):
+        booked_hotel = float(hotel_tr["booked_price"])
+
+    total = float(trip.get("budget") or 0)
+    on_site = max(0, total - booked_flight - booked_hotel)
+
+    return {
+        "total_budget":    total,
+        "booked_flight":   booked_flight,
+        "booked_hotel":    booked_hotel,
+        "on_site_budget":  on_site,
+        "has_budget":      total > 0,
+    }
