@@ -328,5 +328,19 @@
   "wwFlexMonthOptions": "Januar,Februar,März,April,Mai,Juni,Juli,August,September,Oktober,November,Dezember,Frühling,Sommer,Herbst,Winter",
   "wwAdultsShort": "Erw.",
   "wwChildrenShort": "Kind.",
-  "wwInspireModeNote": "ℹ️ Kein Ziel nötig — der Assistent findet passende Orte für dich."
+  "wwInspireModeNote": "ℹ️ Kein Ziel nötig — der Assistent findet passende Orte für dich.",
+  "wwStepDetails": "Details",
+  "wwPathKnownTitle": "Ziel bekannt",
+  "wwPathKnownDesc": "Ich weiß, wohin ich will",
+  "wwPathInspireTitle": "Lass mich überraschen",
+  "wwPathInspireDesc": "KI findet das passende Ziel",
+  "wwModeFlugTitle": "Flugreise",
+  "wwModeFlugDesc": "Ab Flughafen",
+  "wwModeAutoTitle": "Autoreise",
+  "wwModeAutoDesc": "Freie Routenwahl",
+  "wwSummaryMode": "🚗 Reisemodus",
+  "wwSummaryRegion": "🗺️ Region / Ziel",
+  "wwSummaryPeriod": "📅 Zeitraum",
+  "wwSummaryNights": "🌙 Nächte",
+  "wwSummarySeason": "📆 Jahreszeit"
 }
