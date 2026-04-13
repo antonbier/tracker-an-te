@@ -3,28 +3,48 @@
   import { t } from '$lib/i18n.js';
   import { api } from '$lib/api.js';
   import { toast } from '$lib/toast.js';
-  import { currentPage, activeWsTripId } from '$lib/stores.js';
+  import { currentPage, activeWsTripId, priceradarParams } from '$lib/stores.js';
 
   // ── State ──────────────────────────────────────────────────────────────────
-  let trip    = $state(null);
-  let todos   = $state([]);
-  let loading = $state(true);
-  let newTask = $state('');
+  let trip     = $state(null);
+  let todos    = $state([]);
+  let loading  = $state(true);
+  let newTask  = $state('');
   let addingTodo = $state(false);
 
-  // ── Load trip ──────────────────────────────────────────────────────────────
+  // Tracker slots
+  let slots    = $state({ flight: null, hotel: null, camping: null });
+  // Budget breakdown
+  let budgetBreakdown = $state(null);
+
+  // Book modal state
+  let bookModal = $state(null);   // null | { trackerId, trackerType, slotKey }
+  let bookPrice = $state('');
+  let bookSaving = $state(false);
+
+  // ── Load ───────────────────────────────────────────────────────────────────
   onMount(async () => {
     const id = $activeWsTripId;
     if (!id) { loading = false; return; }
+    await Promise.all([loadTrip(id), loadSlots(id), loadBudget(id)]);
+    loading = false;
+  });
+
+  async function loadTrip(id) {
     try {
       const res = await api(`/api/ws-trips/${id}`);
       trip  = res;
       todos = res.todos || [];
-    } catch (e) {
-      toast('Trip konnte nicht geladen werden', 'error');
-    }
-    loading = false;
-  });
+    } catch { toast('Trip konnte nicht geladen werden', 'error'); }
+  }
+
+  async function loadSlots(id) {
+    try { slots = await api(`/api/ws-trips/${id}/trackers`); } catch {}
+  }
+
+  async function loadBudget(id) {
+    try { budgetBreakdown = await api(`/api/ws-trips/${id}/budget`); } catch {}
+  }
 
   // ── Countdown ──────────────────────────────────────────────────────────────
   const countdown = $derived.by(() => {
@@ -36,13 +56,19 @@
     return null;
   });
 
-  // ── Status badge ───────────────────────────────────────────────────────────
   const statusLabel = $derived.by(() => {
     if (!trip) return '';
     return { planning: $t('tripHubStatusPlanning'), booked: $t('tripHubStatusBooked'), completed: $t('tripHubStatusDone') }[trip.status] || trip.status;
   });
-  const statusColor = $derived.by(() => {
-    return { planning: 'var(--ws-accent)', booked: 'var(--ws-green)', completed: 'var(--ws-muted)' }[trip?.status] || 'var(--ws-muted)';
+  const statusColor = $derived.by(() => ({
+    planning: 'var(--ws-accent)', booked: 'var(--ws-green)', completed: 'var(--ws-muted)'
+  }[trip?.status] || 'var(--ws-muted)'));
+
+  const heroBg = $derived.by(() => {
+    if (!trip) return 'linear-gradient(135deg,#1e293b,#374151)';
+    return trip.travel_mode === 'car'
+      ? 'linear-gradient(135deg,#1a3a2a 0%,#2d6a4f 60%,#1a4a3a 100%)'
+      : 'linear-gradient(135deg,#1a2a4a 0%,var(--ws-accent) 70%,#b84928 100%)';
   });
 
   // ── Todo actions ───────────────────────────────────────────────────────────
@@ -52,7 +78,6 @@
       todos = todos.map(t => t.id === todo.id ? { ...t, is_done: t.is_done ? 0 : 1 } : t);
     } catch { toast('Fehler', 'error'); }
   }
-
   async function addTodo() {
     if (!newTask.trim() || addingTodo) return;
     addingTodo = true;
@@ -63,7 +88,6 @@
     } catch { toast('Fehler', 'error'); }
     addingTodo = false;
   }
-
   async function deleteTodo(todo) {
     try {
       await api(`/api/ws-trips/${trip.id}/todos/${todo.id}`, { method: 'DELETE' });
@@ -71,30 +95,97 @@
     } catch { toast('Fehler', 'error'); }
   }
 
-  // ── PriceRadar navigation ──────────────────────────────────────────────────
-  function goSearch(type) {
-    currentPage.set('priceradar');
-  }
-
-  // ── Hero gradient by travel_mode ───────────────────────────────────────────
-  const heroBg = $derived.by(() => {
-    if (!trip) return 'linear-gradient(135deg,#1e293b,#374151)';
-    return trip.travel_mode === 'car'
-      ? 'linear-gradient(135deg,#1a3a2a 0%,#2d6a4f 60%,#1a4a3a 100%)'
-      : 'linear-gradient(135deg,#1a2a4a 0%,var(--ws-accent) 70%,#b84928 100%)';
-  });
-
-  // ── Category icon ──────────────────────────────────────────────────────────
   function catIcon(cat) {
     return { booking: '🎫', documents: '📄', packing: '🧳', general: '✅' }[cat] || '✅';
   }
-
   const donePct = $derived(todos.length ? Math.round(todos.filter(t => t.is_done).length / todos.length * 100) : 0);
+
+  // ── Deep-link to PriceRadar with prefill ───────────────────────────────────
+  function goSearch(type) {
+    if (trip) {
+      priceradarParams.set({
+        destination: trip.destination || '',
+        dateFrom:    trip.start_date  || '',
+        dateTo:      trip.end_date    || '',
+        adults:      trip.adults      || 2,
+        children:    trip.children    || 0,
+        homeAirport: trip.home_airport || '',
+        _fromTripHub: trip.id,
+        _searchType:  type,
+      });
+    }
+    currentPage.set('priceradar');
+  }
+
+  // ── Book modal ─────────────────────────────────────────────────────────────
+  function openBookModal(trackerId, trackerType, slotKey) {
+    bookModal = { trackerId, trackerType, slotKey };
+    bookPrice = '';
+  }
+  function closeBookModal() { bookModal = null; bookPrice = ''; bookSaving = false; }
+
+  async function confirmBook() {
+    if (!bookModal || !bookPrice) return;
+    bookSaving = true;
+    try {
+      await api(`/api/ws-trips/${trip.id}/trackers/${bookModal.trackerId}/book`, {
+        method: 'POST',
+        body: JSON.stringify({ booked_price: parseFloat(bookPrice), tracker_type: bookModal.trackerType }),
+      });
+      toast('✅ Als gebucht markiert!', 'success');
+      closeBookModal();
+      await loadSlots(trip.id);
+      await loadBudget(trip.id);
+    } catch (e) { toast(e.message, 'error'); }
+    bookSaving = false;
+  }
+
+  async function unbook(trackerId, trackerType) {
+    try {
+      await api(`/api/ws-trips/${trip.id}/trackers/${trackerId}/book?tracker_type=${trackerType}`, { method: 'DELETE' });
+      toast('Buchung zurückgesetzt', 'success');
+      await loadSlots(trip.id);
+      await loadBudget(trip.id);
+    } catch (e) { toast(e.message, 'error'); }
+  }
 </script>
+
+<!-- ── Book Modal ──────────────────────────────────────────────────────────── -->
+{#if bookModal}
+  <div class="fixed inset-0 z-50 flex items-center justify-center"
+    style="background:rgba(0,0,0,.48);backdrop-filter:blur(4px)"
+    role="dialog" aria-modal="true">
+    <div class="w-full max-w-xs mx-4 rounded-2xl border p-6 space-y-4 shadow-2xl"
+      style="background:var(--ws-surface);border-color:var(--ws-border)">
+      <h3 class="font-bold text-base" style="color:var(--ws-text)">{$t('hubSlotMarkBooked')}</h3>
+      <div>
+        <label class="text-xs font-semibold uppercase tracking-wider mb-1 block" style="color:var(--ws-muted)">{$t('hubSlotBookedPrice')}</label>
+        <div class="flex items-center gap-2">
+          <input type="number" min="0" step="0.01"
+            bind:value={bookPrice}
+            placeholder={$t('hubSlotEnterPrice')}
+            onkeydown={(e) => e.key === 'Enter' && confirmBook()}
+            class="flex-1 px-3 py-2 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-[var(--ws-accent)]"
+            style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
+          <span class="text-sm" style="color:var(--ws-muted)">€</span>
+        </div>
+      </div>
+      <div class="flex gap-3">
+        <button onclick={closeBookModal}
+          class="flex-1 py-2.5 rounded-xl border text-sm font-semibold hover:opacity-70"
+          style="border-color:var(--ws-border);color:var(--ws-muted)">{$t('hubSlotCancelBook')}</button>
+        <button onclick={confirmBook} disabled={!bookPrice || bookSaving}
+          class="flex-1 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-40"
+          style="background:var(--ws-green,#2d6a4f);color:#fff">
+          {bookSaving ? '⏳' : $t('hubSlotSavePrice')}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
 
 <div class="max-w-2xl mx-auto space-y-5 pb-10">
 
-  <!-- ── Back button ──────────────────────────────────────────────────────── -->
   <button onclick={() => currentPage.set('home')}
     class="flex items-center gap-1.5 text-sm font-semibold hover:opacity-70 transition-opacity"
     style="color:var(--ws-muted)">
@@ -102,7 +193,6 @@
   </button>
 
   {#if loading}
-    <!-- Skeleton -->
     <div class="rounded-2xl animate-pulse h-52" style="background:var(--ws-surface2)"></div>
     <div class="rounded-2xl animate-pulse h-32" style="background:var(--ws-surface2)"></div>
   {:else if !trip}
@@ -113,13 +203,10 @@
     </div>
   {:else}
 
-    <!-- ── Hero Banner ──────────────────────────────────────────────────────── -->
+    <!-- ── Hero ─────────────────────────────────────────────────────────────── -->
     <div class="relative rounded-2xl overflow-hidden" style="min-height:200px;background:{heroBg}">
-      <!-- Texture -->
       <div class="absolute inset-0 opacity-10" style="background-image:radial-gradient(circle at 20% 80%,rgba(255,255,255,.2) 0%,transparent 50%)"></div>
-
       <div class="relative z-10 p-6 flex flex-col justify-between" style="min-height:200px">
-        <!-- Top: status + countdown -->
         <div class="flex items-start justify-between">
           <div class="flex flex-col gap-2">
             <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold"
@@ -131,11 +218,8 @@
               <span class="text-sm font-semibold" style="color:rgba(255,255,255,.85)">{countdown}</span>
             {/if}
           </div>
-          <!-- Travel mode badge -->
           <span class="text-2xl">{trip.travel_mode === 'car' ? '🚗' : '✈️'}</span>
         </div>
-
-        <!-- Bottom: title + dates -->
         <div>
           <h1 class="text-2xl font-bold leading-tight mb-1"
             style="font-family:var(--ws-serif);color:#fff;text-shadow:0 2px 12px rgba(0,0,0,.4)">
@@ -150,36 +234,146 @@
                 📅 {trip.start_date}{trip.end_date && trip.end_date !== trip.start_date ? ' → ' + trip.end_date : ''}
               </span>
             {/if}
-            {#if trip.budget}
-              <span class="text-sm font-mono font-bold" style="color:rgba(255,255,255,.9)">💶 {trip.budget} €</span>
-            {/if}
           </div>
         </div>
       </div>
     </div>
 
-    <!-- ── Action Slots ──────────────────────────────────────────────────────── -->
+    <!-- ── Smart Action Slots ────────────────────────────────────────────────── -->
     <div class="grid grid-cols-2 gap-3">
-      <button onclick={() => goSearch('flight')}
-        class="flex flex-col items-center gap-2 rounded-2xl p-5 border transition-all hover:opacity-85 active:scale-[.98]"
-        style="background:var(--ws-surface2);border-color:var(--ws-border)">
-        <span class="text-3xl">✈️</span>
-        <span class="text-sm font-semibold text-center" style="color:var(--ws-text)">{$t('tripHubPlanArrival')}</span>
-        <span class="text-xs" style="color:var(--ws-muted)">PriceRadar →</span>
-      </button>
-      <button onclick={() => goSearch('hotel')}
-        class="flex flex-col items-center gap-2 rounded-2xl p-5 border transition-all hover:opacity-85 active:scale-[.98]"
-        style="background:var(--ws-surface2);border-color:var(--ws-border)">
-        <span class="text-3xl">🏨</span>
-        <span class="text-sm font-semibold text-center" style="color:var(--ws-text)">{$t('tripHubFindAccom')}</span>
-        <span class="text-xs" style="color:var(--ws-muted)">PriceRadar →</span>
-      </button>
+      <!-- Flight slot -->
+      {#each [
+        { key: 'flight', icon: '✈️', label: $t('tripHubPlanArrival'), emptyLabel: $t('hubSlotFlightEmpty'), type: 'flight' },
+        { key: 'hotel',  icon: '🏨', label: $t('tripHubFindAccom'),  emptyLabel: $t('hubSlotHotelEmpty'),  type: 'hotel' },
+      ] as slot}
+        {@const tracker = slots[slot.key] || slots.camping}
+        {@const isBooked = tracker?.is_booked}
+        {@const trackerType = tracker?._type || slot.type}
+
+        <div class="rounded-2xl border overflow-hidden transition-all"
+          style="border-color:{isBooked ? 'var(--ws-green,#2d6a4f)' : 'var(--ws-border)'};background:var(--ws-surface2);{isBooked ? 'box-shadow:0 0 0 2px rgba(22,163,74,.15)' : ''}">
+
+          {#if !tracker}
+            <!-- State A: Empty — Deep link to PriceRadar -->
+            <button onclick={() => goSearch(slot.type)}
+              class="w-full flex flex-col items-center gap-2 p-5 transition-all hover:opacity-85 active:scale-[.98]">
+              <span class="text-3xl">{slot.icon}</span>
+              <span class="text-sm font-semibold text-center" style="color:var(--ws-text)">{slot.emptyLabel}</span>
+              {#if trip.start_date}
+                <span class="text-[10px] px-2 py-0.5 rounded-full font-medium" style="background:color-mix(in srgb,var(--ws-accent) 12%,var(--ws-surface));color:var(--ws-accent)">
+                  {$t('hubSearchHint')}
+                </span>
+              {/if}
+              <span class="text-xs" style="color:var(--ws-muted)">PriceRadar →</span>
+            </button>
+
+          {:else if isBooked}
+            <!-- State C: Booked — green, show final price -->
+            <div class="p-4 space-y-2">
+              <div class="flex items-center gap-2">
+                <span class="text-xl">{slot.icon}</span>
+                <span class="text-xs font-bold px-2 py-0.5 rounded-full"
+                  style="background:rgba(22,163,74,.15);color:var(--ws-green,#2d6a4f)">
+                  {$t('hubSlotBooked')}
+                </span>
+              </div>
+              <div class="text-lg font-bold font-mono" style="color:var(--ws-text)">
+                {parseFloat(tracker.booked_price).toFixed(2)} €
+              </div>
+              <div class="text-xs" style="color:var(--ws-muted)">{$t('hubSlotBookedPrice')}</div>
+              {#if tracker.booking_url}
+                <a href={tracker.booking_url} target="_blank" rel="noopener noreferrer"
+                  class="block text-center text-xs font-bold px-3 py-1.5 rounded-lg transition-opacity hover:opacity-80"
+                  style="background:var(--ws-accent);color:#fff5ec;text-decoration:none">
+                  {$t('hubSlotBook')}
+                </a>
+              {/if}
+              <button onclick={() => unbook(tracker.id, trackerType)}
+                class="text-[10px] w-full text-center hover:opacity-70 transition-opacity"
+                style="color:var(--ws-muted)">↩ zurücksetzen</button>
+            </div>
+
+          {:else}
+            <!-- State B: Tracker active — show current price + book button -->
+            <div class="p-4 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-xl">{slot.icon}</span>
+                <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                  style="background:color-mix(in srgb,var(--ws-accent) 12%,var(--ws-surface));color:var(--ws-accent)">
+                  {$t('hubSlotTracking')}
+                </span>
+              </div>
+              {#if tracker.latest_snapshot?.total_price}
+                <div>
+                  <div class="text-xs" style="color:var(--ws-muted)">{$t('hubSlotCurrentPrice')}</div>
+                  <div class="text-lg font-bold font-mono" style="color:var(--ws-text)">
+                    {parseFloat(tracker.latest_snapshot.total_price).toFixed(2)} €
+                  </div>
+                </div>
+              {/if}
+              <div class="flex gap-2">
+                {#if tracker.booking_url}
+                  <a href={tracker.booking_url} target="_blank" rel="noopener noreferrer"
+                    class="flex-1 text-center text-xs font-bold px-2 py-1.5 rounded-lg transition-opacity hover:opacity-80"
+                    style="background:var(--ws-accent);color:#fff5ec;text-decoration:none">
+                    {$t('hubSlotBook')}
+                  </a>
+                {/if}
+                <button onclick={() => openBookModal(tracker.id, trackerType, slot.key)}
+                  class="flex-1 text-xs font-semibold px-2 py-1.5 rounded-lg border transition-all hover:opacity-80"
+                  style="border-color:var(--ws-green,#2d6a4f);color:var(--ws-green,#2d6a4f)">
+                  {$t('hubSlotMarkBooked')}
+                </button>
+              </div>
+            </div>
+          {/if}
+        </div>
+      {/each}
     </div>
+
+    <!-- ── Budget Breakdown ──────────────────────────────────────────────────── -->
+    {#if budgetBreakdown?.has_budget}
+      <div class="rounded-2xl border p-4 space-y-3" style="background:var(--ws-surface2);border-color:var(--ws-border)">
+        <h3 class="font-bold text-sm" style="color:var(--ws-text)">💶 Budget</h3>
+        <div class="space-y-2">
+          {#each [
+            [$t('hubBudgetTotal'),  budgetBreakdown.total_budget,   '#fff', false],
+            [$t('hubBudgetFlight'), budgetBreakdown.booked_flight,  'rgba(255,255,255,.7)', true],
+            [$t('hubBudgetHotel'),  budgetBreakdown.booked_hotel,   'rgba(255,255,255,.7)', true],
+          ] as [label, val, color, indent]}
+            {#if val > 0 || !indent}
+              <div class="flex items-center justify-between {indent ? 'pl-3 border-l-2' : ''}"
+                style="{indent ? 'border-color:var(--ws-border)' : ''}">
+                <span class="text-xs" style="color:var(--ws-muted)">{label}</span>
+                <span class="text-sm font-mono font-bold" style="color:var(--ws-text)">
+                  {indent ? '−' : ''}{parseFloat(val).toFixed(0)} €
+                </span>
+              </div>
+            {/if}
+          {/each}
+          <!-- On-site remainder -->
+          <div class="flex items-center justify-between pt-2 mt-1 border-t" style="border-color:var(--ws-border)">
+            <span class="text-sm font-semibold" style="color:var(--ws-text)">{$t('hubBudgetOnSite')}</span>
+            <span class="text-lg font-bold font-mono"
+              style="color:{budgetBreakdown.on_site_budget >= 0 ? 'var(--ws-green,#2d6a4f)' : '#ef4444'}">
+              {parseFloat(budgetBreakdown.on_site_budget).toFixed(0)} €
+            </span>
+          </div>
+        </div>
+        <!-- Mini bar -->
+        {#if budgetBreakdown.total_budget > 0}
+          {@const spent = budgetBreakdown.booked_flight + budgetBreakdown.booked_hotel}
+          {@const pct = Math.min(100, (spent / budgetBreakdown.total_budget) * 100)}
+          <div class="h-2 rounded-full overflow-hidden" style="background:var(--ws-border)">
+            <div class="h-full rounded-full transition-all duration-700"
+              style="width:{pct}%;background:{pct > 85 ? '#ef4444' : 'var(--ws-green,#2d6a4f)'}"></div>
+          </div>
+        {/if}
+      </div>
+    {/if}
 
     <!-- ── Checkliste ────────────────────────────────────────────────────────── -->
     <div class="rounded-2xl border overflow-hidden" style="border-color:var(--ws-border)">
-
-      <!-- Header -->
       <div class="flex items-center justify-between px-5 py-3.5 border-b" style="background:var(--ws-surface2);border-color:var(--ws-border)">
         <div class="flex items-center gap-2">
           <span class="font-bold text-sm" style="color:var(--ws-text)">{$t('tripHubTodos')}</span>
@@ -191,7 +385,6 @@
           {/if}
         </div>
         {#if todos.length > 0}
-          <!-- Progress bar -->
           <div class="flex items-center gap-2">
             <div class="w-24 h-1.5 rounded-full overflow-hidden" style="background:var(--ws-border)">
               <div class="h-full rounded-full transition-all duration-500"
@@ -201,46 +394,31 @@
           </div>
         {/if}
       </div>
-
-      <!-- Todo items -->
       <div class="divide-y" style="border-color:var(--ws-border)">
         {#if todos.length === 0}
           <div class="px-5 py-8 text-center text-sm" style="color:var(--ws-muted)">{$t('tripHubNoTodos')}</div>
         {:else}
           {#each todos as todo}
-            <div class="flex items-center gap-3 px-5 py-3 transition-opacity"
-              style="background:var(--ws-surface);{todo.is_done ? 'opacity:0.5' : ''}">
-              <!-- Checkbox -->
+            <div class="flex items-center gap-3 px-5 py-3" style="background:var(--ws-surface);{todo.is_done ? 'opacity:0.5' : ''}">
               <button onclick={() => toggleTodo(todo)}
                 class="w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all"
-                style={todo.is_done
-                  ? 'background:var(--ws-green);border-color:var(--ws-green)'
-                  : 'background:transparent;border-color:var(--ws-border)'}>
+                style={todo.is_done ? 'background:var(--ws-green);border-color:var(--ws-green)' : 'background:transparent;border-color:var(--ws-border)'}>
                 {#if todo.is_done}<span class="text-[10px] text-white font-bold">✓</span>{/if}
               </button>
-              <!-- Category icon -->
               <span class="text-base shrink-0">{catIcon(todo.category)}</span>
-              <!-- Task text -->
               <span class="flex-1 text-sm" style="color:var(--ws-text);{todo.is_done ? 'text-decoration:line-through' : ''}">{todo.task}</span>
-              <!-- Delete -->
-              <button onclick={() => deleteTodo(todo)}
-                class="opacity-0 hover:opacity-100 group-hover:opacity-40 text-sm shrink-0 transition-opacity hover:opacity-100 px-1"
-                style="color:var(--ws-muted)">✕</button>
+              <button onclick={() => deleteTodo(todo)} class="text-sm shrink-0 px-1 hover:opacity-70" style="color:var(--ws-muted)">✕</button>
             </div>
           {/each}
         {/if}
       </div>
-
-      <!-- Add todo -->
       <div class="flex items-center gap-2 px-4 py-3 border-t" style="border-color:var(--ws-border);background:var(--ws-surface2)">
-        <input
-          bind:value={newTask}
-          placeholder={$t('tripHubTodoPlaceholder')}
+        <input bind:value={newTask} placeholder={$t('tripHubTodoPlaceholder')}
           onkeydown={(e) => e.key === 'Enter' && addTodo()}
           class="flex-1 px-3 py-1.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-[var(--ws-accent)] bg-transparent"
           style="border-color:var(--ws-border);color:var(--ws-text)"/>
         <button onclick={addTodo} disabled={!newTask.trim() || addingTodo}
-          class="px-3 py-1.5 rounded-xl text-xs font-bold disabled:opacity-40 transition-opacity"
+          class="px-3 py-1.5 rounded-xl text-xs font-bold disabled:opacity-40"
           style="background:var(--ws-accent);color:#fff5ec">
           {addingTodo ? '⏳' : '+'}
         </button>
