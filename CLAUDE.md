@@ -2010,3 +2010,50 @@ Wird gesetzt von:
 - Add: `POST /api/ws-trips/{id}/todos`
 - Delete: `DELETE /api/ws-trips/{id}/todos/{todo_id}`
 - Fortschrittsbalken zeigt `erledigte / gesamt` als Prozent
+
+
+
+---
+
+## Etappe 5 Phase A — UX-Polish & Konsistenz (Session 2025-04-13)
+
+### Neue Dateien
+
+| Datei | Beschreibung |
+|-------|-------------|
+| `svelte/src/lib/components/mytrips/TripCard.svelte` | Wiederverwendbare Reisekarte (mode: 'planned' \| 'archive') |
+
+### TripCard.svelte — API
+
+```svelte
+<TripCard
+  trip={trip}
+  mode="planned"          <!-- 'planned' | 'archive' -->
+  ongoToHub={(t) => ...}  <!-- Klick auf Haupt-Button -->
+  ondelete={(t) => ...}   <!-- Aus ⋮-Menü (nur archive) -->
+/>
+```
+
+- `mode="planned"`: Accent-Gradient, Status-Badge (In Planung / ✓ Gebucht), Primär-Button
+- `mode="archive"`: Gedämpfter Gradient, "ERLEBT"-Badge, sekundärer Button, ⋮-Menü mit Löschen
+
+### MyTrips.svelte Änderungen (Phase A)
+
+- **Planned-Tab**: Inline-Card-Markup → `<TripCard mode="planned" />`
+- **Archive-Tab**: `JournalTimeline` → `<TripCard mode="archive" />` Grid (Skeleton + Leer-State)
+- **Jahresauswahl**: Kompakte 3-Pill-Reihe (`selectedYear-1 | current | +1`) oben rechts in Übersicht und in der Admin-Bar des Archivs. Große Jahr-Card aus Übersicht entfernt.
+- **Bucket List**: Kein permanentes Formular mehr. `BucketListTab` verwaltet eigenes Modal-State.
+
+### BucketListTab.svelte Refactoring
+
+- Formular entfernt, stattdessen "+ Wunschziel hinzufügen"-Button oben rechts
+- Svelte-Modal mit Zielort-/Ort-Inputs und Enter-Bestätigung
+- Volle Bildschirmbreite: 3-spaltige Kacheln mit Hero-Farbstreifen (grün = erledigt, Accent = offen)
+- `bucketItem`/`bucketDest` State jetzt in BucketListTab, nicht mehr in MyTrips
+
+### Phase B (noch ausstehend)
+- DB: `trip_id`, `is_booked`, `booked_price` auf Tracker-Tabellen
+- Tracker-Dialog: "Mit Reise verknüpfen"-Dropdown
+- Trip-Hub Smart-Slots: Leer / Tracking aktiv / Gebucht
+- Hub-Budget-Rechnung: Gesamt - gebuchte Komponenten = Rest vor Ort
+- Backend: Archiv-Nachträge überspringen KI-Todo-Generierung
