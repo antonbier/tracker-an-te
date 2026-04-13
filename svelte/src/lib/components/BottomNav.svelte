@@ -8,8 +8,8 @@
   const nav = [
     { id: 'home',       icon: '🏠', labelKey: 'navHomeShort' },
     { id: 'priceradar', icon: '🎯', labelKey: 'navRadarShort' },
+    { id: 'planer',     icon: '🧙', labelKey: 'navPlanerShort' },
     { id: 'mytrips',    icon: '🎒', labelKey: 'navTripsShort' },
-    { id: 'discover',   icon: '✨', labelKey: 'navDiscover' },
   ];
 
   let userMenuOpen = $state(false);
@@ -86,3 +86,4 @@
 
 <!-- Spacer so content isn't hidden behind fixed nav -->
 <div class="md:hidden h-16 shrink-0"></div>
+
