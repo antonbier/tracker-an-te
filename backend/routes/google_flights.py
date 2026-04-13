@@ -38,6 +38,7 @@ class GFTrackerCreate(BaseModel):
     initial_airline:         Optional[str] = None
     initial_dep_time:        Optional[str] = None
     initial_arr_time:        Optional[str] = None
+    trip_id:                 Optional[int] = None
     initial_duration:        Optional[int] = None
     initial_stops:           Optional[int] = None
     initial_layover_airports: Optional[list] = None
