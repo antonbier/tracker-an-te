@@ -1950,3 +1950,63 @@ ALTER TABLE booking_trackers ADD COLUMN trip_id INTEGER DEFAULT NULL REFERENCES 
 - [ ] Trip-Detailansicht mit To-Do-Checkliste (toggle inline)
 - [ ] WanderWizzard `createTrip()` → `POST /api/ws-trips` statt `priceradarParams.set()`
 - [ ] Tracker-Karten: optionaler "Zu Trip hinzufügen" Button (setzt `trip_id`)
+
+
+
+---
+
+## Etappe 3 Phase A — Trip Hub & Navigation (Session 2025-04-13)
+
+### Neuer Navigationspfad
+
+```
+Dashboard (Hero-Bereich)
+    │
+    ├── [Zur Reiseplanung] Button  →  wenn ws_trips mit status='planning'/'booked' vorhanden
+    │       ↓
+    │   Trip Hub (currentPage='triphub', activeWsTripId=<id>)
+    │       ├── Hero-Banner (Destination, Countdown, Status)
+    │       ├── Aktions-Slots: ✈️ Anreise planen → PriceRadar, 🏨 Unterkunft → PriceRadar
+    │       └── Checkliste (trip_todos: toggle, add, delete)
+    │
+    └── [Reise planen] Button  →  wenn kein aktiver Trip (→ mytrips)
+
+WanderWizzard (modal)
+    └── "Trip anlegen" → POST /api/ws-trips → activeWsTripId.set(id) → currentPage='triphub'
+```
+
+### Neue Dateien / Änderungen (Phase A)
+
+| Datei | Änderung |
+|-------|---------|
+| `svelte/src/lib/components/pages/TripHub.svelte` | Neue Seite: Hero, Aktions-Slots, Checkliste |
+| `svelte/src/lib/components/WanderWizzard.svelte` | API-Call auf POST /api/ws-trips, Redirect zu TripHub, Stepper zentriert, inaktive Karten opacity-40+grayscale |
+| `svelte/src/lib/components/dashboard/HeroSection.svelte` | Trip-Hub-Shortcut-Button (oben rechts) |
+| `svelte/src/lib/stores.js` | `activeWsTripId` Store (writable) |
+| `svelte/src/routes/+page.svelte` | Route `triphub` → TripHub.svelte |
+| `svelte/src/locales/de.json` / `en.json` | 16 neue `tripHub*`/`dash*`/`wizzard*` Keys |
+
+### Store: `activeWsTripId`
+
+```js
+// stores.js
+export const activeWsTripId = writable(null);
+```
+
+Wird gesetzt von:
+- `WanderWizzard.createTrip()` nach erfolgreichem POST
+- `HeroSection.goToTripHub(tripId)` beim Klick auf den Shortcut-Button
+
+### WanderWizzard UI-Fixes (Phase A)
+
+- **Stepper**: `justify-center gap-6` statt `flex-1` — Schritte stehen mittig im Modal
+- **Inaktive Karten**: `opacity:0.4;filter:grayscale(1)` — klare visuelle Hierarchie
+- **Aktive Karte**: volles Accent-Glow, Checkmark-Bubble, keine Opacity-Reduktion
+
+### TripHub: Checkliste
+
+- Todos werden direkt von `GET /api/ws-trips/{id}` geladen (inkl. Todos im Response)
+- Toggle: `PATCH /api/ws-trips/{id}/todos/{todo_id}/toggle`
+- Add: `POST /api/ws-trips/{id}/todos`
+- Delete: `DELETE /api/ws-trips/{id}/todos/{todo_id}`
+- Fortschrittsbalken zeigt `erledigte / gesamt` als Prozent
