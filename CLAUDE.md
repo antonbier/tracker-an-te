@@ -1821,3 +1821,132 @@ Pydantic-Modelle zur strukturellen Trennung der Settings:
 - Synchroner Fallback wenn Pool komplett leer (erster Start)
 - `_make_proxy_url()` als Single Source of Truth für Proxy-URLs — keine doppelte Logik in routes/
 - `TravelPersonality` / `TravelDefaults` als Pydantic-Modelle — Frontend kann Personality später isoliert über eigenes API-Panel ansprechen
+
+
+
+---
+
+## Phase B — WanderWizzard Trips als Container-Entität (Session 2025-04-13)
+
+### Architektur-Philosophie: Trips als zentrales Objekt
+
+```
+WanderWizzard (2-Schritt-Wizard)
+    │
+    ▼  POST /api/ws-trips
+ws_trips (Container)
+    │
+    ├── trip_todos (KI-generiert via gpt-4o-mini)
+    │
+    └── trackers / gf_trackers / homair_trackers / booking_trackers
+           (via trip_id FK → jetzt optional an Trip geknüpft)
+```
+
+**Kernprinzip:** Ein Trip ist der übergeordnete Container. Alle Tracker (Flüge, Hotels, Camping)
+können optional einem Trip zugeordnet werden (`trip_id FK`). Das erlaubt künftig eine
+Trip-Detailansicht, die alle gebuchten/gesuchten Elemente einer Reise bündelt.
+
+### 2-Schritt-Wizard-Flow (Phase A + B)
+
+```
+Step 1: Details
+  ├── Path-Auswahl (Karte: "Ziel bekannt" | "Lass mich überraschen")
+  ├── Reisemodus (Karte: "Flugreise" | "Autoreise")
+  ├── Pfad-spezifische Felder (Ziel/Datum ODER Vibe-Tags/Flexdatum)
+  └── Gesamtbudget
+
+Step 2: Zusammenfassung
+  ├── Conditional Rows (Heimatflughafen nur bei Flugreise)
+  └── CTA: "Trip anlegen" → POST /api/ws-trips → KI-Todos
+```
+
+### DB-Schema (neu)
+
+#### `ws_trips`
+```sql
+CREATE TABLE ws_trips (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id      INTEGER NOT NULL DEFAULT 1,
+    title        TEXT    NOT NULL DEFAULT '',
+    destination  TEXT    NOT NULL DEFAULT '',
+    start_date   TEXT,
+    end_date     TEXT,
+    trip_type    TEXT    NOT NULL DEFAULT 'flight',   -- 'flight'|'car'|'inspire'
+    budget       REAL             DEFAULT NULL,
+    path         TEXT    NOT NULL DEFAULT 'known',    -- 'known'|'inspire'
+    travel_mode  TEXT    NOT NULL DEFAULT 'flight',   -- 'flight'|'car'
+    vibes        TEXT    NOT NULL DEFAULT '[]',        -- JSON array
+    wish_text    TEXT             DEFAULT NULL,
+    flex_month   TEXT             DEFAULT NULL,
+    flex_nights  INTEGER          DEFAULT NULL,
+    max_time     TEXT             DEFAULT NULL,
+    home_airport TEXT             DEFAULT NULL,
+    adults       INTEGER NOT NULL DEFAULT 2,
+    children     INTEGER NOT NULL DEFAULT 0,
+    status       TEXT    NOT NULL DEFAULT 'planning', -- 'planning'|'booked'|'completed'
+    notes        TEXT             DEFAULT NULL,
+    created_at   TEXT    NOT NULL DEFAULT (datetime('now')),
+    updated_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+```
+
+#### `trip_todos`
+```sql
+CREATE TABLE trip_todos (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    trip_id    INTEGER NOT NULL REFERENCES ws_trips(id) ON DELETE CASCADE,
+    task       TEXT    NOT NULL,
+    category   TEXT    NOT NULL DEFAULT 'general',  -- 'booking'|'packing'|'documents'|'general'
+    is_done    INTEGER NOT NULL DEFAULT 0,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+```
+
+#### Migration: `trip_id` auf Tracker-Tabellen
+```sql
+ALTER TABLE trackers         ADD COLUMN trip_id INTEGER DEFAULT NULL REFERENCES ws_trips(id) ON DELETE SET NULL;
+ALTER TABLE gf_trackers      ADD COLUMN trip_id INTEGER DEFAULT NULL REFERENCES ws_trips(id) ON DELETE SET NULL;
+ALTER TABLE homair_trackers  ADD COLUMN trip_id INTEGER DEFAULT NULL REFERENCES ws_trips(id) ON DELETE SET NULL;
+ALTER TABLE booking_trackers ADD COLUMN trip_id INTEGER DEFAULT NULL REFERENCES ws_trips(id) ON DELETE SET NULL;
+```
+
+### API — `/api/ws-trips` (routes/ws_trips.py)
+
+| Method | Path | Beschreibung |
+|--------|------|-------------|
+| POST | `/api/ws-trips` | Trip anlegen + KI-Todos generieren |
+| GET | `/api/ws-trips` | Alle Trips des Users |
+| GET | `/api/ws-trips/{id}` | Einzelner Trip + Todos |
+| PATCH | `/api/ws-trips/{id}/status` | Status ändern (planning/booked/completed) |
+| DELETE | `/api/ws-trips/{id}` | Trip löschen (CASCADE auf todos) |
+| GET | `/api/ws-trips/{id}/todos` | To-Dos eines Trips |
+| POST | `/api/ws-trips/{id}/todos` | Manuelles To-Do hinzufügen |
+| PATCH | `/api/ws-trips/{id}/todos/{todo_id}/toggle` | Erledigt-Status toggeln |
+| DELETE | `/api/ws-trips/{id}/todos/{todo_id}` | To-Do löschen |
+
+### KI-To-Do-Generierung (`_generate_todos`)
+
+- **Modell:** `gpt-4o-mini` (kostengünstig, schnell)
+- **Prompt:** Kontextsensitiv nach `destination`, `travel_mode`, `vibes`, `wish_text`, `adults/children`, `budget`
+- **Output:** 5 JSON-Todos mit `task` + `category`
+- **Kategorien:** `booking` | `documents` | `packing` | `general`
+- **Fallback:** Statische Todos (Flug vs. Auto) wenn kein OpenAI Key vorhanden
+- **Key-Source:** `settings`-Tabelle (`get_setting("openai_key")`) → gleicher Key wie Discovery
+- **Fehlerbehandlung:** Exception → Fallback, Trip wird trotzdem angelegt
+
+### Geänderte Dateien (Phase B)
+
+| Datei | Änderung |
+|-------|---------|
+| `backend/database.py` | `ws_trips` + `trip_todos` Tabellen, `trip_id` Migration, 8 neue CRUD-Funktionen |
+| `backend/routes/ws_trips.py` | Neuer Router (neu erstellt), 9 Endpoints |
+| `backend/main.py` | `ws_trips_route` registriert unter `/api/ws-trips` |
+| `CLAUDE.md` | Diese Dokumentation |
+
+### Nächste Schritte (Phase C — Frontend)
+
+- [ ] MyTrips: neuer Tab "WS-Trips" zeigt `ws_trips` Liste mit Status-Badges
+- [ ] Trip-Detailansicht mit To-Do-Checkliste (toggle inline)
+- [ ] WanderWizzard `createTrip()` → `POST /api/ws-trips` statt `priceradarParams.set()`
+- [ ] Tracker-Karten: optionaler "Zu Trip hinzufügen" Button (setzt `trip_id`)
