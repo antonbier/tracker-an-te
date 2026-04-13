@@ -456,7 +456,7 @@
             <TripCard
               {trip}
               mode="archive"
-              ongoToHub={(t) => { /* view: could open detail modal in future */ }}
+              ongoToHub={(t) => { if (t.id) { activeWsTripId.set(t.id); currentPage.set('triphub'); } }}
               ondelete={(t) => deleteJournalTrip(t.id)}
             />
           {/each}
@@ -477,4 +477,5 @@
   {/if}
 
 </div>
+
 
