@@ -428,5 +428,7 @@
   "hubBudgetHotel": "Accommodation (booked)",
   "hubBudgetOnSite": "Available on-site",
   "hubSearchHint": "Pre-filled with trip dates",
-  "archiveTripSkipTodos": "(past trip – todos skipped)"
+  "archiveTripSkipTodos": "(past trip – todos skipped)",
+  "radarLinkTrip": "Link to trip",
+  "radarNoTripLink": "No trip link (optional)"
 }
