@@ -17,7 +17,7 @@ from settings_manager import (
     save_user_settings_bulk, get_user_settings_all, get_user_setting_value,
     GLOBAL_KEYS, USER_KEYS,
 )
-from auth_jwt import get_current_user, require_admin
+from auth_jwt import get_current_user, require_admin, get_optional_user
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -121,7 +121,7 @@ def update_my_settings(data: UserSettingsPayload, user: dict = Depends(get_curre
 @router.get("/geocode")
 def geocode_place(
     q: str = Query(..., description="Ortsname für Geocoding"),
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(get_optional_user),
 ):
     """Backend proxy for Nominatim geocoding — avoids browser CORS restrictions."""
     if not q or len(q.strip()) < 2:
@@ -233,4 +233,5 @@ def get_serpapi_quota():
                 "plan": data.get("plan_name", "unknown"), "account": data.get("email", "")}
     except requests.RequestException as e:
         return {"error": f"SerpAPI nicht erreichbar: {e}"}
+
 
