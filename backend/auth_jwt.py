@@ -73,3 +73,23 @@ def require_admin(user: dict = Depends(get_current_user)) -> dict:
     if user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Admin-Rechte erforderlich.")
     return user
+
+
+
+def get_optional_user(
+    creds: HTTPAuthorizationCredentials | None = Depends(_bearer),
+) -> dict:
+    """Like get_current_user but never raises 401 — returns GUEST_USER if no/invalid token."""
+    if not AUTH_ENABLED:
+        return GUEST_USER
+    if not creds:
+        return GUEST_USER
+    try:
+        payload = jwt.decode(creds.credentials, JWT_SECRET, algorithms=[JWT_ALGO])
+        return {
+            "id":    int(payload["sub"]),
+            "email": payload["email"],
+            "role":  payload["role"],
+        }
+    except Exception:
+        return GUEST_USER
