@@ -361,5 +361,17 @@
   "dashTripHub": "Zur Reiseplanung",
   "dashTripHubNew": "Reise planen",
   "wizzardSuccess": "Trip angelegt! ✓",
-  "wizzardCreating": "Wird angelegt…"
+  "wizzardCreating": "Wird angelegt…",
+  "inspireLoading": "KI sucht perfekte Ziele…",
+  "inspireLoadingHint": "Das dauert einen Moment",
+  "inspireCardOf": "{current} von {total}",
+  "inspireSkip": "Nächstes Ziel",
+  "inspireChoose": "Diesen Trip planen",
+  "inspireTravelTime": "Reisezeit",
+  "inspireBudget": "Budget / Person",
+  "inspireNoMore": "Alle Vorschläge gesehen",
+  "inspireNoMoreHint": "Keine der Optionen gefällt? Kein Problem.",
+  "inspireReload": "🔄 Neue Vorschläge",
+  "inspireBackToWizard": "← Zurück zum Wizard",
+  "inspireCreating": "Reise wird angelegt…"
 }
