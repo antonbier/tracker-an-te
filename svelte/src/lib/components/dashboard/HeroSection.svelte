@@ -25,16 +25,21 @@
 
   // ── Next WS-Trip (WanderWizzard) ─────────────────────────────────────────
   let nextWsTrip = $state(null);
+  let wsTripsLoaded = $state(false);
 
-  $effect(() => {
+  async function loadWsTrips() {
     if (!$apiUrl) return;
-    api('/api/ws-trips')
-      .then(trips => {
-        const planning = (trips || []).filter(t => t.status === 'planning' || t.status === 'booked');
-        nextWsTrip = planning[0] || null;
-      })
-      .catch(() => {});
-  });
+    try {
+      const trips = await api('/api/ws-trips');
+      const planning = (trips || []).filter(t => t.status === 'planning' || t.status === 'booked');
+      nextWsTrip = planning[0] || null;
+    } catch { nextWsTrip = null; }
+    wsTripsLoaded = true;
+  }
+
+  onMount(() => { loadWsTrips(); });
+  // Re-fetch if apiUrl changes (e.g. after onboarding)
+  $effect(() => { if ($apiUrl) loadWsTrips(); });
 
   function goToTripHub(tripId) {
     activeWsTripId.set(tripId);
@@ -290,7 +295,7 @@
 
   <!-- ── Action Buttons ── -->
   <div class="absolute top-4 right-4 flex gap-2 z-20">
-    {#if nextWsTrip}
+    {#if wsTripsLoaded && nextWsTrip}
       <button onclick={() => goToTripHub(nextWsTrip.id)}
         class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all hover:opacity-90 active:scale-[.97]"
         style="background:rgba(0,0,0,.35);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.25);color:rgba(255,255,255,.9)">
@@ -316,4 +321,5 @@
   </div>
 
 </div>
+
 
