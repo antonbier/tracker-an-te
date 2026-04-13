@@ -395,5 +395,21 @@
   "addTripCancel": "Cancel",
   "plannedEmpty": "No planned trips yet. Start the trip planner!",
   "plannedGoToHub": "→ Trip Hub",
-  "archiveEmpty": "No past trips in this year."
+  "archiveEmpty": "No past trips in this year.",
+  "tripCardPlanning": "Planning",
+  "tripCardBooked": "✓ Booked",
+  "tripCardExperienced": "EXPERIENCED",
+  "tripCardGoToHub": "Trip Hub →",
+  "tripCardView": "View trip",
+  "tripCardDelete": "Delete",
+  "tripCardEdit": "Edit",
+  "bucketAddBtn": "+ Add wish destination",
+  "bucketModalTitle": "Add wish destination",
+  "bucketModalItem": "Dream destination / activity *",
+  "bucketModalDest": "Place / region (optional)",
+  "bucketModalSave": "Add",
+  "bucketModalCancel": "Cancel",
+  "bucketDone": " done",
+  "bucketEmpty": "No wish destinations yet. Add your first dream!",
+  "yearSelect": "Year"
 }
