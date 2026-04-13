@@ -4,7 +4,18 @@
   import { AIRPORTS, inputCls, inputStyle, labelCls } from './constants.js';
   import { dateOffset } from './helpers.js';
 
-  const { searching, onsearch } = $props();
+  const { searching, onsearch, prefillParams = null } = $props();
+
+  // Auto-fill when prefillParams changes (from TripHub deep-link)
+  $effect(() => {
+    if (!prefillParams) return;
+    const p = prefillParams;
+    if (p.destination) { flDest = p.destination; }
+    if (p.dateFrom)    { flOut  = p.dateFrom; }
+    if (p.dateTo)      { flRet  = p.dateTo; }
+    if (p.adults)      { flAdults = parseInt(p.adults) || 1; }
+    if (p.homeAirport) { flOrigin = p.homeAirport; }
+  });
 
   // ── Form state ────────────────────────────────────────────────────────────
   let flOrigin    = $state('BGY');
