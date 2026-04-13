@@ -39,6 +39,10 @@ export const appVersion = writable('');
 // WanderWizzard: Suchparameter-Store (wird von WanderWizzard gesetzt, von PriceRadar gelesen)
 export const priceradarParams = writable(null);
 
+
+// WanderWizzard Trip Hub — active trip ID for navigation
+export const activeWsTripId = writable(null);
+
 // Global settings modal trigger — set to true from anywhere to open Settings
 export const settingsOpen = writable(false);
 
@@ -80,3 +84,4 @@ export async function loadSettingsFromBackend(baseUrl) {
     }
   } catch { /* offline — fail silently */ }
 }
+
