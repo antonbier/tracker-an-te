@@ -428,5 +428,7 @@
   "hubBudgetHotel": "Unterkunft (gebucht)",
   "hubBudgetOnSite": "Vor Ort verfügbar",
   "hubSearchHint": "Mit Reisedaten vorausgefüllt",
-  "archiveTripSkipTodos": "(vergangene Reise – keine Todos generiert)"
+  "archiveTripSkipTodos": "(vergangene Reise – keine Todos generiert)",
+  "radarLinkTrip": "Mit Reise verknüpfen",
+  "radarNoTripLink": "Keine Verknüpfung (optional)"
 }
