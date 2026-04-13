@@ -411,5 +411,22 @@
   "bucketModalCancel": "Abbrechen",
   "bucketDone": " erledigt",
   "bucketEmpty": "Noch keine Wunschziele. Füge deinen ersten Traum hinzu!",
-  "yearSelect": "Jahr"
+  "yearSelect": "Jahr",
+  "hubSlotFlightEmpty": "Flug suchen",
+  "hubSlotHotelEmpty": "Unterkunft suchen",
+  "hubSlotTracking": "Preis wird überwacht",
+  "hubSlotCurrentPrice": "Aktueller Preis",
+  "hubSlotBook": "Buchen ↗",
+  "hubSlotMarkBooked": "Als gebucht markieren",
+  "hubSlotBooked": "✅ Gebucht",
+  "hubSlotBookedPrice": "Finaler Preis",
+  "hubSlotEnterPrice": "Preis eingeben…",
+  "hubSlotSavePrice": "Bestätigen",
+  "hubSlotCancelBook": "Abbrechen",
+  "hubBudgetTotal": "Gesamtbudget",
+  "hubBudgetFlight": "Flug (gebucht)",
+  "hubBudgetHotel": "Unterkunft (gebucht)",
+  "hubBudgetOnSite": "Vor Ort verfügbar",
+  "hubSearchHint": "Mit Reisedaten vorausgefüllt",
+  "archiveTripSkipTodos": "(vergangene Reise – keine Todos generiert)"
 }
