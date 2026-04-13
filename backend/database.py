@@ -398,15 +398,17 @@ def init_db():
 
 # ── Settings helpers ──────────────────────────────────────────────────────────
 
-        # ── trip_id on tracker tables (WanderWizzard Phase B) ──────────────────
+        # ── trip_id + booking state on tracker tables ───────────────────────────
         for _tbl in ('trackers', 'gf_trackers', 'homair_trackers', 'booking_trackers'):
-            try:
-                conn.execute(
-                    f"ALTER TABLE {_tbl} ADD COLUMN trip_id INTEGER DEFAULT NULL "
-                    f"REFERENCES ws_trips(id) ON DELETE SET NULL"
-                )
-            except Exception:
-                pass
+            for col in [
+                "trip_id INTEGER DEFAULT NULL REFERENCES ws_trips(id) ON DELETE SET NULL",
+                "is_booked INTEGER NOT NULL DEFAULT 0",
+                "booked_price REAL DEFAULT NULL",
+            ]:
+                try:
+                    conn.execute(f"ALTER TABLE {_tbl} ADD COLUMN {col}")
+                except Exception:
+                    pass
 
 
 
@@ -1594,3 +1596,101 @@ def delete_trip_todo(todo_id: int, trip_id: int) -> bool:
             (todo_id, trip_id)
         )
     return r.rowcount > 0
+
+
+
+# ── Tracker Booking State ─────────────────────────────────────────────────────
+
+def _tracker_table(tracker_type: str) -> str | None:
+    return {
+        "flight":        "trackers",
+        "google_flight": "gf_trackers",
+        "camping":       "homair_trackers",
+        "hotel":         "booking_trackers",
+    }.get(tracker_type)
+
+
+def mark_tracker_booked(
+    tracker_id: int,
+    tracker_type: str,
+    booked_price: float,
+    trip_id: int | None = None,
+) -> bool:
+    """Mark a tracker as booked with a confirmed price."""
+    tbl = _tracker_table(tracker_type)
+    if not tbl:
+        return False
+    with db() as conn:
+        r = conn.execute(
+            f"UPDATE {tbl} SET is_booked=1, booked_price=? WHERE id=?",
+            (round(booked_price, 2), tracker_id)
+        )
+        if trip_id and r.rowcount:
+            conn.execute(
+                f"UPDATE {tbl} SET trip_id=? WHERE id=?",
+                (trip_id, tracker_id)
+            )
+    return r.rowcount > 0
+
+
+def unmark_tracker_booked(tracker_id: int, tracker_type: str) -> bool:
+    """Reset booking state on a tracker."""
+    tbl = _tracker_table(tracker_type)
+    if not tbl:
+        return False
+    with db() as conn:
+        r = conn.execute(
+            f"UPDATE {tbl} SET is_booked=0, booked_price=NULL WHERE id=?",
+            (tracker_id,)
+        )
+    return r.rowcount > 0
+
+
+def link_tracker_to_trip(tracker_id: int, tracker_type: str, trip_id: int | None) -> bool:
+    """Associate/disassociate a tracker with a ws_trip."""
+    tbl = _tracker_table(tracker_type)
+    if not tbl:
+        return False
+    with db() as conn:
+        r = conn.execute(
+            f"UPDATE {tbl} SET trip_id=? WHERE id=?",
+            (trip_id, tracker_id)
+        )
+    return r.rowcount > 0
+
+
+def get_trackers_for_trip(trip_id: int) -> dict:
+    """
+    Return all trackers linked to a ws_trip, grouped by type.
+    Only returns booked or active trackers.
+    """
+    result = {"flight": None, "hotel": None, "camping": None, "car": None}
+
+    with db() as conn:
+        # Ryanair
+        row = conn.execute(
+            "SELECT *, 'flight' as _type FROM trackers WHERE trip_id=? ORDER BY id DESC LIMIT 1",
+            (trip_id,)
+        ).fetchone()
+        if row:
+            result["flight"] = dict(row)
+
+        # Google Flights
+        if not result["flight"]:
+            row = conn.execute(
+                "SELECT *, 'google_flight' as _type FROM gf_trackers WHERE trip_id=? ORDER BY id DESC LIMIT 1",
+                (trip_id,)
+            ).fetchone()
+            if row:
+                result["flight"] = dict(row)
+
+        # Hotel / Camping
+        for tbl, key in [("booking_trackers", "hotel"), ("homair_trackers", "camping")]:
+            row = conn.execute(
+                f"SELECT *, '{key}' as _type FROM {tbl} WHERE trip_id=? ORDER BY id DESC LIMIT 1",
+                (trip_id,)
+            ).fetchone()
+            if row:
+                result[key] = dict(row)
+
+    return result
