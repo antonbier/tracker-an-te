@@ -42,6 +42,7 @@ class TrackerCreate(BaseModel):
     children:      int = 0
     baggage:       list[BaggageItem] = []
     seat_cost:     float = 0.0
+    trip_id:       Optional[int] = None
 
     @field_validator("origin", "destination")
     @classmethod
@@ -86,6 +87,10 @@ def add_tracker(data: TrackerCreate, user: dict = Depends(get_current_user)):
     payload["baggage"] = [b.model_dump() for b in data.baggage]
     uid = user.get("id", 1) or 1
     tracker_id = create_tracker(payload, user_id=uid)
+    # Link to trip if provided
+    if data.trip_id:
+        from database import link_tracker_to_trip
+        link_tracker_to_trip(tracker_id, "flight", data.trip_id)
     return {"id": tracker_id, "message": "Tracker angelegt"}
 
 
