@@ -10,6 +10,7 @@
   import JournalTimeline from '$lib/components/mytrips/JournalTimeline.svelte';
   import JournalSyncDawarich from '$lib/components/mytrips/JournalSyncDawarich.svelte';
   import JournalSyncActual   from '$lib/components/mytrips/JournalSyncActual.svelte';
+  import TripCard from '$lib/components/mytrips/TripCard.svelte';
 
   // ── Tabs ───────────────────────────────────────────────────────────────────
   let activeTab = $state('overview');
@@ -219,14 +220,8 @@
   });
 
   // ── Bucket list ────────────────────────────────────────────────────────────
-  let bucketItem = $state('');
-  let bucketDest = $state('');
-  function addBucketItem() {
-    if (!bucketItem) { toast('Bitte Eintrag eingeben', 'error'); return; }
-    bucketlist.update(l => [...l, { item: bucketItem, dest: bucketDest, done: false, created: new Date().toISOString().slice(0, 10) }]);
-    bucketItem = ''; bucketDest = '';
-    toast($t('toastBucketAdded'), 'success');
-  }
+  // Bucket state is managed inside BucketListTab.svelte
+  // addBucketItem is now inline in the BucketListTab onadd callback
   function toggleBucket(i) { bucketlist.update(l => l.map((x, idx) => idx === i ? { ...x, done: !x.done } : x)); }
   function removeBucket(i) { bucketlist.update(l => l.filter((_, idx) => idx !== i)); }
 
@@ -285,6 +280,19 @@
   <!-- ══ OVERVIEW ══════════════════════════════════════════════════════════ -->
   {#if activeTab === 'overview'}
     <div class="space-y-5">
+      <!-- Year selector compact row -->
+      <div class="flex items-center justify-end gap-2">
+        <span class="text-xs" style="color:var(--ws-muted)">{$t('yearSelect')}:</span>
+        {#each [selectedYear - 1, selectedYear, selectedYear + 1] as yr}
+          <button onclick={() => selectedYear = yr}
+            class="px-3 py-1 rounded-full text-xs font-semibold transition-all"
+            style={selectedYear === yr
+              ? 'background:var(--ws-accent);color:#fff5ec'
+              : 'background:var(--ws-surface2);border:1px solid var(--ws-border);color:var(--ws-muted)'}>
+            {yr}
+          </button>
+        {/each}
+      </div>
       <!-- Stats row -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
         {#each [
@@ -323,21 +331,7 @@
           </div>
         {/if}
 
-        <!-- Year Switcher -->
-        <div class="rounded-xl border p-5" style="background:var(--ws-surface2);border-color:var(--ws-border)">
-          <h3 class="text-sm font-semibold mb-3" style="color:var(--ws-text)">📅 Jahr</h3>
-          <div class="flex gap-2">
-            {#each [selectedYear - 1, selectedYear, selectedYear + 1] as yr}
-              <button onclick={() => selectedYear = yr}
-                class="flex-1 py-2 rounded-xl text-sm font-semibold transition-all"
-                style={selectedYear === yr
-                  ? 'background:var(--ws-accent);color:#fff5ec'
-                  : 'background:var(--ws-surface);border:1px solid var(--ws-border);color:var(--ws-muted)'}>
-                {yr}
-              </button>
-            {/each}
-          </div>
-        </div>
+
       </div>
 
       <!-- World map -->
@@ -366,42 +360,11 @@
       {:else}
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {#each plannedWsTrips as trip}
-            {@const isFlight = trip.travel_mode === 'flight'}
-            <div class="rounded-2xl border overflow-hidden transition-all hover:shadow-md" style="border-color:var(--ws-border);background:var(--ws-surface2)">
-              <!-- Mini hero -->
-              <div class="px-5 pt-5 pb-3" style="background:linear-gradient(135deg,{isFlight ? '#1a2a4a,var(--ws-accent)' : '#1a3a2a,#2d6a4f'});min-height:80px">
-                <div class="flex items-start justify-between">
-                  <span class="text-2xl">{isFlight ? '✈️' : '🚗'}</span>
-                  <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full"
-                    style="background:rgba(255,255,255,.2);color:rgba(255,255,255,.9)">
-                    {trip.status === 'booked' ? '✓ Gebucht' : 'In Planung'}
-                  </span>
-                </div>
-                <h3 class="font-bold text-base mt-2 leading-tight" style="font-family:var(--ws-serif);color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.4)">
-                  {trip.title || trip.destination || '—'}
-                </h3>
-              </div>
-              <!-- Meta -->
-              <div class="px-5 py-3 space-y-1">
-                {#if trip.start_date}
-                  <div class="text-xs font-mono" style="color:var(--ws-muted)">📅 {trip.start_date}{trip.end_date && trip.end_date !== trip.start_date ? ' → ' + trip.end_date : ''}</div>
-                {/if}
-                {#if trip.budget}
-                  <div class="text-xs" style="color:var(--ws-muted)">💶 {trip.budget} €</div>
-                {/if}
-                {#if trip.vibes?.length}
-                  <div class="text-xs" style="color:var(--ws-muted)">{trip.vibes.slice(0,3).join(' · ')}</div>
-                {/if}
-              </div>
-              <!-- Action -->
-              <div class="px-5 pb-4">
-                <button onclick={() => goToTripHub(trip.id)}
-                  class="w-full py-2 rounded-xl text-sm font-semibold transition-all hover:opacity-85"
-                  style="background:var(--ws-accent);color:#fff5ec">
-                  {$t('plannedGoToHub')}
-                </button>
-              </div>
-            </div>
+            <TripCard
+              {trip}
+              mode="planned"
+              ongoToHub={(t) => goToTripHub(t.id)}
+            />
           {/each}
         </div>
       {/if}
@@ -451,6 +414,19 @@
         <!-- Spacer -->
         <div class="flex-1"></div>
 
+        <!-- Year compact selector -->
+        <div class="flex items-center gap-1">
+          {#each [selectedYear - 1, selectedYear, selectedYear + 1] as yr}
+            <button onclick={() => selectedYear = yr}
+              class="px-2.5 py-1 rounded-lg text-xs font-semibold transition-all"
+              style={selectedYear === yr
+                ? 'background:var(--ws-accent);color:#fff5ec'
+                : 'background:var(--ws-surface);border:1px solid var(--ws-border);color:var(--ws-muted)'}>
+              {yr}
+            </button>
+          {/each}
+        </div>
+
         <!-- Add trip button -->
         <button onclick={() => addModalOpen = true}
           class="flex items-center gap-1.5 text-xs font-bold px-4 py-1.5 rounded-lg transition-all hover:opacity-85"
@@ -459,48 +435,46 @@
         </button>
       </div>
 
-      <!-- Year filter pills -->
-      <div class="flex gap-2 overflow-x-auto pb-1">
-        {#each [selectedYear - 1, selectedYear, selectedYear + 1] as yr}
-          <button onclick={() => selectedYear = yr}
-            class="shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold transition-all"
-            style={selectedYear === yr
-              ? 'background:var(--ws-accent);color:#fff5ec'
-              : 'background:var(--ws-surface2);border:1px solid var(--ws-border);color:var(--ws-muted)'}>
-            {yr}
-          </button>
-        {/each}
-      </div>
-
       <!-- Sync result info -->
       {#if syncInfo}
         <div class="text-xs px-1" style="color:var(--ws-muted)">📡 {syncInfo}</div>
       {/if}
 
-      <!-- Timeline (reused component) -->
-      <JournalTimeline
-        {journalYear}
-        journalLoad={journalLoad}
-        {selectedYear}
-        {editingCost}
-        {costDraft}
-        {card}
-        ondelete={deleteJournalTrip}
-        onsavecost={saveCost}
-        oneditcost={(id, draft) => { editingCost = id; costDraft = draft; }}
-        oncanceledit={() => { editingCost = null; }}
-      />
+      <!-- Archive Trip Cards grid -->
+      {#if journalLoad}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {#each [1,2,3] as _}<div class="rounded-2xl border p-5 animate-pulse h-40" style="background:var(--ws-surface2);border-color:var(--ws-border)"></div>{/each}
+        </div>
+      {:else if journalYear.length === 0}
+        <div class="rounded-2xl border p-10 text-center" style="background:var(--ws-surface2);border-color:var(--ws-border)">
+          <p class="text-4xl mb-3">📓</p>
+          <p class="text-sm" style="color:var(--ws-muted)">{$t('archiveEmpty')}</p>
+        </div>
+      {:else}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {#each journalYear as trip}
+            <TripCard
+              {trip}
+              mode="archive"
+              ongoToHub={(t) => { /* view: could open detail modal in future */ }}
+              ondelete={(t) => deleteJournalTrip(t.id)}
+            />
+          {/each}
+        </div>
+      {/if}
     </div>
 
   <!-- ══ BUCKET LIST ════════════════════════════════════════════════════════ -->
   {:else if activeTab === 'bucketlist'}
     <BucketListTab
-      bind:bucketItem bind:bucketDest
-      {card} {inp} {btn}
-      onadd={addBucketItem}
+      onadd={(item, dest) => {
+        bucketlist.update(l => [...l, { item, dest, done: false, created: new Date().toISOString().slice(0, 10) }]);
+        toast($t('toastBucketAdded'), 'success');
+      }}
       ontoggle={toggleBucket}
       onremove={removeBucket}
     />
   {/if}
 
 </div>
+
