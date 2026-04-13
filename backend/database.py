@@ -202,6 +202,44 @@ def init_db():
             );
 
             -- Per-user notification credentials (Fernet-encrypted)
+
+            -- ── WanderWizzard Trips (Container-Entität) ──────────────────────────────
+            CREATE TABLE IF NOT EXISTS ws_trips (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id      INTEGER NOT NULL DEFAULT 1,
+                title        TEXT    NOT NULL DEFAULT '',
+                destination  TEXT    NOT NULL DEFAULT '',
+                start_date   TEXT,
+                end_date     TEXT,
+                trip_type    TEXT    NOT NULL DEFAULT 'flight',  -- 'flight'|'car'|'inspire'
+                budget       REAL             DEFAULT NULL,
+                path         TEXT    NOT NULL DEFAULT 'known',   -- 'known'|'inspire'
+                travel_mode  TEXT    NOT NULL DEFAULT 'flight',  -- 'flight'|'car'
+                vibes        TEXT    NOT NULL DEFAULT '[]',       -- JSON array
+                wish_text    TEXT             DEFAULT NULL,
+                flex_month   TEXT             DEFAULT NULL,
+                flex_nights  INTEGER          DEFAULT NULL,
+                max_time     TEXT             DEFAULT NULL,
+                home_airport TEXT             DEFAULT NULL,
+                adults       INTEGER NOT NULL DEFAULT 2,
+                children     INTEGER NOT NULL DEFAULT 0,
+                status       TEXT    NOT NULL DEFAULT 'planning', -- 'planning'|'booked'|'completed'
+                notes        TEXT             DEFAULT NULL,
+                created_at   TEXT    NOT NULL DEFAULT (datetime('now')),
+                updated_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+            );
+
+            -- ── Trip To-Dos (KI-generiert) ────────────────────────────────────────────
+            CREATE TABLE IF NOT EXISTS trip_todos (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                trip_id    INTEGER NOT NULL REFERENCES ws_trips(id) ON DELETE CASCADE,
+                task       TEXT    NOT NULL,
+                category   TEXT    NOT NULL DEFAULT 'general',  -- 'booking'|'packing'|'documents'|'general'
+                is_done    INTEGER NOT NULL DEFAULT 0,
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+            );
+
             CREATE TABLE IF NOT EXISTS user_notification_settings (
                 user_id             INTEGER PRIMARY KEY,
                 telegram_bot_token  TEXT DEFAULT NULL,
@@ -359,6 +397,18 @@ def init_db():
 
 
 # ── Settings helpers ──────────────────────────────────────────────────────────
+
+        # ── trip_id on tracker tables (WanderWizzard Phase B) ──────────────────
+        for _tbl in ('trackers', 'gf_trackers', 'homair_trackers', 'booking_trackers'):
+            try:
+                conn.execute(
+                    f"ALTER TABLE {_tbl} ADD COLUMN trip_id INTEGER DEFAULT NULL "
+                    f"REFERENCES ws_trips(id) ON DELETE SET NULL"
+                )
+            except Exception:
+                pass
+
+
 
 def save_setting(key: str, value: str, fernet) -> None:
     enc = fernet.encrypt(value.encode())
@@ -1402,3 +1452,145 @@ def discovery_pool_get_without_image(user_id: int, limit: int = 20) -> list[dict
             (user_id, limit)
         ).fetchall()
     return [dict(r) for r in rows]
+
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# WanderWizzard Trips CRUD
+# ══════════════════════════════════════════════════════════════════════════════
+
+def create_ws_trip(data: dict, user_id: int) -> int:
+    """Neuen WanderWizzard-Trip anlegen. Gibt die neue ID zurück."""
+    now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
+    with db() as conn:
+        cur = conn.execute(
+            """INSERT INTO ws_trips
+               (user_id, title, destination, start_date, end_date,
+                trip_type, budget, path, travel_mode,
+                vibes, wish_text, flex_month, flex_nights, max_time,
+                home_airport, adults, children, status, notes, created_at, updated_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (
+                user_id,
+                data.get("title", ""),
+                data.get("destination", ""),
+                data.get("start_date"),
+                data.get("end_date"),
+                data.get("trip_type", "flight"),
+                data.get("budget"),
+                data.get("path", "known"),
+                data.get("travel_mode", "flight"),
+                json.dumps(data.get("vibes", [])),
+                data.get("wish_text"),
+                data.get("flex_month"),
+                data.get("flex_nights"),
+                data.get("max_time"),
+                data.get("home_airport"),
+                data.get("adults", 2),
+                data.get("children", 0),
+                data.get("status", "planning"),
+                data.get("notes"),
+                now, now,
+            )
+        )
+    return cur.lastrowid
+
+
+def list_ws_trips(user_id: int, limit: int = 100) -> list[dict]:
+    """Alle WanderWizzard-Trips eines Users, neueste zuerst."""
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT * FROM ws_trips WHERE user_id=? ORDER BY created_at DESC LIMIT ?",
+            (user_id, limit)
+        ).fetchall()
+    result = []
+    for r in rows:
+        d = dict(r)
+        try:
+            d["vibes"] = json.loads(d.get("vibes") or "[]")
+        except Exception:
+            d["vibes"] = []
+        result.append(d)
+    return result
+
+
+def get_ws_trip(trip_id: int, user_id: int) -> dict | None:
+    """Einzelnen Trip laden (user-scoped)."""
+    with db() as conn:
+        row = conn.execute(
+            "SELECT * FROM ws_trips WHERE id=? AND user_id=?",
+            (trip_id, user_id)
+        ).fetchone()
+    if not row:
+        return None
+    d = dict(row)
+    try:
+        d["vibes"] = json.loads(d.get("vibes") or "[]")
+    except Exception:
+        d["vibes"] = []
+    return d
+
+
+def update_ws_trip_status(trip_id: int, status: str, user_id: int) -> bool:
+    now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
+    with db() as conn:
+        r = conn.execute(
+            "UPDATE ws_trips SET status=?, updated_at=? WHERE id=? AND user_id=?",
+            (status, now, trip_id, user_id)
+        )
+    return r.rowcount > 0
+
+
+def delete_ws_trip(trip_id: int, user_id: int) -> bool:
+    with db() as conn:
+        r = conn.execute(
+            "DELETE FROM ws_trips WHERE id=? AND user_id=?",
+            (trip_id, user_id)
+        )
+    return r.rowcount > 0
+
+
+# ── Trip To-Dos ───────────────────────────────────────────────────────────────
+
+def create_trip_todos(trip_id: int, todos: list[dict]) -> int:
+    """Bulk-insert To-Dos (aus KI oder manuell). Gibt Anzahl eingefügter Zeilen zurück."""
+    if not todos:
+        return 0
+    now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
+    with db() as conn:
+        conn.executemany(
+            """INSERT INTO trip_todos (trip_id, task, category, sort_order, created_at)
+               VALUES (?,?,?,?,?)""",
+            [
+                (trip_id, t.get("task", ""), t.get("category", "general"), i, now)
+                for i, t in enumerate(todos)
+            ]
+        )
+    return len(todos)
+
+
+def list_trip_todos(trip_id: int) -> list[dict]:
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT * FROM trip_todos WHERE trip_id=? ORDER BY sort_order, id",
+            (trip_id,)
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def toggle_trip_todo(todo_id: int, trip_id: int) -> bool:
+    with db() as conn:
+        r = conn.execute(
+            "UPDATE trip_todos SET is_done = 1 - is_done WHERE id=? AND trip_id=?",
+            (todo_id, trip_id)
+        )
+    return r.rowcount > 0
+
+
+def delete_trip_todo(todo_id: int, trip_id: int) -> bool:
+    with db() as conn:
+        r = conn.execute(
+            "DELETE FROM trip_todos WHERE id=? AND trip_id=?",
+            (todo_id, trip_id)
+        )
+    return r.rowcount > 0
