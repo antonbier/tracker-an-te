@@ -27,6 +27,7 @@ from discovery_fallbacks import router as fallback_router
 from routes.auth import router_status, router_auth, router_admin
 from routes import dawarich as dawarich_route
 from routes import trips as trips_route
+from routes import ws_trips as ws_trips_route
 from routes import passkey as passkey_route
 from routes import scheduler as scheduler_route
 
@@ -134,6 +135,7 @@ app.include_router(discover.router,            prefix="/api/discover",         t
 app.include_router(settings_route.router,      prefix="/api/settings",         tags=["Settings"])
 app.include_router(dawarich_route.router,      prefix="/api/dawarich",         tags=["Dawarich"])
 app.include_router(trips_route.router,         prefix="/api/trips",            tags=["Trips"])
+app.include_router(ws_trips_route.router,    prefix="/api/ws-trips",         tags=["WsTrips"])
 app.include_router(dashboard_route.router,     prefix="/api/dashboard",        tags=["Dashboard"])
 app.include_router(userdata_route.router,      prefix="/api/userdata",         tags=["UserData"])
 app.include_router(notifications_route.router, prefix="/api/notifications",    tags=["Notifications"])
@@ -151,3 +153,4 @@ app.include_router(passkey_route.router,     prefix="/api/auth/passkeys",  tags=
 @app.get("/api/health")
 def health():
     return {"status": "ok", "version": APP_VERSION, "channel": CHANNEL}
+
