@@ -61,6 +61,13 @@
 
   <!-- ── Hero header ──────────────────────────────────────────────────────── -->
   <div class="px-5 pt-5 pb-3 relative" style="background:{heroGradient};min-height:88px">
+    <!-- Stable background image via picsum (seed = trip.id for consistency) -->
+    {#if trip.id}
+      <img src="https://picsum.photos/seed/{trip.id}/400/200"
+        alt=""
+        class="absolute inset-0 w-full h-full object-cover opacity-15 pointer-events-none"
+        aria-hidden="true" />
+    {/if}
     <div class="flex items-start justify-between">
       <span class="text-2xl">{travelIcon}</span>
 
