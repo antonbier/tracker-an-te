@@ -2140,3 +2140,40 @@ currentPage.set('priceradar');
 ```
 
 PriceRadar liest `priceradarParams` beim Mount und füllt Formular vor.
+
+---
+
+## Bugfix-Paket 1 (April 2026)
+
+### Bug 1 – Sidebar Routing / Planer Modal-Freeze
+**Problem:** `WanderWizzard` renderte sich als `fixed inset-0 z-50`-Overlay mit Backdrop. Der `$effect(() => { if (!open) open = true; })` in `Planer.svelte` verhinderte das Schließen und fror das UI ein.
+
+**Fix:**
+- `WanderWizzard.svelte`: Neuer `embedded`-Prop (default `false`). Im embedded-Modus wird der `fixed`-Backdrop-Wrapper weggelassen; der Inhalt rendert sich als normales Block-Element.
+- `Planer.svelte`: `embedded={true}` gesetzt, `$effect`-Reopener entfernt.
+
+### Bug 2 – Deep-Link TripHub → PriceRadar
+**Problem:** `applyPriceradarParams()` wurde nur in `onMount()` aufgerufen. Da `currentPage`-Wechsel und Store-Setzung synchron passieren, konnte PriceRadar den Store verpassen.
+
+**Fix:** Zusätzlich ein `$effect(() => { if ($priceradarParams) applyPriceradarParams(); })` in `PriceRadar.svelte` – reagiert reaktiv auf Store-Änderungen auch nach dem Mount.
+
+### Bug 3 – Trip-Link Dropdown schwebt global
+**Problem:** Das `wsTrips`-Dropdown war permanent sichtbar über der Tracker-Grid-Liste.
+
+**Fix:** Dropdown wird nur noch gerendert wenn `searchResults.length > 0` – es ist damit kontextuell an den Such-/Speicher-Flow gebunden. `wsTrips`-Filter bleibt: nur Trips mit `start_date >= today`.
+
+### Bug 4 – Settings Alerts Tab reagiert nicht
+**Problem:** `tabIds` und `tabLabels` nutzten `$derived.by()` mit `$t()`-Store-Calls, was in Svelte 5 zu Reaktivitätsproblemen führen kann.
+
+**Fix:** Umgestellt auf `$derived` (ohne `.by()`) – einfacher Ausdruck statt Callback-Funktion.
+
+### Bug 5 – Archiv-Modus TripHub
+**Problem:** Vergangene Reisen (`end_date < heute`) zeigten Status „In Planung" und waren voll editierbar.
+
+**Fix in `TripHub.svelte`:**
+- `isArchived = $derived.by(...)`: `true` wenn `trip.end_date < heute`.
+- `statusLabel`: gibt `$t('tripCardExperienced')` ("ERLEBT") zurück wenn `isArchived`.
+- `statusColor`: `var(--ws-muted)` wenn `isArchived`.
+- Zustand A (leerer Slot): Suchen-Button ausgeblendet (`{#if !isArchived}`), ersetzt durch gedimmte Read-Only-Anzeige.
+- Zustand B (Tracker aktiv): „Als gebucht markieren"-Button ausgeblendet wenn `isArchived`.
+- Checkliste: Todo-Eingabefeld + Löschen-Button ausgeblendet wenn `isArchived`. Liste wird rein informativ.
