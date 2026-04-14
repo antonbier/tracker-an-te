@@ -2206,3 +2206,46 @@ PriceRadar liest `priceradarParams` beim Mount und füllt Formular vor.
 
 ### i18n neue Keys
 `trackerLinkTrip`, `trackerNoTrips`, `radarLastScan`, `radarNoScanYet`, `radarTotal`, `radarNoTypeTrackers`, `viewGrid`, `viewList` — in DE/EN/IT/ES
+
+---
+
+## Lifecycle-Paket 3 (April 2026)
+
+### Feature 1 – Lifecycle-Engine (3 Phasen)
+`TripHub.svelte` hat jetzt einen `phase`-Derived-State:
+- `planning`: `today < start_date`
+- `active`: `today >= start_date && today <= end_date` → grüner Hero-Gradient, pulsierender Badge
+- `archived`: `today > end_date` → gedämpft, Read-Only
+
+`statusLabel` gibt je Phase: „IN PLANUNG" / „ON TOUR" / „ERLEBT".
+Action Slots (PriceRadar-Deep-Links) sind nur in `planning` sichtbar.
+
+### Feature 2 – Live-Wetter Widget (Open-Meteo, kostenfrei)
+Wenn `phase === 'active'` oder `daysUntilStart <= 7`:
+1. Geocoding: `https://geocoding-api.open-meteo.com/v1/search?name={destination}`
+2. Forecast: `https://api.open-meteo.com/v1/forecast?...&current_weather=true`
+Anzeige im Hero als kleines Badge: `{icon} {temp}°C {city}`.
+WMO-Wettercodes werden zu Emoji gemappt.
+
+### Feature 3 – Vision-Platzhalter
+- Phase `active`: Grid mit „Reisetagebuch" + „Tagesausflüge" (gestrichelt, Coming-Soon-Badge)
+- Phase `archived`: „Foto-Galerie (Immich)" mit Hinweis-Text
+
+### Feature 4 – Manuelle Ausgaben
+- DB-Migration: `ws_trips.manual_expenses REAL NOT NULL DEFAULT 0`
+- PATCH `/api/ws-trips/{id}/manual-expenses` → speichert Wert
+- Budget-Endpoint gibt jetzt `manual_expenses` zurück, zieht diesen von `on_site_budget` ab
+- UI: editierbares Inline-Feld im Budget-Block, alle 3 Phasen
+
+### Feature 5 – KI To-Dos Upgrade + Regenerieren
+- Prompt: „10 bis 15 spezifische To-Dos", `max_tokens` 400→800, Limit 7→15
+- POST `/api/ws-trips/{id}/todos/regenerate` löscht bestehende Todos und regeneriert
+- UI: „🔄 Neu generieren"-Button im Checklisten-Header, nur in Phase `planning`
+
+### Feature 6 – Image Fallback (Picsum statt Unsplash)
+- `TripCard.svelte`: `<img src="https://picsum.photos/seed/{trip.id}/400/200">` im Hero (opacity-15)
+- `TripHub.svelte`: Gleiche Logik im Hero, nur in Phase `active`
+- Seed = `trip.id` → Bild ist bei jedem Reload stabil
+
+### i18n neue Keys
+`tripPhaseActive`, `tripPhaseActiveCountdown`, `hubManualExp`, `hubManualExpSaved`, `hubRegenTodos`, `placeholderJournal`, `placeholderDayTrips`, `placeholderGallery`, `placeholderGalleryHint` — DE/EN/IT/ES
