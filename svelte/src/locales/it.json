@@ -336,5 +336,14 @@
   "radarTotal": "totale",
   "radarNoTypeTrackers": "Nessun",
   "viewGrid": "Griglia",
-  "viewList": "Lista"
+  "viewList": "Lista",
+  "tripPhaseActive": "IN VIAGGIO",
+  "tripPhaseActiveCountdown": "Ancora {n} giorni",
+  "hubManualExp": "Spese in contanti",
+  "hubManualExpSaved": "Spese salvate ✓",
+  "hubRegenTodos": "🔄 Rigenera",
+  "placeholderJournal": "Diario di viaggio",
+  "placeholderDayTrips": "Gite giornaliere",
+  "placeholderGallery": "Galleria foto (Immich)",
+  "placeholderGalleryHint": "Collega la tua istanza Immich per le foto di viaggio automatiche"
 }
