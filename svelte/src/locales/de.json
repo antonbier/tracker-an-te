@@ -430,5 +430,13 @@
   "hubSearchHint": "Mit Reisedaten vorausgefüllt",
   "archiveTripSkipTodos": "(vergangene Reise – keine Todos generiert)",
   "radarLinkTrip": "Mit Reise verknüpfen",
-  "radarNoTripLink": "Keine Verknüpfung (optional)"
+  "radarNoTripLink": "Keine Verknüpfung (optional)",
+  "trackerLinkTrip": "Zu Reise hinzufügen",
+  "trackerNoTrips": "Keine aktiven Reisen",
+  "radarLastScan": "Stand",
+  "radarNoScanYet": "noch kein Preis-Scan",
+  "radarTotal": "gesamt",
+  "radarNoTypeTrackers": "Keine",
+  "viewGrid": "Raster",
+  "viewList": "Liste"
 }
