@@ -29,13 +29,13 @@
 
   const authEnabled = $derived(!!$appStatus?.auth_enabled);
 
-  const tabIds = $derived.by(() => {
-    if ($isAdmin && authEnabled) return TAB_IDS_ADMIN;
-    if (authEnabled) return TAB_IDS_AUTH;
-    return TAB_IDS_NOAUTH;
-  });
+  const tabIds = $derived(
+    ($isAdmin && authEnabled) ? TAB_IDS_ADMIN :
+    authEnabled ? TAB_IDS_AUTH :
+    TAB_IDS_NOAUTH
+  );
 
-  const tabLabels = $derived.by(() => ({
+  const tabLabels = $derived({
     basic:         $t('settingsBasic'),
     integrations:  $t('settingsIntegrations'),
     notifications: $t('settingsNotifications'),
@@ -43,7 +43,7 @@
     account:       $t('settingsAccount'),
     admin:         $t('settingsAdmin'),
     scheduler:     '⏰ ' + ($t('settingsScheduler') || 'Scheduler'),
-  }));
+  });
 
   // ── Basic tab state ───────────────────────────────────────────────────────
   let urlInput      = $state('');
