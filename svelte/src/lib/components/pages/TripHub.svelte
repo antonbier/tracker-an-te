@@ -45,9 +45,16 @@
       trip  = res;
       todos = res.todos || [];
       manualExpDraft = String(res.manual_expenses || 0);
-      // Fetch weather if needed
-      if (res.destination && (phase === 'active' || daysUntilStart <= 7)) {
-        fetchWeather(res.destination);
+      // Fetch weather: compute phase inline (derived not yet updated)
+      if (res.destination) {
+        const _today = new Date().toISOString().slice(0, 10);
+        const _start = res.start_date || '';
+        const _end   = res.end_date   || res.start_date || '';
+        const _days  = _start ? Math.ceil((new Date(_start) - new Date()) / 86400000) : 999;
+        const _phase = _today > _end ? 'archived' : _today >= _start ? 'active' : 'planning';
+        if (_phase === 'active' || _days <= 7) {
+          fetchWeather(res.destination);
+        }
       }
     } catch { toast('Trip konnte nicht geladen werden', 'error'); }
   }
@@ -259,12 +266,7 @@
     } catch (e) { toast(e.message, 'error'); }
   }
 
-  // Trigger weather load reactively after trip is loaded
-  $effect(() => {
-    if (trip?.destination && (phase === 'active' || daysUntilStart <= 7) && !weather && !weatherLoad) {
-      fetchWeather(trip.destination);
-    }
-  });
+  // Weather is fetched once inside loadTrip() after trip data is available.
 </script>
 
 <!-- ── Book Modal ──────────────────────────────────────────────────────────── -->
