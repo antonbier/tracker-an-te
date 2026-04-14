@@ -15,12 +15,12 @@ from database import (
     delete_homair_tracker, save_homair_snapshot, get_latest_homair_snapshot,
     create_booking_tracker, list_booking_trackers, get_booking_tracker,
     delete_booking_tracker, save_booking_snapshot, get_latest_booking_snapshot,
+,
+    link_tracker_to_trip,
 )
 from homair_scraper import fetch_homair as scrape_homair
 from booking_scraper import fetch_booking as scrape_booking
 from settings_manager import get_setting_value
-from auth_jwt import get_current_user
-
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
@@ -181,3 +181,17 @@ def scrape_booking_tracker(tracker_id: int, user: dict = Depends(get_current_use
         raise
     except Exception as e:
         raise HTTPException(500, str(e))
+
+
+class AccomTripLinkPayload(BaseModel):
+    trip_id: Optional[int] = None
+
+@router.patch("/homair/{tracker_id}/link-trip")
+def link_homair_trip(tracker_id: int, data: AccomTripLinkPayload, user: dict = Depends(get_current_user)):
+    ok = link_tracker_to_trip(tracker_id, "camping", data.trip_id)
+    return {"ok": ok, "trip_id": data.trip_id}
+
+@router.patch("/booking/{tracker_id}/link-trip")
+def link_booking_trip(tracker_id: int, data: AccomTripLinkPayload, user: dict = Depends(get_current_user)):
+    ok = link_tracker_to_trip(tracker_id, "hotel", data.trip_id)
+    return {"ok": ok, "trip_id": data.trip_id}
