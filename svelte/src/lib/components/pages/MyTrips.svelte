@@ -13,7 +13,8 @@
   import TripCard from '$lib/components/mytrips/TripCard.svelte';
 
   // ── Tabs ───────────────────────────────────────────────────────────────────
-  let activeTab = $state('overview');
+  let activeTab  = $state('overview');
+  let viewMode   = $state('grid'); // 'grid' | 'list'
 
   const tabs = $derived([
     { id: 'overview',   label: $t('tabOverview') },
@@ -262,10 +263,10 @@
   </div>
 {/if}
 
-<div class="space-y-4">
+<div class="w-full space-y-4">
 
   <!-- ── Tab Bar ─────────────────────────────────────────────────────────── -->
-  <div class="flex gap-1 overflow-x-auto pb-1">
+  <div class="flex items-center gap-1 overflow-x-auto pb-1">
     {#each tabs as tab}
       <button onclick={() => activeTab = tab.id}
         class="shrink-0 px-4 py-2 rounded-xl text-sm font-semibold transition-all whitespace-nowrap"
@@ -275,6 +276,31 @@
         {tab.label}
       </button>
     {/each}
+    <!-- View toggle (planned + archive) -->
+    {#if activeTab === 'planned' || activeTab === 'archive'}
+      <div class="ml-auto flex items-center gap-1 shrink-0">
+        <button onclick={() => viewMode = 'grid'}
+          class="p-2 rounded-xl border transition-all"
+          style={viewMode === 'grid'
+            ? 'background:var(--ws-accent);color:#fff5ec;border-color:var(--ws-accent)'
+            : 'background:var(--ws-surface2);color:var(--ws-muted);border-color:var(--ws-border)'}>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+            <rect x="0" y="0" width="6" height="6" rx="1"/><rect x="8" y="0" width="6" height="6" rx="1"/>
+            <rect x="0" y="8" width="6" height="6" rx="1"/><rect x="8" y="8" width="6" height="6" rx="1"/>
+          </svg>
+        </button>
+        <button onclick={() => viewMode = 'list'}
+          class="p-2 rounded-xl border transition-all"
+          style={viewMode === 'list'
+            ? 'background:var(--ws-accent);color:#fff5ec;border-color:var(--ws-accent)'
+            : 'background:var(--ws-surface2);color:var(--ws-muted);border-color:var(--ws-border)'}>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+            <rect x="0" y="1" width="14" height="2" rx="1"/><rect x="0" y="6" width="14" height="2" rx="1"/>
+            <rect x="0" y="11" width="14" height="2" rx="1"/>
+          </svg>
+        </button>
+      </div>
+    {/if}
   </div>
 
   <!-- ══ OVERVIEW ══════════════════════════════════════════════════════════ -->
@@ -357,8 +383,32 @@
             🧙 {$t('navPlaner')}
           </button>
         </div>
+      {:else if viewMode === 'list'}
+        <div class="rounded-2xl border overflow-hidden" style="border-color:var(--ws-border)">
+          {#each plannedWsTrips as trip, i}
+            <div class="flex items-center gap-4 px-5 py-3 transition-all hover:opacity-90 cursor-pointer {i > 0 ? 'border-t' : ''}"
+              style="background:var(--ws-surface);border-color:var(--ws-border)"
+              role="button" tabindex="0"
+              onclick={() => goToTripHub(trip.id)}
+              onkeydown={(e) => e.key === 'Enter' && goToTripHub(trip.id)}>
+              <span class="text-2xl shrink-0">{trip.travel_mode === 'car' ? '🚗' : '✈️'}</span>
+              <div class="flex-1 min-w-0">
+                <div class="font-semibold text-sm truncate" style="font-family:var(--ws-serif);color:var(--ws-text)">{trip.title || trip.destination || 'Reise'}</div>
+                {#if trip.destination}<div class="text-xs" style="color:var(--ws-muted)">📍 {trip.destination}</div>{/if}
+              </div>
+              {#if trip.start_date}
+                <div class="text-xs font-mono shrink-0" style="color:var(--ws-muted)">{trip.start_date}{trip.end_date && trip.end_date !== trip.start_date ? ' → ' + trip.end_date : ''}</div>
+              {/if}
+              <span class="text-xs px-2 py-0.5 rounded-full font-semibold shrink-0"
+                style="background:color-mix(in srgb,var(--ws-accent) 12%,var(--ws-surface));color:var(--ws-accent)">
+                {trip.status === 'booked' ? $t('tripHubStatusBooked') : $t('tripHubStatusPlanning')}
+              </span>
+              <span style="color:var(--ws-muted)">›</span>
+            </div>
+          {/each}
+        </div>
       {:else}
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
           {#each plannedWsTrips as trip}
             <TripCard
               {trip}
@@ -450,8 +500,32 @@
           <p class="text-4xl mb-3">📓</p>
           <p class="text-sm" style="color:var(--ws-muted)">{$t('archiveEmpty')}</p>
         </div>
+      {:else if viewMode === 'list'}
+        <div class="rounded-2xl border overflow-hidden" style="border-color:var(--ws-border)">
+          {#each journalYear as trip, i}
+            <div class="flex items-center gap-4 px-5 py-3 transition-all hover:opacity-90 {i > 0 ? 'border-t' : ''}"
+              style="background:var(--ws-surface);border-color:var(--ws-border)">
+              <span class="text-2xl shrink-0">🌍</span>
+              <div class="flex-1 min-w-0 cursor-pointer"
+                role="button" tabindex="0"
+                onclick={() => { if (trip.id) { activeWsTripId.set(trip.id); currentPage.set('triphub'); } }}
+                onkeydown={(e) => e.key === 'Enter' && trip.id && (activeWsTripId.set(trip.id), currentPage.set('triphub'))}>
+                <div class="font-semibold text-sm truncate" style="font-family:var(--ws-serif);color:var(--ws-text)">{trip.name || trip.destination || 'Reise'}</div>
+                {#if trip.start_date}
+                  <div class="text-xs font-mono" style="color:var(--ws-muted)">{trip.start_date}{trip.end_date && trip.end_date !== trip.start_date ? ' → ' + trip.end_date : ''}</div>
+                {/if}
+              </div>
+              {#if (trip.cost ?? trip.auto_cost)}
+                <div class="text-sm font-mono font-bold shrink-0" style="color:var(--ws-text)">{parseFloat(trip.cost ?? trip.auto_cost).toFixed(0)} €</div>
+              {/if}
+              <button onclick={() => deleteJournalTrip(trip.id)}
+                class="text-xs px-2 py-1 rounded-lg border hover:border-red-400 hover:text-red-400 shrink-0 transition-colors"
+                style="border-color:var(--ws-border);color:var(--ws-muted)">✕</button>
+            </div>
+          {/each}
+        </div>
       {:else}
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
           {#each journalYear as trip}
             <TripCard
               {trip}
