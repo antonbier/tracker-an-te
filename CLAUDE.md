@@ -2177,3 +2177,32 @@ PriceRadar liest `priceradarParams` beim Mount und füllt Formular vor.
 - Zustand A (leerer Slot): Suchen-Button ausgeblendet (`{#if !isArchived}`), ersetzt durch gedimmte Read-Only-Anzeige.
 - Zustand B (Tracker aktiv): „Als gebucht markieren"-Button ausgeblendet wenn `isArchived`.
 - Checkliste: Todo-Eingabefeld + Löschen-Button ausgeblendet wenn `isArchived`. Liste wird rein informativ.
+
+---
+
+## UX/UI-Paket 2 (April 2026)
+
+### Feature 1 – Full-Width Layout & 2XL-Grid (MyTrips)
+- Haupt-Container `<div class="w-full space-y-4">` statt fester Breite
+- Grid-Klassen `2xl:grid-cols-4` ergänzt in Planned-, Archive- und TrackerGrid
+
+### Feature 2 – Ansichts-Toggle Grid/Liste (MyTrips)
+- `viewMode = $state('grid' | 'list')` in `MyTrips.svelte`
+- Toggle erscheint rechts in der Tab-Bar nur wenn activeTab === 'planned' | 'archive'
+- Listenansicht: kompakte tabellarische Zeilen mit Klick auf TripHub
+
+### Feature 3 – Auto-Trip Slot-Dimming (TripHub)
+- `isCarSlot` derived per Slot-Iteration: `slot.key === 'flight' && trip?.travel_mode === 'car'`
+- CSS-Klassen `opacity-40 grayscale` auf dem Slot-Container
+
+### Feature 4 – TrackerCard Redesign + "Zu Reise hinzufügen"
+- Neues Hero-Band mit typ-spezifischem Gradient (Flug: Blau-Orange, Hotel: Lila, Camping: Grün)
+- Buchen-Button im Hero-Header (glassmorphism)
+- `wsTrips`-Prop: Liste aktiver Trips (gefiltert in PriceRadar: `start_date >= heute`)
+- `onlinktrip(tracker, tripId)` Callback → `PATCH /api/{type}/{id}/link-trip`
+- Verknüpfter Trip wird als Badge mit Entfernen-Option angezeigt
+- Backend: neuer `PATCH /{id}/link-trip` Endpoint in trackers.py, accommodations.py, google_flights.py
+- Alle nutzen `link_tracker_to_trip()` aus `database.py`
+
+### i18n neue Keys
+`trackerLinkTrip`, `trackerNoTrips`, `radarLastScan`, `radarNoScanYet`, `radarTotal`, `radarNoTypeTrackers`, `viewGrid`, `viewList` — in DE/EN/IT/ES
