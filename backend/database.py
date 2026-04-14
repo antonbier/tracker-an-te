@@ -386,6 +386,8 @@ def init_db():
             ("user_settings",    "history_mode TEXT DEFAULT NULL"),
             # Discovery Pool
             ("discovery_pool",   "shown INTEGER NOT NULL DEFAULT 0"),
+            # WS-Trips: manual expenses
+            ("ws_trips",         "manual_expenses REAL NOT NULL DEFAULT 0"),
         ]
         for table, col_def in migrations:
             col_name = col_def.split()[0]
