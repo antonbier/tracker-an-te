@@ -328,5 +328,13 @@
   "wwFlexMonthOptions": "Gennaio,Febbraio,Marzo,Aprile,Maggio,Giugno,Luglio,Agosto,Settembre,Ottobre,Novembre,Dicembre,Primavera,Estate,Autunno,Inverno",
   "wwAdultsShort": "Ad.",
   "wwChildrenShort": "Bam.",
-  "wwInspireModeNote": "ℹ️ Nessuna destinazione necessaria — l'assistente troverà i posti giusti per te."
+  "wwInspireModeNote": "ℹ️ Nessuna destinazione necessaria — l'assistente troverà i posti giusti per te.",
+  "trackerLinkTrip": "Aggiungi al viaggio",
+  "trackerNoTrips": "Nessun viaggio attivo",
+  "radarLastScan": "Aggiornato",
+  "radarNoScanYet": "nessuna scansione prezzi",
+  "radarTotal": "totale",
+  "radarNoTypeTrackers": "Nessun",
+  "viewGrid": "Griglia",
+  "viewList": "Lista"
 }
