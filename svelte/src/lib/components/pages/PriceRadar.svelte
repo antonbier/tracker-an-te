@@ -314,17 +314,28 @@
     }
   }
 
+  // ── Link tracker to trip ─────────────────────────────────────────────────
+  async function linkTrip(tracker, tripId) {
+    const endpointMap = {
+      flight:        `/api/trackers/${tracker.id}/link-trip`,
+      google_flight: `/api/google-flights/${tracker.id}/link-trip`,
+      camping:       `/api/accommodations/homair/${tracker.id}/link-trip`,
+      hotel:         `/api/accommodations/booking/${tracker.id}/link-trip`,
+    };
+    const ep = endpointMap[tracker._type];
+    if (!ep) return;
+    try {
+      await api(ep, { method: 'PATCH', body: JSON.stringify({ trip_id: tripId }) });
+      const label = wsTrips.find(t => t.id === tripId)?.title || (tripId ? 'Trip #' + tripId : null);
+      toast(tripId ? `🔗 ${label} verknüpft ✓` : '🔗 Verknüpfung entfernt', 'success');
+      await loadAllTrackers();
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
   onMount(() => {
     loadAllTrackers();
     loadWsTrips();
     applyPriceradarParams();
-  });
-
-  // Reactive: re-apply if priceradarParams is set after mount (e.g. from TripHub deep-link)
-  $effect(() => {
-    if ($priceradarParams) {
-      applyPriceradarParams();
-    }
   });
 </script>
 
@@ -355,8 +366,8 @@
     </div>
   {/if}
 
-  <!-- Trip linking selector — shown only when search results are present -->
-  {#if wsTrips.length > 0 && searchResults.length > 0}
+  <!-- Trip linking selector (shown when wsTrips available) -->
+  {#if wsTrips.length > 0}
     <div class="flex items-center gap-3 px-4 py-2.5 rounded-xl border text-sm"
       style="background:var(--ws-surface2);border-color:var(--ws-border)">
       <span class="text-sm shrink-0" style="color:var(--ws-muted)">🔗 {$t('radarLinkTrip')}</span>
@@ -395,6 +406,7 @@
     loading={trackersLoading}
     {isRefreshing}
     {activeCategory}
+    {wsTrips}
     bind:chartState
     bind:wishState
     bind:stopsOpen
@@ -403,6 +415,7 @@
     onscrape={scrapeTracker}
     onwishsave={saveWishPrice}
     ontogglerchart={toggleChart}
+    onlinktrip={linkTrip}
   />
 
 </div>
