@@ -438,5 +438,14 @@
   "radarTotal": "gesamt",
   "radarNoTypeTrackers": "Keine",
   "viewGrid": "Raster",
-  "viewList": "Liste"
+  "viewList": "Liste",
+  "tripPhaseActive": "ON TOUR",
+  "tripPhaseActiveCountdown": "Noch {n} Tage",
+  "hubManualExp": "Barausgaben",
+  "hubManualExpSaved": "Barausgaben gespeichert ✓",
+  "hubRegenTodos": "🔄 Neu generieren",
+  "placeholderJournal": "Reisetagebuch",
+  "placeholderDayTrips": "Tagesausflüge",
+  "placeholderGallery": "Foto-Galerie (Immich)",
+  "placeholderGalleryHint": "Verknüpfe deine Immich-Instanz für automatische Reisefotos"
 }
