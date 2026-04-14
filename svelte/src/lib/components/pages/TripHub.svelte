@@ -257,8 +257,9 @@
         {@const tracker = slots[slot.key] || slots.camping}
         {@const isBooked = tracker?.is_booked}
         {@const trackerType = tracker?._type || slot.type}
+        {@const isCarSlot = slot.key === 'flight' && trip?.travel_mode === 'car'}
 
-        <div class="rounded-2xl border overflow-hidden transition-all"
+        <div class="rounded-2xl border overflow-hidden transition-all {isCarSlot ? 'opacity-40 grayscale' : ''}"
           style="border-color:{isBooked ? 'var(--ws-green,#2d6a4f)' : 'var(--ws-border)'};background:var(--ws-surface2);{isBooked ? 'box-shadow:0 0 0 2px rgba(22,163,74,.15)' : ''}">
 
           {#if !tracker}
