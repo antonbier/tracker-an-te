@@ -247,5 +247,13 @@
   "toastBucketAdded": "Añadido ✓",
   "toastBudgetSaved": "Presupuesto guardado",
   "toastSaved": "Ajustes guardados ✓",
-  "toastTripAdded": "Viaje añadido"
+  "toastTripAdded": "Viaje añadido",
+  "trackerLinkTrip": "Añadir a viaje",
+  "trackerNoTrips": "Sin viajes activos",
+  "radarLastScan": "Actualizado",
+  "radarNoScanYet": "sin escaneo de precios",
+  "radarTotal": "total",
+  "radarNoTypeTrackers": "Sin",
+  "viewGrid": "Cuadrícula",
+  "viewList": "Lista"
 }
