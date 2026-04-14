@@ -430,5 +430,13 @@
   "hubSearchHint": "Pre-filled with trip dates",
   "archiveTripSkipTodos": "(past trip – todos skipped)",
   "radarLinkTrip": "Link to trip",
-  "radarNoTripLink": "No trip link (optional)"
+  "radarNoTripLink": "No trip link (optional)",
+  "trackerLinkTrip": "Add to trip",
+  "trackerNoTrips": "No active trips",
+  "radarLastScan": "As of",
+  "radarNoScanYet": "no price scan yet",
+  "radarTotal": "total",
+  "radarNoTypeTrackers": "No",
+  "viewGrid": "Grid",
+  "viewList": "List"
 }
