@@ -12,6 +12,8 @@ from database import (
     create_gf_tracker, list_gf_trackers, get_gf_tracker,
     delete_gf_tracker, save_gf_snapshot, get_gf_history,
     get_latest_gf_snapshot,
+,
+    link_tracker_to_trip,
 )
 from google_scraper import fetch_google_flights as scrape_google_flights
 from settings_manager import get_setting_value
@@ -126,3 +128,12 @@ def scrape(tracker_id: int, user: dict = Depends(get_current_user)):
     except Exception as e:
         logger.error(f"GF scrape error: {e}")
         raise HTTPException(500, str(e))
+
+
+class GfTripLinkPayload(BaseModel):
+    trip_id: Optional[int] = None
+
+@router.patch("/{tracker_id}/link-trip")
+def link_gf_trip(tracker_id: int, data: GfTripLinkPayload, user: dict = Depends(get_current_user)):
+    ok = link_tracker_to_trip(tracker_id, "google_flight", data.trip_id)
+    return {"ok": ok, "trip_id": data.trip_id}
