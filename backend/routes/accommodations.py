@@ -20,6 +20,7 @@ from database import (
 from homair_scraper import fetch_homair as scrape_homair
 from booking_scraper import fetch_booking as scrape_booking
 from settings_manager import get_setting_value
+from auth_jwt import get_current_user
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
