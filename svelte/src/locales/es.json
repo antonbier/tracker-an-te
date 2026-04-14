@@ -255,5 +255,14 @@
   "radarTotal": "total",
   "radarNoTypeTrackers": "Sin",
   "viewGrid": "Cuadrícula",
-  "viewList": "Lista"
+  "viewList": "Lista",
+  "tripPhaseActive": "DE VIAJE",
+  "tripPhaseActiveCountdown": "Quedan {n} días",
+  "hubManualExp": "Gastos en efectivo",
+  "hubManualExpSaved": "Gastos guardados ✓",
+  "hubRegenTodos": "🔄 Regenerar",
+  "placeholderJournal": "Diario de viaje",
+  "placeholderDayTrips": "Excursiones del día",
+  "placeholderGallery": "Galería de fotos (Immich)",
+  "placeholderGalleryHint": "Conecta tu instancia de Immich para fotos de viaje automáticas"
 }
