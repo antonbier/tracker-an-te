@@ -319,6 +319,13 @@
     loadWsTrips();
     applyPriceradarParams();
   });
+
+  // Reactive: re-apply if priceradarParams is set after mount (e.g. from TripHub deep-link)
+  $effect(() => {
+    if ($priceradarParams) {
+      applyPriceradarParams();
+    }
+  });
 </script>
 
 <!-- ── Page ── -->
@@ -348,8 +355,8 @@
     </div>
   {/if}
 
-  <!-- Trip linking selector (shown when wsTrips available) -->
-  {#if wsTrips.length > 0}
+  <!-- Trip linking selector — shown only when search results are present -->
+  {#if wsTrips.length > 0 && searchResults.length > 0}
     <div class="flex items-center gap-3 px-4 py-2.5 rounded-xl border text-sm"
       style="background:var(--ws-surface2);border-color:var(--ws-border)">
       <span class="text-sm shrink-0" style="color:var(--ws-muted)">🔗 {$t('radarLinkTrip')}</span>
