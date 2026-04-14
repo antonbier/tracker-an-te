@@ -56,13 +56,21 @@
     return null;
   });
 
+  // ── Archive mode: trip whose end_date is in the past ─────────────────────
+  const isArchived = $derived.by(() => {
+    if (!trip?.end_date) return false;
+    return trip.end_date < new Date().toISOString().slice(0, 10);
+  });
+
   const statusLabel = $derived.by(() => {
     if (!trip) return '';
+    if (isArchived) return $t('tripCardExperienced') || 'ERLEBT';
     return { planning: $t('tripHubStatusPlanning'), booked: $t('tripHubStatusBooked'), completed: $t('tripHubStatusDone') }[trip.status] || trip.status;
   });
-  const statusColor = $derived.by(() => ({
-    planning: 'var(--ws-accent)', booked: 'var(--ws-green)', completed: 'var(--ws-muted)'
-  }[trip?.status] || 'var(--ws-muted)'));
+  const statusColor = $derived.by(() => {
+    if (isArchived) return 'var(--ws-muted)';
+    return ({ planning: 'var(--ws-accent)', booked: 'var(--ws-green)', completed: 'var(--ws-muted)' }[trip?.status] || 'var(--ws-muted)');
+  });
 
   const heroBg = $derived.by(() => {
     if (!trip) return 'linear-gradient(135deg,#1e293b,#374151)';
@@ -254,7 +262,8 @@
           style="border-color:{isBooked ? 'var(--ws-green,#2d6a4f)' : 'var(--ws-border)'};background:var(--ws-surface2);{isBooked ? 'box-shadow:0 0 0 2px rgba(22,163,74,.15)' : ''}">
 
           {#if !tracker}
-            <!-- State A: Empty — Deep link to PriceRadar -->
+            <!-- State A: Empty — Deep link to PriceRadar (hidden for archived trips) -->
+            {#if !isArchived}
             <button onclick={() => goSearch(slot.type)}
               class="w-full flex flex-col items-center gap-2 p-5 transition-all hover:opacity-85 active:scale-[.98]">
               <span class="text-3xl">{slot.icon}</span>
@@ -266,6 +275,12 @@
               {/if}
               <span class="text-xs" style="color:var(--ws-muted)">PriceRadar →</span>
             </button>
+            {:else}
+            <div class="w-full flex flex-col items-center gap-2 p-5 opacity-40">
+              <span class="text-3xl">{slot.icon}</span>
+              <span class="text-sm text-center" style="color:var(--ws-muted)">{slot.emptyLabel}</span>
+            </div>
+            {/if}
 
           {:else if isBooked}
             <!-- State C: Booked — green, show final price -->
@@ -319,11 +334,13 @@
                     {$t('hubSlotBook')}
                   </a>
                 {/if}
+                {#if !isArchived}
                 <button onclick={() => openBookModal(tracker.id, trackerType, slot.key)}
                   class="flex-1 text-xs font-semibold px-2 py-1.5 rounded-lg border transition-all hover:opacity-80"
                   style="border-color:var(--ws-green,#2d6a4f);color:var(--ws-green,#2d6a4f)">
                   {$t('hubSlotMarkBooked')}
                 </button>
+                {/if}
               </div>
             </div>
           {/if}
@@ -407,11 +424,12 @@
               </button>
               <span class="text-base shrink-0">{catIcon(todo.category)}</span>
               <span class="flex-1 text-sm" style="color:var(--ws-text);{todo.is_done ? 'text-decoration:line-through' : ''}">{todo.task}</span>
-              <button onclick={() => deleteTodo(todo)} class="text-sm shrink-0 px-1 hover:opacity-70" style="color:var(--ws-muted)">✕</button>
+              {#if !isArchived}<button onclick={() => deleteTodo(todo)} class="text-sm shrink-0 px-1 hover:opacity-70" style="color:var(--ws-muted)">✕</button>{/if}
             </div>
           {/each}
         {/if}
       </div>
+      {#if !isArchived}
       <div class="flex items-center gap-2 px-4 py-3 border-t" style="border-color:var(--ws-border);background:var(--ws-surface2)">
         <input bind:value={newTask} placeholder={$t('tripHubTodoPlaceholder')}
           onkeydown={(e) => e.key === 'Enter' && addTodo()}
@@ -423,6 +441,7 @@
           {addingTodo ? '⏳' : '+'}
         </button>
       </div>
+      {/if}
     </div>
 
   {/if}
