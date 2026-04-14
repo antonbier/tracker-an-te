@@ -278,20 +278,7 @@
   });
 </script>
 
-{#if open}
-{#if embedded}
-  <div class="flex flex-col rounded-2xl overflow-hidden shadow-xl w-full"
-    style="background:var(--ws-surface);border:1px solid var(--ws-border);min-height:70vh">
-{/if}
-{#if !embedded}
-  <div
-    class="fixed inset-0 z-50 flex items-center justify-center"
-    style="background:rgba(0,0,0,.48);backdrop-filter:blur(6px)"
-    role="dialog" aria-modal="true">
-    <div class="fixed inset-0 md:inset-[4vh_8vw] flex flex-col rounded-none md:rounded-2xl overflow-hidden shadow-2xl"
-      style="background:var(--ws-surface);border:1px solid var(--ws-border)">
-{/if}
-
+{#snippet wwBody()}
     <!-- ── Header ─────────────────────────────────────────────────────────── -->
     <div class="flex items-center gap-3 px-5 py-4 border-b shrink-0" style="border-color:var(--ws-border)">
       <span class="text-xl">
@@ -720,11 +707,23 @@
       </div>
     {/if}
 
-{#if !embedded}
+{/snippet}
+
+{#if open}
+  {#if embedded}
+    <div class="flex flex-col rounded-2xl overflow-hidden shadow-xl w-full"
+      style="background:var(--ws-surface);border:1px solid var(--ws-border);min-height:70vh">
+      {@render wwBody()}
     </div>
-  </div>
-{/if}
-{#if embedded}
-  </div>
-{/if}
+  {:else}
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center"
+      style="background:rgba(0,0,0,.48);backdrop-filter:blur(6px)"
+      role="dialog" aria-modal="true">
+      <div class="fixed inset-0 md:inset-[4vh_8vw] flex flex-col rounded-none md:rounded-2xl overflow-hidden shadow-2xl"
+        style="background:var(--ws-surface);border:1px solid var(--ws-border)">
+        {@render wwBody()}
+      </div>
+    </div>
+  {/if}
 {/if}
