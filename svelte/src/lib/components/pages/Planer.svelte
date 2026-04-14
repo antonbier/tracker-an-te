@@ -17,9 +17,6 @@
 
   let open = $state(true);  // always open on this page
 
-  // Re-open if user somehow closes (shouldn't happen but safety net)
-  $effect(() => { if (!open) open = true; });
-
   onMount(async () => {
     if (!$apiUrl) return;
     try {
@@ -38,6 +35,7 @@
 <div class="min-h-[80vh] flex items-start justify-center pt-4">
   <WanderWizzard
     bind:open
+    embedded={true}
     adults={wwAdults}
     children={wwChildren}
     homeAirport={wwHomeAirport}
