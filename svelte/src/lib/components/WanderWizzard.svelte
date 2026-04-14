@@ -293,7 +293,7 @@
           {:else}{$t('wwSubtitle')}{/if}
         </p>
       </div>
-      {#if inspirePhase === 'wizard'}
+      {#if inspirePhase === 'wizard' && !embedded}
         <button onclick={close} class="w-8 h-8 rounded-xl flex items-center justify-center text-lg hover:opacity-60 transition-opacity" style="color:var(--ws-muted)">✕</button>
       {/if}
     </div>
@@ -683,7 +683,7 @@
     {#if inspirePhase === 'wizard'}
       <div class="px-5 py-4 border-t shrink-0 flex gap-3" style="border-color:var(--ws-border)">
         {#if step === 1}
-          <button onclick={close} class="flex-1 py-2.5 rounded-xl border text-sm font-semibold hover:opacity-70 transition-opacity" style="border-color:var(--ws-border);color:var(--ws-muted)">{$t('wwBtnCancel')}</button>
+          {#if !embedded}<button onclick={close} class="flex-1 py-2.5 rounded-xl border text-sm font-semibold hover:opacity-70 transition-opacity" style="border-color:var(--ws-border);color:var(--ws-muted)">{$t('wwBtnCancel')}</button>{/if}
           <button onclick={() => { if (step1Valid) step = 2; }} disabled={!step1Valid}
             class="flex-1 py-2.5 rounded-xl text-sm font-semibold hover:opacity-80 disabled:opacity-40 transition-opacity"
             style="background:var(--ws-accent);color:#fff5ec">{$t('wwBtnNext')}</button>
