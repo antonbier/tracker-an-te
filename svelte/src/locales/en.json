@@ -438,5 +438,14 @@
   "radarTotal": "total",
   "radarNoTypeTrackers": "No",
   "viewGrid": "Grid",
-  "viewList": "List"
+  "viewList": "List",
+  "tripPhaseActive": "ON TOUR",
+  "tripPhaseActiveCountdown": "{n} days left",
+  "hubManualExp": "Cash expenses",
+  "hubManualExpSaved": "Cash expenses saved ✓",
+  "hubRegenTodos": "🔄 Regenerate",
+  "placeholderJournal": "Travel journal",
+  "placeholderDayTrips": "Day trips",
+  "placeholderGallery": "Photo gallery (Immich)",
+  "placeholderGalleryHint": "Connect your Immich instance for automatic travel photos"
 }
