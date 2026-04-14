@@ -96,23 +96,25 @@ async def _generate_todos(trip: dict) -> list[dict]:
     mode_label = "Flugreise" if travel_mode == "flight" else "Autoreise"
     home_str   = f" ab {trip['home_airport']}" if travel_mode == "flight" and trip.get("home_airport") else ""
 
-    prompt = f"""Du bist ein präziser Reise-Assistent. Erstelle genau 5 kontextbezogene To-Dos für folgende Reise:
+    prompt = f"""Du bist ein erfahrener Reise-Assistent. Erstelle 10 bis 15 konkrete, spezifische To-Dos für folgende Reise.
 
 Ziel: {dest_desc}
 Reiseart: {mode_label}{home_str}
 Zeitraum: {dates or 'flexibel'}{budget_str}
 Mitreisende: {trip.get('adults', 2)} Erw.{', ' + str(trip.get('children')) + ' Kind.' if trip.get('children') else ''}
 
-Antworte NUR mit einem JSON-Array, kein Text davor/danach, kein Markdown:
+Regeln:
+- KEINE generischen To-Dos (nicht "Koffer packen" allein — stattdessen was für diese Reise spezifisch ist)
+- Mische Kategorien sinnvoll: booking, documents, packing, general
+- Berücksichtige Reiseziel und -art konkret (z.B. spezifische Dokumente, Währung, Klima, Aktivitäten)
+- Antworte NUR mit JSON-Array, kein Text, kein Markdown:
+
 [
   {{"task": "...", "category": "booking"}},
   {{"task": "...", "category": "documents"}},
-  {{"task": "...", "category": "packing"}},
-  {{"task": "...", "category": "general"}},
-  {{"task": "...", "category": "general"}}
+  ...
 ]
-Kategorien: booking, documents, packing, general.
-To-Dos sollen spezifisch für diese Reise sein, nicht generisch."""
+Kategorien: booking, documents, packing, general."""
 
     try:
         import httpx
@@ -125,7 +127,7 @@ To-Dos sollen spezifisch für diese Reise sein, nicht generisch."""
                 },
                 json={
                     "model": "gpt-4o-mini",
-                    "max_tokens": 400,
+                    "max_tokens": 800,
                     "temperature": 0.7,
                     "messages": [{"role": "user", "content": prompt}],
                 }
@@ -140,7 +142,7 @@ To-Dos sollen spezifisch für diese Reise sein, nicht generisch."""
         todos = json.loads(content.strip())
         if isinstance(todos, list) and todos:
             logger.info(f"[WsTrips] KI-Todos generiert: {len(todos)} Einträge")
-            return [{"task": t.get("task",""), "category": t.get("category","general")} for t in todos[:7]]
+            return [{"task": t.get("task",""), "category": t.get("category","general")} for t in todos[:15]]
     except Exception as e:
         logger.warning(f"[WsTrips] KI-Todo-Generierung fehlgeschlagen: {e}")
 
@@ -281,6 +283,22 @@ def remove_todo(trip_id: int, todo_id: int, user=Depends(get_current_user)):
 
 
 
+@router.post("/{trip_id}/todos/regenerate", status_code=200)
+async def regenerate_todos(trip_id: int, user=Depends(get_current_user)):
+    """Re-generate KI To-Dos for an existing trip (replaces existing todos)."""
+    trip = get_ws_trip(trip_id, _uid(user))
+    if not trip:
+        raise HTTPException(404, "Trip nicht gefunden")
+    # Delete all existing todos
+    from database import db as _db
+    with _db() as conn:
+        conn.execute("DELETE FROM trip_todos WHERE trip_id=?", (trip_id,))
+    # Regenerate
+    todos = await _generate_todos(trip)
+    n = create_trip_todos(trip_id, todos)
+    return {"message": f"{n} To-Dos generiert ✓", "todos": todos}
+
+
 # ── Tracker Slots ─────────────────────────────────────────────────────────────
 
 @router.get("/{trip_id}/trackers")
@@ -346,10 +364,31 @@ def get_trip_budget(trip_id: int, user=Depends(get_current_user)):
     total = float(trip.get("budget") or 0)
     on_site = max(0, total - booked_flight - booked_hotel)
 
+    manual_expenses = float(trip.get("manual_expenses") or 0)
+    on_site_net = max(0, total - booked_flight - booked_hotel - manual_expenses)
+
     return {
-        "total_budget":    total,
-        "booked_flight":   booked_flight,
-        "booked_hotel":    booked_hotel,
-        "on_site_budget":  on_site,
-        "has_budget":      total > 0,
+        "total_budget":      total,
+        "booked_flight":     booked_flight,
+        "booked_hotel":      booked_hotel,
+        "manual_expenses":   manual_expenses,
+        "on_site_budget":    on_site_net,
+        "has_budget":        total > 0,
     }
+
+
+class ManualExpensesPayload(BaseModel):
+    manual_expenses: float = 0.0
+
+@router.patch("/{trip_id}/manual-expenses")
+def set_manual_expenses(trip_id: int, data: ManualExpensesPayload, user=Depends(get_current_user)):
+    """Update manual_expenses for a trip."""
+    if not get_ws_trip(trip_id, _uid(user)):
+        raise HTTPException(404, "Trip nicht gefunden")
+    from database import db as _db
+    with _db() as conn:
+        conn.execute(
+            "UPDATE ws_trips SET manual_expenses=?, updated_at=datetime('now') WHERE id=? AND user_id=?",
+            (max(0.0, data.manual_expenses), trip_id, _uid(user))
+        )
+    return {"ok": True, "manual_expenses": data.manual_expenses}
