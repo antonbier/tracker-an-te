@@ -12,7 +12,7 @@ import re, traceback, logging
 from database import (
     create_tracker, list_trackers, get_tracker,
     delete_tracker, toggle_tracker, get_latest_snapshot,
-    set_tracker_threshold,
+    set_tracker_threshold, link_tracker_to_trip,
 )
 from scheduler import run_single_tracker
 from auth_jwt import get_current_user
@@ -143,3 +143,15 @@ def manual_scrape(tracker_id: int, user: dict = Depends(get_current_user)):
     except Exception as e:
         logger.error(f"Scraping Fehler Tracker #{tracker_id}:\n{traceback.format_exc()}")
         raise HTTPException(500, detail=f"{type(e).__name__}: {str(e)}")
+
+
+class TripLinkPayload(BaseModel):
+    trip_id: Optional[int] = None
+
+@router.patch("/{tracker_id}/link-trip")
+def link_trip(tracker_id: int, data: TripLinkPayload, user: dict = Depends(get_current_user)):
+    t = get_tracker(tracker_id, user_id=_uid(user))
+    if not t:
+        raise HTTPException(404, f"Tracker #{tracker_id} nicht gefunden")
+    ok = link_tracker_to_trip(tracker_id, "flight", data.trip_id)
+    return {"ok": ok, "trip_id": data.trip_id}
