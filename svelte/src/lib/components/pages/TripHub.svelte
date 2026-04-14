@@ -6,20 +6,29 @@
   import { currentPage, activeWsTripId, priceradarParams } from '$lib/stores.js';
 
   // ── State ──────────────────────────────────────────────────────────────────
-  let trip     = $state(null);
-  let todos    = $state([]);
-  let loading  = $state(true);
-  let newTask  = $state('');
+  let trip       = $state(null);
+  let todos      = $state([]);
+  let loading    = $state(true);
+  let newTask    = $state('');
   let addingTodo = $state(false);
+  let regenLoading = $state(false);
 
-  // Tracker slots
-  let slots    = $state({ flight: null, hotel: null, camping: null });
-  // Budget breakdown
+  // Weather
+  let weather    = $state(null);
+  let weatherLoad = $state(false);
+
+  // Manual expenses
+  let manualExpDraft   = $state('');
+  let manualExpEditing = $state(false);
+  let manualExpSaving  = $state(false);
+
+  // Tracker slots + budget
+  let slots           = $state({ flight: null, hotel: null, camping: null });
   let budgetBreakdown = $state(null);
 
-  // Book modal state
-  let bookModal = $state(null);   // null | { trackerId, trackerType, slotKey }
-  let bookPrice = $state('');
+  // Book modal
+  let bookModal  = $state(null);
+  let bookPrice  = $state('');
   let bookSaving = $state(false);
 
   // ── Load ───────────────────────────────────────────────────────────────────
@@ -35,6 +44,11 @@
       const res = await api(`/api/ws-trips/${id}`);
       trip  = res;
       todos = res.todos || [];
+      manualExpDraft = String(res.manual_expenses || 0);
+      // Fetch weather if needed
+      if (res.destination && (phase === 'active' || daysUntilStart <= 7)) {
+        fetchWeather(res.destination);
+      }
     } catch { toast('Trip konnte nicht geladen werden', 'error'); }
   }
 
@@ -46,40 +60,100 @@
     try { budgetBreakdown = await api(`/api/ws-trips/${id}/budget`); } catch {}
   }
 
-  // ── Countdown ──────────────────────────────────────────────────────────────
-  const countdown = $derived.by(() => {
-    if (!trip?.start_date) return null;
-    const diff = Math.ceil((new Date(trip.start_date) - new Date()) / 86400000);
-    if (diff === 0) return $t('tripHubToday');
-    if (diff === 1) return $t('tripHubTomorrow');
-    if (diff > 0)   return $t('tripHubCountdown').replace('{n}', diff);
-    return null;
+  // ── Phase Lifecycle ────────────────────────────────────────────────────────
+  const today = new Date().toISOString().slice(0, 10);
+
+  const daysUntilStart = $derived.by(() => {
+    if (!trip?.start_date) return 999;
+    return Math.ceil((new Date(trip.start_date) - new Date()) / 86400000);
   });
 
-  // ── Archive mode: trip whose end_date is in the past ─────────────────────
-  const isArchived = $derived.by(() => {
-    if (!trip?.end_date) return false;
-    return trip.end_date < new Date().toISOString().slice(0, 10);
+  const phase = $derived.by(() => {
+    if (!trip) return 'planning';
+    const t_start = trip.start_date || '';
+    const t_end   = trip.end_date   || trip.start_date || '';
+    if (today > t_end)   return 'archived';
+    if (today >= t_start) return 'active';
+    return 'planning';
   });
+
+  const isArchived = $derived(phase === 'archived');
 
   const statusLabel = $derived.by(() => {
     if (!trip) return '';
-    if (isArchived) return $t('tripCardExperienced') || 'ERLEBT';
-    return { planning: $t('tripHubStatusPlanning'), booked: $t('tripHubStatusBooked'), completed: $t('tripHubStatusDone') }[trip.status] || trip.status;
+    if (phase === 'archived') return $t('tripCardExperienced') || 'ERLEBT';
+    if (phase === 'active')   return $t('tripPhaseActive')     || 'ON TOUR';
+    return { planning: $t('tripHubStatusPlanning'), booked: $t('tripHubStatusBooked'), completed: $t('tripHubStatusDone') }[trip.status] || $t('tripHubStatusPlanning');
   });
+
   const statusColor = $derived.by(() => {
-    if (isArchived) return 'var(--ws-muted)';
-    return ({ planning: 'var(--ws-accent)', booked: 'var(--ws-green)', completed: 'var(--ws-muted)' }[trip?.status] || 'var(--ws-muted)');
+    if (phase === 'archived') return 'var(--ws-muted)';
+    if (phase === 'active')   return 'var(--ws-green)';
+    return ({ planning: 'var(--ws-accent)', booked: 'var(--ws-green)', completed: 'var(--ws-muted)' }[trip?.status] || 'var(--ws-accent)');
+  });
+
+  const statusPulse = $derived(phase === 'active');
+
+  const countdown = $derived.by(() => {
+    if (!trip?.start_date) return null;
+    const diff = daysUntilStart;
+    if (diff === 0) return $t('tripHubToday');
+    if (diff === 1) return $t('tripHubTomorrow');
+    if (diff > 0)   return $t('tripHubCountdown').replace('{n}', diff);
+    if (phase === 'active') {
+      const endDiff = Math.ceil((new Date(trip.end_date) - new Date()) / 86400000);
+      if (endDiff >= 0) return ($t('tripPhaseActiveCountdown') || 'Noch {n} Tage').replace('{n}', endDiff + 1);
+    }
+    return null;
   });
 
   const heroBg = $derived.by(() => {
     if (!trip) return 'linear-gradient(135deg,#1e293b,#374151)';
+    if (phase === 'active')
+      return 'linear-gradient(135deg,#0f4c2a 0%,#1a6b3a 50%,#0d3d22 100%)';
     return trip.travel_mode === 'car'
       ? 'linear-gradient(135deg,#1a3a2a 0%,#2d6a4f 60%,#1a4a3a 100%)'
       : 'linear-gradient(135deg,#1a2a4a 0%,var(--ws-accent) 70%,#b84928 100%)';
   });
 
-  // ── Todo actions ───────────────────────────────────────────────────────────
+  // ── Weather ────────────────────────────────────────────────────────────────
+  async function fetchWeather(destination) {
+    if (!destination || weatherLoad) return;
+    weatherLoad = true;
+    try {
+      const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(destination)}&count=1&language=de&format=json`);
+      const geoData = await geoRes.json();
+      const loc = geoData.results?.[0];
+      if (!loc) { weatherLoad = false; return; }
+      const wRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&current_weather=true&timezone=auto`);
+      const wData = await wRes.json();
+      const cw = wData.current_weather;
+      if (cw) {
+        weather = {
+          temp:  Math.round(cw.temperature),
+          wind:  Math.round(cw.windspeed),
+          code:  cw.weathercode,
+          icon:  wmoIcon(cw.weathercode),
+          city:  loc.name,
+        };
+      }
+    } catch {}
+    weatherLoad = false;
+  }
+
+  function wmoIcon(code) {
+    if (code === 0) return '☀️';
+    if (code <= 2) return '🌤️';
+    if (code <= 3) return '☁️';
+    if (code <= 49) return '🌫️';
+    if (code <= 67) return '🌧️';
+    if (code <= 77) return '🌨️';
+    if (code <= 82) return '🌦️';
+    if (code <= 99) return '⛈️';
+    return '🌡️';
+  }
+
+  // ── Todos ──────────────────────────────────────────────────────────────────
   async function toggleTodo(todo) {
     try {
       await api(`/api/ws-trips/${trip.id}/todos/${todo.id}/toggle`, { method: 'PATCH' });
@@ -102,13 +176,41 @@
       todos = todos.filter(t => t.id !== todo.id);
     } catch { toast('Fehler', 'error'); }
   }
+  async function regenerateTodos() {
+    if (regenLoading) return;
+    regenLoading = true;
+    try {
+      const res = await api(`/api/ws-trips/${trip.id}/todos/regenerate`, { method: 'POST' });
+      todos = (res.todos || []).map((t, i) => ({ id: Date.now() + i, ...t, is_done: 0 }));
+      toast(`✨ ${todos.length} To-Dos neu generiert`, 'success');
+      await loadTrip(trip.id);
+    } catch (e) { toast(e.message || 'Fehler', 'error'); }
+    regenLoading = false;
+  }
 
   function catIcon(cat) {
     return { booking: '🎫', documents: '📄', packing: '🧳', general: '✅' }[cat] || '✅';
   }
   const donePct = $derived(todos.length ? Math.round(todos.filter(t => t.is_done).length / todos.length * 100) : 0);
 
-  // ── Deep-link to PriceRadar with prefill ───────────────────────────────────
+  // ── Manual Expenses ────────────────────────────────────────────────────────
+  async function saveManualExp() {
+    manualExpSaving = true;
+    try {
+      const val = parseFloat(manualExpDraft) || 0;
+      await api(`/api/ws-trips/${trip.id}/manual-expenses`, {
+        method: 'PATCH',
+        body: JSON.stringify({ manual_expenses: val }),
+      });
+      trip = { ...trip, manual_expenses: val };
+      manualExpEditing = false;
+      toast($t('hubManualExpSaved') || 'Manuelle Ausgaben gespeichert ✓', 'success');
+      await loadBudget(trip.id);
+    } catch (e) { toast(e.message, 'error'); }
+    manualExpSaving = false;
+  }
+
+  // ── PriceRadar deep-link ───────────────────────────────────────────────────
   function goSearch(type) {
     if (trip) {
       priceradarParams.set({
@@ -156,6 +258,13 @@
       await loadBudget(trip.id);
     } catch (e) { toast(e.message, 'error'); }
   }
+
+  // Trigger weather load reactively after trip is loaded
+  $effect(() => {
+    if (trip?.destination && (phase === 'active' || daysUntilStart <= 7) && !weather && !weatherLoad) {
+      fetchWeather(trip.destination);
+    }
+  });
 </script>
 
 <!-- ── Book Modal ──────────────────────────────────────────────────────────── -->
@@ -214,19 +323,45 @@
     <!-- ── Hero ─────────────────────────────────────────────────────────────── -->
     <div class="relative rounded-2xl overflow-hidden" style="min-height:200px;background:{heroBg}">
       <div class="absolute inset-0 opacity-10" style="background-image:radial-gradient(circle at 20% 80%,rgba(255,255,255,.2) 0%,transparent 50%)"></div>
+      <!-- Picsum background for active trips -->
+      {#if phase === 'active' && trip.id}
+        <img src="https://picsum.photos/seed/{trip.id}/800/300"
+          alt=""
+          class="absolute inset-0 w-full h-full object-cover opacity-20"
+          aria-hidden="true" />
+      {/if}
       <div class="relative z-10 p-6 flex flex-col justify-between" style="min-height:200px">
         <div class="flex items-start justify-between">
           <div class="flex flex-col gap-2">
             <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold"
               style="background:rgba(255,255,255,.15);color:#fff;backdrop-filter:blur(8px)">
-              <span class="w-1.5 h-1.5 rounded-full" style="background:{statusColor}"></span>
+              {#if statusPulse}
+                <span class="w-1.5 h-1.5 rounded-full animate-pulse" style="background:{statusColor}"></span>
+              {:else}
+                <span class="w-1.5 h-1.5 rounded-full" style="background:{statusColor}"></span>
+              {/if}
               {statusLabel}
             </span>
             {#if countdown}
               <span class="text-sm font-semibold" style="color:rgba(255,255,255,.85)">{countdown}</span>
             {/if}
           </div>
-          <span class="text-2xl">{trip.travel_mode === 'car' ? '🚗' : '✈️'}</span>
+          <!-- Weather widget (active or < 7 days) -->
+          <div class="flex items-center gap-2">
+            {#if weather}
+              <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold"
+                style="background:rgba(255,255,255,.15);color:#fff;backdrop-filter:blur(8px)">
+                <span class="text-base">{weather.icon}</span>
+                <span>{weather.temp}°C</span>
+                <span style="opacity:.7">{weather.city}</span>
+              </div>
+            {:else if weatherLoad}
+              <div class="px-3 py-1.5 rounded-xl text-xs" style="background:rgba(255,255,255,.1);color:rgba(255,255,255,.6)">
+                🌡️ …
+              </div>
+            {/if}
+            <span class="text-2xl">{trip.travel_mode === 'car' ? '🚗' : '✈️'}</span>
+          </div>
         </div>
         <div>
           <h1 class="text-2xl font-bold leading-tight mb-1"
@@ -247,24 +382,22 @@
       </div>
     </div>
 
-    <!-- ── Smart Action Slots ────────────────────────────────────────────────── -->
+    <!-- ── Smart Action Slots (hidden in active + archived) ─────────────────── -->
+    {#if phase === 'planning'}
     <div class="grid grid-cols-2 gap-3">
-      <!-- Flight slot -->
       {#each [
         { key: 'flight', icon: '✈️', label: $t('tripHubPlanArrival'), emptyLabel: $t('hubSlotFlightEmpty'), type: 'flight' },
         { key: 'hotel',  icon: '🏨', label: $t('tripHubFindAccom'),  emptyLabel: $t('hubSlotHotelEmpty'),  type: 'hotel' },
       ] as slot}
-        {@const tracker = slots[slot.key] || slots.camping}
-        {@const isBooked = tracker?.is_booked}
+        {@const tracker     = slots[slot.key] || slots.camping}
+        {@const isBooked    = tracker?.is_booked}
         {@const trackerType = tracker?._type || slot.type}
-        {@const isCarSlot = slot.key === 'flight' && trip?.travel_mode === 'car'}
+        {@const isCarSlot   = slot.key === 'flight' && trip?.travel_mode === 'car'}
 
         <div class="rounded-2xl border overflow-hidden transition-all {isCarSlot ? 'opacity-40 grayscale' : ''}"
           style="border-color:{isBooked ? 'var(--ws-green,#2d6a4f)' : 'var(--ws-border)'};background:var(--ws-surface2);{isBooked ? 'box-shadow:0 0 0 2px rgba(22,163,74,.15)' : ''}">
 
           {#if !tracker}
-            <!-- State A: Empty — Deep link to PriceRadar (hidden for archived trips) -->
-            {#if !isArchived}
             <button onclick={() => goSearch(slot.type)}
               class="w-full flex flex-col items-center gap-2 p-5 transition-all hover:opacity-85 active:scale-[.98]">
               <span class="text-3xl">{slot.icon}</span>
@@ -276,15 +409,8 @@
               {/if}
               <span class="text-xs" style="color:var(--ws-muted)">PriceRadar →</span>
             </button>
-            {:else}
-            <div class="w-full flex flex-col items-center gap-2 p-5 opacity-40">
-              <span class="text-3xl">{slot.icon}</span>
-              <span class="text-sm text-center" style="color:var(--ws-muted)">{slot.emptyLabel}</span>
-            </div>
-            {/if}
 
           {:else if isBooked}
-            <!-- State C: Booked — green, show final price -->
             <div class="p-4 space-y-2">
               <div class="flex items-center gap-2">
                 <span class="text-xl">{slot.icon}</span>
@@ -310,7 +436,6 @@
             </div>
 
           {:else}
-            <!-- State B: Tracker active — show current price + book button -->
             <div class="p-4 space-y-2">
               <div class="flex items-center justify-between">
                 <span class="text-xl">{slot.icon}</span>
@@ -335,19 +460,18 @@
                     {$t('hubSlotBook')}
                   </a>
                 {/if}
-                {#if !isArchived}
                 <button onclick={() => openBookModal(tracker.id, trackerType, slot.key)}
                   class="flex-1 text-xs font-semibold px-2 py-1.5 rounded-lg border transition-all hover:opacity-80"
                   style="border-color:var(--ws-green,#2d6a4f);color:var(--ws-green,#2d6a4f)">
                   {$t('hubSlotMarkBooked')}
                 </button>
-                {/if}
               </div>
             </div>
           {/if}
         </div>
       {/each}
     </div>
+    {/if}
 
     <!-- ── Budget Breakdown ──────────────────────────────────────────────────── -->
     {#if budgetBreakdown?.has_budget}
@@ -355,10 +479,10 @@
         <h3 class="font-bold text-sm" style="color:var(--ws-text)">💶 Budget</h3>
         <div class="space-y-2">
           {#each [
-            [$t('hubBudgetTotal'),  budgetBreakdown.total_budget,   '#fff', false],
-            [$t('hubBudgetFlight'), budgetBreakdown.booked_flight,  'rgba(255,255,255,.7)', true],
-            [$t('hubBudgetHotel'),  budgetBreakdown.booked_hotel,   'rgba(255,255,255,.7)', true],
-          ] as [label, val, color, indent]}
+            [$t('hubBudgetTotal'),  budgetBreakdown.total_budget,  false],
+            [$t('hubBudgetFlight'), budgetBreakdown.booked_flight, true],
+            [$t('hubBudgetHotel'),  budgetBreakdown.booked_hotel,  true],
+          ] as [label, val, indent]}
             {#if val > 0 || !indent}
               <div class="flex items-center justify-between {indent ? 'pl-3 border-l-2' : ''}"
                 style="{indent ? 'border-color:var(--ws-border)' : ''}">
@@ -369,6 +493,35 @@
               </div>
             {/if}
           {/each}
+
+          <!-- Manual expenses row -->
+          <div class="flex items-center justify-between pl-3 border-l-2" style="border-color:var(--ws-border)">
+            <span class="text-xs" style="color:var(--ws-muted)">💵 {$t('hubManualExp') || 'Barausgaben'}</span>
+            {#if manualExpEditing}
+              <div class="flex items-center gap-1">
+                <input type="number" min="0" step="1"
+                  bind:value={manualExpDraft}
+                  class="w-20 px-2 py-0.5 text-xs rounded-lg border font-mono focus:outline-none"
+                  style="background:var(--ws-surface);border-color:var(--ws-border);color:var(--ws-text)"
+                  onkeydown={(e) => { if (e.key==='Enter') saveManualExp(); if (e.key==='Escape') manualExpEditing=false; }} />
+                <span class="text-xs" style="color:var(--ws-muted)">€</span>
+                <button onclick={saveManualExp} disabled={manualExpSaving}
+                  class="px-2 py-0.5 rounded text-xs font-bold disabled:opacity-40"
+                  style="background:var(--ws-accent);color:#fff5ec">{manualExpSaving ? '⏳' : '✓'}</button>
+                <button onclick={() => manualExpEditing=false} class="text-xs px-1" style="color:var(--ws-muted)">✕</button>
+              </div>
+            {:else}
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-mono font-bold" style="color:var(--ws-text)">
+                  −{parseFloat(trip.manual_expenses || 0).toFixed(0)} €
+                </span>
+                <button onclick={() => { manualExpEditing=true; manualExpDraft=String(trip.manual_expenses||0); }}
+                  class="text-[10px] px-1.5 py-0.5 rounded border hover:opacity-70"
+                  style="border-color:var(--ws-border);color:var(--ws-muted)">✏️</button>
+              </div>
+            {/if}
+          </div>
+
           <!-- On-site remainder -->
           <div class="flex items-center justify-between pt-2 mt-1 border-t" style="border-color:var(--ws-border)">
             <span class="text-sm font-semibold" style="color:var(--ws-text)">{$t('hubBudgetOnSite')}</span>
@@ -378,15 +531,45 @@
             </span>
           </div>
         </div>
-        <!-- Mini bar -->
         {#if budgetBreakdown.total_budget > 0}
-          {@const spent = budgetBreakdown.booked_flight + budgetBreakdown.booked_hotel}
-          {@const pct = Math.min(100, (spent / budgetBreakdown.total_budget) * 100)}
+          {@const spent = budgetBreakdown.booked_flight + budgetBreakdown.booked_hotel + (budgetBreakdown.manual_expenses || 0)}
+          {@const pct   = Math.min(100, (spent / budgetBreakdown.total_budget) * 100)}
           <div class="h-2 rounded-full overflow-hidden" style="background:var(--ws-border)">
             <div class="h-full rounded-full transition-all duration-700"
               style="width:{pct}%;background:{pct > 85 ? '#ef4444' : 'var(--ws-green,#2d6a4f)'}"></div>
           </div>
         {/if}
+      </div>
+    {/if}
+
+    <!-- ── Active Phase Placeholders ────────────────────────────────────────── -->
+    {#if phase === 'active'}
+      <div class="grid grid-cols-2 gap-3">
+        <!-- Reisetagebuch placeholder -->
+        <div class="rounded-2xl border-2 border-dashed p-5 flex flex-col items-center gap-2 text-center"
+          style="border-color:color-mix(in srgb,var(--ws-accent) 30%,var(--ws-border));background:color-mix(in srgb,var(--ws-accent) 4%,var(--ws-surface))">
+          <span class="text-3xl">📓</span>
+          <span class="text-xs font-semibold" style="color:var(--ws-text)">{$t('placeholderJournal') || 'Reisetagebuch'}</span>
+          <span class="text-[10px] px-2 py-0.5 rounded-full font-bold" style="background:rgba(196,98,45,.12);color:var(--ws-accent)">Coming Soon</span>
+        </div>
+        <!-- Tagesausflüge placeholder -->
+        <div class="rounded-2xl border-2 border-dashed p-5 flex flex-col items-center gap-2 text-center"
+          style="border-color:color-mix(in srgb,var(--ws-accent) 30%,var(--ws-border));background:color-mix(in srgb,var(--ws-accent) 4%,var(--ws-surface))">
+          <span class="text-3xl">🗺️</span>
+          <span class="text-xs font-semibold" style="color:var(--ws-text)">{$t('placeholderDayTrips') || 'Tagesausflüge'}</span>
+          <span class="text-[10px] px-2 py-0.5 rounded-full font-bold" style="background:rgba(196,98,45,.12);color:var(--ws-accent)">Coming Soon</span>
+        </div>
+      </div>
+    {/if}
+
+    <!-- ── Archived Phase Placeholder ───────────────────────────────────────── -->
+    {#if phase === 'archived'}
+      <div class="rounded-2xl border-2 border-dashed p-6 flex flex-col items-center gap-2 text-center"
+        style="border-color:color-mix(in srgb,var(--ws-muted) 40%,var(--ws-border));background:color-mix(in srgb,var(--ws-muted) 4%,var(--ws-surface))">
+        <span class="text-4xl">🖼️</span>
+        <span class="text-sm font-semibold" style="color:var(--ws-text)">{$t('placeholderGallery') || 'Foto-Galerie (Immich)'}</span>
+        <span class="text-xs" style="color:var(--ws-muted)">{$t('placeholderGalleryHint') || 'Verknüpfe deine Immich-Instanz für automatische Reisefotos'}</span>
+        <span class="text-[10px] px-3 py-0.5 rounded-full font-bold mt-1" style="background:rgba(100,100,100,.12);color:var(--ws-muted)">Coming Soon</span>
       </div>
     {/if}
 
@@ -402,15 +585,23 @@
             </span>
           {/if}
         </div>
-        {#if todos.length > 0}
-          <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2">
+          {#if todos.length > 0}
             <div class="w-24 h-1.5 rounded-full overflow-hidden" style="background:var(--ws-border)">
               <div class="h-full rounded-full transition-all duration-500"
                 style="width:{donePct}%;background:{donePct === 100 ? 'var(--ws-green)' : 'var(--ws-accent)'}"></div>
             </div>
             <span class="text-xs font-mono" style="color:var(--ws-muted)">{donePct}%</span>
-          </div>
-        {/if}
+          {/if}
+          <!-- Regenerate button (planning phase only) -->
+          {#if phase === 'planning'}
+            <button onclick={regenerateTodos} disabled={regenLoading}
+              class="text-xs px-2 py-1 rounded-lg border transition-all hover:opacity-80 disabled:opacity-40"
+              style="background:var(--ws-surface);border-color:var(--ws-border);color:var(--ws-muted)">
+              {regenLoading ? '⏳' : ($t('hubRegenTodos') || '🔄')}
+            </button>
+          {/if}
+        </div>
       </div>
       <div class="divide-y" style="border-color:var(--ws-border)">
         {#if todos.length === 0}
@@ -418,8 +609,8 @@
         {:else}
           {#each todos as todo}
             <div class="flex items-center gap-3 px-5 py-3" style="background:var(--ws-surface);{todo.is_done ? 'opacity:0.5' : ''}">
-              <button onclick={() => toggleTodo(todo)}
-                class="w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all"
+              <button onclick={() => !isArchived && toggleTodo(todo)}
+                class="w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all {isArchived ? 'cursor-default' : ''}"
                 style={todo.is_done ? 'background:var(--ws-green);border-color:var(--ws-green)' : 'background:transparent;border-color:var(--ws-border)'}>
                 {#if todo.is_done}<span class="text-[10px] text-white font-bold">✓</span>{/if}
               </button>
@@ -431,17 +622,17 @@
         {/if}
       </div>
       {#if !isArchived}
-      <div class="flex items-center gap-2 px-4 py-3 border-t" style="border-color:var(--ws-border);background:var(--ws-surface2)">
-        <input bind:value={newTask} placeholder={$t('tripHubTodoPlaceholder')}
-          onkeydown={(e) => e.key === 'Enter' && addTodo()}
-          class="flex-1 px-3 py-1.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-[var(--ws-accent)] bg-transparent"
-          style="border-color:var(--ws-border);color:var(--ws-text)"/>
-        <button onclick={addTodo} disabled={!newTask.trim() || addingTodo}
-          class="px-3 py-1.5 rounded-xl text-xs font-bold disabled:opacity-40"
-          style="background:var(--ws-accent);color:#fff5ec">
-          {addingTodo ? '⏳' : '+'}
-        </button>
-      </div>
+        <div class="flex items-center gap-2 px-4 py-3 border-t" style="border-color:var(--ws-border);background:var(--ws-surface2)">
+          <input bind:value={newTask} placeholder={$t('tripHubTodoPlaceholder')}
+            onkeydown={(e) => e.key === 'Enter' && addTodo()}
+            class="flex-1 px-3 py-1.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-[var(--ws-accent)] bg-transparent"
+            style="border-color:var(--ws-border);color:var(--ws-text)"/>
+          <button onclick={addTodo} disabled={!newTask.trim() || addingTodo}
+            class="px-3 py-1.5 rounded-xl text-xs font-bold disabled:opacity-40"
+            style="background:var(--ws-accent);color:#fff5ec">
+            {addingTodo ? '⏳' : '+'}
+          </button>
+        </div>
       {/if}
     </div>
 
