@@ -12,7 +12,6 @@ from database import (
     create_gf_tracker, list_gf_trackers, get_gf_tracker,
     delete_gf_tracker, save_gf_snapshot, get_gf_history,
     get_latest_gf_snapshot,
-,
     link_tracker_to_trip,
 )
 from google_scraper import fetch_google_flights as scrape_google_flights
