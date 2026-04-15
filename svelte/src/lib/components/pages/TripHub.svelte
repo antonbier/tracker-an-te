@@ -412,7 +412,7 @@
       <!-- Weather Widget (active or ≤7 days) — spans full row on desktop when alone -->
       {#if phase === 'active' || daysUntilStart <= 7}
         <div class="md:col-span-2">
-          <WeatherWidget destination={trip.destination} {phase} {daysUntilStart} />
+          <WeatherWidget destination={trip.destination || trip.title || ''} {phase} {daysUntilStart} />
         </div>
       {/if}
 
