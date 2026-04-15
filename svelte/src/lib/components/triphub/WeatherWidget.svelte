@@ -1,8 +1,7 @@
 <script>
   /**
-   * WeatherWidget.svelte — 3-day forecast via Open-Meteo.
+   * WeatherWidget.svelte — 3-day forecast via Open-Meteo (free, no key).
    * Visible when phase === 'active' OR daysUntilStart <= 7.
-   * Uses onMount only — no reactive $effect to avoid infinite loops.
    */
   import { onMount } from 'svelte';
   import { wmoIcon } from './helpers.js';
@@ -11,13 +10,10 @@
 
   let days    = $state([]);
   let loading = $state(false);
-  let error   = $state(false);
-
-  const shouldShow = $derived(phase === 'active' || daysUntilStart <= 7);
+  let errMsg  = $state('');
 
   onMount(() => {
-    // Use untrack to read shouldShow without creating a reactive subscription
-    if ((phase === 'active' || daysUntilStart <= 7) && destination) {
+    if ((phase === 'active' || daysUntilStart <= 7) && destination.trim()) {
       fetchForecast();
     }
   });
@@ -25,50 +21,47 @@
   async function fetchForecast() {
     if (loading || days.length > 0) return;
     loading = true;
-    error   = false;
+    errMsg  = '';
     try {
-      const geoRes = await fetch(
-        `https://geocoding-api.open-meteo.com/v1/search` +
-        `?name=${encodeURIComponent(destination)}&count=1&language=de&format=json`
-      );
-      if (!geoRes.ok) throw new Error(`geo ${geoRes.status}`);
+      // Step 1: geocode destination name → coordinates
+      const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(destination.trim())}&count=1&language=de&format=json`;
+      const geoRes = await fetch(geoUrl);
+      if (!geoRes.ok) throw new Error(`Geocoding fehlgeschlagen (${geoRes.status})`);
       const geoData = await geoRes.json();
       const loc = geoData.results?.[0];
-      if (!loc) { error = true; loading = false; return; }
+      if (!loc) throw new Error(`Ort nicht gefunden: "${destination}"`);
 
-      const wRes = await fetch(
-        `https://api.open-meteo.com/v1/forecast` +
-        `?latitude=${loc.latitude}&longitude=${loc.longitude}` +
-        `&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum` +
-        `&timezone=auto&forecast_days=3`
-      );
-      if (!wRes.ok) throw new Error(`weather ${wRes.status}`);
+      // Step 2: 3-day daily forecast
+      const lat = loc.latitude.toFixed(4);
+      const lon = loc.longitude.toFixed(4);
+      const wUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=auto&forecast_days=3`;
+      const wRes = await fetch(wUrl);
+      if (!wRes.ok) throw new Error(`Wetterdaten fehlgeschlagen (${wRes.status})`);
       const wData = await wRes.json();
       const d = wData.daily;
 
-      if (d?.time?.length) {
-        days = d.time.slice(0, 3).map((date, i) => ({
-          date,
-          tempMax: Math.round(d.temperature_2m_max[i]),
-          tempMin: Math.round(d.temperature_2m_min[i]),
-          icon:    wmoIcon(d.weathercode[i]),
-          precip:  Math.round((d.precipitation_sum?.[i] ?? 0) * 10) / 10,
-          city:    i === 0 ? loc.name : '',
-        }));
-      } else {
-        error = true;
-      }
+      if (!d?.time?.length) throw new Error('Keine Wetterdaten erhalten');
+
+      days = d.time.slice(0, 3).map((date, i) => ({
+        date,
+        tempMax: Math.round(d.temperature_2m_max[i]),
+        tempMin: Math.round(d.temperature_2m_min[i]),
+        icon:    wmoIcon(d.weather_code[i]),   // Open-Meteo v1: weather_code (not weathercode)
+        precip:  Math.round((d.precipitation_sum?.[i] ?? 0) * 10) / 10,
+        city:    i === 0 ? loc.name : '',
+      }));
     } catch (e) {
-      console.error('[WeatherWidget]', e.message);
-      error = true;
+      console.warn('[WeatherWidget]', e.message);
+      errMsg = e.message;
     }
     loading = false;
   }
 
+  const shouldShow = $derived(phase === 'active' || daysUntilStart <= 7);
   const DAY_LABELS = ['Heute', 'Morgen', 'Übermorgen'];
 </script>
 
-{#if shouldShow}
+{#if shouldShow && destination.trim()}
   <div class="rounded-2xl border overflow-hidden"
     style="background:var(--ws-surface2);border-color:var(--ws-border)">
 
@@ -80,11 +73,15 @@
       </div>
 
     {:else if days.length > 0}
+      <!-- Header: city + live badge -->
       <div class="flex items-center gap-2 px-4 pt-3 pb-1">
         <span class="text-xs font-semibold" style="color:var(--ws-muted)">🌡️ {days[0].city}</span>
         <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold ml-auto"
-          style="background:color-mix(in srgb,var(--ws-accent) 12%,var(--ws-surface));color:var(--ws-accent)">Live</span>
+          style="background:color-mix(in srgb,var(--ws-accent) 12%,var(--ws-surface));color:var(--ws-accent)">
+          Live
+        </span>
       </div>
+      <!-- 3-day grid -->
       <div class="grid grid-cols-3 divide-x" style="border-color:var(--ws-border)">
         {#each days as day, i}
           <div class="flex flex-col items-center gap-1 px-3 py-3">
@@ -108,11 +105,16 @@
       <div class="flex items-center justify-between px-4 py-4">
         <div class="flex items-center gap-3">
           <span class="text-2xl">🌡️</span>
-          <span class="text-sm" style="color:var(--ws-muted)">Wetterdaten nicht verfügbar</span>
+          <div>
+            <span class="text-sm block" style="color:var(--ws-muted)">Wetterdaten nicht verfügbar</span>
+            {#if errMsg}
+              <span class="text-[10px]" style="color:var(--ws-muted)">{errMsg}</span>
+            {/if}
+          </div>
         </div>
-        <button onclick={() => { error = false; days = []; fetchForecast(); }}
-          class="text-xs px-2 py-1 rounded-lg border hover:opacity-70"
-          style="border-color:var(--ws-border);color:var(--ws-muted)">↺ Retry</button>
+        <button onclick={() => { errMsg = ''; days = []; fetchForecast(); }}
+          class="text-xs px-2 py-1 rounded-lg border hover:opacity-70 shrink-0"
+          style="border-color:var(--ws-border);color:var(--ws-muted)">↺</button>
       </div>
     {/if}
   </div>
