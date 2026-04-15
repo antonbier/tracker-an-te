@@ -19,9 +19,19 @@
   const tabs = $derived([
     { id: 'overview',   label: $t('tabOverview') },
     { id: 'planned',    label: $t('tabPlanned') },
+    { id: 'ontour',     label: $t('tabOnTour') },
     { id: 'archive',    label: $t('tabArchive') },
     { id: 'bucketlist', label: $t('tabBucketList') },
   ]);
+
+  // "On Tour" filter: trips where start_date <= today <= end_date
+  const onTourTrips = $derived(
+    wsTrips.filter(t => {
+      const s = (t.start_date || '').slice(0, 10);
+      const e = (t.end_date   || t.start_date || '').slice(0, 10);
+      return s && e && today >= s && today <= e;
+    })
+  );
 
   // ── Jahr ───────────────────────────────────────────────────────────────────
   const currentYear = new Date().getFullYear();
@@ -277,7 +287,7 @@
       </button>
     {/each}
     <!-- View toggle (planned + archive) -->
-    {#if activeTab === 'planned' || activeTab === 'archive'}
+    {#if activeTab === 'planned' || activeTab === 'ontour' || activeTab === 'archive'}
       <div class="ml-auto flex items-center gap-1 shrink-0">
         <button onclick={() => viewMode = 'grid'}
           class="p-2 rounded-xl border transition-all"
@@ -410,6 +420,57 @@
       {:else}
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
           {#each plannedWsTrips as trip}
+            <TripCard
+              {trip}
+              mode="planned"
+              ongoToHub={(t) => goToTripHub(t.id)}
+            />
+          {/each}
+        </div>
+      {/if}
+    </div>
+
+  <!-- ══ ON TOUR ═══════════════════════════════════════════════════════════ -->
+  {:else if activeTab === 'ontour'}
+    <div class="space-y-4">
+      {#if wsTripsLoad}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {#each [1,2,3] as _}<div class="rounded-2xl border p-5 animate-pulse h-40" style="background:var(--ws-surface2);border-color:var(--ws-border)"></div>{/each}
+        </div>
+      {:else if onTourTrips.length === 0}
+        <div class="rounded-2xl border p-10 text-center space-y-3" style="background:var(--ws-surface2);border-color:var(--ws-border)">
+          <p class="text-4xl">🌍</p>
+          <p class="text-sm font-semibold" style="color:var(--ws-text)">{$t('onTourEmpty') || 'Gerade keine aktive Reise'}</p>
+          <p class="text-xs" style="color:var(--ws-muted)">{$t('onTourEmptyHint') || 'Reisen die heute stattfinden erscheinen hier'}</p>
+        </div>
+      {:else if viewMode === 'list'}
+        <div class="rounded-2xl border overflow-hidden" style="border-color:var(--ws-border)">
+          {#each onTourTrips as trip, i}
+            <div class="flex items-center gap-4 px-5 py-3 transition-all hover:opacity-90 cursor-pointer {i > 0 ? 'border-t' : ''}"
+              style="background:var(--ws-surface);border-color:var(--ws-border)"
+              role="button" tabindex="0"
+              onclick={() => goToTripHub(trip.id)}
+              onkeydown={(e) => e.key === 'Enter' && goToTripHub(trip.id)}>
+              <span class="text-2xl shrink-0">{trip.travel_mode === 'car' ? '🚗' : '✈️'}</span>
+              <div class="flex-1 min-w-0">
+                <div class="font-semibold text-sm truncate" style="font-family:var(--ws-serif);color:var(--ws-text)">{trip.title || trip.destination || 'Reise'}</div>
+                {#if trip.destination}<div class="text-xs" style="color:var(--ws-muted)">📍 {trip.destination}</div>{/if}
+              </div>
+              {#if trip.start_date}
+                <div class="text-xs font-mono shrink-0" style="color:var(--ws-muted)">{trip.start_date}{trip.end_date && trip.end_date !== trip.start_date ? ' → ' + trip.end_date : ''}</div>
+              {/if}
+              <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-semibold shrink-0"
+                style="background:rgba(45,106,79,.15);color:var(--ws-green,#2d6a4f)">
+                <span class="w-1.5 h-1.5 rounded-full animate-pulse" style="background:var(--ws-green,#2d6a4f)"></span>
+                ON TOUR
+              </span>
+              <span style="color:var(--ws-muted)">›</span>
+            </div>
+          {/each}
+        </div>
+      {:else}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
+          {#each onTourTrips as trip}
             <TripCard
               {trip}
               mode="planned"
