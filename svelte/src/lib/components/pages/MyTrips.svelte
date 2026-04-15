@@ -73,8 +73,13 @@
   let wsTrips     = $state([]);
   let wsTripsLoad = $state(false);
 
+  // FIX: "Geplant" zeigt nur strikt zukünftige Trips (start_date > heute)
+  // "On Tour" zeigt laufende — keine Doppelung
   const plannedWsTrips = $derived(
-    wsTrips.filter(t => t.status === 'planning' || t.status === 'booked')
+    wsTrips.filter(t => {
+      const s = (t.start_date || '').slice(0, 10);
+      return (t.status === 'planning' || t.status === 'booked') && (!s || s > today);
+    })
   );
 
   async function loadWsTrips() {
