@@ -121,13 +121,14 @@
   // FIX 5: previousPage store is set by MyTrips/Dashboard before navigating here
   function navigateBack() {
     const prev = storeGet(previousPage);
-    // prev holds the MyTrips tab id (planned/ontour/archive/overview/bucketlist)
+    // prev holds the MyTrips tab id — MyTrips lives at currentPage='mytrips'
     const myTripsTabs = ['overview','planned','ontour','archive','bucketlist'];
     if (myTripsTabs.includes(prev)) {
-      activeMyTripsTab.set(prev);
-      currentPage.set('home');
+      activeMyTripsTab.set(prev);   // restore the correct tab
+      currentPage.set('mytrips');   // FIX: was 'home', correct page is 'mytrips'
     } else {
-      currentPage.set(prev && prev !== 'triphub' ? prev : 'home');
+      // fallback: go back to wherever we came from, default mytrips
+      currentPage.set(prev && prev !== 'triphub' ? prev : 'mytrips');
     }
   }
 
