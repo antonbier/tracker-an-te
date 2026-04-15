@@ -13,10 +13,7 @@
     trip,
     mode        = 'planned',   // 'planned' | 'archive'
     ongoToHub   = () => {},
-    ondelete    = () => {},
   } = $props();
-
-  let menuOpen = $state(false);
 
   const isFlight = $derived(trip.travel_mode === 'flight');
 
@@ -61,9 +58,8 @@
   // FIX: Pulseeffekt für aktive Reisen
   const badgePulse = $derived(phase === 'active');
 
-  const actionBtnLabel = $derived(
-    phase === 'archived' ? $t('tripCardView') : $t('tripCardGoToHub')
-  );
+  // FIX 4: unified label across all phases
+  const actionBtnLabel = $derived($t('tripCardGoToHub') || 'Trip Hub →');
 
   const travelIcon   = $derived(isFlight ? '✈️' : '🚗');
   const tripTitle    = $derived(trip.title || trip.destination || trip.name || '—');
@@ -94,30 +90,7 @@
           {badgeText}
         </span>
 
-        <!-- ⋮ Menu (archive mode OR can delete from any mode) -->
-        {#if mode === 'archive' || phase === 'archived'}
-          <div class="relative">
-            <button
-              onclick={(e) => { e.stopPropagation(); menuOpen = !menuOpen; }}
-              class="w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold transition-all hover:opacity-80"
-              style="background:rgba(255,255,255,.15);color:rgba(255,255,255,.85)">
-              ⋮
-            </button>
-            {#if menuOpen}
-              <!-- Click-outside backdrop -->
-              <div class="fixed inset-0 z-10" role="button" tabindex="-1" aria-label="close"
-                onclick={() => menuOpen = false}></div>
-              <div class="absolute right-0 top-8 z-20 rounded-xl shadow-xl border overflow-hidden min-w-[130px]"
-                style="background:var(--ws-surface);border-color:var(--ws-border)">
-                <button onclick={() => { menuOpen = false; ondelete(trip); }}
-                  class="w-full text-left px-4 py-2.5 text-xs font-semibold transition-all hover:opacity-75"
-                  style="color:#ef4444">
-                  🗑️ {$t('tripCardDelete')}
-                </button>
-              </div>
-            {/if}
-          </div>
-        {/if}
+        <!-- Delete moved to TripHub — no menu on cards -->
       </div>
     </div>
 
@@ -149,11 +122,7 @@
   <div class="px-5 pb-4">
     <button onclick={() => ongoToHub(trip)}
       class="w-full py-2 rounded-xl text-sm font-semibold transition-all hover:opacity-85 active:scale-[.98]"
-      style={phase === 'archived'
-        ? 'background:var(--ws-surface);border:1px solid var(--ws-border);color:var(--ws-muted)'
-        : phase === 'active'
-          ? 'background:var(--ws-green,#2d6a4f);color:#fff'
-          : 'background:var(--ws-accent);color:#fff5ec'}>
+      style="background:var(--ws-accent);color:#fff5ec">
       {actionBtnLabel}
     </button>
   </div>
