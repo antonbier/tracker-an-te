@@ -90,7 +90,8 @@
   }
 
   function goToTripHub(id) {
-    previousPage.set('home');
+    // Speichere den aktiven Tab damit TripHub "Zurück" zum richtigen Tab führt
+    previousPage.set(activeTab);
     activeWsTripId.set(id);
     currentPage.set('triphub');
   }
