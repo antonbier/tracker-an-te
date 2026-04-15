@@ -188,7 +188,7 @@
         </div>
       {:else}
         <p class="text-sm mt-2" style="color:rgba(255,255,255,.6)">
-          Plane deinen ersten Trip in Meine Reisen.
+          {$t('heroNoTripsHint')}
         </p>
       {/if}
     </div>
@@ -206,10 +206,10 @@
             <div class="flex flex-col gap-1 flex-1 min-w-0">
               <div class="flex items-center justify-between gap-2">
                 <span class="text-xs font-semibold" style="color:rgba(255,255,255,.8)">
-                  Budget {currentYear}
+                  {$t('dashBudget')} {currentYear}
                 </span>
                 <span class="text-xs font-mono font-bold" style="color:{yearSpentPct > 85 ? '#fca5a5' : 'rgba(255,255,255,.9)'}">
-                  {yearRemaining.toFixed(0)} € frei
+                  {yearRemaining.toFixed(0)} € {$t('heroBudgetFree')}
                 </span>
               </div>
               <div class="h-1.5 rounded-full overflow-hidden" style="background:rgba(255,255,255,.15)">
@@ -217,7 +217,7 @@
                   style="width:{budgetPct}%;background:{budgetBarColor}"></div>
               </div>
               <div class="text-[10px]" style="color:rgba(255,255,255,.5)">
-                {yearSpent.toFixed(0)} € von {yearBudget.toFixed(0)} € · ✏️ tippen zum Bearbeiten
+                {yearSpent.toFixed(0)} € {$t('heroBudgetOf')} {yearBudget.toFixed(0)} € · ✏️ {$t('heroBudgetEdit')}
               </div>
             </div>
           </button>
@@ -227,7 +227,7 @@
           <div class="flex gap-2 items-center px-4 py-2.5 rounded-xl"
             style="background:rgba(0,0,0,.45);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.2)">
             <span class="text-xs font-semibold shrink-0" style="color:rgba(255,255,255,.8)">
-              Budget {currentYear}:
+              {$t('dashBudget')} {currentYear}:
             </span>
             <input
               type="number"
@@ -258,13 +258,13 @@
           <button onclick={onopenbodgetedit}
             class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium transition-all hover:opacity-90"
             style="background:rgba(0,0,0,.3);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.6)">
-            💶 Jahresbudget für {currentYear} festlegen
+            💶 {$t('heroSetBudget')} {currentYear}
           </button>
         {:else}
           <div class="flex gap-2 items-center px-4 py-2.5 rounded-xl"
             style="background:rgba(0,0,0,.45);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.2)">
             <span class="text-xs font-semibold shrink-0" style="color:rgba(255,255,255,.8)">
-              Budget {currentYear}:
+              {$t('dashBudget')} {currentYear}:
             </span>
             <input
               type="number"
@@ -293,7 +293,7 @@
 
   </div>
 
-  <!-- ── Action Buttons ── -->
+  <!-- ── Action Button: only TripHub link (no Details/Trip planen) ── -->
   <div class="absolute top-4 right-4 flex gap-2 z-20">
     {#if wsTripsLoaded && nextWsTrip}
       <button onclick={() => goToTripHub(nextWsTrip.id)}
@@ -301,25 +301,7 @@
         style="background:rgba(0,0,0,.35);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.25);color:rgba(255,255,255,.9)">
         🗺️ {$t('dashTripHub')}
       </button>
-    {:else}
-      <button onclick={() => currentPage.set('mytrips')}
-        class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all hover:opacity-90 active:scale-[.97]"
-        style="background:rgba(0,0,0,.35);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.7)">
-        🗺️ {$t('dashTripHubNew')}
-      </button>
     {/if}
-    <button onclick={() => currentPage.set('mytrips')}
-      class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all hover:opacity-90 active:scale-[.97]"
-      style="background:rgba(0,0,0,.35);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.85)">
-      📍 Details
-    </button>
-    <button onclick={onopenWizzard}
-      class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all hover:opacity-90 active:scale-[.97]"
-      style="background:var(--ws-accent);color:#fff5ec;box-shadow:0 2px 8px rgba(196,98,45,.4)">
-      🧳 Trip planen
-    </button>
   </div>
 
 </div>
-
-
