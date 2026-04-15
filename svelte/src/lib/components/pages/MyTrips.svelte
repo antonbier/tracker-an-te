@@ -112,6 +112,14 @@
   const journalYear = $derived(
     journalTrips.filter(t => (t.start_date || '').slice(0, 4) === String(selectedYear))
   );
+
+  // WS-trips that are archived (end_date < today) — shown in archive tab with TripHub link
+  const archivedWsTrips = $derived(
+    wsTrips.filter(t => {
+      const e = (t.end_date || t.start_date || '').slice(0, 10);
+      return e && today > e;
+    })
+  );
   const journalSpentYear = $derived(
     journalYear.reduce((s, t) => s + (parseFloat(t.cost ?? t.auto_cost) || 0), 0)
   );
@@ -599,6 +607,22 @@
           {/each}
         </div>
       {:else}
+        <!-- WS-Trips (archived — have TripHub) -->
+        {#if archivedWsTrips.filter(t => (t.start_date||'').slice(0,4)===String(selectedYear)).length > 0}
+          <div class="space-y-2 mb-4">
+            <p class="text-xs font-semibold px-1" style="color:var(--ws-muted)">📋 WanderWizzard Reisen</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
+              {#each archivedWsTrips.filter(t => (t.start_date||'').slice(0,4)===String(selectedYear)) as trip}
+                <TripCard
+                  {trip}
+                  mode="planned"
+                  ongoToHub={(t) => goToTripHub(t.id)}
+                />
+              {/each}
+            </div>
+          </div>
+        {/if}
+        <!-- Detected trips (Dawarich/manual — no TripHub) -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
           {#each journalYear as trip}
             <TripCard
