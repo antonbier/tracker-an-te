@@ -6,7 +6,7 @@
   const nav = [
     { id: 'home',       icon: '🏠', labelKey: 'navHome' },
     { id: 'priceradar', icon: '🎯', labelKey: 'navRadar' },
-    { id: 'planer',     icon: '🧙', labelKey: 'navPlaner' },
+    { id: 'planer',     icon: '🪄', labelKey: 'navWizzard' },
     { id: 'mytrips',    icon: '🎒', labelKey: 'navTrips' },
   ];
 
@@ -48,4 +48,3 @@
     {/if}
   </div>
 </aside>
-
