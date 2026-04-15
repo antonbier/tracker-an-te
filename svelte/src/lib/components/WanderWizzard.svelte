@@ -18,6 +18,8 @@
     budget      = 0,
   } = $props();
 
+  const todayISO = new Date().toISOString().slice(0, 10);
+
   // ── Core State ─────────────────────────────────────────────────────────────
   let step       = $state(1);        // 1 | 2
   let path       = $state('known');  // 'known' | 'inspire'
