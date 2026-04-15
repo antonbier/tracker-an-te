@@ -7,7 +7,7 @@
   import { t } from '$lib/i18n.js';
   import { api } from '$lib/api.js';
   import { toast } from '$lib/toast.js';
-  import { currentPage, activeWsTripId, priceradarParams, previousPage } from '$lib/stores.js';
+  import { currentPage, activeWsTripId, priceradarParams, previousPage, activeMyTripsTab } from '$lib/stores.js';
   import { get as storeGet } from 'svelte/store';
 
   import WeatherWidget   from '$lib/components/triphub/WeatherWidget.svelte';
@@ -121,7 +121,14 @@
   // FIX 5: previousPage store is set by MyTrips/Dashboard before navigating here
   function navigateBack() {
     const prev = storeGet(previousPage);
-    currentPage.set(prev && prev !== 'triphub' ? prev : 'home');
+    // prev holds the MyTrips tab id (planned/ontour/archive/overview/bucketlist)
+    const myTripsTabs = ['overview','planned','ontour','archive','bucketlist'];
+    if (myTripsTabs.includes(prev)) {
+      activeMyTripsTab.set(prev);
+      currentPage.set('home');
+    } else {
+      currentPage.set(prev && prev !== 'triphub' ? prev : 'home');
+    }
   }
 
   // ── Todos ────────────────────────────────────────────────────────────────
