@@ -1,8 +1,8 @@
 <script>
   /**
-   * WeatherWidget.svelte — 3-day forecast via backend proxy.
-   * Direct Open-Meteo calls are blocked by CORS on HTTPS deployments.
-   * Uses /api/settings/geocode-weather?q=<destination> backend proxy instead.
+   * WeatherWidget.svelte — 3-day forecast, cached per destination per day.
+   * Uses backend proxy /api/settings/geocode-weather to avoid CORS.
+   * Cache key: ws-weather:<destination>:<YYYY-MM-DD> in sessionStorage.
    */
   import { onMount } from 'svelte';
   import { apiUrl } from '$lib/stores.js';
@@ -17,8 +17,18 @@
 
   const shouldShow = $derived(phase === 'active' || daysUntilStart <= 7);
 
+  const CACHE_KEY = `ws-weather:${(destination || '').toLowerCase().trim()}:${new Date().toISOString().slice(0, 10)}`;
+
   onMount(() => {
     if ((phase === 'active' || daysUntilStart <= 7) && destination.trim()) {
+      // Try cache first
+      try {
+        const cached = sessionStorage.getItem(CACHE_KEY);
+        if (cached) {
+          days = JSON.parse(cached);
+          return; // no fetch needed
+        }
+      } catch {}
       fetchForecast();
     }
   });
@@ -28,7 +38,6 @@
     loading = true;
     errMsg  = '';
     try {
-      // Use backend proxy to avoid CORS — same pattern as geocoding
       const base = get(apiUrl) || '';
       const url  = `${base}/api/settings/geocode-weather?q=${encodeURIComponent(destination.trim())}`;
       const res  = await fetch(url);
@@ -40,7 +49,7 @@
       const d    = data.daily;
       if (!d?.time?.length) throw new Error('Keine Wetterdaten erhalten');
 
-      days = d.time.slice(0, 3).map((date, i) => ({
+      const result = d.time.slice(0, 3).map((date, i) => ({
         date,
         tempMax: Math.round(d.temperature_2m_max[i]),
         tempMin: Math.round(d.temperature_2m_min[i]),
@@ -48,6 +57,10 @@
         precip:  Math.round((d.precipitation_sum?.[i] ?? 0) * 10) / 10,
         city:    i === 0 ? data.city : '',
       }));
+
+      // Cache for the rest of the day
+      try { sessionStorage.setItem(CACHE_KEY, JSON.stringify(result)); } catch {}
+      days = result;
     } catch (e) {
       console.warn('[WeatherWidget]', e.message);
       errMsg = e.message;
@@ -102,12 +115,10 @@
           <span class="text-2xl">🌡️</span>
           <div>
             <span class="text-sm block" style="color:var(--ws-muted)">Wetterdaten nicht verfügbar</span>
-            {#if errMsg}
-              <span class="text-[10px]" style="color:var(--ws-muted)">{errMsg}</span>
-            {/if}
+            {#if errMsg}<span class="text-[10px]" style="color:var(--ws-muted)">{errMsg}</span>{/if}
           </div>
         </div>
-        <button onclick={() => { errMsg=''; days=[]; fetchForecast(); }}
+        <button onclick={() => { errMsg=''; days=[]; try{sessionStorage.removeItem(CACHE_KEY);}catch{} fetchForecast(); }}
           class="text-xs px-2 py-1 rounded-lg border hover:opacity-70 shrink-0"
           style="border-color:var(--ws-border);color:var(--ws-muted)">↺</button>
       </div>
