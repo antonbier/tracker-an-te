@@ -42,6 +42,8 @@
   const currentYear = new Date().getFullYear();
   let selectedYear  = $state(currentYear);
   const today       = new Date().toISOString().slice(0, 10);
+  // Changes whenever tab or year changes — forces ScratchMap redraw
+  const mapRefreshKey = $derived(`${activeTab}-${selectedYear}`);
 
   // ── Budget ─────────────────────────────────────────────────────────────────
   let budgetByYear  = $state({});
@@ -384,7 +386,7 @@
 
       <!-- World map -->
       <div class="rounded-xl border overflow-hidden" style="border-color:var(--ws-border)">
-        <ScratchMap journalTrips={journalYear} plannedTrips={[]} selectedYear={String(selectedYear)} />
+        <ScratchMap journalTrips={journalYear} plannedTrips={[]} selectedYear={String(selectedYear)} refreshKey={mapRefreshKey} />
       </div>
     </div>
 
