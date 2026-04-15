@@ -5,6 +5,8 @@
    * Visible in planning phase only.
    */
   import { t } from '$lib/i18n.js';
+  import { api } from '$lib/api.js';
+  import { chartPts } from '$lib/components/priceradar/helpers.js';
 
   let {
     trip          = null,
@@ -28,6 +30,24 @@
     return 'Tracker';
   }
 
+  // Price chart per slot
+  let chartOpen  = $state({ flight: false, hotel: false });
+  let chartHist  = $state({ flight: [],    hotel: []    });
+  let chartLoad  = $state({ flight: false, hotel: false });
+
+  async function toggleChart(slotKey, trackerType, trackerId) {
+    if (chartLoad[slotKey]) return;
+    chartOpen = { ...chartOpen, [slotKey]: !chartOpen[slotKey] };
+    if (chartOpen[slotKey] && chartHist[slotKey].length === 0) {
+      chartLoad = { ...chartLoad, [slotKey]: true };
+      try {
+        const res = await api(`/api/prices/history/${trackerType}/${trackerId}`);
+        chartHist = { ...chartHist, [slotKey]: res.history || [] };
+      } catch { chartHist = { ...chartHist, [slotKey]: [] }; }
+      chartLoad = { ...chartLoad, [slotKey]: false };
+    }
+  }
+
   function trackerDates(tr) {
     if (!tr) return '';
     const from = tr.outbound_date || tr.checkin_date  || tr.start_date || '';
@@ -46,7 +66,7 @@
       {@const tracker     = slots[slot.key] || (slot.key === 'hotel' ? slots.camping : null)}
       {@const isBooked    = tracker?.is_booked}
       {@const trackerType = tracker?._type || slot.type}
-      {@const isCarSlot   = slot.key === 'flight' && trip?.travel_mode === 'car'}
+      {@const isCarSlot   = slot.key === 'flight' && trip?.travel_mode === 'car' && !tracker}
       {@const hasPrice    = !!tracker?.latest_snapshot?.total_price}
 
       <div class="rounded-2xl border overflow-hidden transition-all {isCarSlot ? 'opacity-40 grayscale' : ''}"
@@ -147,6 +167,48 @@
                 {$t('hubSlotMarkBooked')}
               </button>
             </div>
+
+            <!-- Price history accordion -->
+            <button
+              onclick={() => toggleChart(slot.key, trackerType, tracker.id)}
+              class="w-full text-left text-xs px-2 py-1.5 rounded-lg flex items-center gap-1.5 hover:opacity-80 transition-opacity"
+              style="color:var(--ws-muted)">
+              <span>{chartOpen[slot.key] ? '▲' : '📉'}</span>
+              <span>{chartOpen[slot.key] ? 'Verlauf ausblenden' : 'Preisverlauf'}</span>
+              {#if chartLoad[slot.key]}
+                <span class="ml-auto text-[10px]">⏳</span>
+              {/if}
+            </button>
+
+            {#if chartOpen[slot.key]}
+              <div class="pt-1 border-t" style="border-color:var(--ws-border)">
+                {#if chartLoad[slot.key]}
+                  <div class="h-16 rounded animate-pulse" style="background:var(--ws-border)"></div>
+                {:else if chartHist[slot.key].length < 2}
+                  <p class="text-[10px] text-center py-3" style="color:var(--ws-muted)">Noch zu wenig Daten</p>
+                {:else}
+                  {#each [chartPts(chartHist[slot.key], 260, 60, 4)] as cp}
+                    <div class="relative" style="height:70px">
+                      <svg viewBox="0 0 270 70" class="w-full h-full" preserveAspectRatio="none">
+                        <defs>
+                          <linearGradient id="sg-{slot.key}" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%"   stop-color="var(--ws-accent)" stop-opacity="0.2"/>
+                            <stop offset="100%" stop-color="var(--ws-accent)" stop-opacity="0"/>
+                          </linearGradient>
+                        </defs>
+                        <polygon fill="url(#sg-{slot.key})" points={cp.area}/>
+                        <polyline fill="none" stroke="var(--ws-accent)" stroke-width="1.5"
+                          stroke-linejoin="round" points={cp.polyline}/>
+                        <circle cx={cp.minPt.x} cy={cp.minPt.y} r="2.5" fill="var(--ws-green)"/>
+                        <circle cx={cp.maxPt.x} cy={cp.maxPt.y} r="2.5" fill="#ef4444" opacity="0.7"/>
+                      </svg>
+                      <div class="absolute top-0 right-0 text-[9px] font-mono" style="color:#ef4444">{cp.maxP.toFixed(0)}€</div>
+                      <div class="absolute bottom-0 right-0 text-[9px] font-mono" style="color:var(--ws-green)">{cp.minP.toFixed(0)}€</div>
+                    </div>
+                  {/each}
+                {/if}
+              </div>
+            {/if}
           </div>
         {/if}
       </div>
