@@ -31,22 +31,24 @@ if (browser) {
 
 export const appStatus  = writable(null);
 export const currentPage  = writable('home');
-export const previousPage    = writable('home');    // track origin before triphub
-export const activeMyTripsTab = writable('overview'); // restored on back-nav from TripHub
+export const previousPage    = writable('home');
+export const activeMyTripsTab = writable('overview');
 export const trips      = writable([]);
 export const budget     = writable(null);
 export const bucketlist = writable([]);
 export const appVersion = writable('');
 
-// WanderWizzard: Suchparameter-Store (wird von WanderWizzard gesetzt, von PriceRadar gelesen)
+// WanderWizzard: Suchparameter-Store
 export const priceradarParams = writable(null);
-
 
 // WanderWizzard Trip Hub — active trip ID for navigation
 export const activeWsTripId = writable(null);
 
-// Global settings modal trigger — set to true from anywhere to open Settings
+// Global settings modal trigger
 export const settingsOpen = writable(false);
+
+// Setup Wizard trigger — set to true from anywhere to open the 5-step wizard
+export const wizardOpen = writable(false);
 
 export const isDark       = derived(theme,       ($t) => $t === 'dark');
 export const isConfigured = derived(apiUrl,      ($u) => $u.length > 0);
@@ -59,7 +61,6 @@ export function logout() {
 }
 
 export async function loadSettingsFromBackend(baseUrl) {
-  // Guard: never fetch without a real URL
   if (!browser || !baseUrl || baseUrl.trim() === '') return;
   try {
     const res = await fetch(`${baseUrl.replace(/\/$/, '')}/api/settings`);
@@ -71,6 +72,7 @@ export async function loadSettingsFromBackend(baseUrl) {
       'actual_file':       's-actualFile',
       'home_lat':          's-homeLat',
       'home_lon':          's-homeLon',
+      'home_name':         's-homeName',
       'travel_categories': 's-travelCategories',
     };
     for (const [dbKey, lsKey] of Object.entries(map)) {
@@ -86,4 +88,3 @@ export async function loadSettingsFromBackend(baseUrl) {
     }
   } catch { /* offline — fail silently */ }
 }
-
