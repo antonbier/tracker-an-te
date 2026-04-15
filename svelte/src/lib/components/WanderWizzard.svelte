@@ -196,8 +196,8 @@
       const payload = {
         title:       destName,
         destination: destName,
-        start_date:  s1DateMode === 'exact' ? s1DateFrom : null,
-        end_date:    s1DateMode === 'exact' ? s1DateTo   : null,
+        start_date:  s1DateMode === 'exact' ? (s1DateFrom >= todayISO ? s1DateFrom : todayISO) : null,
+        end_date:    s1DateMode === 'exact' ? (s1DateTo   >= todayISO ? s1DateTo   : null) : null,
         trip_type:   travelMode,
         budget:      s1Budget || null,
         path:        'inspire',
@@ -231,8 +231,8 @@
       const payload = {
         title:       s1Dest || 'Neue Reise',
         destination: s1Dest,
-        start_date:  s1DateFrom || null,
-        end_date:    s1DateTo   || null,
+        start_date:  s1DateFrom >= todayISO ? s1DateFrom : (s1DateFrom ? todayISO : null),
+        end_date:    s1DateTo   >= todayISO ? s1DateTo   : null,
         trip_type:   travelMode,
         budget:      s1Budget || null,
         path:        'known',
