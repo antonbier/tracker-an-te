@@ -5,7 +5,6 @@
   import { checkApiStatus, api } from '$lib/api.js';
   import { browser } from '$app/environment';
 
-  // ── Tab-Komponenten (werden schrittweise aktiviert) ────────────────────
   import BasicTab         from './settings/BasicTab.svelte';
   import IntegrationsTab  from './settings/IntegrationsTab.svelte';
   import NotificationsTab from './settings/NotificationsTab.svelte';
@@ -16,13 +15,11 @@
 
   let { open = $bindable(false) } = $props();
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
   function ls(key, fallback = '') { return browser ? (localStorage.getItem(key) || fallback) : fallback; }
 
   // ── Tab state ─────────────────────────────────────────────────────────────
   let activeTab = $state('basic');
 
-  // Tabs als statische Array-Struktur — IDs sind stabile Strings, Labels werden im Template aufgelöst.
   const TAB_IDS_NOAUTH = ['basic', 'integrations', 'notifications', 'scheduler'];
   const TAB_IDS_AUTH   = ['basic', 'notifications', 'myspace', 'account', 'scheduler'];
   const TAB_IDS_ADMIN  = ['basic', 'notifications', 'myspace', 'account', 'admin', 'scheduler'];
@@ -35,7 +32,6 @@
     TAB_IDS_NOAUTH
   );
 
-  // FIX: use $derived.by(() => ({...})) to ensure proper reactivity with $t() store reads
   const tabLabels = $derived.by(() => ({
     basic:         $t('settingsBasic'),
     integrations:  $t('settingsIntegrations'),
@@ -52,15 +48,18 @@
   let testOk        = $state(null);
   let appTimezone   = $state('Europe/Rome');
   let appDateFormat = $state('DD.MM.YYYY');
+  let appCurrency   = $state('EUR');
+  // Heimatort (global) — now lives here, not in IntegrationsTab
+  let homeLat       = $state('');
+  let homeLon       = $state('');
+  let homeName      = $state('');
 
-  // ── Integrations tab state (global/fallback) ──────────────────────────────
+  // ── Integrations tab state ────────────────────────────────────────────────
   let dawarichUrl   = $state('');
   let dawarichToken = $state('');
   let actualUrl     = $state('');
   let actualToken   = $state('');
   let actualFile    = $state('');
-  let homeLat       = $state('');
-  let homeLon       = $state('');
   let travelCats    = $state('');
 
   // ── Notifications tab state ───────────────────────────────────────────────
@@ -69,18 +68,18 @@
   let gotifyUrl     = $state('');
   let gotifyToken   = $state('');
 
-  // ── API keys (shared: Myspace + global save) ──────────────────────────────
+  // ── API keys ──────────────────────────────────────────────────────────────
   let serpApiKey = $state('');
   let geminiKey  = $state('');
   let openaiKey  = $state('');
 
-  // ── Flight providers (Myspace → integrations sub-tab) ────────────────────
+  // ── Providers ─────────────────────────────────────────────────────────────
   let providers        = $state([]);
   let providerKeys     = $state({});
   let providersLoading = $state(false);
   let providersSaving  = $state(false);
 
-  // ── Myspace tab state (per-user) ──────────────────────────────────────────
+  // ── Myspace tab state ──────────────────────────────────────────────────────
   let myDawarichUrl    = $state('');
   let myDawarichToken  = $state('');
   let myActualUrl      = $state('');
@@ -92,38 +91,23 @@
   let myTimezone       = $state('');
   let myDateFormat     = $state('');
   let mySettingsSaving = $state(false);
-
-  // ── Immich (per-user) ─────────────────────────────────────────────────────
   let myImmichUrl     = $state('');
   let myImmichKey     = $state('');
   let myImmichGeoSync = $state(false);
-
-  // ── WanderWizzard Defaults (per-user) ─────────────────────────────────────
   let defAdults   = $state(2);
   let defChildren = $state(0);
   let homeAirport = $state('');
-  let lugS10      = $state(0);
-  let lugS20      = $state(0);
-  let lugS23      = $state(0);
-  let lugL10      = $state(0);
-  let lugL20      = $state(1);
-  let lugL23      = $state(0);
-  let fDepMin     = $state('');
-  let fDepMax     = $state('');
-  let fArrMin     = $state('');
-  let fArrMax     = $state('');
-  // Reisepersönlichkeit
-  let travelStyle   = $state('');
-  let climatePref   = $state('');
-  let landscapePref = $state('');
-  let companions    = $state('');
-  let wishText      = $state('');
-  let unsplashKey   = $state('');
-  let travelMode    = $state('flight');
-  let maxTravelTime = $state('any');
-  let historyMode   = $state('blacklist');
+  let lugS10 = $state(0); let lugS20 = $state(0); let lugS23 = $state(0);
+  let lugL10 = $state(0); let lugL20 = $state(1); let lugL23 = $state(0);
+  let fDepMin = $state(''); let fDepMax = $state('');
+  let fArrMin = $state(''); let fArrMax = $state('');
+  let travelStyle = $state(''); let climatePref = $state('');
+  let landscapePref = $state(''); let companions = $state('');
+  let wishText = $state(''); let unsplashKey = $state('');
+  let travelMode = $state('flight'); let maxTravelTime = $state('any');
+  let historyMode = $state('blacklist');
 
-  // ── Load functions ────────────────────────────────────────────────────────
+  // ── Load ──────────────────────────────────────────────────────────────────
   async function loadUserSettings() {
     if (!$apiUrl) return;
     try {
@@ -138,34 +122,22 @@
       myTravelCats    = us.travel_categories    || ls('s-travelCategories');
       myTimezone      = us.timezone || '';
       myDateFormat    = us.date_format || '';
-      // Immich
       myImmichUrl     = us.immich_url     || '';
       myImmichKey     = us.immich_api_key ? '••••••••' : '';
       myImmichGeoSync = us.immich_geo_sync === 'true' || us.immich_geo_sync === true;
-      // WanderWizzard Defaults
       defAdults   = parseInt(us.ww_adults)   || 2;
       defChildren = parseInt(us.ww_children) || 0;
       homeAirport = us.ww_home_airport || '';
-      lugS10      = parseInt(us.ww_lug_s10)  || 0;
-      lugS20      = parseInt(us.ww_lug_s20)  || 0;
-      lugS23      = parseInt(us.ww_lug_s23)  || 0;
-      lugL10      = parseInt(us.ww_lug_l10)  || 0;
-      lugL20      = parseInt(us.ww_lug_l20)  || 1;
-      lugL23      = parseInt(us.ww_lug_l23)  || 0;
-      fDepMin     = us.ww_dep_min || '';
-      fDepMax     = us.ww_dep_max || '';
-      fArrMin     = us.ww_arr_min || '';
-      fArrMax     = us.ww_arr_max || '';
-      // Reisepersönlichkeit
-      travelStyle   = us.travel_style   || '';
-      climatePref   = us.climate_pref   || '';
-      landscapePref = us.landscape_pref || '';
-      companions    = us.companions      || '';
-      wishText      = us.wish_text       || '';
-      unsplashKey   = us.unsplash_key    ? '••••••••' : '';
-      travelMode    = us.travel_mode     || 'flight';
-      maxTravelTime = us.max_travel_time || 'any';
-      historyMode   = us.history_mode    || 'blacklist';
+      lugS10 = parseInt(us.ww_lug_s10) || 0; lugS20 = parseInt(us.ww_lug_s20) || 0;
+      lugS23 = parseInt(us.ww_lug_s23) || 0; lugL10 = parseInt(us.ww_lug_l10) || 0;
+      lugL20 = parseInt(us.ww_lug_l20) || 1; lugL23 = parseInt(us.ww_lug_l23) || 0;
+      fDepMin = us.ww_dep_min || ''; fDepMax = us.ww_dep_max || '';
+      fArrMin = us.ww_arr_min || ''; fArrMax = us.ww_arr_max || '';
+      travelStyle = us.travel_style || ''; climatePref = us.climate_pref || '';
+      landscapePref = us.landscape_pref || ''; companions = us.companions || '';
+      wishText = us.wish_text || ''; unsplashKey = us.unsplash_key ? '••••••••' : '';
+      travelMode = us.travel_mode || 'flight'; maxTravelTime = us.max_travel_time || 'any';
+      historyMode = us.history_mode || 'blacklist';
     } catch {}
   }
 
@@ -180,7 +152,6 @@
     providersLoading = false;
   }
 
-  // ── $effect: populate state when overlay opens ────────────────────────────
   $effect(() => {
     if (open) {
       urlInput      = $apiUrl;
@@ -189,8 +160,6 @@
       actualUrl     = ls('s-actualUrl');
       actualToken   = ls('s-actualPassword');
       actualFile    = ls('s-actualFile');
-      homeLat       = ls('s-homeLat');
-      homeLon       = ls('s-homeLon');
       travelCats    = ls('s-travelCategories');
       loadUserSettings();
       if ($apiUrl) {
@@ -206,6 +175,10 @@
             gotifyToken   = gs.gotify_token         ? '••••••••' : '';
             appTimezone   = gs.timezone             || 'Europe/Rome';
             appDateFormat = gs.date_format          || 'DD.MM.YYYY';
+            appCurrency   = gs.currency             || 'EUR';
+            homeLat       = gs.home_lat             || ls('s-homeLat');
+            homeLon       = gs.home_lon             || ls('s-homeLon');
+            homeName      = gs.home_name            || ls('s-homeName') || '';
           } catch {}
         })();
       } else {
@@ -216,12 +189,14 @@
         telegramChat  = ls('s-telegramChat');
         gotifyUrl     = ls('s-gotifyUrl');
         gotifyToken   = ls('s-gotifyToken');
+        homeLat       = ls('s-homeLat');
+        homeLon       = ls('s-homeLon');
+        homeName      = ls('s-homeName');
       }
       loadProviders();
     }
   });
 
-  // ── Actions ───────────────────────────────────────────────────────────────
   async function testConnection() {
     testing = true; testOk = null;
     testOk = await checkApiStatus(urlInput);
@@ -231,23 +206,24 @@
   async function save() {
     if (!browser) return;
     apiUrl.set(urlInput.trim().replace(/\/$/, ''));
-    localStorage.setItem('s-dawarichUrl',       dawarichUrl);
-    localStorage.setItem('s-dawarichToken',     dawarichToken);
-    localStorage.setItem('s-actualUrl',         actualUrl);
-    localStorage.setItem('s-actualPassword',    actualToken);
-    localStorage.setItem('s-actualFile',        actualFile);
-    localStorage.setItem('s-homeLat',           homeLat);
-    localStorage.setItem('s-homeLon',           homeLon);
-    localStorage.setItem('s-travelCategories',  travelCats);
-    localStorage.setItem('s-serpApiKey',        serpApiKey);
-    localStorage.setItem('s-geminiKey',         geminiKey);
-    localStorage.setItem('s-openaiKey',         openaiKey);
-    localStorage.setItem('s-telegramToken',     telegramToken);
-    localStorage.setItem('s-telegramChat',      telegramChat);
-    localStorage.setItem('s-gotifyUrl',         gotifyUrl);
-    localStorage.setItem('s-gotifyToken',       gotifyToken);
-    localStorage.setItem('ws-date-format', appDateFormat || 'DD.MM.YYYY');
-    localStorage.setItem('ws-timezone',    appTimezone   || 'Europe/Rome');
+    localStorage.setItem('s-dawarichUrl',      dawarichUrl);
+    localStorage.setItem('s-dawarichToken',    dawarichToken);
+    localStorage.setItem('s-actualUrl',        actualUrl);
+    localStorage.setItem('s-actualPassword',   actualToken);
+    localStorage.setItem('s-actualFile',       actualFile);
+    localStorage.setItem('s-travelCategories', travelCats);
+    localStorage.setItem('s-serpApiKey',       serpApiKey);
+    localStorage.setItem('s-geminiKey',        geminiKey);
+    localStorage.setItem('s-openaiKey',        openaiKey);
+    localStorage.setItem('s-telegramToken',    telegramToken);
+    localStorage.setItem('s-telegramChat',     telegramChat);
+    localStorage.setItem('s-gotifyUrl',        gotifyUrl);
+    localStorage.setItem('s-gotifyToken',      gotifyToken);
+    localStorage.setItem('ws-date-format',     appDateFormat || 'DD.MM.YYYY');
+    localStorage.setItem('ws-timezone',        appTimezone   || 'Europe/Rome');
+    if (homeLat)   localStorage.setItem('s-homeLat',   homeLat);
+    if (homeLon)   localStorage.setItem('s-homeLon',   homeLon);
+    if (homeName)  localStorage.setItem('s-homeName',  homeName);
     if ($apiUrl) {
       try {
         await api('/api/settings', {
@@ -262,6 +238,10 @@
             gotify_token:       (gotifyToken   && gotifyToken   !== '••••••••') ? gotifyToken   : null,
             timezone:           appTimezone   || null,
             date_format:        appDateFormat || null,
+            currency:           appCurrency   || null,
+            home_lat:           homeLat       || null,
+            home_lon:           homeLon       || null,
+            home_name:          homeName      || null,
           }),
         });
       } catch {}
@@ -284,25 +264,15 @@
       if (myTravelCats)   payload.travel_categories = myTravelCats;
       if (myTimezone)     payload.timezone          = myTimezone;
       if (myDateFormat)   payload.date_format       = myDateFormat;
-      // Immich
       if (myImmichUrl && myImmichUrl !== '••••••••') payload.immich_url     = myImmichUrl;
       if (myImmichKey && myImmichKey !== '••••••••') payload.immich_api_key = myImmichKey;
       payload.immich_geo_sync = myImmichGeoSync;
-      // WanderWizzard Defaults
-      payload.ww_adults        = defAdults;
-      payload.ww_children      = defChildren;
-      payload.ww_home_airport  = homeAirport || null;
-      payload.ww_lug_s10       = lugS10;
-      payload.ww_lug_s20       = lugS20;
-      payload.ww_lug_s23       = lugS23;
-      payload.ww_lug_l10       = lugL10;
-      payload.ww_lug_l20       = lugL20;
-      payload.ww_lug_l23       = lugL23;
-      payload.ww_dep_min       = fDepMin || null;
-      payload.ww_dep_max       = fDepMax || null;
-      payload.ww_arr_min       = fArrMin || null;
-      payload.ww_arr_max       = fArrMax || null;
-      // Reisepersönlichkeit
+      payload.ww_adults = defAdults; payload.ww_children = defChildren;
+      payload.ww_home_airport = homeAirport || null;
+      payload.ww_lug_s10 = lugS10; payload.ww_lug_s20 = lugS20; payload.ww_lug_s23 = lugS23;
+      payload.ww_lug_l10 = lugL10; payload.ww_lug_l20 = lugL20; payload.ww_lug_l23 = lugL23;
+      payload.ww_dep_min = fDepMin || null; payload.ww_dep_max = fDepMax || null;
+      payload.ww_arr_min = fArrMin || null; payload.ww_arr_max = fArrMax || null;
       if (travelStyle)   payload.travel_style   = travelStyle;
       if (climatePref)   payload.climate_pref   = climatePref;
       if (landscapePref) payload.landscape_pref = landscapePref;
@@ -336,10 +306,8 @@
     providersSaving = true;
     try {
       const payload = providers.map(p => ({
-        name:      p.name,
-        enabled:   p.enabled,
-        api_key:   providerKeys[p.name] || null,
-        test_mode: p.test_mode,
+        name: p.name, enabled: p.enabled,
+        api_key: providerKeys[p.name] || null, test_mode: p.test_mode,
       }));
       await api('/api/settings/providers', { method: 'PUT', body: JSON.stringify({ providers: payload }) });
       const gfKey = providerKeys['google_flights'];
@@ -364,13 +332,11 @@
   <div class="fixed inset-0 md:inset-[5vh_10vw] md:rounded-2xl z-50 flex flex-col shadow-2xl overflow-hidden"
     style="background:var(--ws-surface)">
 
-    <!-- Header -->
     <div class="flex items-center justify-between px-5 py-4 border-b" style="border-color:var(--ws-border)">
       <h2 class="font-semibold text-lg">{$t('settings')}</h2>
       <button onclick={() => open = false} class="p-1.5 rounded-lg hover:opacity-60">✕</button>
     </div>
 
-    <!-- Tab bar -->
     <div class="flex border-b px-2 gap-0.5 pt-2 overflow-x-auto shrink-0" style="border-color:var(--ws-border)">
       {#each tabIds as tabId (tabId)}
         <button
@@ -384,7 +350,6 @@
       {/each}
     </div>
 
-    <!-- Tab content -->
     <div class="flex-1 overflow-y-auto p-5 space-y-4">
 
       {#if activeTab === 'basic'}
@@ -392,6 +357,10 @@
           bind:urlInput
           bind:appTimezone
           bind:appDateFormat
+          bind:appCurrency
+          bind:homeLat
+          bind:homeLon
+          bind:homeName
           {testing}
           {testOk}
           ontestconnection={testConnection}
@@ -400,7 +369,6 @@
       {:else if activeTab === 'integrations'}
         <IntegrationsTab
           bind:dawarichUrl bind:dawarichToken
-          bind:homeLat bind:homeLon
           bind:actualUrl bind:actualToken bind:actualFile bind:travelCats
           {authEnabled}
           onswitchtomyspace={() => activeTab = 'myspace'}
@@ -453,7 +421,6 @@
       {/if}
     </div>
 
-    <!-- Footer: Speichern-Button (nur für Basic / Integrations / Notifications) -->
     {#if activeTab !== 'account' && activeTab !== 'admin' && activeTab !== 'myspace' && activeTab !== 'scheduler'}
       <div class="p-4 border-t shrink-0" style="border-color:var(--ws-border)">
         <button onclick={save}
