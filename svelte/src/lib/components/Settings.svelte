@@ -35,7 +35,8 @@
     TAB_IDS_NOAUTH
   );
 
-  const tabLabels = $derived({
+  // FIX: use $derived.by(() => ({...})) to ensure proper reactivity with $t() store reads
+  const tabLabels = $derived.by(() => ({
     basic:         $t('settingsBasic'),
     integrations:  $t('settingsIntegrations'),
     notifications: $t('settingsNotifications'),
@@ -43,7 +44,7 @@
     account:       $t('settingsAccount'),
     admin:         $t('settingsAdmin'),
     scheduler:     '⏰ ' + ($t('settingsScheduler') || 'Scheduler'),
-  });
+  }));
 
   // ── Basic tab state ───────────────────────────────────────────────────────
   let urlInput      = $state('');
@@ -179,15 +180,6 @@
     providersLoading = false;
   }
 
-  async function loadSchedulerSettings() {
-    // SchedulerTab loads its own state internally — called here only to pre-warm
-    // Actual state lives in SchedulerTab.svelte
-  }
-
-  async function loadAdminUsers() {
-    // AdminTab loads its own state internally
-  }
-
   // ── $effect: populate state when overlay opens ────────────────────────────
   $effect(() => {
     if (open) {
@@ -274,7 +266,7 @@
         });
       } catch {}
     }
-    toast('Einstellungen gespeichert ✓', 'success');
+    toast($t('toastSaved'), 'success');
     open = false;
   }
 
@@ -334,7 +326,7 @@
       if (Object.keys(apiKeyPayload).length > 0) {
         await api('/api/settings', { method: 'POST', body: JSON.stringify(apiKeyPayload) });
       }
-      toast('Mein Bereich gespeichert ✓', 'success');
+      toast($t('toastSaved'), 'success');
     } catch (e) { toast('Fehler: ' + e.message, 'error'); }
     mySettingsSaving = false;
   }
@@ -356,7 +348,7 @@
         await api('/api/settings', { method: 'POST', body: JSON.stringify({ serpapi_key: gfKey }) });
         localStorage.setItem('s-serpApiKey', gfKey);
       }
-      toast('Suchmaschinen gespeichert ✓', 'success');
+      toast($t('toastSaved'), 'success');
       await loadProviders();
     } catch (e) { toast(e.message, 'error'); }
     providersSaving = false;
@@ -366,7 +358,7 @@
 {#if open}
   <div class="fixed inset-0 z-40 bg-black/40" onclick={() => open = false}
     onkeydown={(e) => e.key === 'Escape' && (open = false)}
-    role="button" tabindex="-1" aria-label="Schließen">
+    role="button" tabindex="-1" aria-label={$t('settingsClose') || 'Schließen'}>
   </div>
 
   <div class="fixed inset-0 md:inset-[5vh_10vw] md:rounded-2xl z-50 flex flex-col shadow-2xl overflow-hidden"
@@ -381,7 +373,8 @@
     <!-- Tab bar -->
     <div class="flex border-b px-2 gap-0.5 pt-2 overflow-x-auto shrink-0" style="border-color:var(--ws-border)">
       {#each tabIds as tabId (tabId)}
-        <button onclick={() => { activeTab = tabId; }}
+        <button
+          onclick={() => { activeTab = tabId; }}
           class="px-3 py-2 text-xs rounded-t-lg font-medium whitespace-nowrap transition-colors shrink-0"
           style={activeTab === tabId
             ? 'color:var(--ws-accent);border-bottom:2px solid var(--ws-accent)'
@@ -415,8 +408,10 @@
 
       {:else if activeTab === 'notifications'}
         <NotificationsTab
-          bind:telegramToken bind:telegramChat
-          bind:gotifyUrl bind:gotifyToken
+          bind:telegramToken
+          bind:telegramChat
+          bind:gotifyUrl
+          bind:gotifyToken
         />
 
       {:else if activeTab === 'myspace'}
@@ -471,4 +466,3 @@
 
   </div>
 {/if}
-
