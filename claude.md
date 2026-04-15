@@ -1,13 +1,13 @@
-# WanderSuite — Architekturdokumentation
+# WanderSuite — Architekturdokumentation für KI-Assistenten
 
-> Letzte Aktualisierung: Phase 2B (Beta Branch)
+> Letzte Aktualisierung: Phase 3 / Release-Kandidat (Beta Branch)
 
 ## Projekt-Übersicht
 
-WanderSuite ist eine **selbst-gehostete Travel-Tracking- und Preis-Monitoring-Anwendung**.
+WanderSuite ist eine **selbst-gehostete KI-gestützte Travel-Hub-Anwendung**.
 
 - **Frontend**: Svelte 5 + SvelteKit, Tailwind CSS v4
-- **Backend**: FastAPI (Python)
+- **Backend**: FastAPI (Python 3.12)
 - **Datenbank**: SQLite
 - **Deployment**: Docker Compose (Unraid), Zoraxy Reverse Proxy
 - **Repository**: `antonbier/tracker-an-te`
@@ -19,80 +19,134 @@ WanderSuite ist eine **selbst-gehostete Travel-Tracking- und Preis-Monitoring-An
 
 | Branch | Port Backend | Port Frontend | Zweck |
 |--------|-------------|---------------|-------|
-| `main` | 8765 | 8766 | Stabile Production-Release |
-| `beta` | 8768 | 8767 | Aktive Entwicklung |
+| `main`  | 8765 | 8766 | Stabile Production-Release |
+| `beta`  | 8768 | 8767 | Aktive Entwicklung |
 
 ---
 
-## Architektur-Entscheidungen
+## 3-Phasen-Logik (Kernkonzept)
 
-### Heimatort — Globale Verknüpfung (seit Phase 2A)
+Jede WS-Trip durchläuft drei Phasen — berechnet aus Datum, nicht aus DB-Status:
 
-Der **Heimatort** (`home_lat`, `home_lon`, `home_name`) ist aus den Dawarich-Settings herausgelöst
-und als **globale Basis-Einstellung** implementiert:
-
-- **Backend-Keys**: `GLOBAL_KEYS` in `settings_manager.py` enthält `home_lat`, `home_lon`, `home_name`
-- **Lookup-Priorität**: Per-User-Setting > Global-Setting > `None` (via `resolve_home_location(user_id)`)
-- **Frontend**: `BasicTab.svelte` enthält die vollständige Heimatort-Sektion mit Nominatim-Geocode-Suche
-- **IntegrationsTab**: Die `homeLat`/`homeLon`-Felder wurden entfernt — keine doppelte Datenhaltung
-- **Wizard Step 1**: Beinhaltet das Heimatort-Feld inkl. Suche
-- **Speicherung**: localStorage (`s-homeLat`, `s-homeLon`, `s-homeName`) + DB
-
-### Partial Update Safety
-
-Alle Settings-Endpunkte (`POST /api/settings`, `POST /api/settings/user`, `POST /api/settings/wizard/step`)
-nutzen **Partial Updates**: Nur explizit übergebene Felder werden geschrieben. `None`/leere Werte überschreiben
-**nie** bestehende Daten. Dies verhindert, dass Step 1 des Wizards die Keys aus Step 4 nullt.
-
-```python
-# settings_manager.py
-def save_settings_bulk(settings: dict) -> None:
-    # Only non-None values are written
-    for key, value in settings.items():
-        if key in GLOBAL_KEYS and value is not None:
-            save_setting(key, str(value), fernet)
+```
+phase = "archived"   if today > end_date
+phase = "active"     if today >= start_date AND today <= end_date
+phase = "planning"   otherwise
 ```
 
-### Wizard-Endpoint
-
-`POST /api/settings/wizard/step` — dedizierter Endpunkt für den 5-Step-Wizard:
-- Akzeptiert `WizardStepPayload` (alle Felder optional)
-- Teilt automatisch in `global_fields` vs. `user_fields`
-- Schreibt nur non-None Werte
+Alle UI-Komponenten (TripCard, TripHub, Hero) reagieren auf die Phase:
+- **Planning**: WanderWizzard-Flow, PriceRadar-Links, Checkliste generieren
+- **Active**: ON TOUR Badge (grün, pulsierend), Wetter-Widget prominent, Buchungen
+- **Archived**: Grau/desaturiert, Foto-Galerie (Coming Soon), Nostalgie-Kachel im Dashboard
 
 ---
 
-## 5-Step Setup-Wizard
+## Navigation (finale Benennung)
 
-Getriggert via 🪄-Icon im Header (`wizardOpen` Svelte-Store).
+| ID | Icon | Label DE | Label EN | i18n Key |
+|----|------|----------|----------|----------|
+| `home` | 🏠 | Übersicht | Overview | `navHome` |
+| `priceradar` | 🎯 | Preis-Radar | Price Radar | `navRadar` |
+| `planer` | 🪄 | WanderWizzard | WanderWizzard | `navWizzard` |
+| `mytrips` | 🎒 | Meine Reisen | My Trips | `navTrips` |
 
-| Step | Titel | Inhalt | Gespeichert via |
-|------|-------|--------|-----------------|
-| 1 | Basis & Heimat | Backend-URL, Zeitzone, Datumsformat, Währung, Heimatort | `/api/settings/wizard/step` (global) |
-| 2 | Self-Hosted Bridges | Dawarich, Immich, ActualBudget | `/api/settings/wizard/step` (user) |
-| 3 | Reise-Defaults | 2 Akkordeons: Logistik + Persönlichkeit | `/api/settings/wizard/step` (user: ww_*) |
-| 4 | KI & Engines | OpenAI, Gemini, SerpAPI Keys (mit Links) | `/api/settings/wizard/step` (global: *_key) |
-| 5 | Erfolg | Konfetti-Animation, Summary-Chips, Abschluss-Button | — |
+> **Wichtig**: Der Menüpunkt heißt **WanderWizzard** (nicht mehr "Trip Planner" / "Reiseplaner").
+> Die Svelte-Route bleibt `planer` (historisch). i18n-Key: `navWizzard` / `navWizzardShort`.
 
-### Akkordeon-Muster (Step 3 / MyspaceDefaults)
+---
 
-Beide Wizard Step 3 und `MyspaceDefaults.svelte` verwenden dasselbe 2-Akkordeon-Layout:
+## Onboarding / Setup-Wizard (Phase 2A-2B + 3)
+
+Getriggert via 🪄-Icon im Header (`wizardOpen` Svelte-Store, Komponente: `SetupWizard.svelte`).
+
+| Step | Titel | Inhalt | Save-Endpoint |
+|------|-------|--------|---------------|
+| **0** | Vision | Willkommen, 3-Phasen-Erklärung, Feature-Highlights | — (kein Save) |
+| **1** | Basis & Heimat | Backend-URL, TZ, Datum, Währung, Heimatort | `/api/settings/wizard/step` (global) |
+| **2** | Self-Hosted Bridges | Dawarich, Immich, ActualBudget | `/api/settings/wizard/step` (user) |
+| **3** | Reise-Defaults | 2 Akkordeons: Logistik + Persönlichkeit | `/api/settings/wizard/step` (user: ww_*) |
+| **4** | KI & Engines | OpenAI, Gemini, SerpAPI + Links | `/api/settings/wizard/step` (global: *_key) |
+| **5** | Erfolg | Konfetti-Animation + Summary-Chips | — |
+
+**Step 0** ist der neue Einstieg: Inspirierender Willkommenstext, 3-Phasen-Karten, Feature-Grid.
+Nach Step 0 läuft der Wizard normal durch Steps 1–5 mit Save-on-Next.
+
+### Hilfe-Buttons (kontextuell)
+Jeder Step ab 1 zeigt einen `📖 Hilfe`-Button in der Wizard-Headerleiste.
+Klick öffnet `FieldGuide.svelte` als überlagerndes Modal mit dem zum Step passenden Tab:
 
 ```
-Akkordeon 1 — 🧳 Logistik-Defaults
-  ├── Reisende (Erwachsene, Kinder, Heimatflughafen)
-  ├── Gepäck-Matrix (Kurz- und Langtrip, je 10/20/23 kg)
-  └── Bevorzugte Flugzeiten (Abflug + Ankunft, ab/bis)
+Step 1 → tab: 'wizard'
+Step 2 → tab: 'bridges'
+Step 3 → tab: 'trips'
+Step 4 → tab: 'apis'
+Step 5 → tab: 'vision'
+```
 
-Akkordeon 2 — 🧭 Reisepersönlichkeit
-  ├── Reisestil (Adventure/Entspannung/Kultur/Natur/City)
-  ├── Klimapräferenz (Warm/Mild/Kalt/Egal)
-  ├── Landschaft (Berge/Meer/Wald/Stadt/Mix)
-  ├── Reisebegleitung (Solo/Pärchen/Familie/Freunde)
-  ├── Reisemodus (Flug/Auto)
-  ├── Max. Reisezeit
-  ├── History-Modus (Blacklist/KI-Kontext)
-  └── Freitext-Wunsch (max 500 Zeichen)
+---
+
+## Heimatort — Globale Verknüpfung
+
+Der **Heimatort** (`home_lat`, `home_lon`, `home_name`) ist aus den Dawarich-Settings herausgelöst:
+
+- **`GLOBAL_KEYS`** in `settings_manager.py` enthält `home_lat`, `home_lon`, `home_name`
+- **`USER_KEYS`** auch (per-user Override möglich)
+- **Lookup-Priorität**: Per-User > Global > `None` (via `resolve_home_location(user_id)`)
+- **Frontend**: `BasicTab.svelte` enthält vollständige Geocode-Suche + manuelle Koordinaten
+- **IntegrationsTab**: `homeLat`/`homeLon` Felder **entfernt** — keine Doppelhaltung
+- **Gespeichert in**: localStorage (`s-homeLat`, `s-homeLon`, `s-homeName`) + DB
+
+---
+
+## FieldGuide (In-App Hilfe)
+
+`FieldGuide.svelte` — 6 Tabs, vollständig i18n, deep-link via `initialTab` Prop:
+
+| Tab ID | Inhalt |
+|--------|--------|
+| `vision` | WanderSuite Überblick, 3 Phasen, Quickstart |
+| `wizard` | Setup-Wizard 5 Schritte erklärt |
+| `radar` | PriceRadar: 4 Quellen, IATA-Codes |
+| `trips` | WanderWizzard, Trip Hub Widgets, Dashboard |
+| `bridges` | Dawarich, Immich, ActualBudget Setup-Anleitungen |
+| `apis` | SerpAPI, Gemini, OpenAI Keys + Links |
+
+**Deep-Link Verwendung** (z.B. aus Wizard):
+```svelte
+<FieldGuide bind:open={guideOpen} initialTab="bridges" />
+```
+
+---
+
+## Partial Update Safety
+
+Alle Settings-Endpunkte nutzen **Partial Updates**:
+- Nur explizit übergebene Felder werden geschrieben
+- `None`/leere Werte überschreiben nie bestehende DB-Einträge
+- `POST /api/settings/wizard/step` teilt automatisch in global vs. user fields
+
+---
+
+## Settings-Architektur
+
+### Globale Keys (`GLOBAL_KEYS` in `settings_manager.py`)
+```
+serpapi_key, gemini_key, openai_key, llm_provider
+telegram_bot_token, telegram_chat_id, gotify_url, gotify_token
+language, timezone, date_format, currency
+home_lat, home_lon, home_name
+```
+
+### Per-User Keys (`USER_KEYS`)
+```
+dawarich_url, dawarich_token, actual_url, actual_token, actual_file, travel_categories
+home_lat, home_lon, home_name, timezone, date_format, currency
+immich_url, immich_api_key, immich_geo_sync
+ww_adults, ww_children, ww_home_airport
+ww_lug_s10/s20/s23, ww_lug_l10/l20/l23
+ww_dep_min/max, ww_arr_min/max
+travel_style, climate_pref, landscape_pref, companions, wish_text, unsplash_key
+travel_mode, max_travel_time, history_mode
 ```
 
 ---
@@ -101,46 +155,41 @@ Akkordeon 2 — 🧭 Reisepersönlichkeit
 
 ```
 stores.js
-├── apiUrl          — persisted, Backend-URL
-├── lang            — persisted, aktive Sprache
-├── theme           — persisted, dark/light
-├── jwtToken        — persisted, JWT für Auth
-├── currentUser     — User-Objekt (localStorage)
-├── appStatus       — auth_enabled etc.
-├── currentPage     — aktive Seite
-├── settingsOpen    — globaler Trigger für ⚙️ Modal
-├── wizardOpen      — globaler Trigger für 🪄 Wizard
-├── priceradarParams — WanderWizzard → PriceRadar Übergabe
-└── activeWsTripId  — aktiver WS-Trip für TripHub
+├── apiUrl            — persisted, Backend-URL
+├── lang              — persisted, aktive Sprache (de/en)
+├── theme             — persisted, dark/light
+├── jwtToken          — persisted, JWT
+├── currentUser       — User-Objekt
+├── appStatus         — auth_enabled, version etc.
+├── currentPage       — aktive Seite ('home'|'priceradar'|'planer'|'mytrips'|'triphub'|...)
+├── previousPage      — für TripHub Back-Navigation
+├── activeMyTripsTab  — wiederhergestellt nach TripHub-Rückkehr
+├── settingsOpen      — globaler Trigger für ⚙️ Modal
+├── wizardOpen        — globaler Trigger für 🪄 Wizard
+├── priceradarParams  — WanderWizzard → PriceRadar Übergabe
+└── activeWsTripId    — aktiver WS-Trip für TripHub
 ```
 
 ---
 
-## Settings-Architektur
+## Akkordeon-Muster (Reise-Defaults)
 
-### Globale Settings (Admin, DB-Tabelle `settings`)
-
-```
-serpapi_key, gemini_key, openai_key, llm_provider
-telegram_bot_token, telegram_chat_id, gotify_url, gotify_token
-language, timezone, date_format, currency
-home_lat, home_lon, home_name        ← NEU (Phase 2A)
-```
-
-### Per-User Settings (DB-Tabelle `user_settings`)
+`MyspaceDefaults.svelte` und Wizard Step 3 verwenden identisches 2-Akkordeon-Layout:
 
 ```
-dawarich_url, dawarich_token
-actual_url, actual_token, actual_file, travel_categories
-home_lat, home_lon, home_name        ← User-Override möglich
-timezone, date_format, currency      ← User-Override möglich
-immich_url, immich_api_key, immich_geo_sync
-ww_adults, ww_children, ww_home_airport
-ww_lug_s10/s20/s23, ww_lug_l10/l20/l23
-ww_dep_min/max, ww_arr_min/max
-travel_style, climate_pref, landscape_pref, companions
-wish_text, unsplash_key
-travel_mode, max_travel_time, history_mode
+Akkordeon 1 — 🧳 Logistik-Defaults  [Standard: offen]
+  ├── Reisende (Erwachsene ±, Kinder ±, Heimatflughafen)
+  ├── Gepäck-Matrix (Kurz- und Langtrip, 10/20/23 kg Stepper)
+  └── Bevorzugte Flugzeiten (Abflug ab/bis, Ankunft ab/bis)
+
+Akkordeon 2 — 🧭 Reisepersönlichkeit  [Standard: geschlossen]
+  ├── Reisestil (Adventure/Entspannung/Kultur/Natur/City)
+  ├── Klimapräferenz (Warm/Mild/Kalt/Egal)
+  ├── Landschaft (Berge/Meer/Wald/Stadt/Mix)
+  ├── Reisebegleitung (Solo/Pärchen/Familie/Freunde)
+  ├── Reisemodus (Flug/Auto) + Max. Reisezeit
+  ├── History-Modus (Blacklist/KI-Kontext)
+  └── Freitext-Wunsch (max 500 Zeichen)
 ```
 
 ---
@@ -150,13 +199,12 @@ travel_mode, max_travel_time, history_mode
 - Lokalisierungsdateien: `svelte/src/locales/de.json`, `en.json`
 - i18n-Helper: `svelte/src/lib/i18n.js`
 - Zugriff im Template: `{$t('key')}`
-- Alle neuen UI-Strings **müssen** in beiden Dateien angelegt werden
+- **Alle neuen UI-Strings müssen in beiden Dateien angelegt werden — keine Ausnahmen**
+- Pipe-getrennte Listen für FieldGuide-Features: `"key|key|key"` → gesplittet im Template
 
 ---
 
-## Docker Logging
-
-Alle Services nutzen den `json-file` Driver mit Rotation:
+## Docker Logging (alle Services)
 
 ```yaml
 logging:
@@ -168,34 +216,31 @@ logging:
 
 ---
 
-## GitHub API Commit-Pattern
+## GitHub API Commit-Pattern (kritisch)
 
-**Kritisch**: Patch-Skripte immer nach `/tmp/scriptname.py` schreiben, nie heredocs verwenden.
-Verification-Output ausschließlich nach `sys.stderr`. Niemals `stdout` kontaminieren (base64-Korruption).
-
-```python
-# Korrekt:
+```bash
+# IMMER: Skript nach /tmp/ schreiben, dann ausführen
 python3 /tmp/patch.py
-# Ausgabe nur: print("...", file=sys.stderr)
+
+# NIEMALS heredocs verwenden (base64-Korruption)
+# Verification-Output NUR nach sys.stderr
+print("OK", file=sys.stderr)
+
+# SHA immer frisch holen vor Commit
+# Bei mehreren Commits: SHA aus vorherigem Response für nächsten verwenden
 ```
 
 ---
 
 ## Bekannte Svelte 5 Patterns
 
-### $derived mit $t() Store-Reads
-
 ```svelte
-<!-- ❌ Falsch — verliert Reaktivität -->
-const tabLabels = $derived({ key: $t('someKey') });
+<!-- $derived.by() für $t()-Store-Reads in Objekten -->
+const labels = $derived.by(() => ({ key: $t('someKey') }));
 
-<!-- ✅ Korrekt -->
-const tabLabels = $derived.by(() => ({ key: $t('someKey') }));
-```
-
-### bind: Props in Child-Komponenten
-
-Bei `$bindable()` Props immer explizit auflisten:
-```svelte
+<!-- bind: Props explizit auflisten -->
 <Child bind:propA bind:propB />
+
+<!-- $state-Arrays reaktiv updaten (kein .push!) -->
+items = [...items, newItem];
 ```
