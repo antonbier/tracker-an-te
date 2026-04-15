@@ -177,6 +177,78 @@ _PROVIDER_LABELS = {
 }
 
 
+
+
+@router.get("/weather")
+async def weather_proxy(lat: float, lon: float, days: int = 3):
+    """
+    Proxy Open-Meteo 3-day forecast — avoids CORS issues from browser.
+    GET /api/settings/weather?lat=41.38&lon=2.15
+    """
+    import httpx
+    url = (
+        f"https://api.open-meteo.com/v1/forecast"
+        f"?latitude={lat:.4f}&longitude={lon:.4f}"
+        f"&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum"
+        f"&timezone=auto&forecast_days={min(days, 7)}"
+    )
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            r = await client.get(url)
+            r.raise_for_status()
+            return r.json()
+    except Exception as e:
+        raise HTTPException(502, f"Open-Meteo nicht erreichbar: {e}")
+
+
+@router.get("/geocode-weather")
+async def geocode_and_weather(q: str):
+    """
+    Combined proxy: geocode destination name → fetch 3-day forecast.
+    GET /api/settings/geocode-weather?q=Barcelona
+    Returns {city, lat, lon, daily: {...}}
+    """
+    import httpx
+    if not q or not q.strip():
+        raise HTTPException(400, "Query erforderlich")
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        # Step 1: geocode
+        geo_url = f"https://geocoding-api.open-meteo.com/v1/search?name={q.strip()}&count=1&language=de&format=json"
+        try:
+            geo_r = await client.get(geo_url)
+            geo_r.raise_for_status()
+            results = geo_r.json().get("results", [])
+        except Exception as e:
+            raise HTTPException(502, f"Geocoding fehlgeschlagen: {e}")
+
+        if not results:
+            raise HTTPException(404, f"Ort nicht gefunden: {q}")
+
+        loc = results[0]
+        lat, lon = loc["latitude"], loc["longitude"]
+
+        # Step 2: weather
+        w_url = (
+            f"https://api.open-meteo.com/v1/forecast"
+            f"?latitude={lat:.4f}&longitude={lon:.4f}"
+            f"&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum"
+            f"&timezone=auto&forecast_days=3"
+        )
+        try:
+            w_r = await client.get(w_url)
+            w_r.raise_for_status()
+            weather = w_r.json()
+        except Exception as e:
+            raise HTTPException(502, f"Wetterdaten fehlgeschlagen: {e}")
+
+        return {
+            "city": loc["name"],
+            "lat":  lat,
+            "lon":  lon,
+            "daily": weather.get("daily", {}),
+        }
+
 @router.get("/providers")
 def get_providers(user: dict = Depends(get_current_user)):
     """Return all provider configs with labels for UI rendering."""
