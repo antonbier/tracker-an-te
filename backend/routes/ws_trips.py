@@ -225,6 +225,8 @@ def get_trip(trip_id: int, user=Depends(get_current_user)):
     trip = get_ws_trip(trip_id, _uid(user))
     if not trip:
         raise HTTPException(404, "Trip nicht gefunden")
+    # FIX: alt-Daten Fallback — manual_expenses kann NULL sein bei alten Einträgen
+    trip["manual_expenses"] = float(trip.get("manual_expenses") or 0.0)
     trip["todos"] = list_trip_todos(trip_id)
     return trip
 
@@ -239,10 +241,34 @@ def set_status(trip_id: int, data: StatusUpdate, user=Depends(get_current_user))
 
 
 @router.delete("/{trip_id}")
-def remove_trip(trip_id: int, user=Depends(get_current_user)):
+def remove_trip(
+    trip_id: int,
+    mode: str = "trip_only",   # 'trip_only' | 'all'
+    user=Depends(get_current_user)
+):
+    """
+    Löscht einen Trip.
+    mode=trip_only: Nur den Trip-Eintrag; Tracker-trip_id wird auf NULL gesetzt (via ON DELETE SET NULL).
+    mode=all:       Trip + alle verknüpften Tracker aus der DB löschen.
+    """
+    if not get_ws_trip(trip_id, _uid(user)):
+        raise HTTPException(404, "Trip nicht gefunden")
+
+    if mode == "all":
+        # Alle Tracker explizit löschen
+        from database import db as _db
+        with _db() as conn:
+            conn.execute("DELETE FROM trackers            WHERE trip_id=?", (trip_id,))
+            conn.execute("DELETE FROM gf_trackers         WHERE trip_id=?", (trip_id,))
+            conn.execute("DELETE FROM homair_trackers     WHERE trip_id=?", (trip_id,))
+            conn.execute("DELETE FROM booking_trackers    WHERE trip_id=?", (trip_id,))
+        logger.info(f"[WsTrips] Alle Tracker für Trip #{trip_id} gelöscht")
+
     if not delete_ws_trip(trip_id, _uid(user)):
         raise HTTPException(404, "Trip nicht gefunden")
-    return {"message": "Trip gelöscht ✓"}
+
+    msg = "Trip + Tracker gelöscht ✓" if mode == "all" else "Trip gelöscht ✓"
+    return {"message": msg}
 
 
 # ── To-Do Endpoints ───────────────────────────────────────────────────────────
@@ -380,15 +406,28 @@ def get_trip_budget(trip_id: int, user=Depends(get_current_user)):
 class ManualExpensesPayload(BaseModel):
     manual_expenses: float = 0.0
 
+    @classmethod
+    def __get_validators__(cls):
+        yield cls.validate_manual_expenses
+
+    @classmethod
+    def validate_manual_expenses(cls, v):
+        if isinstance(v, str):
+            try:
+                v = float(v.replace(',', '.'))
+            except (ValueError, AttributeError):
+                raise ValueError('manual_expenses muss eine Zahl sein')
+        return cls(manual_expenses=float(v))
+
 @router.patch("/{trip_id}/manual-expenses")
 def set_manual_expenses(trip_id: int, data: ManualExpensesPayload, user=Depends(get_current_user)):
-    """Update manual_expenses for a trip."""
-    if not get_ws_trip(trip_id, _uid(user)):
+    """Update manual_expenses for a trip."""    if not get_ws_trip(trip_id, _uid(user)):
         raise HTTPException(404, "Trip nicht gefunden")
+    val = max(0.0, float(data.manual_expenses))
     from database import db as _db
     with _db() as conn:
         conn.execute(
             "UPDATE ws_trips SET manual_expenses=?, updated_at=datetime('now') WHERE id=? AND user_id=?",
-            (max(0.0, data.manual_expenses), trip_id, _uid(user))
+            (val, trip_id, _uid(user))
         )
-    return {"ok": True, "manual_expenses": data.manual_expenses}
+    return {"ok": True, "manual_expenses": val}
