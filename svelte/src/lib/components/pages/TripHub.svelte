@@ -8,6 +8,7 @@
   import { api } from '$lib/api.js';
   import { toast } from '$lib/toast.js';
   import { currentPage, activeWsTripId, priceradarParams, previousPage } from '$lib/stores.js';
+  import { get as storeGet } from 'svelte/store';
 
   import WeatherWidget   from '$lib/components/triphub/WeatherWidget.svelte';
   import BudgetWidget    from '$lib/components/triphub/BudgetWidget.svelte';
@@ -117,15 +118,7 @@
   });
 
   // ── Smart Back-Button ────────────────────────────────────────────────────
-  // FIX 5: use previousPage store set by MyTrips/Dashboard before navigating here
-  function goBack() {
-    import('svelte/store').then(({ get }) => {
-      // no-op — we use $previousPage reactive value below
-    }).catch(() => {});
-  }
-
-  // Read previousPage synchronously via the store import
-  import { get as storeGet } from 'svelte/store';
+  // FIX 5: previousPage store is set by MyTrips/Dashboard before navigating here
   function navigateBack() {
     const prev = storeGet(previousPage);
     currentPage.set(prev && prev !== 'triphub' ? prev : 'home');
