@@ -2324,3 +2324,47 @@ WMO-Wettercodes werden zu Emoji gemappt.
   - Wenn Tracker vorhanden: zwei Buttons — „Nur Reise löschen" + „Alles löschen (Reise + Tracker)".
   - Wenn keine Tracker: ein Button — „Reise unwiderruflich löschen".
 - Nach Löschen: `currentPage.set('home')`.
+
+---
+
+## Widget-Architektur & UX-Paket (April 2026)
+
+### 1 — "On Tour" Tab (MyTrips)
+- Neuer Tab zwischen "Geplant" und "Archiv".
+- **Tab-Reihenfolge strikt:** Übersicht | Geplant | 🌍 On Tour | Archiv | Bucket List
+- Filter: `start_date <= heute <= end_date` — nur laufende WS-Trips.
+- Grid- und Listenansicht wie in anderen Tabs; Liste zeigt animierten grünen "ON TOUR"-Badge.
+- Neue i18n-Keys: `tabOnTour`, `onTourEmpty`, `onTourEmptyHint` in DE/EN/IT/ES.
+
+### 2 — Full-Width Layout + Smart Back-Button (TripHub)
+- `TripHub.svelte`: Container `w-full px-4 md:px-8` (vorher `max-w-2xl mx-auto`).
+- Smart `goBack()`: `window.history.length <= 2` → `currentPage.set('home')` (SPA-sicher), sonst `history.back()`.
+
+### 3 — Generative Gradients (kein Picsum/Unsplash)
+- **`svelte/src/lib/components/triphub/helpers.js`** (neu):
+  - `strHash(str)` — deterministischer djb2-Hash für konsistente Farben.
+  - `destinationGradient(destination, travelMode)` — 8 Brand-Paletten (Stone/Sand/Orange), Winkel per Hash, Autoreisen nutzen grüne Palette.
+  - `wmoIcon(code)` — WMO-Code → Emoji (ausgelagert aus TripHub).
+- Picsum-`<img>`-Tags aus `TripHub.svelte` und `TripCard.svelte` **vollständig entfernt**.
+- `TripCard.svelte`: `heroGradient` nutzt `destinationGradient()` statt hardcodierter Gradienten.
+- Archivierte Cards: `filter:saturate(0.6)` für gedämpften Look.
+
+### 4 — Modulares Widget-System (TripHub)
+Neue Dateien unter `svelte/src/lib/components/triphub/`:
+
+| Datei | Inhalt |
+|-------|--------|
+| `helpers.js` | `strHash`, `destinationGradient`, `wmoIcon` |
+| `WeatherWidget.svelte` | Open-Meteo Live-Wetter, nur bei `phase==='active'` oder `daysUntilStart<=7` |
+| `BudgetWidget.svelte` | Budget-Breakdown + Barausgaben Inline-Edit |
+| `ChecklistWidget.svelte` | To-Do-Liste inkl. Regen-Button (alle Phasen) |
+| `SlotWidget.svelte` | Tracker-Slots (leer / tracking / gebucht), nur in `planning` |
+
+`TripHub.svelte` ist jetzt **reiner Container**: importiert alle Widgets, hält State + API-Calls, rendert Grid.
+
+Widget-Grid-Layout: `grid-cols-1 md:grid-cols-2` — Weather spannt `md:col-span-2` wenn aktiv.
+
+### 5 — To-Do Regen global (alle Phasen)
+- `ChecklistWidget.svelte`: 🔄-Button ist **immer sichtbar**, unabhängig von `phase`.
+- Vorher: nur in `phase === 'planning'` gerendert.
+- Checkliste bleibt in `archived` Read-Only (kein Toggle/Add/Delete), aber Regen ist möglich.
