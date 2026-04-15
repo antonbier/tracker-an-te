@@ -3,10 +3,11 @@ WanderSuite — Settings Manager
 
 Global settings (admin): serpapi_key, gemini_key, openai_key,
                           llm_provider, telegram_*, gotify_*, language,
-                          timezone, date_format
+                          timezone, date_format, currency,
+                          home_lat, home_lon, home_name
 Per-user settings:        dawarich_url, dawarich_token,
                           actual_url, actual_token, actual_file,
-                          home_lat, home_lon, travel_categories
+                          home_lat, home_lon, home_name, travel_categories
 """
 
 import os
@@ -30,12 +31,15 @@ GLOBAL_KEYS = [
     "gotify_token",
     "language",
     "timezone",
-    "date_format",   # NEW: DD.MM.YYYY | MM/DD/YYYY | YYYY-MM-DD
+    "date_format",      # DD.MM.YYYY | MM/DD/YYYY | YYYY-MM-DD
+    "currency",         # EUR | USD | GBP | CHF | ...
+    # Heimatort (global fallback, per-user can override)
+    "home_lat",
+    "home_lon",
+    "home_name",        # Human-readable place name
 ]
 
 # Per-user keys — stored in user_settings table (each user configures their own)
-# Note: notification credentials are stored separately in user_notification_settings table
-# and managed via database.get/save_user_notification_settings with Fernet encryption.
 USER_KEYS = [
     "dawarich_url",
     "dawarich_token",
@@ -44,9 +48,11 @@ USER_KEYS = [
     "actual_file",       # Budget display name
     "home_lat",
     "home_lon",
+    "home_name",         # Human-readable place name (per-user override)
     "travel_categories",
     "timezone",          # Per-user timezone override
     "date_format",       # Per-user date format override
+    "currency",          # Per-user currency override
     # Immich
     "immich_url",
     "immich_api_key",    # Fernet-verschlüsselt
@@ -91,7 +97,7 @@ def _get_fernet() -> Fernet:
 # ── Global settings ───────────────────────────────────────────────────────────
 
 def save_settings_bulk(settings: dict) -> None:
-    """Save global settings (admin only)."""
+    """Save global settings (admin only). Only updates provided keys — never nulls others."""
     fernet = _get_fernet()
     for key, value in settings.items():
         if key in GLOBAL_KEYS and value is not None:
@@ -112,7 +118,7 @@ def get_setting_value(key: str) -> str | None:
 # ── Per-user settings ─────────────────────────────────────────────────────────
 
 def save_user_settings_bulk(user_id: int, settings: dict) -> None:
-    """Save per-user settings."""
+    """Save per-user settings. Only updates provided keys — never nulls others."""
     fernet = _get_fernet()
     for key, value in settings.items():
         if key in USER_KEYS and value is not None:
@@ -128,3 +134,16 @@ def get_user_setting_value(user_id: int, key: str) -> str | None:
     """Get a single per-user setting (decrypted)."""
     fernet = _get_fernet()
     return get_user_setting(user_id, key, fernet)
+
+
+def resolve_home_location(user_id: int) -> tuple[str | None, str | None, str | None]:
+    """
+    Resolve home lat/lon/name for a user.
+    Priority: per-user setting > global setting > None.
+    Returns (lat, lon, name).
+    """
+    fernet = _get_fernet()
+    lat  = get_user_setting(user_id, "home_lat",  fernet) or get_setting("home_lat",  fernet)
+    lon  = get_user_setting(user_id, "home_lon",  fernet) or get_setting("home_lon",  fernet)
+    name = get_user_setting(user_id, "home_name", fernet) or get_setting("home_name", fernet)
+    return lat, lon, name
