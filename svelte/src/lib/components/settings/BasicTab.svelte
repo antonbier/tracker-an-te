@@ -1,15 +1,58 @@
 <script>
-  import { theme } from '$lib/stores.js';
+  import { theme, apiUrl } from '$lib/stores.js';
   import { t } from '$lib/i18n.js';
+  import { api } from '$lib/api.js';
 
   let {
     urlInput      = $bindable(),
     appTimezone   = $bindable(),
     appDateFormat = $bindable(),
+    appCurrency   = $bindable(),
+    homeLat       = $bindable(),
+    homeLon       = $bindable(),
+    homeName      = $bindable(),
     testing,
     testOk,
     ontestconnection,
   } = $props();
+
+  // ── Heimatort geocode search ──────────────────────────────────────────────
+  let homeSearch     = $state(homeName || '');
+  let homeResults    = $state([]);
+  let homeSearching  = $state(false);
+  let homeSearchErr  = $state('');
+
+  async function searchHome() {
+    const q = homeSearch.trim();
+    if (!q || q.length < 2) return;
+    if (!$apiUrl) { homeSearchErr = $t('basicHomeNeedsBackend'); return; }
+    homeSearching = true;
+    homeSearchErr = '';
+    homeResults   = [];
+    try {
+      const data = await api(`/api/settings/geocode?q=${encodeURIComponent(q)}`);
+      homeResults = data?.results || [];
+      if (!homeResults.length) homeSearchErr = $t('basicHomeNoResults');
+    } catch (e) {
+      homeSearchErr = e?.message || $t('basicHomeSearchError');
+    }
+    homeSearching = false;
+  }
+
+  function selectHome(r) {
+    homeLat     = r.lat;
+    homeLon     = r.lon;
+    homeName    = r.display_name.split(',')[0].trim();
+    homeSearch  = homeName;
+    homeResults = [];
+  }
+
+  function clearHome() {
+    homeLat = ''; homeLon = ''; homeName = '';
+    homeSearch = ''; homeResults = [];
+  }
+
+  const CURRENCIES = ['EUR','USD','GBP','CHF','JPY','AUD','CAD','SEK','NOK','DKK'];
 </script>
 
 <!-- Backend URL -->
@@ -50,7 +93,7 @@
 
 <!-- Timezone -->
 <div>
-  <label class="text-xs font-bold uppercase tracking-wider block mb-2" style="color:var(--ws-muted)">🌍 {$t('settingsTimezone') || 'Zeitzone'}</label>
+  <label class="text-xs font-bold uppercase tracking-wider block mb-2" style="color:var(--ws-muted)">🌍 {$t('settingsTimezone')}</label>
   <select bind:value={appTimezone}
     class="w-full px-3 py-2 rounded-xl border text-sm"
     style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)">
@@ -62,7 +105,7 @@
 
 <!-- Datumsformat -->
 <div>
-  <label class="text-xs font-bold uppercase tracking-wider block mb-2" style="color:var(--ws-muted)">📅 {$t('settingsDateFormat') || 'Datumsformat'}</label>
+  <label class="text-xs font-bold uppercase tracking-wider block mb-2" style="color:var(--ws-muted)">📅 {$t('settingsDateFormat')}</label>
   <div class="flex gap-2">
     {#each [{ val: 'DD.MM.YYYY', label: '31.12.2025' }, { val: 'MM/DD/YYYY', label: '12/31/2025' }, { val: 'YYYY-MM-DD', label: '2025-12-31' }] as fmt}
       <button onclick={() => appDateFormat = fmt.val}
@@ -74,4 +117,89 @@
       </button>
     {/each}
   </div>
+</div>
+
+<!-- Währung -->
+<div>
+  <label class="text-xs font-bold uppercase tracking-wider block mb-2" style="color:var(--ws-muted)">💱 {$t('settingsCurrency')}</label>
+  <div class="flex flex-wrap gap-2">
+    {#each CURRENCIES as cur}
+      <button onclick={() => appCurrency = cur}
+        class="px-3 py-1.5 rounded-xl text-xs border transition-all"
+        style={appCurrency === cur
+          ? 'background:var(--ws-accent);color:#fff;border-color:var(--ws-accent)'
+          : 'background:var(--ws-surface2);color:var(--ws-muted);border-color:var(--ws-border)'}>
+        {cur}
+      </button>
+    {/each}
+  </div>
+</div>
+
+<!-- Heimatort -->
+<div>
+  <label class="text-xs font-bold uppercase tracking-wider block mb-2" style="color:var(--ws-muted)">🏠 {$t('settingsHomeLocation')}</label>
+  <p class="text-xs mb-2" style="color:var(--ws-muted)">{$t('settingsHomeLocationHint')}</p>
+
+  <!-- Current home display -->
+  {#if homeName || (homeLat && homeLon)}
+    <div class="flex items-center gap-2 mb-2 px-3 py-2 rounded-xl border"
+      style="background:color-mix(in srgb,var(--ws-accent) 6%,var(--ws-surface));border-color:color-mix(in srgb,var(--ws-accent) 25%,var(--ws-border))">
+      <span class="text-sm">🏠</span>
+      <span class="text-xs font-semibold flex-1" style="color:var(--ws-text)">
+        {homeName || `${parseFloat(homeLat).toFixed(4)}, ${parseFloat(homeLon).toFixed(4)}`}
+      </span>
+      {#if homeLat}
+        <span class="text-[10px] font-mono" style="color:var(--ws-muted)">{parseFloat(homeLat).toFixed(4)}, {parseFloat(homeLon).toFixed(4)}</span>
+      {/if}
+      <button onclick={clearHome} class="text-xs px-2 py-0.5 rounded-lg hover:opacity-70"
+        style="color:var(--ws-muted);background:var(--ws-surface2)">✕</button>
+    </div>
+  {/if}
+
+  <!-- Search box -->
+  <div class="flex gap-2">
+    <input
+      bind:value={homeSearch}
+      placeholder={$t('settingsHomeSearchPlaceholder')}
+      onkeydown={(e) => e.key === 'Enter' && searchHome()}
+      class="flex-1 px-3 py-2 rounded-xl border text-sm"
+      style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"
+    />
+    <button onclick={searchHome} disabled={homeSearching}
+      class="px-3 py-2 rounded-xl text-xs border font-semibold transition-opacity hover:opacity-70 disabled:opacity-40"
+      style="border-color:var(--ws-border);color:var(--ws-accent);background:var(--ws-surface2)">
+      {homeSearching ? '⏳' : '🔍'}
+    </button>
+  </div>
+
+  {#if homeSearchErr}
+    <p class="text-xs mt-1" style="color:#dc2626">{homeSearchErr}</p>
+  {/if}
+
+  <!-- Results dropdown -->
+  {#if homeResults.length}
+    <div class="mt-1 rounded-xl border overflow-hidden shadow-lg"
+      style="background:var(--ws-surface);border-color:var(--ws-border)">
+      {#each homeResults as r}
+        <button onclick={() => selectHome(r)}
+          class="w-full text-left px-4 py-2.5 text-xs hover:opacity-80 border-b last:border-b-0 transition-opacity"
+          style="border-color:var(--ws-border);color:var(--ws-text);background:var(--ws-surface2)">
+          📍 {r.display_name}
+        </button>
+      {/each}
+    </div>
+  {/if}
+
+  <!-- Manual lat/lon input fallback -->
+  <details class="mt-2">
+    <summary class="text-xs cursor-pointer" style="color:var(--ws-muted)">{$t('settingsHomeManual')}</summary>
+    <div class="grid grid-cols-2 gap-2 mt-2">
+      <input bind:value={homeLat} placeholder="Lat: 46.7987"
+        class="px-3 py-2 rounded-xl border text-sm"
+        style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
+      <input bind:value={homeLon} placeholder="Lon: 11.7188"
+        class="px-3 py-2 rounded-xl border text-sm"
+        style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
+    </div>
+  </details>
 </div>
