@@ -310,7 +310,8 @@ class TodoUpdate(BaseModel):
 
 @router.patch("/{trip_id}/todos/{todo_id}/due")
 def set_todo_due(trip_id: int, todo_id: int, data: TodoUpdate, user=Depends(get_current_user)):
-    """Set or clear the due_date on a single to-do."""    if not get_ws_trip(trip_id, _uid(user)):
+    """Set or clear the due_date on a single to-do."""
+    if not get_ws_trip(trip_id, _uid(user)):
         raise HTTPException(404, "Trip nicht gefunden")
     from database import db as _db
     with _db() as conn:
@@ -400,7 +401,8 @@ def unbook_tracker(trip_id: int, tracker_id: int, tracker_type: str, user=Depend
 
 @router.get("/{trip_id}/budget")
 def get_trip_budget(trip_id: int, user=Depends(get_current_user)):
-    """Budget breakdown — returns safe defaults for legacy trips."""    trip = get_ws_trip(trip_id, _uid(user))
+    """Budget breakdown — returns safe defaults for legacy trips."""
+    trip = get_ws_trip(trip_id, _uid(user))
     if not trip:
         raise HTTPException(404, "Trip nicht gefunden")
 
