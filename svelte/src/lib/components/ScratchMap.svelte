@@ -3,7 +3,7 @@
   import { bucketlist, apiUrl } from '$lib/stores.js';
   import { api } from '$lib/api.js';
 
-  let { journalTrips = [], plannedTrips = [], selectedYear = new Date().getFullYear() } = $props();
+  let { journalTrips = [], plannedTrips = [], selectedYear = new Date().getFullYear(), refreshKey = 0 } = $props();
 
   let mapEl      = $state(null);
   let loading    = $state(true);
@@ -134,10 +134,11 @@
   }
 
   $effect(() => {
-    // Reaktive Abhängigkeiten
+    // Reaktive Abhängigkeiten — inkl. refreshKey für Tab-Wechsel
     const _jt = journalTrips.length;
     const _pt = plannedTrips.length;
     const _yr = selectedYear;
+    const _rk = refreshKey;   // changes on tab switch → forces redraw
     const _el = mapEl;
     if (!_el) return;
 
