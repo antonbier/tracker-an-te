@@ -31,6 +31,11 @@
   let bookPrice  = $state('');
   let bookSaving = $state(false);
 
+  // Delete modal
+  let deleteModal = $state(false);
+  let deleteLinkedTrackers = $state([]);
+  let deleteLoading = $state(false);
+
   // ── Load ───────────────────────────────────────────────────────────────────
   onMount(async () => {
     const id = $activeWsTripId;
@@ -44,7 +49,7 @@
       const res = await api(`/api/ws-trips/${id}`);
       trip  = res;
       todos = res.todos || [];
-      manualExpDraft = String(res.manual_expenses || 0);
+      manualExpDraft = String(res.manual_expenses ?? 0);
       // Fetch weather: compute phase inline (derived not yet updated)
       if (res.destination) {
         const _today = new Date().toISOString().slice(0, 10);
@@ -68,18 +73,25 @@
   }
 
   // ── Phase Lifecycle ────────────────────────────────────────────────────────
+  // FIX: Use date-only strings for reliable comparison (avoids timezone issues)
   const today = new Date().toISOString().slice(0, 10);
 
   const daysUntilStart = $derived.by(() => {
     if (!trip?.start_date) return 999;
-    return Math.ceil((new Date(trip.start_date) - new Date()) / 86400000);
+    // Compare as local dates: strip time component
+    const startMs = new Date(trip.start_date + 'T00:00:00').getTime();
+    const nowMs   = new Date(today + 'T00:00:00').getTime();
+    return Math.ceil((startMs - nowMs) / 86400000);
   });
 
   const phase = $derived.by(() => {
     if (!trip) return 'planning';
-    const t_start = trip.start_date || '';
-    const t_end   = trip.end_date   || trip.start_date || '';
-    if (today > t_end)   return 'archived';
+    // Normalize: take only YYYY-MM-DD portion to avoid any time-zone drift
+    const t_start = (trip.start_date || '').slice(0, 10);
+    const t_end   = (trip.end_date   || trip.start_date || '').slice(0, 10);
+    if (!t_end)   return 'planning';
+    // today is already YYYY-MM-DD
+    if (today > t_end)    return 'archived';
     if (today >= t_start) return 'active';
     return 'planning';
   });
@@ -108,7 +120,9 @@
     if (diff === 1) return $t('tripHubTomorrow');
     if (diff > 0)   return $t('tripHubCountdown').replace('{n}', diff);
     if (phase === 'active') {
-      const endDiff = Math.ceil((new Date(trip.end_date) - new Date()) / 86400000);
+      const endMs   = new Date((trip.end_date || trip.start_date) + 'T00:00:00').getTime();
+      const nowMs   = new Date(today + 'T00:00:00').getTime();
+      const endDiff = Math.ceil((endMs - nowMs) / 86400000);
       if (endDiff >= 0) return ($t('tripPhaseActiveCountdown') || 'Noch {n} Tage').replace('{n}', endDiff + 1);
     }
     return null;
@@ -204,7 +218,9 @@
   async function saveManualExp() {
     manualExpSaving = true;
     try {
-      const val = parseFloat(manualExpDraft) || 0;
+      // FIX: parse strictly as float, default to 0 if invalid
+      const raw = String(manualExpDraft).replace(',', '.');
+      const val = isFinite(parseFloat(raw)) ? Math.max(0, parseFloat(raw)) : 0;
       await api(`/api/ws-trips/${trip.id}/manual-expenses`, {
         method: 'PATCH',
         body: JSON.stringify({ manual_expenses: val }),
@@ -266,7 +282,27 @@
     } catch (e) { toast(e.message, 'error'); }
   }
 
-  // Weather is fetched once inside loadTrip() after trip data is available.
+  // ── Delete Trip ────────────────────────────────────────────────────────────
+  async function openDeleteModal() {
+    deleteModal = true;
+    deleteLinkedTrackers = [];
+    try {
+      const sl = await api(`/api/ws-trips/${trip.id}/trackers`);
+      deleteLinkedTrackers = Object.values(sl || {}).filter(Boolean);
+    } catch {}
+  }
+
+  async function confirmDelete(mode) {
+    // mode: 'trip_only' | 'all'
+    deleteLoading = true;
+    try {
+      await api(`/api/ws-trips/${trip.id}?mode=${mode}`, { method: 'DELETE' });
+      toast(mode === 'all' ? '🗑️ Reise + Tracker gelöscht' : '🗑️ Reise gelöscht', 'success');
+      deleteModal = false;
+      currentPage.set('home');
+    } catch (e) { toast(e.message, 'error'); }
+    deleteLoading = false;
+  }
 </script>
 
 <!-- ── Book Modal ──────────────────────────────────────────────────────────── -->
@@ -303,13 +339,74 @@
   </div>
 {/if}
 
+<!-- ── Delete Modal ─────────────────────────────────────────────────────────── -->
+{#if deleteModal}
+  <div class="fixed inset-0 z-50 flex items-center justify-center"
+    style="background:rgba(0,0,0,.55);backdrop-filter:blur(4px)"
+    role="dialog" aria-modal="true">
+    <div class="w-full max-w-sm mx-4 rounded-2xl border p-6 space-y-4 shadow-2xl"
+      style="background:var(--ws-surface);border-color:var(--ws-border)">
+      <h3 class="font-bold text-base" style="color:#ef4444">🗑️ Reise löschen?</h3>
+
+      {#if deleteLinkedTrackers.length > 0}
+        <div class="rounded-xl border p-3 space-y-1.5" style="background:color-mix(in srgb,#ef4444 8%,var(--ws-surface));border-color:color-mix(in srgb,#ef4444 25%,var(--ws-border))">
+          <p class="text-xs font-semibold" style="color:#ef4444">⚠️ {deleteLinkedTrackers.length} verknüpfte Tracker vorhanden:</p>
+          {#each deleteLinkedTrackers as tr}
+            <div class="text-xs px-2 py-1 rounded-lg" style="background:var(--ws-surface2);color:var(--ws-muted)">
+              {tr._type === 'flight' ? '✈️' : tr._type === 'google_flight' ? '🔍' : tr._type === 'hotel' ? '🏨' : '🏕️'}
+              {tr.destination || tr.origin || 'Tracker #' + tr.id}
+            </div>
+          {/each}
+        </div>
+      {:else}
+        <p class="text-sm" style="color:var(--ws-muted)">Keine verknüpften Tracker. Die Reise wird unwiderruflich gelöscht.</p>
+      {/if}
+
+      <div class="space-y-2">
+        {#if deleteLinkedTrackers.length > 0}
+          <button onclick={() => confirmDelete('trip_only')} disabled={deleteLoading}
+            class="w-full py-2.5 rounded-xl border text-sm font-semibold transition-all hover:opacity-80 disabled:opacity-40"
+            style="border-color:var(--ws-border);color:var(--ws-text);background:var(--ws-surface2)">
+            {deleteLoading ? '⏳' : '🔓 Nur Reise löschen (Tracker bleiben)'}
+          </button>
+          <button onclick={() => confirmDelete('all')} disabled={deleteLoading}
+            class="w-full py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-80 disabled:opacity-40"
+            style="background:#ef4444;color:#fff">
+            {deleteLoading ? '⏳' : '💣 Alles löschen (Reise + Tracker)'}
+          </button>
+        {:else}
+          <button onclick={() => confirmDelete('trip_only')} disabled={deleteLoading}
+            class="w-full py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-80 disabled:opacity-40"
+            style="background:#ef4444;color:#fff">
+            {deleteLoading ? '⏳' : '🗑️ Reise unwiderruflich löschen'}
+          </button>
+        {/if}
+        <button onclick={() => deleteModal = false} disabled={deleteLoading}
+          class="w-full py-2 text-sm hover:opacity-70" style="color:var(--ws-muted)">
+          Abbrechen
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
 <div class="max-w-2xl mx-auto space-y-5 pb-10">
 
-  <button onclick={() => currentPage.set('home')}
-    class="flex items-center gap-1.5 text-sm font-semibold hover:opacity-70 transition-opacity"
-    style="color:var(--ws-muted)">
-    {$t('tripHubBack')}
-  </button>
+  <!-- FIX: history.back() statt hardcoded href -->
+  <div class="flex items-center justify-between">
+    <button onclick={() => history.back()}
+      class="flex items-center gap-1.5 text-sm font-semibold hover:opacity-70 transition-opacity"
+      style="color:var(--ws-muted)">
+      {$t('tripHubBack')}
+    </button>
+    {#if trip}
+      <button onclick={openDeleteModal}
+        class="flex items-center gap-1 text-xs px-3 py-1.5 rounded-xl border hover:border-red-400 hover:text-red-400 transition-colors"
+        style="border-color:var(--ws-border);color:var(--ws-muted)">
+        🗑️
+      </button>
+    {/if}
+  </div>
 
   {#if loading}
     <div class="rounded-2xl animate-pulse h-52" style="background:var(--ws-surface2)"></div>
@@ -325,11 +422,11 @@
     <!-- ── Hero ─────────────────────────────────────────────────────────────── -->
     <div class="relative rounded-2xl overflow-hidden" style="min-height:200px;background:{heroBg}">
       <div class="absolute inset-0 opacity-10" style="background-image:radial-gradient(circle at 20% 80%,rgba(255,255,255,.2) 0%,transparent 50%)"></div>
-      <!-- Picsum background for active trips -->
-      {#if phase === 'active' && trip.id}
+      <!-- FIX: Picsum always rendered (not only active), correct URL format -->
+      {#if trip.id}
         <img src="https://picsum.photos/seed/{trip.id}/800/300"
           alt=""
-          class="absolute inset-0 w-full h-full object-cover opacity-20"
+          class="absolute inset-0 w-full h-full object-cover {phase === 'archived' ? 'opacity-10 grayscale' : 'opacity-20'}"
           aria-hidden="true" />
       {/if}
       <div class="relative z-10 p-6 flex flex-col justify-between" style="min-height:200px">
@@ -501,7 +598,8 @@
             <span class="text-xs" style="color:var(--ws-muted)">💵 {$t('hubManualExp') || 'Barausgaben'}</span>
             {#if manualExpEditing}
               <div class="flex items-center gap-1">
-                <input type="number" min="0" step="1"
+                <!-- FIX: type=number enforced -->
+                <input type="number" min="0" step="0.01"
                   bind:value={manualExpDraft}
                   class="w-20 px-2 py-0.5 text-xs rounded-lg border font-mono focus:outline-none"
                   style="background:var(--ws-surface);border-color:var(--ws-border);color:var(--ws-text)"
@@ -515,9 +613,9 @@
             {:else}
               <div class="flex items-center gap-2">
                 <span class="text-sm font-mono font-bold" style="color:var(--ws-text)">
-                  −{parseFloat(trip.manual_expenses || 0).toFixed(0)} €
+                  −{parseFloat(trip.manual_expenses ?? 0).toFixed(0)} €
                 </span>
-                <button onclick={() => { manualExpEditing=true; manualExpDraft=String(trip.manual_expenses||0); }}
+                <button onclick={() => { manualExpEditing=true; manualExpDraft=String(trip.manual_expenses ?? 0); }}
                   class="text-[10px] px-1.5 py-0.5 rounded border hover:opacity-70"
                   style="border-color:var(--ws-border);color:var(--ws-muted)">✏️</button>
               </div>
