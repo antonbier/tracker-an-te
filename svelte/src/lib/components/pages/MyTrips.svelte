@@ -579,10 +579,7 @@
             <div class="flex items-center gap-4 px-5 py-3 transition-all hover:opacity-90 {i > 0 ? 'border-t' : ''}"
               style="background:var(--ws-surface);border-color:var(--ws-border)">
               <span class="text-2xl shrink-0">🌍</span>
-              <div class="flex-1 min-w-0 cursor-pointer"
-                role="button" tabindex="0"
-                onclick={() => { if (trip.id) { activeWsTripId.set(trip.id); currentPage.set('triphub'); } }}
-                onkeydown={(e) => e.key === 'Enter' && trip.id && (activeWsTripId.set(trip.id), currentPage.set('triphub'))}>
+              <div class="flex-1 min-w-0">
                 <div class="font-semibold text-sm truncate" style="font-family:var(--ws-serif);color:var(--ws-text)">{trip.name || trip.destination || 'Reise'}</div>
                 {#if trip.start_date}
                   <div class="text-xs font-mono" style="color:var(--ws-muted)">{trip.start_date}{trip.end_date && trip.end_date !== trip.start_date ? ' → ' + trip.end_date : ''}</div>
@@ -603,7 +600,7 @@
             <TripCard
               {trip}
               mode="archive"
-              ongoToHub={(t) => { if (t.id) { activeWsTripId.set(t.id); currentPage.set('triphub'); } }}
+              ongoToHub={() => {}}
               ondelete={(t) => deleteJournalTrip(t.id)}
             />
           {/each}
