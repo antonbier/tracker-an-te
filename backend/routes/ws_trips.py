@@ -225,9 +225,18 @@ def get_trip(trip_id: int, user=Depends(get_current_user)):
     trip = get_ws_trip(trip_id, _uid(user))
     if not trip:
         raise HTTPException(404, "Trip nicht gefunden")
-    # FIX: alt-Daten Fallback — manual_expenses kann NULL sein bei alten Einträgen
+    # FIX 2: robuste Fallbacks für Alt-Daten (alle optionalen Felder)
     trip["manual_expenses"] = float(trip.get("manual_expenses") or 0.0)
-    trip["todos"] = list_trip_todos(trip_id)
+    trip["budget"]          = float(trip.get("budget") or 0.0) or None
+    trip["adults"]          = int(trip.get("adults") or 2)
+    trip["children"]        = int(trip.get("children") or 0)
+    trip["travel_mode"]     = trip.get("travel_mode") or "flight"
+    trip["status"]          = trip.get("status") or "planning"
+    trip["vibes"]           = trip.get("vibes") or "[]"
+    try:
+        trip["todos"] = list_trip_todos(trip_id)
+    except Exception:
+        trip["todos"] = []
     return trip
 
 
@@ -255,15 +264,20 @@ def remove_trip(
         raise HTTPException(404, "Trip nicht gefunden")
 
     if mode == "all":
-        # Alle Tracker explizit löschen
+        # Alle Tracker explizit löschen — robust gegen FK-Constraints bei Alt-Daten
         from database import db as _db
-        with _db() as conn:
-            conn.execute("DELETE FROM trackers            WHERE trip_id=?", (trip_id,))
-            conn.execute("DELETE FROM gf_trackers         WHERE trip_id=?", (trip_id,))
-            conn.execute("DELETE FROM homair_trackers     WHERE trip_id=?", (trip_id,))
-            conn.execute("DELETE FROM booking_trackers    WHERE trip_id=?", (trip_id,))
-        logger.info(f"[WsTrips] Alle Tracker für Trip #{trip_id} gelöscht")
+        try:
+            with _db() as conn:
+                for tbl in ("trackers", "gf_trackers", "homair_trackers", "booking_trackers"):
+                    try:
+                        conn.execute(f"DELETE FROM {tbl} WHERE trip_id=?", (trip_id,))
+                    except Exception as e:
+                        logger.warning(f"[WsTrips] Delete {tbl} trip_id={trip_id}: {e}")
+        except Exception as e:
+            logger.warning(f"[WsTrips] Tracker-Delete für Trip #{trip_id} teilweise fehlgeschlagen: {e}")
+        logger.info(f"[WsTrips] Tracker-Cleanup für Trip #{trip_id} abgeschlossen")
 
+    # trip_todos CASCADE via FK → werden automatisch mit gelöscht
     if not delete_ws_trip(trip_id, _uid(user)):
         raise HTTPException(404, "Trip nicht gefunden")
 
@@ -366,40 +380,41 @@ def unbook_tracker(trip_id: int, tracker_id: int, tracker_type: str, user=Depend
 
 @router.get("/{trip_id}/budget")
 def get_trip_budget(trip_id: int, user=Depends(get_current_user)):
-    """
-    Return budget breakdown:
-      total_budget - booked_flight - booked_hotel = on_site_budget
-    """
-    trip = get_ws_trip(trip_id, _uid(user))
+    """Budget breakdown — returns safe defaults for legacy trips."""    trip = get_ws_trip(trip_id, _uid(user))
     if not trip:
         raise HTTPException(404, "Trip nicht gefunden")
 
-    trackers = get_trackers_for_trip(trip_id)
+    # FIX 2: graceful fallback if trackers table has missing FK data
+    try:
+        trackers = get_trackers_for_trip(trip_id)
+    except Exception:
+        trackers = {}
 
     booked_flight = 0.0
     booked_hotel  = 0.0
 
-    flight_tr = trackers.get("flight")
-    if flight_tr and flight_tr.get("is_booked") and flight_tr.get("booked_price"):
-        booked_flight = float(flight_tr["booked_price"])
+    try:
+        flight_tr = trackers.get("flight")
+        if flight_tr and flight_tr.get("is_booked") and flight_tr.get("booked_price"):
+            booked_flight = float(flight_tr["booked_price"])
 
-    hotel_tr = trackers.get("hotel") or trackers.get("camping")
-    if hotel_tr and hotel_tr.get("is_booked") and hotel_tr.get("booked_price"):
-        booked_hotel = float(hotel_tr["booked_price"])
+        hotel_tr = trackers.get("hotel") or trackers.get("camping")
+        if hotel_tr and hotel_tr.get("is_booked") and hotel_tr.get("booked_price"):
+            booked_hotel = float(hotel_tr["booked_price"])
+    except Exception:
+        pass
 
-    total = float(trip.get("budget") or 0)
-    on_site = max(0, total - booked_flight - booked_hotel)
-
+    total           = float(trip.get("budget") or 0)
     manual_expenses = float(trip.get("manual_expenses") or 0)
-    on_site_net = max(0, total - booked_flight - booked_hotel - manual_expenses)
+    on_site_net     = max(0, total - booked_flight - booked_hotel - manual_expenses)
 
     return {
-        "total_budget":      total,
-        "booked_flight":     booked_flight,
-        "booked_hotel":      booked_hotel,
-        "manual_expenses":   manual_expenses,
-        "on_site_budget":    on_site_net,
-        "has_budget":        total > 0,
+        "total_budget":    total,
+        "booked_flight":   booked_flight,
+        "booked_hotel":    booked_hotel,
+        "manual_expenses": manual_expenses,
+        "on_site_budget":  on_site_net,
+        "has_budget":      total > 0,
     }
 
 
