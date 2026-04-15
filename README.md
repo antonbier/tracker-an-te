@@ -1,187 +1,266 @@
-# WanderSuite
+# 🧭 WanderSuite
 
-> Self-hosted travel management suite — track flight prices, manage your budget, journal your trips and discover new destinations. No subscriptions, no tracking, runs on your own hardware.
+**Your self-hosted AI travel hub.** Plan, track and relive every journey — all data stays on your own server.
 
-[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
-[![Docker](https://img.shields.io/badge/docker-compose-blue.svg)](https://docs.docker.com/compose/)
-[![PWA](https://img.shields.io/badge/PWA-installable-green.svg)](#pwa--mobile)
-
----
-
-## Features
-
-| Module | Description |
-|--------|-------------|
-| 🎯 **Preis-Radar** | Track Ryanair, Google Flights, Homair and Booking prices with daily auto-scraping |
-| 🔔 **Price Alerts** | Telegram + Gotify notifications when a price drops below your target |
-| ✨ **Inspiration** | AI travel recommendations via Gemini or OpenAI |
-| 🎒 **Meine Reisen** | Trips · Budget · Bucket List · Travel Journal — all in one hub |
-| 📓 **Travel Journal** | Automatic trip detection from Dawarich GPS history |
-| 💶 **Budget** | Manual budget tracking + ActualBudget sync |
-| 🧭 **Dashboard** | Live overview: active trackers, budget donut, recent trips |
-| 🌍 **Multilingual** | Deutsch · Italiano · English |
-| 📱 **PWA** | Installable on iOS and Android, mobile bottom navigation |
-| 🔐 **Encrypted Settings** | All API keys AES-Fernet encrypted in SQLite |
+[![Beta](https://img.shields.io/badge/branch-beta-orange)](https://github.com/antonbier/tracker-an-te/tree/beta)
+[![Stack](https://img.shields.io/badge/stack-Svelte5%20%2B%20FastAPI-blue)](#tech-stack)
+[![License](https://img.shields.io/badge/license-MIT-green)](#license)
 
 ---
 
-## Quick Start
+## ✨ Vision
+
+WanderSuite accompanies you through **three phases** of every trip:
+
+| Phase | Name | What it does |
+|-------|------|-------------|
+| 1 | ✈️ **Planning** | WanderWizzard assistant, PriceRadar (4 sources), AI destination suggestions, Trip Hub |
+| 2 | 🌍 **On Tour** | Live checklists, weather widget, budget tracker, booking slots |
+| 3 | 📓 **Experienced** | GPS journal (Dawarich), photo gallery (Immich), expense sync (ActualBudget) |
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Docker + Docker Compose
+- Optional: Dawarich, Immich, ActualBudget instances
+
+### 1. Clone & configure
 
 ```bash
-# 1. Clone
-git clone https://github.com/antonbier/tracker-an-te.git wandersuite
-cd wandersuite
-
-# 2. Configure
+git clone https://github.com/antonbier/tracker-an-te.git
+cd tracker-an-te
 cp .env.example .env
-nano .env
-
-# 3. Start — Docker builds everything (no Node.js needed on host)
-docker compose up -d --build
+# Edit .env with your values
 ```
 
-Open `http://YOUR-IP:8765` — the onboarding wizard will guide you through setup.
+### 2. docker-compose.yml
 
-### Environment Variables
+```yaml
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: wandersuite-backend
+    restart: unless-stopped
+    environment:
+      - TZ=${TZ:-Europe/Rome}
+      - APP_SECRET=${APP_SECRET}
+      - DB_PATH=/app/data/tracker.db
+      - AUTH_ENABLED=${AUTH_ENABLED:-false}
+      - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
+    volumes:
+      - ${DATA_DIR:-./data}:/app/data
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `HOST_PORT` | `8765` | Frontend port (Nginx) |
-| `BACKEND_PORT` | `8766` | Backend port (FastAPI / Swagger) |
-| `TZ` | `Europe/Rome` | Timezone for daily scraping (07:00) |
-| `DATA_DIR` | `./data` | Host path for SQLite DB |
-| `APP_SECRET` | *(required)* | AES-Fernet encryption key — set once, never change |
-| `AUTH_ENABLED` | `false` | Set `true` to require login |
-| `JWT_SECRET` | *(required if auth)* | JWT signing secret |
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+    container_name: wandersuite-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${HOST_PORT:-8080}:80"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+```
 
-**Generate APP_SECRET:**
+### 3. Run
+
 ```bash
-python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-```
-
-### Updating
-
-```bash
-git pull && docker compose up -d --build
-```
-
-Docker cache skips unchanged layers — only what changed gets rebuilt.
-
----
-
-## Architecture
-
-```
-Browser
-  └─► Nginx :8765
-        ├─ /* ──────────► Svelte SPA (built by Docker Multi-Stage)
-        └─ /api/* ──────► FastAPI backend:8000 (internal proxy)
-
-Stack:
-  Frontend  — Svelte 5 + SvelteKit + Tailwind CSS v4 (built via Node 20 in Docker)
-  Backend   — FastAPI + SQLite + APScheduler
-  Deploy    — Docker Compose (Unraid / any Linux host)
-  Cloud     — here.now (frontend) · Railway (backend)
-```
-
-```
-wandersuite/
-├── svelte/              # Frontend (Svelte 5 + SvelteKit)
-│   ├── src/
-│   │   ├── lib/         # Stores, API client, i18n, components
-│   │   └── routes/      # SvelteKit routes (+layout, +page)
-│   └── package.json
-├── backend/             # FastAPI backend
-│   ├── main.py          # Entry point + scheduler
-│   ├── database.py      # SQLite schema + CRUD
-│   ├── settings_manager.py  # AES-Fernet encryption
-│   └── routes/          # API route handlers
-├── docker/
-│   ├── Dockerfile           # Backend (Python)
-│   ├── Dockerfile.frontend  # Frontend (Node build → Nginx)
-│   └── nginx.conf           # SPA + API proxy config
-├── docker-compose.yml
-└── .env.example
+docker compose up -d
+# Open http://localhost:8080
+# Click 🪄 in the header to run the Setup Wizard
 ```
 
 ---
 
-## Integrations
+## 🌟 Core Features
 
-### SerpAPI
-Required for Google Flights, Homair and Booking trackers.
-Free tier: 100 searches/month → [serpapi.com](https://serpapi.com)
+### 🪄 WanderWizzard (5-step Trip Assistant)
+- Choose destination manually or let AI suggest one
+- Configure travelers, luggage presets, flight time windows
+- One-click launch into PriceRadar for price tracking
+- Connects with Trip Hub for full lifecycle management
 
-### Dawarich
-Self-hosted GPS tracker. WanderSuite detects overnight trips automatically:
-points > 50 km from home, 2+ consecutive nights → geocoded via Nominatim.
-→ [dawarich.app](https://dawarich.app)
+### 🎯 PriceRadar (4 Providers)
+| Provider | Key Required | Notes |
+|----------|-------------|-------|
+| 🟠 Ryanair | No | Native API, IATA codes |
+| 🔵 Google Flights | SerpAPI | Airline + flight numbers |
+| ⛺ Homair | No | Camping via scraping |
+| 🏨 Booking.com | SerpAPI | Hotels via Google Hotels |
 
-### ActualBudget
-Self-hosted budget app. WanderSuite syncs travel category expenses.
-→ [actualbudget.org](https://actualbudget.org)
+### 🗺️ Trip Hub (Widget System)
+Each planned WS-Trip gets a dedicated hub page with modular widgets:
+- **🌤️ Weather** — 7-day Open-Meteo forecast (auto-fetched when ≤7 days to departure)
+- **💶 Budget** — Breakdown: flight + hotel + cash expenses vs. total budget
+- **✈️ Booking Slots** — Link PriceRadar trackers to trips, mark as booked with final price
+- **✅ Checklist** — AI-generated todo list (KI-aware of destination + travel type)
 
-### AI (Gemini / OpenAI)
-For the Inspiration tab. Gemini is free via Google AI Studio.
-→ [aistudio.google.com](https://aistudio.google.com)
+### 📊 Dashboard
+- Hero section with next/last trip, countdown, budget progress
+- Travel inspiration: nostalgia tile (archived trips), KI suggestions
+- Compact trips list + active tracker grid
 
-### Notifications
-**Telegram:** BotFather → `/newbot` → Bot Token + Chat ID from @myidbot  
-**Gotify:** Apps → Create Application → App Token
-
----
-
-## API
-
-Swagger UI: `http://YOUR-IP:8766/docs`
-
-Key endpoints:
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET/POST` | `/api/trackers` | Ryanair trackers |
-| `POST` | `/api/trackers/{id}/scrape` | Manual price fetch |
-| `GET` | `/api/prices/{id}/export.csv` | Download price history |
-| `GET/POST` | `/api/google-flights` | Google Flights trackers |
-| `GET/POST` | `/api/accommodations/homair` | Homair trackers |
-| `GET/POST` | `/api/accommodations/booking` | Booking trackers |
-| `POST` | `/api/dawarich/sync` | Sync Dawarich GPS trips |
-| `GET` | `/api/dawarich/trips` | List detected trips |
-| `POST` | `/api/budget/actual/transactions` | ActualBudget sync |
-| `GET/POST` | `/api/settings` | Encrypted settings |
-| `POST` | `/api/discover` | AI recommendations |
-| `GET` | `/health` | Health check + version |
+### 🌍 Discovery (AI Suggestions)
+- Personalized suggestions using your travel personality profile
+- Powered by Gemini Flash (free) or OpenAI gpt-4o-mini
+- Image enrichment via Immich (your own photos) or Unsplash
 
 ---
 
-## PWA & Mobile
+## 🔗 Self-Hosted Integrations
 
-Installable as a Progressive Web App.
+### 📡 Dawarich (GPS Journey Detection)
+Automatically detects trips from your GPS history:
+- Points >50 km from home location for ≥2 consecutive days
+- Reverse geocoding via Nominatim (OSM)
+- Populates travel journal + ScratchMap
 
-**iOS (Safari):** Share → Add to Home Screen  
-**Android (Chrome):** Install button in header or ⋮ → Install app
+**Setup:** Dawarich → Settings → API Keys → copy token → enter in WanderSuite Wizard Step 2
 
-Requires HTTPS for full PWA support (Railway / Cloudflare Tunnel / reverse proxy).
+### 📸 Immich (Photo Integration)
+- Provides trip background images matched by location
+- Future: photo gallery widget in Trip Hub
+
+**Setup:** Immich → Account Settings → API Keys → copy key → enter in Wizard Step 2
+
+### 💳 ActualBudget (Expense Sync)
+- Import travel expenses by category name (e.g. `Holiday, Flights, Hotel`)
+- Auto-maps to WanderSuite trip budget
+
+**Setup:** ActualBudget → click budget name → copy ID from URL → enter in Wizard Step 2
 
 ---
 
-## Auth (optional)
+## 🤖 AI Configuration
 
-By default `AUTH_ENABLED=false` — no login required, suitable for home network use.
+All keys stored Fernet-encrypted. All optional — app works without them.
 
-To enable login:
-```bash
+| Provider | Use | Cost | Where to get |
+|----------|-----|------|-------------|
+| **Google Gemini** | AI suggestions, Discovery | Free (Flash) | [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey) |
+| **OpenAI** | Alternative to Gemini | ~$0.00015/1k tokens | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) |
+| **SerpAPI** | Google Flights + Hotels | 100/mo free | [serpapi.com/manage-api-key](https://serpapi.com/manage-api-key) |
+
+---
+
+## ⚙️ Settings Architecture
+
+### Global Settings (admin, all users)
+`timezone` · `date_format` · `currency` · `home_lat/lon/name` · `serpapi_key` · `gemini_key` · `openai_key` · notification keys
+
+### Per-User Settings (each user)
+`dawarich_url/token` · `immich_url/key` · `actual_url/token/file` · `home_lat/lon/name` (override) · WanderWizzard defaults · travel personality
+
+**Priority for home location:** per-user setting → global setting → none
+
+---
+
+## 🛡️ Authentication
+
+Disabled by default (`AUTH_ENABLED=false`). Enable for multi-user:
+
+```env
 AUTH_ENABLED=true
-JWT_SECRET=<generate with: python3 -c "import secrets; print(secrets.token_hex(32))">
+JWT_SECRET=your-very-long-secret-here
+WEBAUTHN_RP_ID=your-domain.com
+WEBAUTHN_ORIGIN=https://your-domain.com
 ```
 
-On first start with auth enabled, a setup screen appears to create the admin account.
-Additional users can be managed in Settings → Admin.
+Supports: password login + WebAuthn/Passkeys
 
 ---
 
-## License
+## 🧱 Tech Stack
 
-**GNU Affero General Public License v3.0** — [LICENSE](LICENSE)
+| Layer | Technology |
+|-------|-----------|
+| Frontend | Svelte 5, SvelteKit, Tailwind CSS v4 |
+| Backend | FastAPI, Python 3.12 |
+| Database | SQLite (single-file, no migrations needed) |
+| Deployment | Docker Compose, Nginx |
+| GPS | Dawarich integration + Nominatim geocoding |
+| Photos | Immich integration |
+| Weather | Open-Meteo (no key needed) |
+| AI | Google Gemini Flash, OpenAI gpt-4o-mini |
+| Price search | SerpAPI, Ryanair native, Homair scraper |
 
-> Self-hosting is explicitly encouraged. Modifications must be published under the same license.
+---
+
+## 📁 Project Structure
+
+```
+tracker-an-te/
+├── backend/
+│   ├── main.py              # FastAPI app + routes
+│   ├── database.py          # SQLite helpers
+│   ├── settings_manager.py  # Global + per-user settings (Fernet-encrypted)
+│   ├── auth_jwt.py          # JWT + WebAuthn
+│   └── routes/
+│       ├── settings.py      # /api/settings + /api/settings/wizard/step
+│       ├── ws_trips.py      # WS-Trip CRUD + todos + budget
+│       ├── trackers.py      # PriceRadar trackers
+│       ├── discovery.py     # AI suggestions
+│       └── ...
+├── svelte/
+│   ├── src/
+│   │   ├── lib/
+│   │   │   ├── components/
+│   │   │   │   ├── SetupWizard.svelte   # 6-step onboarding wizard
+│   │   │   │   ├── FieldGuide.svelte    # In-app help (6 tabs)
+│   │   │   │   ├── WanderWizzard.svelte # Trip planning assistant
+│   │   │   │   ├── Settings.svelte      # Settings overlay
+│   │   │   │   └── pages/
+│   │   │   │       ├── Dashboard.svelte
+│   │   │   │       ├── TripHub.svelte
+│   │   │   │       └── PriceRadar.svelte
+│   │   │   ├── stores.js    # Svelte stores (wizardOpen, settingsOpen, ...)
+│   │   │   └── i18n.js      # i18n helper
+│   │   └── locales/
+│   │       ├── de.json      # German (primary)
+│   │       └── en.json      # English
+├── docker/
+│   ├── Dockerfile
+│   └── Dockerfile.frontend
+├── docker-compose.yml
+├── claude.md                # Architecture docs for AI assistants
+└── README.md
+```
+
+---
+
+## 🌐 i18n
+
+Full German + English support. All UI strings in `svelte/src/locales/{de,en}.json`.
+Switch language via the language selector in the top navigation bar.
+
+---
+
+## 📄 License
+
+MIT — see [LICENSE](LICENSE)
+
+---
+
+*Built with ❤️ for self-hosters who love to travel.*
