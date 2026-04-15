@@ -58,8 +58,12 @@
   // FIX: Pulseeffekt für aktive Reisen
   const badgePulse = $derived(phase === 'active');
 
-  // FIX 4: unified label across all phases
-  const actionBtnLabel = $derived($t('tripCardGoToHub') || 'Trip Hub →');
+  // Label: ws-trips get "Trip Hub →", detected_trips (archive mode) get "Erlebt ✓"
+  const actionBtnLabel = $derived(
+    mode === 'archive' ? ($t('tripCardExperienced') || 'ERLEBT') : ($t('tripCardGoToHub') || 'Trip Hub →')
+  );
+  // Archive-mode cards (detected_trips) are not navigable to TripHub
+  const isNavigable = $derived(mode !== 'archive');
 
   const travelIcon   = $derived(isFlight ? '✈️' : '🚗');
   const tripTitle    = $derived(trip.title || trip.destination || trip.name || '—');
@@ -120,11 +124,19 @@
 
   <!-- ── Action button ─────────────────────────────────────────────────────── -->
   <div class="px-5 pb-4">
-    <button onclick={() => ongoToHub(trip)}
-      class="w-full py-2 rounded-xl text-sm font-semibold transition-all hover:opacity-85 active:scale-[.98]"
-      style="background:var(--ws-accent);color:#fff5ec">
-      {actionBtnLabel}
-    </button>
+    {#if isNavigable}
+      <button onclick={() => ongoToHub(trip)}
+        class="w-full py-2 rounded-xl text-sm font-semibold transition-all hover:opacity-85 active:scale-[.98]"
+        style="background:var(--ws-accent);color:#fff5ec">
+        {actionBtnLabel}
+      </button>
+    {:else}
+      <!-- detected_trip — no TripHub, just show "Erlebt" label -->
+      <div class="w-full py-2 rounded-xl text-sm font-semibold text-center cursor-default"
+        style="background:var(--ws-surface);border:1px solid var(--ws-border);color:var(--ws-muted)">
+        ✓ {$t('tripCardExperienced') || 'ERLEBT'}
+      </div>
+    {/if}
   </div>
 
 </div>
