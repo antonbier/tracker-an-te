@@ -518,8 +518,8 @@
                 {/if}
               </div>
               <div class="grid grid-cols-2 gap-3">
-                <div><label class={lbl} style="color:var(--ws-muted)">{$t('wwDateFrom')}</label><input type="date" bind:value={s1DateFrom} class={inp} style={inpS}/></div>
-                <div><label class={lbl} style="color:var(--ws-muted)">{$t('wwDateTo')}</label><input type="date" bind:value={s1DateTo} class={inp} style={inpS}/></div>
+                <div><label class={lbl} style="color:var(--ws-muted)">{$t('wwDateFrom')}</label><input type="date" bind:value={s1DateFrom} min={todayISO} class={inp} style={inpS}/></div>
+                <div><label class={lbl} style="color:var(--ws-muted)">{$t('wwDateTo')}</label><input type="date" bind:value={s1DateTo} min={todayISO} class={inp} style={inpS}/></div>
               </div>
               <div>
                 <label class={lbl} style="color:var(--ws-muted)">{$t('wwTravelers')}</label>
@@ -596,8 +596,8 @@
                 </div>
                 {#if s1DateMode === 'exact'}
                   <div class="grid grid-cols-2 gap-3">
-                    <div><label class={lbl} style="color:var(--ws-muted)">{$t('wwDateFrom')}</label><input type="date" bind:value={s1DateFrom} class={inp} style={inpS}/></div>
-                    <div><label class={lbl} style="color:var(--ws-muted)">{$t('wwDateTo')}</label><input type="date" bind:value={s1DateTo} class={inp} style={inpS}/></div>
+                    <div><label class={lbl} style="color:var(--ws-muted)">{$t('wwDateFrom')}</label><input type="date" bind:value={s1DateFrom} min={todayISO} class={inp} style={inpS}/></div>
+                    <div><label class={lbl} style="color:var(--ws-muted)">{$t('wwDateTo')}</label><input type="date" bind:value={s1DateTo} min={todayISO} class={inp} style={inpS}/></div>
                   </div>
                 {:else}
                   <div class="grid grid-cols-2 gap-3">
