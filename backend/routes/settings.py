@@ -1,9 +1,10 @@
 """
 WanderSuite — /api/settings (Multi-User)
 
-Global (admin): GET/POST /api/settings
-Per-user:       GET/POST /api/settings/user
-Geocode:        GET /api/settings/geocode?q=... (backend proxy for Nominatim)
+Global (admin): GET/POST/PATCH /api/settings
+Per-user:       GET/POST/PATCH /api/settings/user
+Geocode:        GET /api/settings/geocode?q=...
+Wizard:         POST /api/settings/wizard/step (partial save, safe merge)
 """
 
 from fastapi import APIRouter, HTTPException, Depends, Query
@@ -29,16 +30,20 @@ class GlobalSettingsPayload(BaseModel):
     openai_key:         Optional[str] = None
     llm_provider:       Optional[str] = None
     timezone:           Optional[str] = None
-    date_format:        Optional[str] = None  # NEW
+    date_format:        Optional[str] = None
+    currency:           Optional[str] = None
     telegram_bot_token: Optional[str] = None
     telegram_chat_id:   Optional[str] = None
     gotify_url:         Optional[str] = None
     gotify_token:       Optional[str] = None
     language:           Optional[str] = None
+    # Heimatort (global fallback)
+    home_lat:           Optional[str] = None
+    home_lon:           Optional[str] = None
+    home_name:          Optional[str] = None
 
 
 class UserSettingsPayload(BaseModel):
-    # ── Bestehende Felder ────────────────────────────────────────────────
     dawarich_url:      Optional[str] = None
     dawarich_token:    Optional[str] = None
     actual_url:        Optional[str] = None
@@ -46,14 +51,16 @@ class UserSettingsPayload(BaseModel):
     actual_file:       Optional[str] = None
     home_lat:          Optional[str] = None
     home_lon:          Optional[str] = None
+    home_name:         Optional[str] = None
     travel_categories: Optional[str] = None
     timezone:          Optional[str] = None
     date_format:       Optional[str] = None
-    # ── Immich ───────────────────────────────────────────────────────────
+    currency:          Optional[str] = None
+    # Immich
     immich_url:      Optional[str]  = None
     immich_api_key:  Optional[str]  = None
     immich_geo_sync: Optional[bool] = None
-    # ── WanderWizzard Defaults ────────────────────────────────────────
+    # WanderWizzard Defaults
     ww_adults:       Optional[int]  = None
     ww_children:     Optional[int]  = None
     ww_home_airport: Optional[str]  = None
@@ -67,17 +74,46 @@ class UserSettingsPayload(BaseModel):
     ww_dep_max:      Optional[str]  = None
     ww_arr_min:      Optional[str]  = None
     ww_arr_max:      Optional[str]  = None
-    # ── Reisepersönlichkeit ───────────────────────────────────────────────
-    travel_style:    Optional[str]  = None   # adventure|relaxation|culture|nature|city
-    climate_pref:    Optional[str]  = None   # warm|mild|cold|any
-    landscape_pref:  Optional[str]  = None   # mountains|sea|forest|city|mix
-    companions:      Optional[str]  = None   # solo|couple|family|friends
-    wish_text:       Optional[str]  = None   # Freitext max ~500 Zeichen
-    unsplash_key:    Optional[str]  = None   # Fernet-verschlüsselt
-    # ── Discovery: Mobilitäts-Präferenzen ────────────────────────────────────
-    travel_mode:     Optional[str]  = None   # flight | car
-    max_travel_time: Optional[str]  = None   # 2h | 4h | 8h | 12h | 12h+
-    history_mode:    Optional[str]  = None   # blacklist | context
+    # Reisepersönlichkeit
+    travel_style:    Optional[str]  = None
+    climate_pref:    Optional[str]  = None
+    landscape_pref:  Optional[str]  = None
+    companions:      Optional[str]  = None
+    wish_text:       Optional[str]  = None
+    unsplash_key:    Optional[str]  = None
+    travel_mode:     Optional[str]  = None
+    max_travel_time: Optional[str]  = None
+    history_mode:    Optional[str]  = None
+
+
+# ── Wizard step payload (partial save, safe) ──────────────────────────────────
+class WizardStepPayload(BaseModel):
+    """
+    Generic partial-save payload for the 5-step setup wizard.
+    Only non-None fields are written to the DB — existing keys are never nulled.
+    Step 1: backend_url (client-side only), timezone, date_format, currency,
+            home_lat, home_lon, home_name
+    Step 2: dawarich_url, dawarich_token, immich_url, immich_api_key,
+            actual_url, actual_token, actual_file, travel_categories
+    Steps 3-5: future use
+    """
+    # Step 1 — Basis & Heimat (global)
+    timezone:           Optional[str] = None
+    date_format:        Optional[str] = None
+    currency:           Optional[str] = None
+    home_lat:           Optional[str] = None
+    home_lon:           Optional[str] = None
+    home_name:          Optional[str] = None
+    # Step 2 — Self-Hosted Bridges (user-level)
+    dawarich_url:       Optional[str] = None
+    dawarich_token:     Optional[str] = None
+    immich_url:         Optional[str] = None
+    immich_api_key:     Optional[str] = None
+    immich_geo_sync:    Optional[bool] = None
+    actual_url:         Optional[str] = None
+    actual_token:       Optional[str] = None
+    actual_file:        Optional[str] = None
+    travel_categories:  Optional[str] = None
 
 
 # ── Global settings (admin configures once for all) ───────────────────────────
@@ -94,7 +130,7 @@ def update_global_settings(data: GlobalSettingsPayload, admin: dict = Depends(re
     return {"message": "Gespeichert", "updated": list(payload.keys())}
 
 
-# ── Per-user settings (each user configures their own integrations) ───────────
+# ── Per-user settings ─────────────────────────────────────────────────────────
 
 @router.get("/user")
 def get_my_settings(user: dict = Depends(get_current_user)):
@@ -103,20 +139,55 @@ def get_my_settings(user: dict = Depends(get_current_user)):
 
 @router.post("/user")
 def update_my_settings(data: UserSettingsPayload, user: dict = Depends(get_current_user)):
-    """Save per-user settings including Immich + WanderWizzard defaults."""
+    """Save per-user settings. Partial update — only provided fields are written."""
     raw = data.model_dump()
     payload = {}
     for k, v in raw.items():
         if v is None:
             continue
-        # Bool → "true"/"false" for consistent TEXT storage
         payload[k] = "true" if v is True else "false" if v is False else str(v)
     save_user_settings_bulk(user["id"], payload)
     logger.info(f"[SETTINGS/USER] updated user={user.get('id')} fields={list(payload.keys())}")
     return {"message": "Gespeichert", "updated": list(payload.keys())}
 
 
-# ── Geocoding proxy (Nominatim via backend — avoids CORS/HTTPS issues) ────────
+# ── Wizard step endpoint (safe partial save) ──────────────────────────────────
+
+@router.post("/wizard/step")
+def wizard_save_step(data: WizardStepPayload, user: dict = Depends(get_current_user)):
+    """
+    Safe partial save for each wizard step.
+    - Global fields (timezone, date_format, currency, home_*) → settings table
+    - User fields (dawarich_*, immich_*, actual_*) → user_settings table
+    - Only non-None values are written; existing keys are NEVER nulled.
+    """
+    raw = data.model_dump()
+
+    # Split into global vs user fields
+    global_fields = {"timezone", "date_format", "currency", "home_lat", "home_lon", "home_name"}
+    global_payload = {}
+    user_payload   = {}
+
+    for k, v in raw.items():
+        if v is None:
+            continue
+        str_v = "true" if v is True else "false" if v is False else str(v)
+        if k in global_fields:
+            global_payload[k] = str_v
+        else:
+            user_payload[k] = str_v
+
+    if global_payload:
+        save_settings_bulk(global_payload)
+    if user_payload:
+        save_user_settings_bulk(user["id"], user_payload)
+
+    updated = list(global_payload.keys()) + list(user_payload.keys())
+    logger.info(f"[WIZARD] step save user={user.get('id')} fields={updated}")
+    return {"message": "Schritt gespeichert", "updated": updated}
+
+
+# ── Geocoding proxy ───────────────────────────────────────────────────────────
 
 @router.get("/geocode")
 def geocode_place(
@@ -155,8 +226,7 @@ def geocode_place(
         raise HTTPException(503, f"Geocoding nicht erreichbar: {e}")
 
 
-
-# ── Provider configs (flight search provider management) ──────────────────
+# ── Provider configs ──────────────────────────────────────────────────────────
 
 class ProviderConfigItem(BaseModel):
     name:      str
@@ -177,14 +247,8 @@ _PROVIDER_LABELS = {
 }
 
 
-
-
 @router.get("/weather")
 async def weather_proxy(lat: float, lon: float, days: int = 3):
-    """
-    Proxy Open-Meteo 3-day forecast — avoids CORS issues from browser.
-    GET /api/settings/weather?lat=41.38&lon=2.15
-    """
     import httpx
     url = (
         f"https://api.open-meteo.com/v1/forecast"
@@ -203,17 +267,10 @@ async def weather_proxy(lat: float, lon: float, days: int = 3):
 
 @router.get("/geocode-weather")
 async def geocode_and_weather(q: str):
-    """
-    Combined proxy: geocode destination name → fetch 3-day forecast.
-    GET /api/settings/geocode-weather?q=Barcelona
-    Returns {city, lat, lon, daily: {...}}
-    """
     import httpx
     if not q or not q.strip():
         raise HTTPException(400, "Query erforderlich")
-
     async with httpx.AsyncClient(timeout=10.0) as client:
-        # Step 1: geocode
         geo_url = f"https://geocoding-api.open-meteo.com/v1/search?name={q.strip()}&count=1&language=de&format=json"
         try:
             geo_r = await client.get(geo_url)
@@ -221,14 +278,10 @@ async def geocode_and_weather(q: str):
             results = geo_r.json().get("results", [])
         except Exception as e:
             raise HTTPException(502, f"Geocoding fehlgeschlagen: {e}")
-
         if not results:
             raise HTTPException(404, f"Ort nicht gefunden: {q}")
-
         loc = results[0]
         lat, lon = loc["latitude"], loc["longitude"]
-
-        # Step 2: weather
         w_url = (
             f"https://api.open-meteo.com/v1/forecast"
             f"?latitude={lat:.4f}&longitude={lon:.4f}"
@@ -241,17 +294,11 @@ async def geocode_and_weather(q: str):
             weather = w_r.json()
         except Exception as e:
             raise HTTPException(502, f"Wetterdaten fehlgeschlagen: {e}")
+        return {"city": loc["name"], "lat": lat, "lon": lon, "daily": weather.get("daily", {})}
 
-        return {
-            "city": loc["name"],
-            "lat":  lat,
-            "lon":  lon,
-            "daily": weather.get("daily", {}),
-        }
 
 @router.get("/providers")
 def get_providers(user: dict = Depends(get_current_user)):
-    """Return all provider configs with labels for UI rendering."""
     configs = get_provider_configs()
     result = []
     for cfg in configs:
@@ -270,7 +317,6 @@ def get_providers(user: dict = Depends(get_current_user)):
 
 @router.put("/providers")
 def update_providers(data: ProviderConfigsPayload, user: dict = Depends(get_current_user)):
-    """Update enabled state, api_key and test_mode per provider."""
     for item in data.providers:
         save_provider_config(
             name=item.name,
@@ -281,8 +327,6 @@ def update_providers(data: ProviderConfigsPayload, user: dict = Depends(get_curr
     logger.info(f"[SETTINGS] providers updated by user={user.get('id')} | {[p.name for p in data.providers]}")
     return {"message": "Provider-Einstellungen gespeichert", "updated": len(data.providers)}
 
-
-# ── SerpAPI quota ─────────────────────────────────────────────────────────────
 
 @router.get("/serpapi-quota")
 def get_serpapi_quota():
@@ -305,5 +349,3 @@ def get_serpapi_quota():
                 "plan": data.get("plan_name", "unknown"), "account": data.get("email", "")}
     except requests.RequestException as e:
         return {"error": f"SerpAPI nicht erreichbar: {e}"}
-
-
