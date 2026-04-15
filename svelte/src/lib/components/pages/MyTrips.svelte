@@ -1,5 +1,5 @@
 <script>
-  import { trips, budget, bucketlist, apiUrl, activeWsTripId, currentPage } from '$lib/stores.js';
+  import { trips, budget, bucketlist, apiUrl, activeWsTripId, currentPage, previousPage } from '$lib/stores.js';
   import { api } from '$lib/api.js';
   import { toast } from '$lib/toast.js';
   import { browser } from '$app/environment';
@@ -90,6 +90,7 @@
   }
 
   function goToTripHub(id) {
+    previousPage.set('home');
     activeWsTripId.set(id);
     currentPage.set('triphub');
   }
