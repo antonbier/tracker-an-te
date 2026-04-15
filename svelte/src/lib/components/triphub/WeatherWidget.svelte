@@ -1,9 +1,12 @@
 <script>
   /**
-   * WeatherWidget.svelte — 3-day forecast via Open-Meteo (free, no key).
-   * Visible when phase === 'active' OR daysUntilStart <= 7.
+   * WeatherWidget.svelte — 3-day forecast via backend proxy.
+   * Direct Open-Meteo calls are blocked by CORS on HTTPS deployments.
+   * Uses /api/settings/geocode-weather?q=<destination> backend proxy instead.
    */
   import { onMount } from 'svelte';
+  import { apiUrl } from '$lib/stores.js';
+  import { get } from 'svelte/store';
   import { wmoIcon } from './helpers.js';
 
   let { destination = '', phase = 'planning', daysUntilStart = 999 } = $props();
@@ -11,6 +14,8 @@
   let days    = $state([]);
   let loading = $state(false);
   let errMsg  = $state('');
+
+  const shouldShow = $derived(phase === 'active' || daysUntilStart <= 7);
 
   onMount(() => {
     if ((phase === 'active' || daysUntilStart <= 7) && destination.trim()) {
@@ -23,32 +28,25 @@
     loading = true;
     errMsg  = '';
     try {
-      // Step 1: geocode destination name → coordinates
-      const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(destination.trim())}&count=1&language=de&format=json`;
-      const geoRes = await fetch(geoUrl);
-      if (!geoRes.ok) throw new Error(`Geocoding fehlgeschlagen (${geoRes.status})`);
-      const geoData = await geoRes.json();
-      const loc = geoData.results?.[0];
-      if (!loc) throw new Error(`Ort nicht gefunden: "${destination}"`);
-
-      // Step 2: 3-day daily forecast
-      const lat = loc.latitude.toFixed(4);
-      const lon = loc.longitude.toFixed(4);
-      const wUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=auto&forecast_days=3`;
-      const wRes = await fetch(wUrl);
-      if (!wRes.ok) throw new Error(`Wetterdaten fehlgeschlagen (${wRes.status})`);
-      const wData = await wRes.json();
-      const d = wData.daily;
-
+      // Use backend proxy to avoid CORS — same pattern as geocoding
+      const base = get(apiUrl) || '';
+      const url  = `${base}/api/settings/geocode-weather?q=${encodeURIComponent(destination.trim())}`;
+      const res  = await fetch(url);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      const d    = data.daily;
       if (!d?.time?.length) throw new Error('Keine Wetterdaten erhalten');
 
       days = d.time.slice(0, 3).map((date, i) => ({
         date,
         tempMax: Math.round(d.temperature_2m_max[i]),
         tempMin: Math.round(d.temperature_2m_min[i]),
-        icon:    wmoIcon(d.weather_code[i]),   // Open-Meteo v1: weather_code (not weathercode)
+        icon:    wmoIcon(d.weather_code[i]),
         precip:  Math.round((d.precipitation_sum?.[i] ?? 0) * 10) / 10,
-        city:    i === 0 ? loc.name : '',
+        city:    i === 0 ? data.city : '',
       }));
     } catch (e) {
       console.warn('[WeatherWidget]', e.message);
@@ -57,7 +55,6 @@
     loading = false;
   }
 
-  const shouldShow = $derived(phase === 'active' || daysUntilStart <= 7);
   const DAY_LABELS = ['Heute', 'Morgen', 'Übermorgen'];
 </script>
 
@@ -73,7 +70,6 @@
       </div>
 
     {:else if days.length > 0}
-      <!-- Header: city + live badge -->
       <div class="flex items-center gap-2 px-4 pt-3 pb-1">
         <span class="text-xs font-semibold" style="color:var(--ws-muted)">🌡️ {days[0].city}</span>
         <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold ml-auto"
@@ -81,7 +77,6 @@
           Live
         </span>
       </div>
-      <!-- 3-day grid -->
       <div class="grid grid-cols-3 divide-x" style="border-color:var(--ws-border)">
         {#each days as day, i}
           <div class="flex flex-col items-center gap-1 px-3 py-3">
@@ -112,7 +107,7 @@
             {/if}
           </div>
         </div>
-        <button onclick={() => { errMsg = ''; days = []; fetchForecast(); }}
+        <button onclick={() => { errMsg=''; days=[]; fetchForecast(); }}
           class="text-xs px-2 py-1 rounded-lg border hover:opacity-70 shrink-0"
           style="border-color:var(--ws-border);color:var(--ws-muted)">↺</button>
       </div>
