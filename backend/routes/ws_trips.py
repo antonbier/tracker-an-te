@@ -406,22 +406,10 @@ def get_trip_budget(trip_id: int, user=Depends(get_current_user)):
 class ManualExpensesPayload(BaseModel):
     manual_expenses: float = 0.0
 
-    @classmethod
-    def __get_validators__(cls):
-        yield cls.validate_manual_expenses
-
-    @classmethod
-    def validate_manual_expenses(cls, v):
-        if isinstance(v, str):
-            try:
-                v = float(v.replace(',', '.'))
-            except (ValueError, AttributeError):
-                raise ValueError('manual_expenses muss eine Zahl sein')
-        return cls(manual_expenses=float(v))
-
 @router.patch("/{trip_id}/manual-expenses")
 def set_manual_expenses(trip_id: int, data: ManualExpensesPayload, user=Depends(get_current_user)):
-    """Update manual_expenses for a trip."""    if not get_ws_trip(trip_id, _uid(user)):
+    """Update manual_expenses for a trip."""
+    if not get_ws_trip(trip_id, _uid(user)):
         raise HTTPException(404, "Trip nicht gefunden")
     val = max(0.0, float(data.manual_expenses))
     from database import db as _db
