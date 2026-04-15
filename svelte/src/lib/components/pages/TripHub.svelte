@@ -7,7 +7,7 @@
   import { t } from '$lib/i18n.js';
   import { api } from '$lib/api.js';
   import { toast } from '$lib/toast.js';
-  import { currentPage, activeWsTripId, priceradarParams } from '$lib/stores.js';
+  import { currentPage, activeWsTripId, priceradarParams, previousPage } from '$lib/stores.js';
 
   import WeatherWidget   from '$lib/components/triphub/WeatherWidget.svelte';
   import BudgetWidget    from '$lib/components/triphub/BudgetWidget.svelte';
@@ -117,13 +117,18 @@
   });
 
   // ── Smart Back-Button ────────────────────────────────────────────────────
+  // FIX 5: use previousPage store set by MyTrips/Dashboard before navigating here
   function goBack() {
-    // SPA: history.length <= 2 means direct entry / new tab
-    if (typeof window !== 'undefined' && window.history.length <= 2) {
-      currentPage.set('home');
-    } else {
-      history.back();
-    }
+    import('svelte/store').then(({ get }) => {
+      // no-op — we use $previousPage reactive value below
+    }).catch(() => {});
+  }
+
+  // Read previousPage synchronously via the store import
+  import { get as storeGet } from 'svelte/store';
+  function navigateBack() {
+    const prev = storeGet(previousPage);
+    currentPage.set(prev && prev !== 'triphub' ? prev : 'home');
   }
 
   // ── Todos ────────────────────────────────────────────────────────────────
@@ -330,7 +335,7 @@
 
   <!-- Top bar: back + delete -->
   <div class="flex items-center justify-between">
-    <button onclick={goBack}
+    <button onclick={navigateBack}
       class="flex items-center gap-1.5 text-sm font-semibold hover:opacity-70 transition-opacity"
       style="color:var(--ws-muted)">
       {$t('tripHubBack')}
