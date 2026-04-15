@@ -335,6 +335,8 @@
   onMount(() => {
     loadAllTrackers();
     loadWsTrips();
+    // FIX: params nach kurzem tick setzen, damit SearchForm-Komponenten
+    // bereits gemountet sind und den prefillParams-Store subscriben können
     applyPriceradarParams();
   });
 </script>
@@ -351,9 +353,9 @@
   {#if activeCategory === 'flights'}
     <FlightSearchForm {searching} onsearch={doSearch} {prefillParams} />
   {:else if activeCategory === 'hotels'}
-    <HotelSearchForm {searching} onsearch={doSearch} />
+    <HotelSearchForm {searching} onsearch={doSearch} {prefillParams} />
   {:else if activeCategory === 'camping'}
-    <CampingSearchForm {searching} onsearch={doSearch} />
+    <CampingSearchForm {searching} onsearch={doSearch} {prefillParams} />
   {:else if activeCategory === 'rentals'}
     <div class="rounded-xl p-8 border text-center space-y-3" style="background:var(--ws-surface);border-color:var(--ws-border)">
       <div class="text-4xl">🚗</div>
