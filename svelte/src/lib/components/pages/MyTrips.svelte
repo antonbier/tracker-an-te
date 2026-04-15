@@ -1,5 +1,6 @@
 <script>
-  import { trips, budget, bucketlist, apiUrl, activeWsTripId, currentPage, previousPage } from '$lib/stores.js';
+  import { trips, budget, bucketlist, apiUrl, activeWsTripId, currentPage, previousPage, activeMyTripsTab } from '$lib/stores.js';
+  import { get as storeGet } from 'svelte/store';
   import { api } from '$lib/api.js';
   import { toast } from '$lib/toast.js';
   import { browser } from '$app/environment';
@@ -13,7 +14,11 @@
   import TripCard from '$lib/components/mytrips/TripCard.svelte';
 
   // ── Tabs ───────────────────────────────────────────────────────────────────
-  let activeTab  = $state('overview');
+  // Restore tab if returning from TripHub
+  let activeTab  = $state(storeGet(activeMyTripsTab));
+
+  // Keep store in sync whenever tab changes
+  $effect(() => { activeMyTripsTab.set(activeTab); });
   let viewMode   = $state('grid'); // 'grid' | 'list'
 
   const tabs = $derived([
