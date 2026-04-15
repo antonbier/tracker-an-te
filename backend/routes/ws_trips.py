@@ -57,6 +57,7 @@ class TodoToggle(BaseModel):
 class TodoCreate(BaseModel):
     task:     str
     category: Optional[str] = "general"
+    due_date: Optional[str] = None   # YYYY-MM-DD
 
 
 class StatusUpdate(BaseModel):
@@ -299,8 +300,27 @@ def get_todos(trip_id: int, user=Depends(get_current_user)):
 def add_todo(trip_id: int, data: TodoCreate, user=Depends(get_current_user)):
     if not get_ws_trip(trip_id, _uid(user)):
         raise HTTPException(404, "Trip nicht gefunden")
-    create_trip_todos(trip_id, [{"task": data.task, "category": data.category}])
+    create_trip_todos(trip_id, [{"task": data.task, "category": data.category, "due_date": data.due_date}])
     return {"message": "To-Do hinzugefügt ✓"}
+
+
+class TodoUpdate(BaseModel):
+    due_date: Optional[str] = None   # YYYY-MM-DD or null to clear
+
+
+@router.patch("/{trip_id}/todos/{todo_id}/due")
+def set_todo_due(trip_id: int, todo_id: int, data: TodoUpdate, user=Depends(get_current_user)):
+    """Set or clear the due_date on a single to-do."""    if not get_ws_trip(trip_id, _uid(user)):
+        raise HTTPException(404, "Trip nicht gefunden")
+    from database import db as _db
+    with _db() as conn:
+        r = conn.execute(
+            "UPDATE trip_todos SET due_date=? WHERE id=? AND trip_id=?",
+            (data.due_date, todo_id, trip_id)
+        )
+    if r.rowcount == 0:
+        raise HTTPException(404, "To-Do nicht gefunden")
+    return {"ok": True, "due_date": data.due_date}
 
 
 @router.patch("/{trip_id}/todos/{todo_id}/toggle")
