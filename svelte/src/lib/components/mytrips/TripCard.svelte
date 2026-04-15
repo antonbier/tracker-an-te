@@ -1,9 +1,10 @@
 <script>
   /**
    * TripCard.svelte — Wiederverwendbare Reisekarte
-   * Unterstützt zwei Modi:
+   * Phase-aware: berechnet 3-Phasen-Logik direkt aus Datum,
+   * unabhängig vom übergebenen mode-Prop.
    *   mode="planned"  → Gradient, Status-Badge, "Trip Hub →"-Button
-   *   mode="archive"  → Gedämpfter Gradient, "ERLEBT"-Badge, ⋮-Menü für Aktionen
+   *   mode="archive"  → Gedämpfter Gradient, ⋮-Menü für Aktionen
    */
   import { t } from '$lib/i18n.js';
 
@@ -16,34 +17,55 @@
 
   let menuOpen = $state(false);
 
-  const isFlight = $derived(trip.travel_mode === 'flight' || trip.travel_mode === 'flight');
+  const isFlight = $derived(trip.travel_mode === 'flight');
 
-  // Hero gradient — archive gets a more muted / sepia tone
+  // FIX: 3-Phasen-Logik direkt aus Datum — nicht nur aus mode-Prop
+  const today = new Date().toISOString().slice(0, 10);
+
+  const phase = $derived.by(() => {
+    const t_start = (trip.start_date || '').slice(0, 10);
+    const t_end   = (trip.end_date   || trip.start_date || '').slice(0, 10);
+    if (!t_end) return 'planning';
+    if (today > t_end)    return 'archived';
+    if (today >= t_start) return 'active';
+    return 'planning';
+  });
+
+  // Hero gradient — archived/active get distinct treatment
   const heroGradient = $derived.by(() => {
-    if (mode === 'archive') {
+    if (phase === 'archived') {
       return isFlight
         ? 'linear-gradient(135deg,#1a2030 0%,#3a3020 100%)'
         : 'linear-gradient(135deg,#1a2820 0%,#2a4030 100%)';
+    }
+    if (phase === 'active') {
+      return 'linear-gradient(135deg,#0f4c2a 0%,#1a6b3a 50%,#0d3d22 100%)';
     }
     return isFlight
       ? 'linear-gradient(135deg,#1a2a4a 0%,var(--ws-accent) 100%)'
       : 'linear-gradient(135deg,#1a3a2a 0%,#2d6a4f 100%)';
   });
 
+  // FIX: badge text basiert auf phase, nicht nur auf mode
   const badgeText = $derived.by(() => {
-    if (mode === 'archive') return $t('tripCardExperienced');
-    if (trip.status === 'booked') return $t('tripCardBooked');
-    return $t('tripCardPlanning');
+    if (phase === 'archived') return $t('tripCardExperienced') || 'ERLEBT';
+    if (phase === 'active')   return $t('tripPhaseActive')     || 'ON TOUR';
+    if (trip.status === 'booked') return $t('tripCardBooked')  || 'GEBUCHT';
+    return $t('tripCardPlanning') || 'IN PLANUNG';
   });
 
   const badgeBg = $derived.by(() => {
-    if (mode === 'archive') return 'rgba(255,255,255,.12)';
+    if (phase === 'archived') return 'rgba(255,255,255,.12)';
+    if (phase === 'active')   return 'rgba(45,106,79,.7)';
     if (trip.status === 'booked') return 'rgba(45,106,79,.7)';
     return 'rgba(255,255,255,.2)';
   });
 
+  // FIX: Pulseeffekt für aktive Reisen
+  const badgePulse = $derived(phase === 'active');
+
   const actionBtnLabel = $derived(
-    mode === 'archive' ? $t('tripCardView') : $t('tripCardGoToHub')
+    phase === 'archived' ? $t('tripCardView') : $t('tripCardGoToHub')
   );
 
   const travelIcon   = $derived(isFlight ? '✈️' : '🚗');
@@ -61,25 +83,28 @@
 
   <!-- ── Hero header ──────────────────────────────────────────────────────── -->
   <div class="px-5 pt-5 pb-3 relative" style="background:{heroGradient};min-height:88px">
-    <!-- Stable background image via picsum (seed = trip.id for consistency) -->
+    <!-- FIX: Picsum immer rendern (nicht nur im archive mode) -->
     {#if trip.id}
       <img src="https://picsum.photos/seed/{trip.id}/400/200"
         alt=""
-        class="absolute inset-0 w-full h-full object-cover opacity-15 pointer-events-none"
+        class="absolute inset-0 w-full h-full object-cover pointer-events-none {phase === 'archived' ? 'opacity-10 grayscale' : 'opacity-15'}"
         aria-hidden="true" />
     {/if}
     <div class="flex items-start justify-between">
       <span class="text-2xl">{travelIcon}</span>
 
       <div class="flex items-center gap-2">
-        <!-- Status badge -->
-        <span class="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full"
+        <!-- Status badge mit Pulse für active -->
+        <span class="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full"
           style="background:{badgeBg};color:rgba(255,255,255,.9)">
+          {#if badgePulse}
+            <span class="w-1 h-1 rounded-full animate-pulse" style="background:#4ade80"></span>
+          {/if}
           {badgeText}
         </span>
 
-        <!-- ⋮ Menu (archive mode only) -->
-        {#if mode === 'archive'}
+        <!-- ⋮ Menu (archive mode OR can delete from any mode) -->
+        {#if mode === 'archive' || phase === 'archived'}
           <div class="relative">
             <button
               onclick={(e) => { e.stopPropagation(); menuOpen = !menuOpen; }}
@@ -133,9 +158,11 @@
   <div class="px-5 pb-4">
     <button onclick={() => ongoToHub(trip)}
       class="w-full py-2 rounded-xl text-sm font-semibold transition-all hover:opacity-85 active:scale-[.98]"
-      style={mode === 'archive'
+      style={phase === 'archived'
         ? 'background:var(--ws-surface);border:1px solid var(--ws-border);color:var(--ws-muted)'
-        : 'background:var(--ws-accent);color:#fff5ec'}>
+        : phase === 'active'
+          ? 'background:var(--ws-green,#2d6a4f);color:#fff'
+          : 'background:var(--ws-accent);color:#fff5ec'}>
       {actionBtnLabel}
     </button>
   </div>
