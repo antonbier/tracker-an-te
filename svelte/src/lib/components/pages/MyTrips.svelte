@@ -386,7 +386,9 @@
 
       <!-- World map -->
       <div class="rounded-xl border overflow-hidden" style="border-color:var(--ws-border)">
-        <ScratchMap journalTrips={journalYear} plannedTrips={[]} selectedYear={String(selectedYear)} refreshKey={mapRefreshKey} />
+        {#key mapRefreshKey}
+        <ScratchMap journalTrips={journalYear} plannedTrips={[]} selectedYear={String(selectedYear)} />
+      {/key}
       </div>
     </div>
 
