@@ -31,7 +31,8 @@ if (browser) {
 
 export const appStatus  = writable(null);
 export const currentPage  = writable('home');
-export const previousPage = writable('home'); // track origin before triphub
+export const previousPage    = writable('home');    // track origin before triphub
+export const activeMyTripsTab = writable('overview'); // restored on back-nav from TripHub
 export const trips      = writable([]);
 export const budget     = writable(null);
 export const bucketlist = writable([]);
