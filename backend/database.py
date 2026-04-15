@@ -236,6 +236,7 @@ def init_db():
                 task       TEXT    NOT NULL,
                 category   TEXT    NOT NULL DEFAULT 'general',  -- 'booking'|'packing'|'documents'|'general'
                 is_done    INTEGER NOT NULL DEFAULT 0,
+                due_date   TEXT             DEFAULT NULL,        -- YYYY-MM-DD optional
                 sort_order INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT    NOT NULL DEFAULT (datetime('now'))
             );
@@ -388,6 +389,7 @@ def init_db():
             ("discovery_pool",   "shown INTEGER NOT NULL DEFAULT 0"),
             # WS-Trips: manual expenses
             ("ws_trips",         "manual_expenses REAL NOT NULL DEFAULT 0"),
+            ("trip_todos",        "due_date TEXT DEFAULT NULL"),
         ]
         for table, col_def in migrations:
             col_name = col_def.split()[0]
@@ -1563,10 +1565,11 @@ def create_trip_todos(trip_id: int, todos: list[dict]) -> int:
     now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
     with db() as conn:
         conn.executemany(
-            """INSERT INTO trip_todos (trip_id, task, category, sort_order, created_at)
-               VALUES (?,?,?,?,?)""",
+            """INSERT INTO trip_todos (trip_id, task, category, due_date, sort_order, created_at)
+               VALUES (?,?,?,?,?,?)""",
             [
-                (trip_id, t.get("task", ""), t.get("category", "general"), i, now)
+                (trip_id, t.get("task", ""), t.get("category", "general"),
+                 t.get("due_date", None), i, now)
                 for i, t in enumerate(todos)
             ]
         )
