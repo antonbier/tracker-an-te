@@ -1,13 +1,12 @@
 <script>
   import { isDark, lang, appVersion } from '$lib/stores.js';
   import { setLang, allLocales, localeLabels } from '$lib/i18n.js';
-  let { onFieldGuide, onSettings, onToggleDark } = $props();
+  import { t } from '$lib/i18n.js';
 
-  // Verfügbare Sprachen dynamisch aus allLocales ableiten
+  let { onFieldGuide, onSettings, onToggleDark, onWizard } = $props();
+
   const availableLangs = Object.keys(allLocales);
 
-  // select-Stil als JS-Konstante — verhindert Parser-Fehler durch
-  // spitze Klammern (z.B. SVG-Data-URIs) in style=""-HTML-Attributen
   const selectStyle = [
     'background:var(--ws-surface2)',
     'border-color:var(--ws-border)',
@@ -31,7 +30,6 @@
   <div class="flex items-center gap-2">
     <span class="text-xl">🧭</span>
     <span class="font-semibold tracking-tight" style="color:var(--ws-accent)">WanderSuite</span>
-    <!-- BETA badge — only in beta branch -->
     <span style="font-size:0.6rem;font-weight:700;letter-spacing:0.05em;padding:2px 6px;border-radius:4px;background:var(--ws-accent);color:#fff;opacity:0.85;vertical-align:middle">
       BETA
     </span>
@@ -43,7 +41,6 @@
   </div>
 
   <div class="flex items-center gap-2">
-    <!-- Sprachauswahl: dynamisches <select> aus allLocales -->
     <select
       value={$lang}
       onchange={(e) => setLang(e.currentTarget.value)}
@@ -53,6 +50,13 @@
         <option value={l}>{localeLabels[l] ?? l.toUpperCase()}</option>
       {/each}
     </select>
+
+    <!-- Setup Wizard -->
+    <button onclick={onWizard}
+      class="p-2 rounded-lg hover:opacity-70 transition-opacity text-base"
+      title={$t('wizardTitle') || 'Setup Wizard'}>
+      🪄
+    </button>
 
     <button onclick={onToggleDark}
       class="p-2 rounded-lg hover:opacity-70 transition-opacity text-base" title="Dark Mode">
