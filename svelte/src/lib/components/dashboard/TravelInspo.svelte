@@ -2,20 +2,49 @@
   import { onMount } from 'svelte';
   import { api } from '$lib/api.js';
   import { apiUrl, settingsOpen } from '$lib/stores.js';
+  import { t } from '$lib/i18n.js';
   import DestinationDetail from '$lib/components/dashboard/DestinationDetail.svelte';
 
   let {
     recentDawarich,
     onstartwizard,
     onnavto,
-
   } = $props();
 
-  // Nostalgia fallback from Dawarich
-  const nostalgiaTrip = $derived(recentDawarich[0] ?? null);
+  // ── Nostalgie: random archived trip ──────────────────────────────────────
+  let archivedTrips = $state([]);
+  let nostalgiaIndex = $state(0);
+
+  // Load archived (erlebt) ws-trips for Nostalgie tile
+  async function loadArchivedTrips() {
+    if (!$apiUrl) return;
+    try {
+      const trips = await api('/api/ws-trips');
+      archivedTrips = (trips || []).filter(t => t.status === 'archived' || t.status === 'experienced');
+    } catch {}
+    // pick random start index
+    if (archivedTrips.length > 0) {
+      nostalgiaIndex = Math.floor(Math.random() * archivedTrips.length);
+    }
+  }
+
+  function refreshNostalgia() {
+    if (archivedTrips.length > 1) {
+      nostalgiaIndex = (nostalgiaIndex + Math.floor(Math.random() * (archivedTrips.length - 1)) + 1) % archivedTrips.length;
+    } else if (archivedTrips.length === 1) {
+      nostalgiaIndex = 0;
+    }
+  }
+
+  const nostalgiaTrip = $derived.by(() => {
+    if (archivedTrips.length > 0) return archivedTrips[nostalgiaIndex] ?? null;
+    // fallback: first Dawarich trip
+    return recentDawarich[0] ?? null;
+  });
+
   const nostalgiaName = $derived.by(() => {
     if (!nostalgiaTrip) return null;
-    return nostalgiaTrip.location_name || nostalgiaTrip.country || null;
+    return nostalgiaTrip.destination || nostalgiaTrip.location_name || nostalgiaTrip.country || null;
   });
 
   // AI Suggestions
@@ -32,16 +61,17 @@
   ];
 
   onMount(async () => {
+    await loadArchivedTrips();
     if (!$apiUrl) return;
     loadingSugg = true;
     apiError = '';
     try {
       const data = await api('/api/discovery/suggestions?count=3');
       suggestions = Array.isArray(data) ? data : [];
-      if (suggestions.length === 0) apiError = 'Kein LLM-Key konfiguriert oder keine Vorschläge verfügbar.';
+      if (suggestions.length === 0) apiError = $t('inspoNoLlmKey');
     } catch (e) {
       suggestions = [];
-      apiError = e?.message || 'Fehler beim Laden der Vorschläge.';
+      apiError = e?.message || $t('inspoLoadError');
     }
     loadingSugg = false;
   });
@@ -53,9 +83,9 @@
     try {
       const data = await api('/api/discovery/refresh?count=3', { method: 'POST' });
       suggestions = Array.isArray(data) ? data : [];
-      if (suggestions.length === 0) apiError = 'Keine neuen Vorschläge verfügbar.';
+      if (suggestions.length === 0) apiError = $t('inspoNoNewSuggestions');
     } catch (e) {
-      apiError = e?.message || 'Fehler beim Aktualisieren.';
+      apiError = e?.message || $t('inspoLoadError');
     }
     loadingSugg = false;
   }
@@ -66,12 +96,12 @@
   <!-- ── Quick Action Cards ── -->
   <div>
     <h2 class="text-xs font-bold uppercase tracking-widest mb-3" style="color:var(--ws-muted)">
-      ✨ Reise-Inspiration
+      ✨ {$t('inspoTitle')}
     </h2>
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
 
-      <!-- Card 1: Neuen Trip planen -->
-      <button onclick={() => onnavto('mytrips')}
+      <!-- Card 1: Neuen Trip planen — clicks open WanderWizzard directly -->
+      <button onclick={() => onstartwizard({})}
         class="group relative rounded-2xl p-5 text-left overflow-hidden transition-all hover:scale-[1.02] active:scale-[.98]"
         style="background:linear-gradient(135deg,var(--ws-accent) 0%,#b84928 100%);min-height:140px">
         <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -79,10 +109,10 @@
         <div class="relative z-10 flex flex-col h-full" style="min-height:100px">
           <div class="text-2xl mb-2">➕</div>
           <div class="font-bold text-sm leading-snug mb-1" style="color:#fff5ec;font-family:var(--ws-serif)">
-            Neuen Trip planen
+            {$t('inspoNewTrip')}
           </div>
           <div class="text-xs mt-auto" style="color:rgba(255,245,236,.65)">
-            Ziel, Datum & Budget festlegen →
+            {$t('inspoNewTripSub')}
           </div>
         </div>
       </button>
@@ -96,30 +126,43 @@
         <div class="relative z-10 flex flex-col h-full" style="min-height:100px">
           <div class="text-2xl mb-2">📡</div>
           <div class="font-bold text-sm leading-snug mb-1" style="color:#fff;font-family:var(--ws-serif)">
-            Preise beobachten
+            {$t('inspoPriceWatch')}
           </div>
-          <div class="text-xs mt-auto" style="color:rgba(255,255,255,.45)">PriceRadar öffnen →</div>
+          <div class="text-xs mt-auto" style="color:rgba(255,255,255,.45)">{$t('inspoPriceWatchSub')}</div>
         </div>
         <div class="absolute top-4 right-4 w-2 h-2 rounded-full animate-pulse" style="background:var(--ws-green)"></div>
       </button>
 
-      <!-- Card 3: Nostalgie oder Discover -->
+      <!-- Card 3: Nostalgie (archived trips) or Discover -->
       {#if nostalgiaName}
-        <button onclick={() => onstartwizard({ destination: nostalgiaName })}
-          class="group relative rounded-2xl p-5 text-left overflow-hidden transition-all hover:scale-[1.02] active:scale-[.98]"
+        <div class="group relative rounded-2xl p-5 text-left overflow-hidden transition-all hover:scale-[1.02] active:scale-[.98]"
           style="background:linear-gradient(135deg,#2d6a4f 0%,#1e4a37 100%);min-height:140px">
           <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
             style="background:rgba(255,255,255,.06)"></div>
-          <div class="relative z-10 flex flex-col h-full" style="min-height:100px">
+
+          <!-- Refresh button top-right -->
+          <button
+            onclick={(e) => { e.stopPropagation(); refreshNostalgia(); }}
+            class="absolute top-3 right-3 z-20 w-7 h-7 flex items-center justify-center rounded-full transition-all hover:opacity-80 active:scale-[.95]"
+            style="background:rgba(255,255,255,.15);color:rgba(255,255,255,.8);font-size:13px"
+            title={$t('inspoNostalgiaRefresh')}>
+            🔄
+          </button>
+
+          <button
+            class="relative z-10 flex flex-col h-full w-full text-left"
+            style="min-height:100px"
+            onclick={() => onstartwizard({ destination: nostalgiaName })}>
             <div class="text-2xl mb-2">🔁</div>
             <div class="font-bold text-sm leading-snug mb-1" style="color:#ecfdf5;font-family:var(--ws-serif)">
-              Wieder nach {nostalgiaName}?
+              {$t('inspoNostalgiaTitle')} {nostalgiaName}?
             </div>
-            <div class="text-xs mt-auto" style="color:rgba(236,253,245,.5)">WanderWizzard starten →</div>
-          </div>
-          <span class="absolute top-4 right-4 text-[10px] font-bold px-2 py-0.5 rounded-full"
-            style="background:rgba(255,255,255,.15);color:rgba(255,255,255,.7)">Nostalgie</span>
-        </button>
+            <div class="text-xs mt-auto" style="color:rgba(236,253,245,.5)">{$t('inspoNostalgiaSub')}</div>
+          </button>
+
+          <span class="absolute bottom-3 left-5 text-[10px] font-bold px-2 py-0.5 rounded-full"
+            style="background:rgba(255,255,255,.15);color:rgba(255,255,255,.7)">{$t('inspoNostalgiaLabel')}</span>
+        </div>
       {:else}
         <button onclick={() => onnavto('discover')}
           class="group relative rounded-2xl p-5 text-left overflow-hidden transition-all hover:scale-[1.02] active:scale-[.98] border-2 border-dashed"
@@ -127,9 +170,9 @@
           <div class="relative z-10 flex flex-col h-full" style="min-height:100px">
             <div class="text-2xl mb-2">🌍</div>
             <div class="font-bold text-sm leading-snug mb-1" style="color:var(--ws-text);font-family:var(--ws-serif)">
-              Neue Ziele entdecken
+              {$t('inspoDiscover')}
             </div>
-            <div class="text-xs mt-auto" style="color:var(--ws-muted)">Discover öffnen →</div>
+            <div class="text-xs mt-auto" style="color:var(--ws-muted)">{$t('inspoDiscoverSub')}</div>
           </div>
         </button>
       {/if}
@@ -141,17 +184,17 @@
   <div>
     <div class="flex items-center justify-between mb-3">
       <h2 class="text-xs font-bold uppercase tracking-widest" style="color:var(--ws-muted)">
-        🤖 KI-Reisevorschläge
+        🤖 {$t('inspoAiTitle')}
       </h2>
       <div class="flex items-center gap-2">
         {#if !loadingSugg && suggestions.length > 0}
           <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold"
-            style="background:rgba(196,98,45,.12);color:var(--ws-accent)">✨ personalisiert</span>
+            style="background:rgba(196,98,45,.12);color:var(--ws-accent)">✨ {$t('inspoPersonalized')}</span>
         {/if}
         <button onclick={refreshSuggestions} disabled={loadingSugg}
           class="text-[10px] px-2 py-1 rounded-lg border transition-opacity hover:opacity-70 disabled:opacity-30 flex items-center gap-1"
           style="border-color:var(--ws-border);color:var(--ws-muted);background:var(--ws-surface2)">
-          {loadingSugg ? '⏳' : '🔄'} Neue Vorschläge
+          {loadingSugg ? '⏳' : '🔄'} {$t('inspoNewSuggestions')}
         </button>
       </div>
     </div>
@@ -225,7 +268,7 @@
                 {:else}
                   <span></span>
                 {/if}
-                <span class="text-xs font-semibold" style="color:var(--ws-accent)">Planen →</span>
+                <span class="text-xs font-semibold" style="color:var(--ws-accent)">{$t('inspoPlan')} →</span>
               </div>
             </div>
           </button>
@@ -239,15 +282,15 @@
         <span class="text-2xl shrink-0">🤖</span>
         <div>
           <div class="text-sm font-semibold mb-1" style="color:var(--ws-text)">
-            KI-Vorschläge nicht verfügbar
+            {$t('inspoAiUnavailableTitle')}
           </div>
           <p class="text-xs leading-relaxed" style="color:var(--ws-muted)">
-            {apiError || 'Konfiguriere einen OpenAI- oder Gemini-Key in den Einstellungen unter ✨ KI, um personalisierte Reisevorschläge zu erhalten.'}
+            {apiError || $t('inspoAiUnavailableDesc')}
           </p>
           <button onclick={() => settingsOpen.set(true)}
             class="mt-2 text-xs font-semibold px-3 py-1.5 rounded-lg transition-opacity hover:opacity-80"
             style="background:var(--ws-accent);color:#fff5ec">
-            ⚙️ Einstellungen öffnen
+            ⚙️ {$t('inspoOpenSettings')}
           </button>
         </div>
       </div>
