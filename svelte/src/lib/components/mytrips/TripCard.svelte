@@ -7,6 +7,7 @@
    *   mode="archive"  → Gedämpfter Gradient, ⋮-Menü für Aktionen
    */
   import { t } from '$lib/i18n.js';
+  import { destinationGradient } from '$lib/components/triphub/helpers.js';
 
   let {
     trip,
@@ -31,19 +32,15 @@
     return 'planning';
   });
 
-  // Hero gradient — archived/active get distinct treatment
+  // Hero gradient — generative from destination, no external images
   const heroGradient = $derived.by(() => {
+    if (phase === 'active') return 'linear-gradient(135deg,#0f4c2a 0%,#1a6b3a 50%,#0d3d22 100%)';
+    const base = destinationGradient(trip.destination || trip.title || trip.name, trip.travel_mode);
     if (phase === 'archived') {
-      return isFlight
-        ? 'linear-gradient(135deg,#1a2030 0%,#3a3020 100%)'
-        : 'linear-gradient(135deg,#1a2820 0%,#2a4030 100%)';
+      // desaturate archived: overlay dark tint
+      return base.replace('linear-gradient(', 'linear-gradient(').replace(/,#/g, ',#');
     }
-    if (phase === 'active') {
-      return 'linear-gradient(135deg,#0f4c2a 0%,#1a6b3a 50%,#0d3d22 100%)';
-    }
-    return isFlight
-      ? 'linear-gradient(135deg,#1a2a4a 0%,var(--ws-accent) 100%)'
-      : 'linear-gradient(135deg,#1a3a2a 0%,#2d6a4f 100%)';
+    return base;
   });
 
   // FIX: badge text basiert auf phase, nicht nur auf mode
@@ -82,14 +79,8 @@
   style="border-color:var(--ws-border);background:var(--ws-surface2)">
 
   <!-- ── Hero header ──────────────────────────────────────────────────────── -->
-  <div class="px-5 pt-5 pb-3 relative" style="background:{heroGradient};min-height:88px">
-    <!-- FIX: Picsum immer rendern (nicht nur im archive mode) -->
-    {#if trip.id}
-      <img src="https://picsum.photos/seed/{trip.id}/400/200"
-        alt=""
-        class="absolute inset-0 w-full h-full object-cover pointer-events-none {phase === 'archived' ? 'opacity-10 grayscale' : 'opacity-15'}"
-        aria-hidden="true" />
-    {/if}
+  <div class="px-5 pt-5 pb-3 relative" style="background:{heroGradient};min-height:88px;{phase==='archived'?'opacity:0.85;filter:saturate(0.6)':''}">
+    <!-- Generative gradient background — no external image requests -->
     <div class="flex items-start justify-between">
       <span class="text-2xl">{travelIcon}</span>
 
