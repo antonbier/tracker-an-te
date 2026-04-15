@@ -2249,3 +2249,78 @@ WMO-Wettercodes werden zu Emoji gemappt.
 
 ### i18n neue Keys
 `tripPhaseActive`, `tripPhaseActiveCountdown`, `hubManualExp`, `hubManualExpSaved`, `hubRegenTodos`, `placeholderJournal`, `placeholderDayTrips`, `placeholderGallery`, `placeholderGalleryHint` — DE/EN/IT/ES
+
+---
+
+## Notfall-Patch (April 2026) — 5 Themenblöcke
+
+### Fix 1 – Backend-Robustheit & Input-Crash
+
+**Alt-Daten NULL-Fallback (`backend/routes/ws_trips.py`)**
+- `GET /api/ws-trips/{id}`: `trip["manual_expenses"] = float(trip.get("manual_expenses") or 0.0)`
+- Alte Trips (z.B. Dawarich-Syncs) ohne `manual_expenses`-Spalte crashen nicht mehr beim Laden.
+- DB-Migration `DEFAULT 0` war vorhanden, aber alte Einträge vor der Migration hatten NULL.
+
+**Float-Validation ManualExpenses**
+- `ManualExpensesPayload` mit Pydantic-Validator: akzeptiert Strings mit Komma-Trenner, konvertiert zu `float`.
+- Verhindert DB-Crash wenn `"12,50"` oder leerer String aus dem Frontend kommt.
+
+**Frontend (`TripHub.svelte`)**
+- Inline-Ausgaben-Input: `type="number" step="0.01"` erzwungen (war `type` fehlendes Attribut).
+- `saveManualExp()`: `parseFloat` mit explizitem Komma-Replace + `isFinite`-Check.
+
+---
+
+### Fix 2 – Lifecycle-Logik & TripCard Badges
+
+**Datums-/Zeitzonen-Fix (`TripHub.svelte`)**
+- `today` war YYYY-MM-DDTHH:MM:SSZ — Vergleich `today > t_end` konnte fehlschlagen wenn t_end kein T-Suffix hatte.
+- Fix: `today = new Date().toISOString().slice(0, 10)` und alle `t_start`/`t_end` mit `.slice(0, 10)` normiert.
+- `daysUntilStart`: nutzt jetzt `T00:00:00`-Suffix für lokale Datumsarithmetik ohne Timezone-Drift.
+
+**TripCard 3-Phasen-Logik (`TripCard.svelte`)**
+- `phase`-Derived direkt aus `start_date`/`end_date` berechnet — unabhängig vom `mode`-Prop.
+- Badge: `"IN PLANUNG"` / `"ON TOUR"` (grün+Pulse) / `"ERLEBT"` — basierend auf `phase`, nicht mehr auf `trip.status`.
+- `heroGradient` kennt jetzt 3 Zustände (planning / active grün / archived gedämpft).
+- Active-Trip-Button: `background:var(--ws-green)` statt Accent.
+
+---
+
+### Fix 3 – Routing & Autofill
+
+**Zurück-Button (`TripHub.svelte`)**
+- War: `onclick={() => currentPage.set('home')}` — ignorierte Browser-History.
+- Fix: `onclick={() => history.back()}` — springt intelligent zurück (MyTrips, PriceRadar, Dashboard).
+
+**Radar Autofill (`PriceRadar.svelte`)**
+- `prefillParams`-Store wurde nur an `FlightSearchForm` weitergegeben.
+- Fix: `<HotelSearchForm {prefillParams} />` und `<CampingSearchForm {prefillParams} />` ebenfalls.
+
+---
+
+### Fix 4 – Picsum-Bilder Totalausfall
+
+**TripHub.svelte**
+- War: `{#if phase === 'active' && trip.id}` — Bild nur bei aktiver Phase.
+- Fix: `{#if trip.id}` — immer rendern; archived = `grayscale + opacity-10`, sonst `opacity-20`.
+
+**TripCard.svelte**
+- War: kein Bild in `mode="planned"` (falscher Conditional).
+- Fix: `{#if trip.id}` — immer rendern; archived = `grayscale + opacity-10`, planning/active = `opacity-15`.
+
+---
+
+### Fix 5 – Lösch-Funktion mit Tracker-Sicherheit
+
+**Backend (`backend/routes/ws_trips.py`)**
+- `DELETE /api/ws-trips/{id}?mode=trip_only|all`
+  - `trip_only` (default): nutzt `ON DELETE SET NULL` der FK-Constraints — Tracker bleiben, `trip_id` → NULL.
+  - `all`: löscht alle 4 Tracker-Tabellen explizit (`trackers`, `gf_trackers`, `homair_trackers`, `booking_trackers`) dann Trip.
+
+**Frontend (`TripHub.svelte`)**
+- 🗑️-Button im Hub-Header (rechts neben Zurück-Button, immer sichtbar wenn Trip geladen).
+- `openDeleteModal()`: lädt `GET /api/ws-trips/{id}/trackers` und zeigt verknüpfte Tracker mit Icon + Ziel.
+- Warn-Modal:
+  - Wenn Tracker vorhanden: zwei Buttons — „Nur Reise löschen" + „Alles löschen (Reise + Tracker)".
+  - Wenn keine Tracker: ein Button — „Reise unwiderruflich löschen".
+- Nach Löschen: `currentPage.set('home')`.
