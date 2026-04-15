@@ -3,52 +3,62 @@
    * WeatherWidget.svelte — 3-day forecast via Open-Meteo.
    * Visible when phase === 'active' OR daysUntilStart <= 7.
    */
+  import { onMount } from 'svelte';
   import { wmoIcon } from './helpers.js';
 
   let { destination = '', phase = 'planning', daysUntilStart = 999 } = $props();
 
-  let days     = $state([]);   // [{date, tempMax, tempMin, icon, precip}]
-  let loading  = $state(false);
-  let fetched  = false;
+  let days    = $state([]);
+  let loading = $state(false);
+  let error   = $state(false);
 
   const shouldShow = $derived(phase === 'active' || daysUntilStart <= 7);
 
-  $effect(() => {
-    if (shouldShow && destination && !fetched && !loading) {
-      fetched = true;
-      fetchForecast();
-    }
+  // onMount: fire once, no reactive loop risk
+  onMount(() => {
+    if (shouldShow && destination) fetchForecast();
   });
 
   async function fetchForecast() {
-    loading = true;
+    if (loading || days.length > 0) return;
+    loading = true; error = false;
     try {
+      // 1. Geocode destination → lat/lon
       const geoRes  = await fetch(
         `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(destination)}&count=1&language=de&format=json`
       );
+      if (!geoRes.ok) throw new Error(`geo ${geoRes.status}`);
       const geoData = await geoRes.json();
       const loc = geoData.results?.[0];
       if (!loc) { loading = false; return; }
 
-      const wRes  = await fetch(
+      // 2. Fetch 3-day daily forecast
+      const wRes = await fetch(
         `https://api.open-meteo.com/v1/forecast` +
         `?latitude=${loc.latitude}&longitude=${loc.longitude}` +
         `&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum` +
         `&timezone=auto&forecast_days=3`
       );
+      if (!wRes.ok) throw new Error(`weather ${wRes.status}`);
       const wData = await wRes.json();
       const d = wData.daily;
+
       if (d?.time?.length) {
         days = d.time.slice(0, 3).map((date, i) => ({
           date,
-          tempMax:  Math.round(d.temperature_2m_max[i]),
-          tempMin:  Math.round(d.temperature_2m_min[i]),
-          icon:     wmoIcon(d.weathercode[i]),
-          precip:   Math.round(d.precipitation_sum[i] ?? 0),
-          city:     i === 0 ? loc.name : '',
+          tempMax: Math.round(d.temperature_2m_max[i]),
+          tempMin: Math.round(d.temperature_2m_min[i]),
+          icon:    wmoIcon(d.weathercode[i]),
+          precip:  Math.round((d.precipitation_sum[i] ?? 0) * 10) / 10,
+          city:    i === 0 ? loc.name : '',
         }));
+      } else {
+        error = true;
       }
-    } catch { /* silent fail — weather is non-critical */ }
+    } catch (e) {
+      console.error('[WeatherWidget]', e);
+      error = true;
+    }
     loading = false;
   }
 
@@ -63,8 +73,8 @@
           <div class="flex-1 h-20 rounded-xl animate-pulse" style="background:var(--ws-border)"></div>
         {/each}
       </div>
-    {:else if days.length}
-      <!-- City label -->
+    {:else if days.length > 0}
+      <!-- City + Live badge -->
       <div class="flex items-center gap-2 px-4 pt-3 pb-1">
         <span class="text-xs font-semibold" style="color:var(--ws-muted)">🌡️ {days[0].city}</span>
         <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold ml-auto"
@@ -73,8 +83,9 @@
       <!-- 3-day grid -->
       <div class="grid grid-cols-3 divide-x" style="border-color:var(--ws-border)">
         {#each days as day, i}
-          <div class="flex flex-col items-center gap-1 px-3 py-3 {i === 0 ? 'relative' : ''}">
-            <span class="text-[11px] font-semibold" style="color:{i === 0 ? 'var(--ws-accent)' : 'var(--ws-muted)'}">
+          <div class="flex flex-col items-center gap-1 px-3 py-3">
+            <span class="text-[11px] font-semibold"
+              style="color:{i === 0 ? 'var(--ws-accent)' : 'var(--ws-muted)'}">
               {DAY_LABELS[i]}
             </span>
             <span class="text-3xl leading-none">{day.icon}</span>
@@ -89,9 +100,15 @@
         {/each}
       </div>
     {:else}
-      <div class="flex items-center gap-3 px-4 py-4">
-        <span class="text-2xl">🌡️</span>
-        <span class="text-sm" style="color:var(--ws-muted)">Wetterdaten nicht verfügbar</span>
+      <!-- error / no results — show retry -->
+      <div class="flex items-center justify-between px-4 py-4">
+        <div class="flex items-center gap-3">
+          <span class="text-2xl">🌡️</span>
+          <span class="text-sm" style="color:var(--ws-muted)">Wetterdaten nicht verfügbar</span>
+        </div>
+        <button onclick={() => { error = false; days = []; fetchForecast(); }}
+          class="text-xs px-2 py-1 rounded-lg border hover:opacity-70"
+          style="border-color:var(--ws-border);color:var(--ws-muted)">↺</button>
       </div>
     {/if}
   </div>
