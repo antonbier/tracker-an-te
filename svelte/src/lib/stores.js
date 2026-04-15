@@ -30,7 +30,8 @@ if (browser) {
 }
 
 export const appStatus  = writable(null);
-export const currentPage = writable('home');
+export const currentPage  = writable('home');
+export const previousPage = writable('home'); // track origin before triphub
 export const trips      = writable([]);
 export const budget     = writable(null);
 export const bucketlist = writable([]);
