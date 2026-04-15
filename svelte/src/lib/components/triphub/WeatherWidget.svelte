@@ -15,13 +15,13 @@
 
   const shouldShow = $derived(phase === 'active' || daysUntilStart <= 7);
 
-  onMount(() => {
-    if (shouldShow && destination) fetchWeather();
-  });
+  let fetched = false;
 
-  $effect(() => {
-    // re-fetch if destination or visibility changes after mount
-    if (shouldShow && destination && !weather && !loading) fetchWeather();
+  onMount(() => {
+    if (shouldShow && destination && !fetched) {
+      fetched = true;
+      fetchWeather();
+    }
   });
 
   async function fetchWeather() {
