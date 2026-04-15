@@ -132,10 +132,13 @@
     } catch { toast('Fehler', 'error'); }
   }
 
-  async function addTodo(task) {
+  async function addTodo(task, due_date = null) {
     try {
-      await api(`/api/ws-trips/${trip.id}/todos`, { method: 'POST', body: JSON.stringify({ task, category: 'general' }) });
-      todos = [...todos, { id: Date.now(), task, category: 'general', is_done: 0 }];
+      await api(`/api/ws-trips/${trip.id}/todos`, {
+        method: 'POST',
+        body: JSON.stringify({ task, category: 'general', due_date }),
+      });
+      todos = [...todos, { id: Date.now(), task, category: 'general', is_done: 0, due_date }];
     } catch { toast('Fehler', 'error'); }
   }
 
