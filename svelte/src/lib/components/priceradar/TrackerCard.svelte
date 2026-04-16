@@ -287,7 +287,7 @@
                   <span class="shrink-0">✈️</span>
                   <span class="flex-1 truncate font-medium">{trip.title || trip.destination || 'Trip #' + trip.id}</span>
                   {#if trip.start_date}
-                    <span class="shrink-0 font-mono" style="color:var(--ws-muted)">{trip.start_date}</span>
+                    <span class="shrink-0 font-mono" style="color:var(--ws-muted)">{fmtDate(trip.start_date)}</span>
                   {/if}
                 </button>
               {/each}
