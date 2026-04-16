@@ -7,7 +7,6 @@
     urlInput      = $bindable(),
     appTimezone   = $bindable(),
     appDateFormat = $bindable(),
-    appCurrency   = $bindable(),
     homeLat       = $bindable(),
     homeLon       = $bindable(),
     homeName      = $bindable(),
@@ -52,7 +51,6 @@
     homeSearch = ''; homeResults = [];
   }
 
-  const CURRENCIES = ['EUR','USD','GBP','CHF','JPY','AUD','CAD','SEK','NOK','DKK'];
 </script>
 
 <!-- Backend URL -->
@@ -119,21 +117,6 @@
   </div>
 </div>
 
-<!-- Währung -->
-<div>
-  <label class="text-xs font-bold uppercase tracking-wider block mb-2" style="color:var(--ws-muted)">💱 {$t('settingsCurrency')}</label>
-  <div class="flex flex-wrap gap-2">
-    {#each CURRENCIES as cur}
-      <button onclick={() => appCurrency = cur}
-        class="px-3 py-1.5 rounded-xl text-xs border transition-all"
-        style={appCurrency === cur
-          ? 'background:var(--ws-accent);color:#fff;border-color:var(--ws-accent)'
-          : 'background:var(--ws-surface2);color:var(--ws-muted);border-color:var(--ws-border)'}>
-        {cur}
-      </button>
-    {/each}
-  </div>
-</div>
 
 <!-- Heimatort -->
 <div>
