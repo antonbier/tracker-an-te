@@ -51,6 +51,22 @@
     homeSearch = ''; homeResults = [];
   }
 
+
+
+  // ── Live-Vorschau Datumsformat ─────────────────────────────────────────────
+  const _previewDate = $derived.by(() => {
+    const now  = new Date();
+    const dd   = String(now.getDate()).padStart(2, '0');
+    const mm   = String(now.getMonth() + 1).padStart(2, '0');
+    const yyyy = String(now.getFullYear());
+    if (appDateFormat === 'MM/DD/YYYY') return `${mm}/${dd}/${yyyy}`;
+    if (appDateFormat === 'YYYY-MM-DD') return `${yyyy}-${mm}-${dd}`;
+    return `${dd}.${mm}.${yyyy}`;
+  });
+  const _previewTime = $derived.by(() => {
+    const now = new Date();
+    return String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+  });
 </script>
 
 <!-- Backend URL -->
@@ -116,15 +132,8 @@
     {/each}
   </div>
   <!-- Live-Vorschau -->
-  {@const _now = new Date()}
-  {@const _dd = String(_now.getDate()).padStart(2,'0')}
-  {@const _mm = String(_now.getMonth()+1).padStart(2,'0')}
-  {@const _yyyy = String(_now.getFullYear())}
-  {@const _hh = String(_now.getHours()).padStart(2,'0')}
-  {@const _min = String(_now.getMinutes()).padStart(2,'0')}
-  {@const _previewDate = appDateFormat === 'MM/DD/YYYY' ? `${_mm}/${_dd}/${_yyyy}` : appDateFormat === 'YYYY-MM-DD' ? `${_yyyy}-${_mm}-${_dd}` : `${_dd}.${_mm}.${_yyyy}`}
   <p class="text-xs mt-2 px-3 py-1.5 rounded-lg" style="background:var(--ws-surface2);border:1px solid var(--ws-border);color:var(--ws-muted)">
-    📅 {$t('settingsPreviewLabel') || 'Aktuell'}: <span class="font-mono font-semibold" style="color:var(--ws-text)">{_previewDate} {_hh}:{_min}</span>
+    📅 {$t('settingsPreviewLabel') || 'Aktuell'}: <span class="font-mono font-semibold" style="color:var(--ws-text)">{_previewDate} {_previewTime}</span>
   </p>
 </div>
 
