@@ -225,11 +225,31 @@ def run_all_trackers(user_id: int | None = None):
         except Exception as e:
             logger.error(f"❌ {name} runner crashed: {e}", exc_info=True)
 
+    # FIX B3: update last_run_at for the target user(s)
+    # When called by APScheduler (user_id=None), update all users who have tracker data
     if user_id:
         try:
             update_scheduler_last_run(user_id)
         except Exception:
             pass
+    else:
+        # Scheduled run: update last_run_at for ALL users with active trackers
+        try:
+            from database import db as _db
+            with _db() as conn:
+                user_ids = conn.execute(
+                    "SELECT DISTINCT user_id FROM trackers WHERE active=1 "
+                    "UNION SELECT DISTINCT user_id FROM gf_trackers WHERE active=1 "
+                    "UNION SELECT DISTINCT user_id FROM homair_trackers WHERE active=1 "
+                    "UNION SELECT DISTINCT user_id FROM booking_trackers WHERE active=1"
+                ).fetchall()
+            for row in user_ids:
+                try:
+                    update_scheduler_last_run(row[0])
+                except Exception:
+                    pass
+        except Exception as e:
+            logger.warning(f"[Scheduler] last_run_at update fehlgeschlagen: {e}")
 
     logger.info("✅ Scheduler-Lauf abgeschlossen")
 
