@@ -124,8 +124,8 @@
           <span class="text-base shrink-0">{catIcon(todo.category)}</span>
 
           <!-- Task + due date -->
-          <div class="flex-1 min-w-0">
-            <span class="text-sm block" style="color:var(--ws-text);{todo.is_done ? 'text-decoration:line-through' : ''}">{todo.task}</span>
+          <div class="flex-1 min-w-0 overflow-hidden">
+            <span class="text-sm block break-words" style="color:var(--ws-text);word-break:break-word;overflow-wrap:anywhere;{todo.is_done ? 'text-decoration:line-through' : ''}">{todo.task}</span>
             {#if todo.due_date}
               <span class="text-[10px] font-semibold"
                 style="color:{overdue ? '#ef4444' : dueToday ? 'var(--ws-accent)' : 'var(--ws-muted)'}">
