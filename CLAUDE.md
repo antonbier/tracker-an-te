@@ -2368,3 +2368,38 @@ Widget-Grid-Layout: `grid-cols-1 md:grid-cols-2` — Weather spannt `md:col-span
 - `ChecklistWidget.svelte`: 🔄-Button ist **immer sichtbar**, unabhängig von `phase`.
 - Vorher: nur in `phase === 'planning'` gerendert.
 - Checkliste bleibt in `archived` Read-Only (kein Toggle/Add/Delete), aber Regen ist möglich.
+---
+
+## QA-Hotfix Session (April 2026)
+
+### Bug #1 + #12/#13 — DEIN_TOKEN ReferenceError (KRITISCH)
+**Root Cause:** `NotificationsTab.svelte` enthielt den Platzhalter `{DEIN_TOKEN}` in einem HTML-String als Teil einer Telegram-getUpdates-URL. Im Svelte-Template wird `{...}` als JS-Ausdruck geparst → ReferenceError beim Bundle-Load → Wizard friert auf Step 0 ein.
+
+**Fix:** `NotificationsTab.svelte` — Platzhalter ersetzt durch sicheren Literal-Text `<BOT_TOKEN>` (kein Svelte-Ausdruck mehr).
+
+---
+
+### Bug Sammelbug — Globales Datumsformat ignoriert
+**Root Cause:** Mehrere Komponenten renderten ISO-Datum (`YYYY-MM-DD`) direkt, ohne die User-Einstellung (`ws-date-format` in localStorage) zu berücksichtigen. `fmtDate()` war bereits in `priceradar/helpers.js` definiert, aber nicht in den UI-Komponenten verwendet.
+
+**Fix — betroffene Dateien:**
+- `TripCard.svelte`: `tripDateStr` `$derived.by()` nutzt jetzt `fmtDate(s)` / `fmtDate(e)`. Import von `fmtDate` aus `priceradar/helpers.js` hinzugefügt.
+- `TripHub.svelte` (Header): Datum-Anzeige nutzt jetzt `fmtDate(trip.start_date)` / `fmtDate(trip.end_date)`. Import hinzugefügt.
+- `BucketListTab.svelte`: `item.created` wird jetzt via `fmtDate((item.created || '').slice(0,10))` formatiert. Import hinzugefügt.
+- `TrackerCard.svelte` (Link-Dropdown): `trip.start_date` nutzt jetzt `fmtDate(trip.start_date)`.
+
+**Zentraler Formatter:** `fmtDate(iso)` in `svelte/src/lib/components/priceradar/helpers.js` liest `localStorage.getItem('ws-date-format')` und rendert DD.MM.YYYY / MM/DD/YYYY / YYYY-MM-DD.
+
+---
+
+### Bug #6/#7/#9 — PriceRadar Parameter-Handoff (Analyse)
+**Analyse:** `TripHub.svelte` → `goSearch(type)` liest korrekt `trip.destination`, `trip.start_date`, `trip.end_date` und schreibt sie in `priceradarParams`. `PriceRadar.svelte` liest den Store, setzt `activeCategory` basierend auf `_searchType` und übergibt `prefillParams` an alle 3 SearchForms. Kein Code-Bug gefunden — falls Dummy-Daten (Dublin) erscheinen, sind die Trip-Felder im DB-Objekt leer. Keine Code-Änderung nötig.
+
+---
+
+### Bug #10 — Settings Alert-Tab zeigt Scheduler-Inhalt
+**Root Cause:** `Settings.svelte` — `tabLabels` wurde mit `$derived.by(() => ({...}))` gebaut. In Svelte 5 führt das mit `$t()`-Store-Calls dazu, dass reactive updates die `{#each tabIds}`-Buttons neu mounten und Event-Listener verloren gehen → Tabs nicht klickbar → `activeTab` bleibt auf `'scheduler'` (oder springt zurück) → Notifications-Tab zeigt Scheduler-Inhalt.
+
+**Fix:** `Settings.svelte` — `tabLabels` von `$derived.by(() => ({...}))` auf `$derived({...})` umgestellt (konsistent mit CLAUDE.md Entscheidung S2-1).
+
+---
