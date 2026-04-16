@@ -2437,3 +2437,45 @@ Widget-Grid-Layout: `grid-cols-1 md:grid-cols-2` — Weather spannt `md:col-span
 **de.json:** `plannedEmpty` — "Reiseplaner" → "WanderWizzard".
 **TrackerGrid.svelte:** Hardcodierter DE-String für leere Tracker-Liste durch i18n-Key `radarNoTypeTrackersFull` ersetzt.
 **en.json + de.json:** Neuer Key `radarNoTypeTrackersFull` — EN: `"No {type} trackers — search and save above!"` / DE: `"Keine {type}-Tracker — oben suchen und speichern!"`.
+---
+
+## QA-Hotfix Session 3 — CSP, DOM Warnings, Reaktivität, UX (April 2026)
+
+### Bug #1 — Content Security Policy (CSP)
+**Datei:** `docker/nginx.conf`
+- `img-src`: `https://images.unsplash.com https://picsum.photos https://*.unsplash.com` ergänzt.
+- `style-src` + `style-src-elem`: `https://fonts.googleapis.com` ergänzt.
+- `font-src`: `https://fonts.gstatic.com` ergänzt (tatsächliche Font-Dateien).
+- `connect-src`: `https://geocoding-api.open-meteo.com https://api.open-meteo.com` ergänzt (Wetter-Widget).
+
+### Bug #2 — DOM Warnings (Meta-Tag + Password-Forms)
+**`app.html`:** `<meta name="mobile-web-app-capable">` neben dem Apple-Variant ergänzt.
+**`Login.svelte`:** Email + Passwort in `<form onsubmit=...>` eingebettet; `autocomplete="email"` / `"current-password"` gesetzt; Submit-Button als `type="submit"`.
+**`AccountTab.svelte`:** Passwort-Inputs in `<form onsubmit=...>` eingebettet; `autocomplete="current-password"` / `"new-password"` gesetzt.
+
+### Bug #3 — Dashboard Hero Reaktivität nach Trip-Anlage
+**`Dashboard.svelte`:** `wsTripsVersion`-Counter und `_prevWizzardOpen`-Flag; `$effect` bumpt den Counter wenn WanderWizzard von `open` auf `closed` wechselt.
+**`HeroSection.svelte`:** Neuer `refreshKey`-Prop (default 0). `$effect(() => { refreshKey; loadWsTrips(); })` — bei jeder Counter-Änderung wird `loadWsTrips()` neu ausgelöst → Hero zeigt sofort den neuen Trip.
+
+### Bug #4 — WanderWizzard IATA-Code als Trip-Titel
+**`WanderWizzard.svelte`:**
+- Neuer State `s1DestIata` für den IATA-Code (zur späteren Suche).
+- `pickDest(a)`: Schreibt `a.city` in `s1Dest` (statt `a.iata`) → Trip-Titel und `destination` in DB erhalten jetzt den Stadtnamen (z.B. "London").
+- `s1DestIata` wird beim Reset geleert.
+
+### Bug #6/#7/#9 — PriceRadar UX
+**`PriceRadar.svelte`:** Trip-Link-Dropdown komplett aus der Such-Ergebnis-Ansicht entfernt (Verknüpfung läuft über TrackerCard).
+**`SearchResults.svelte`:**
+- Hotel-Titelzeile: `title`-Attribut mit vollem Namen für Browser-Tooltip (Bug #6).
+- Save-Button: Lokales `savedTrackers`-Set; nach `onsavetracker()` erscheint für 2s `✓ Gespeichert` mit grünem Hintergrund (Bug #7).
+- Stops-Dropdown: Identisches Verhalten wie TrackerCard — Badge zeigt Anzahl, Klick öffnet Layover-Airports mit Wartezeit. `parseJsonField` + `fmtLayoverDur` aus `helpers.js` importiert. `Nonstop`-Badge bei `stops === 0` (Bug #9).
+
+### Bug #10 — 401 bei GET /api/settings on page load
+**`stores.js` — `loadSettingsFromBackend()`:** Liest `ws-jwt` aus localStorage und setzt `Authorization: Bearer <token>` Header im fetch-Call. Verhindert 401-Fehler wenn Auth aktiviert ist.
+
+---
+
+### Architektur-Notizen (Session 3)
+- **CSP-Quelle:** Nginx (`docker/nginx.conf`) — kein SvelteKit `hooks.server` nötig, da Static-Adapter (kein SSR-Server).
+- **Password-Form-Pattern:** Svelte `<form onsubmit={(e)=>{e.preventDefault();...}}>` — verhindert Page-Reload, ermöglicht Browser-Passwort-Manager.
+- **Hero-Refresh-Pattern:** `refreshKey`-Prop-Pattern ist der bevorzugte Weg um Child-Komponenten mit eigenem `$state` und API-Calls reaktiv von außen neu zu laden — vermeidet Store-Lifting.
