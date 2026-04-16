@@ -371,6 +371,7 @@
   "radarNoScanYet": "no price scan yet",
   "radarNoTripLink": "No trip link (optional)",
   "radarNoTypeTrackers": "No",
+  "radarNoTypeTrackersFull": "No {type} trackers — search and save above!",
   "radarNonstop": "Nonstop",
   "radarOutboundDate": "Outbound",
   "radarPassengers": "Passengers",
