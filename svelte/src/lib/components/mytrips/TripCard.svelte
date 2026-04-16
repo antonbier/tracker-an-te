@@ -8,6 +8,7 @@
    */
   import { t } from '$lib/i18n.js';
   import { destinationGradient } from '$lib/components/triphub/helpers.js';
+  import { fmtDate } from '$lib/components/priceradar/helpers.js';
 
   let {
     trip,
@@ -71,7 +72,7 @@
     const s = trip.start_date || trip.dateStart || '';
     const e = trip.end_date   || trip.dateEnd   || '';
     if (!s) return '';
-    return e && e !== s ? `${s} → ${e}` : s;
+    return e && e !== s ? `${fmtDate(s)} → ${fmtDate(e)}` : fmtDate(s);
   });
 </script>
 
