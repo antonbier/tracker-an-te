@@ -2479,3 +2479,38 @@ Widget-Grid-Layout: `grid-cols-1 md:grid-cols-2` — Weather spannt `md:col-span
 - **CSP-Quelle:** Nginx (`docker/nginx.conf`) — kein SvelteKit `hooks.server` nötig, da Static-Adapter (kein SSR-Server).
 - **Password-Form-Pattern:** Svelte `<form onsubmit={(e)=>{e.preventDefault();...}}>` — verhindert Page-Reload, ermöglicht Browser-Passwort-Manager.
 - **Hero-Refresh-Pattern:** `refreshKey`-Prop-Pattern ist der bevorzugte Weg um Child-Komponenten mit eigenem `$state` und API-Calls reaktiv von außen neu zu laden — vermeidet Store-Lifting.
+---
+
+## Etappe 1 — UI-Politur & Quick Wins (April 2026)
+
+### 1 — Browser-Tab-Titel
+**`app.html`:** `<title>WanderSuite</title>` vor `%sveltekit.head%` eingefügt.
+
+### 2 — Wizard Help-Button entfernt
+**`SetupWizard.svelte`:** Hilfe-Button (📖) aus dem Modal-Header entfernt — vermeidet Overlap mit FieldGuide-Modal. ✕-Schließen-Button bleibt erhalten.
+
+### 3 — Währung fixiert auf Euro (€)
+App fest auf EUR. Entfernte Dateien/Stellen:
+- **`SetupWizard.svelte`:** `CURRENCIES` Const, `appCurrency` State, Load + Save + UI-Block entfernt.
+- **`BasicTab.svelte`:** `CURRENCIES` Const, `appCurrency` Prop, gesamter Währungs-UI-Block entfernt.
+- **`Settings.svelte`:** `appCurrency` State, Load (`gs.currency`), Save (`currency: appCurrency`), `bind:appCurrency` entfernt.
+
+### 4 — Familie aufgeteilt
+Companions-Option `family` → zwei neue Optionen:
+- `family_kids` — 👶 Familie (Kleinkinder) / Family (Young Kids)
+- `family_teens` — 🧒 Familie (Teenager) / Family (Teens)
+
+**Geändert in:** `SetupWizard.svelte`, `MyspaceDefaults.svelte`.
+**Neue i18n-Keys** in DE/EN/IT/ES: `defaultsCompFamilyKids`, `defaultsCompFamilyTeens`.
+Alter Key `defaultsCompFamily` durch die zwei neuen Keys ersetzt.
+
+### 5 — Live-Vorschau Datumsformat
+**`BasicTab.svelte`:** Unter den Datumsformat-Buttons eine reaktive Vorschau-Zeile:
+```
+📅 Aktuell: 16.04.2026 14:47
+```
+Berechnet `_previewDate` direkt aus `appDateFormat` via `{@const}` — kein zusätzlicher State nötig. Neuer i18n-Key `settingsPreviewLabel` (DE: "Aktuell" / EN: "Current" / IT: "Attuale" / ES: "Actual").
+
+### 6 — Telegram @userinfobot Hinweis
+**`NotificationsTab.svelte`:** Nach der Chat-ID Erklärung:
+> 💡 **Tipp**: Sende eine Nachricht an [@userinfobot ↗](https://t.me/userinfobot) — der Bot antwortet direkt mit deiner Chat-ID.
