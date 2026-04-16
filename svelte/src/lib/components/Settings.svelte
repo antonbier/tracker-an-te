@@ -32,7 +32,7 @@
     TAB_IDS_NOAUTH
   );
 
-  const tabLabels = $derived.by(() => ({
+  const tabLabels = $derived({
     basic:         $t('settingsBasic'),
     integrations:  $t('settingsIntegrations'),
     notifications: $t('settingsNotifications'),
@@ -40,7 +40,7 @@
     account:       $t('settingsAccount'),
     admin:         $t('settingsAdmin'),
     scheduler:     '⏰ ' + ($t('settingsScheduler') || 'Scheduler'),
-  }));
+  });
 
   // ── Basic tab state ───────────────────────────────────────────────────────
   let urlInput      = $state('');
