@@ -43,7 +43,6 @@
   let testOk        = $state(null);
   let appTimezone   = $state('Europe/Rome');
   let appDateFormat = $state('DD.MM.YYYY');
-  let appCurrency   = $state('EUR');
   let homeLat       = $state('');
   let homeLon       = $state('');
   let homeName      = $state('');
@@ -87,7 +86,6 @@
   let geminiKey  = $state('');
   let serpApiKey = $state('');
 
-  const CURRENCIES = ['EUR','USD','GBP','CHF','JPY','AUD','CAD','SEK','NOK','DKK'];
   const TIMEZONES  = ['Europe/Rome','Europe/Berlin','Europe/Vienna','Europe/Zurich',
                       'Europe/London','Europe/Paris','America/New_York',
                       'America/Los_Angeles','Asia/Tokyo','Australia/Sydney','UTC'];
@@ -115,7 +113,6 @@
           const s = gs.value;
           appTimezone   = s.timezone    || 'Europe/Rome';
           appDateFormat = s.date_format || 'DD.MM.YYYY';
-          appCurrency   = s.currency    || 'EUR';
           if (s.home_lat)  homeLat = s.home_lat;
           if (s.home_lon)  homeLon = s.home_lon;
           if (s.home_name) { homeName = s.home_name; homeSearch = s.home_name; }
@@ -193,7 +190,6 @@
         const p = {};
         if (appTimezone)   p.timezone    = appTimezone;
         if (appDateFormat) p.date_format = appDateFormat;
-        if (appCurrency)   p.currency    = appCurrency;
         if (homeLat)       p.home_lat    = homeLat;
         if (homeLon)       p.home_lon    = homeLon;
         if (homeName)      p.home_name   = homeName;
@@ -411,21 +407,6 @@
                   ? 'background:var(--ws-accent);color:#fff;border-color:var(--ws-accent)'
                   : 'background:var(--ws-surface2);color:var(--ws-muted);border-color:var(--ws-border)'}>
                 {fmt.label}
-              </button>
-            {/each}
-          </div>
-        </div>
-
-        <div>
-          <label class="text-xs font-bold uppercase tracking-wider block mb-2" style="color:var(--ws-muted)">💱 {$t('settingsCurrency')}</label>
-          <div class="flex flex-wrap gap-2">
-            {#each CURRENCIES as cur}
-              <button onclick={() => appCurrency = cur}
-                class="px-3 py-1.5 rounded-xl text-xs border transition-all"
-                style={appCurrency === cur
-                  ? 'background:var(--ws-accent);color:#fff;border-color:var(--ws-accent)'
-                  : 'background:var(--ws-surface2);color:var(--ws-muted);border-color:var(--ws-border)'}>
-                {cur}
               </button>
             {/each}
           </div>
