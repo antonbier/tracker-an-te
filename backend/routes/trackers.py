@@ -1,14 +1,13 @@
 """
 WanderSuite — /api/trackers (Multi-User)
-Each user sees and manages only their own trackers.
-Guest (AUTH_ENABLED=false) sees all.
 
 Fixes applied:
-  - Added POST /{tracker_id}/scan as alias for /scrape (QA found 404 on /scan)
+  - POST /{id}/scan alias for /scrape
+  - Validates return_date >= outbound_date (W1)
 """
 
 from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
 from typing import Optional
 import re, traceback, logging
 
@@ -58,7 +57,8 @@ class TrackerCreate(BaseModel):
     @field_validator("outbound_date", "return_date")
     @classmethod
     def valid_date(cls, v):
-        if v is None: return v
+        if v is None:
+            return v
         if not re.match(r"^\d{4}-\d{2}-\d{2}$", v):
             raise ValueError("Datum muss im Format YYYY-MM-DD sein")
         return v
@@ -66,8 +66,20 @@ class TrackerCreate(BaseModel):
     @field_validator("adults")
     @classmethod
     def min_adults(cls, v):
-        if v < 1: raise ValueError("Mindestens 1 Erwachsener erforderlich")
+        if v < 1:
+            raise ValueError("Mindestens 1 Erwachsener erforderlich")
         return v
+
+    @model_validator(mode="after")
+    def validate_return_after_outbound(self) -> "TrackerCreate":
+        """FIX W1: Return date must not be before outbound date."""
+        if self.return_date and self.outbound_date:
+            if self.return_date < self.outbound_date:
+                raise ValueError(
+                    f"return_date ({self.return_date}) darf nicht vor "
+                    f"outbound_date ({self.outbound_date}) liegen"
+                )
+        return self
 
 
 def _uid(user: dict) -> int | None:
@@ -128,14 +140,12 @@ def set_threshold(tracker_id: int, data: ThresholdPayload, user: dict = Depends(
         raise HTTPException(404, f"Tracker #{tracker_id} nicht gefunden")
     value = round(data.threshold, 2) if data.threshold is not None else None
     set_tracker_threshold(tracker_id, value, user_id=_uid(user))
-    return {
-        "message": f"Preisalarm {'gesetzt: unter ' + str(value) + ' €' if value else 'deaktiviert'}",
-        "threshold_price": value,
-    }
+    label = f"gesetzt: unter {value} €" if value else "deaktiviert"
+    return {"message": f"Preisalarm {label}", "threshold_price": value}
 
 
-def _do_scrape(tracker_id: int, user: dict):
-    """Shared scrape logic used by both /scrape and /scan endpoints."""
+def _do_scrape(tracker_id: int, user: dict) -> dict:
+    """Shared scrape logic for /scrape and /scan endpoints."""
     t = get_tracker(tracker_id, user_id=_uid(user))
     if not t:
         raise HTTPException(404, f"Tracker #{tracker_id} nicht gefunden")
@@ -149,13 +159,12 @@ def _do_scrape(tracker_id: int, user: dict):
 
 @router.post("/{tracker_id}/scrape")
 def manual_scrape(tracker_id: int, user: dict = Depends(get_current_user)):
-    """Manual scrape trigger (original endpoint)."""
     return _do_scrape(tracker_id, user)
 
 
 @router.post("/{tracker_id}/scan")
 def manual_scan(tracker_id: int, user: dict = Depends(get_current_user)):
-    """FIX: Alias for /scrape — QA found 404 on /scan. Both endpoints now work."""
+    """Alias for /scrape — both endpoints are supported."""
     return _do_scrape(tracker_id, user)
 
 
