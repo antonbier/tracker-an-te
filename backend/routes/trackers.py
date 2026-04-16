@@ -2,6 +2,9 @@
 WanderSuite — /api/trackers (Multi-User)
 Each user sees and manages only their own trackers.
 Guest (AUTH_ENABLED=false) sees all.
+
+Fixes applied:
+  - Added POST /{tracker_id}/scan as alias for /scrape (QA found 404 on /scan)
 """
 
 from fastapi import APIRouter, HTTPException, Depends
@@ -68,7 +71,6 @@ class TrackerCreate(BaseModel):
 
 
 def _uid(user: dict) -> int | None:
-    """Return user_id for DB filtering. 0 (guest) → None = no filter."""
     uid = user.get("id", 0)
     return uid if uid else None
 
@@ -87,9 +89,7 @@ def add_tracker(data: TrackerCreate, user: dict = Depends(get_current_user)):
     payload["baggage"] = [b.model_dump() for b in data.baggage]
     uid = user.get("id", 1) or 1
     tracker_id = create_tracker(payload, user_id=uid)
-    # Link to trip if provided
     if data.trip_id:
-        from database import link_tracker_to_trip
         link_tracker_to_trip(tracker_id, "flight", data.trip_id)
     return {"id": tracker_id, "message": "Tracker angelegt"}
 
@@ -128,12 +128,14 @@ def set_threshold(tracker_id: int, data: ThresholdPayload, user: dict = Depends(
         raise HTTPException(404, f"Tracker #{tracker_id} nicht gefunden")
     value = round(data.threshold, 2) if data.threshold is not None else None
     set_tracker_threshold(tracker_id, value, user_id=_uid(user))
-    return {"message": f"Preisalarm {'gesetzt: unter ' + str(value) + ' €' if value else 'deaktiviert'}",
-            "threshold_price": value}
+    return {
+        "message": f"Preisalarm {'gesetzt: unter ' + str(value) + ' €' if value else 'deaktiviert'}",
+        "threshold_price": value,
+    }
 
 
-@router.post("/{tracker_id}/scrape")
-def manual_scrape(tracker_id: int, user: dict = Depends(get_current_user)):
+def _do_scrape(tracker_id: int, user: dict):
+    """Shared scrape logic used by both /scrape and /scan endpoints."""
     t = get_tracker(tracker_id, user_id=_uid(user))
     if not t:
         raise HTTPException(404, f"Tracker #{tracker_id} nicht gefunden")
@@ -145,8 +147,21 @@ def manual_scrape(tracker_id: int, user: dict = Depends(get_current_user)):
         raise HTTPException(500, detail=f"{type(e).__name__}: {str(e)}")
 
 
+@router.post("/{tracker_id}/scrape")
+def manual_scrape(tracker_id: int, user: dict = Depends(get_current_user)):
+    """Manual scrape trigger (original endpoint)."""
+    return _do_scrape(tracker_id, user)
+
+
+@router.post("/{tracker_id}/scan")
+def manual_scan(tracker_id: int, user: dict = Depends(get_current_user)):
+    """FIX: Alias for /scrape — QA found 404 on /scan. Both endpoints now work."""
+    return _do_scrape(tracker_id, user)
+
+
 class TripLinkPayload(BaseModel):
     trip_id: Optional[int] = None
+
 
 @router.patch("/{tracker_id}/link-trip")
 def link_trip(tracker_id: int, data: TripLinkPayload, user: dict = Depends(get_current_user)):
