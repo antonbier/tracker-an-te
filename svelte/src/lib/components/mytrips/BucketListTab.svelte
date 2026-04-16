@@ -48,7 +48,7 @@
           class="flex-1 py-2.5 rounded-xl border text-sm font-semibold hover:opacity-70 transition-opacity"
           style="border-color:var(--ws-border);color:var(--ws-muted)">{$t('bucketModalCancel')}</button>
         <button onclick={handleAdd} disabled={!bucketItem.trim()}
-          class="flex-1 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-40 transition-opacity"
+          class="flex-1 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
           style="background:var(--ws-accent);color:#fff5ec">{$t('bucketModalSave')}</button>
       </div>
     </div>
