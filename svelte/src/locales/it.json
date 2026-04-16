@@ -377,6 +377,7 @@
   "radarNoScanYet": "nessuna scansione prezzi",
   "radarNoTripLink": "Nessun collegamento al viaggio (opz.)",
   "radarNoTypeTrackers": "Nessuno",
+  "radarNoTypeTrackersFull": "Nessun tracker {type} — cerca e salva in alto!",
   "radarNonstop": "Diretto",
   "radarOutboundDate": "Andata",
   "radarPassengers": "Passeggeri",
