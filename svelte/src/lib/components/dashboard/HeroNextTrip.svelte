@@ -26,7 +26,7 @@
     const d = daysUntil;
     if (d === null) return '';
     if (d <= 0)  return '🎒 ' + ($t('heroTodayStart') || "Heute geht's los!");
-    if (d === 1) return '✈️ ' + ($t('heroTomorrow')   || 'Morgen geht's los!');
+    if (d === 1) return '✈️ ' + ($t('heroTomorrow')   || "Morgen geht's los!");
     return '✈️ ' + ($t('heroInDays') || 'Noch {n} Tage').replace('{n}', d);
   });
 
