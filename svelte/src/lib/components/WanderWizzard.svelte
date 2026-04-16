@@ -37,6 +37,7 @@
 
   // Weg A
   let s1Dest          = $state(destination);
+  let s1DestIata      = $state('');   // IATA code for search, city name stored in s1Dest
   let s1DestInput     = $state(destination || '');
   let s1AcSuggestions = $state([]);
   let s1DateFrom      = $state(dateFrom);
@@ -62,7 +63,7 @@
   // ── Sync on open ───────────────────────────────────────────────────────────
   $effect(() => {
     if (open) {
-      s1Dest = destination || ''; s1DestInput = destination || '';
+      s1Dest = destination || ''; s1DestIata = ''; s1DestInput = destination || '';
       s1DateFrom = dateFrom || ''; s1DateTo = dateTo || '';
       s1Adults = adults || 2; s1Children = children || 0;
       s1Home = homeAirport || ''; s1HomeInput = homeAirport || '';
@@ -92,7 +93,7 @@
     return AIRPORTS.filter(a => a.iata.toLowerCase().startsWith(ql) || a.city.toLowerCase().includes(ql)).slice(0, 6);
   }
   function onDestInput(e) { s1DestInput = e.target.value; s1Dest = e.target.value; s1AcSuggestions = filterAP(e.target.value); }
-  function pickDest(a)    { s1Dest = a.iata; s1DestInput = `${a.iata} – ${a.city}`; s1AcSuggestions = []; }
+  function pickDest(a)    { s1Dest = a.city; s1DestIata = a.iata; s1DestInput = `${a.iata} – ${a.city}`; s1AcSuggestions = []; }
   function onHomeInput(e) { s1HomeInput = e.target.value; s1Home = e.target.value.slice(0,3).toUpperCase(); s1HomeAcSugg = filterAP(e.target.value); }
   function pickHome(a)    { s1Home = a.iata; s1HomeInput = `${a.iata} – ${a.city}`; s1HomeAcSugg = []; }
 
