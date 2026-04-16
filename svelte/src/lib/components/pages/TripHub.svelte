@@ -393,12 +393,12 @@
             style="font-family:var(--ws-serif);color:#fff;text-shadow:0 2px 12px rgba(0,0,0,.4)">
             {trip.title || trip.destination || $t('tripHubTitle')}
           </h1>
-          <div class="flex items-center gap-3 flex-wrap">
+          <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
             {#if trip.destination}
               <span class="text-sm font-mono" style="color:rgba(255,255,255,.75)">📍 {trip.destination}</span>
             {/if}
             {#if trip.start_date}
-              <span class="text-sm font-mono" style="color:rgba(255,255,255,.65)">
+              <span class="text-xs sm:text-sm font-mono" style="color:rgba(255,255,255,.65);word-break:keep-all;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%">
                 📅 {fmtDate(trip.start_date)}{trip.end_date && trip.end_date !== trip.start_date ? ' → ' + fmtDate(trip.end_date) : ''}
               </span>
             {/if}
