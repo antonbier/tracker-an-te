@@ -39,10 +39,13 @@
       const today = new Date().toISOString().slice(0, 10);
       const planning = (trips || []).filter(t => t.status === 'planning' || t.status === 'booked');
       nextWsTrip    = planning[0] || null;
-      // Archiv: alle WS-Trips deren end_date in der Vergangenheit liegt
+      // Archiv: WS-Trips die bereits stattgefunden haben
+      // → end_date < heute ODER (kein end_date, aber start_date < heute)
       archivedWsTrips = (trips || []).filter(t => {
-        const e = (t.end_date || t.start_date || '').slice(0, 10);
-        return e && e < today;
+        const e = (t.end_date || '').slice(0, 10);
+        const s = (t.start_date || '').slice(0, 10);
+        if (e) return e < today;          // end_date gesetzt → danach archiviert
+        return s && s < today;            // kein end_date → nach start_date archiviert
       });
     } catch { nextWsTrip = null; archivedWsTrips = []; }
     wsTripsLoaded = true;
