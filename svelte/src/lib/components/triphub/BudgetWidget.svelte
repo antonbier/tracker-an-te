@@ -54,7 +54,7 @@
         {:else}
           <div class="flex items-center gap-2">
             <span class="text-sm font-mono font-bold" style="color:var(--ws-text)">
-              −{parseFloat(trip?.manual_expenses ?? 0).toFixed(0)} €
+              {parseFloat(trip?.manual_expenses ?? 0) === 0 ? '0' : '−' + parseFloat(trip?.manual_expenses ?? 0).toFixed(0)} €
             </span>
             <button onclick={() => { manualExpEditing=true; manualExpDraft=String(trip?.manual_expenses??0); }}
               class="text-[10px] px-1.5 py-0.5 rounded border hover:opacity-70"
@@ -68,7 +68,7 @@
         <span class="text-sm font-semibold" style="color:var(--ws-text)">{$t('hubBudgetOnSite')}</span>
         <span class="text-lg font-bold font-mono"
           style="color:{budgetBreakdown.on_site_budget >= 0 ? 'var(--ws-green,#2d6a4f)' : '#ef4444'}">
-          {parseFloat(budgetBreakdown.on_site_budget).toFixed(0)} €
+          {(v => v === 0 ? '0' : String(v))(parseFloat((+budgetBreakdown.on_site_budget || 0).toFixed(0)))} €
         </span>
       </div>
     </div>
