@@ -135,32 +135,34 @@
 
       <!-- Card 3: Nostalgie (archived trips) or Discover -->
       {#if nostalgiaName}
-        <div class="group relative rounded-2xl p-5 text-left overflow-hidden transition-all hover:scale-[1.02] active:scale-[.98]"
+        <div class="group relative rounded-2xl text-left transition-all hover:scale-[1.02] active:scale-[.98]"
           style="background:linear-gradient(135deg,#2d6a4f 0%,#1e4a37 100%);min-height:140px">
-          <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
+          <div class="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
             style="background:rgba(255,255,255,.06)"></div>
 
-          <!-- Refresh button top-right -->
+          <!-- Content-Button: volle Fläche, Padding rechts oben für Refresh-Button freilassen -->
           <button
-            onclick={(e) => { e.stopPropagation(); refreshNostalgia(); }}
-            class="absolute top-3 right-3 z-20 w-7 h-7 flex items-center justify-center rounded-full transition-all hover:opacity-80 active:scale-[.95]"
-            style="background:rgba(255,255,255,.15);color:rgba(255,255,255,.8);font-size:13px"
-            title={$t('inspoNostalgiaRefresh')}>
-            🔄
-          </button>
-
-          <button
-            class="relative z-10 flex flex-col h-full w-full text-left"
-            style="min-height:100px"
+            class="relative w-full h-full text-left p-5 flex flex-col"
+            style="min-height:140px"
             onclick={() => onstartwizard({ destination: nostalgiaName })}>
             <div class="text-2xl mb-2">🔁</div>
-            <div class="font-bold text-sm leading-snug mb-1" style="color:#ecfdf5;font-family:var(--ws-serif)">
+            <!-- Titel mit rechts genug Platz für den Refresh-Button -->
+            <div class="font-bold text-sm leading-snug mb-1 pr-9" style="color:#ecfdf5;font-family:var(--ws-serif)">
               {$t('inspoNostalgiaTitle')} {nostalgiaName}?
             </div>
             <div class="text-xs mt-auto" style="color:rgba(236,253,245,.5)">{$t('inspoNostalgiaSub')}</div>
           </button>
 
-          <span class="absolute bottom-3 left-5 text-[10px] font-bold px-2 py-0.5 rounded-full"
+          <!-- Refresh-Button: nach Content-Button im DOM → höherer paint-order → liegt automatisch oben -->
+          <button
+            onclick={(e) => { e.stopPropagation(); refreshNostalgia(); }}
+            class="absolute top-3 right-3 w-7 h-7 flex items-center justify-center rounded-full transition-all hover:opacity-80 active:scale-[.95]"
+            style="background:rgba(255,255,255,.18);color:rgba(255,255,255,.9);font-size:13px"
+            title={$t('inspoNostalgiaRefresh')}>
+            🔄
+          </button>
+
+          <span class="absolute bottom-3 left-5 text-[10px] font-bold px-2 py-0.5 rounded-full pointer-events-none"
             style="background:rgba(255,255,255,.15);color:rgba(255,255,255,.7)">{$t('inspoNostalgiaLabel')}</span>
         </div>
       {:else}
