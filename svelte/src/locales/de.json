@@ -371,6 +371,7 @@
   "radarNoScanYet": "noch kein Preis-Scan",
   "radarNoTripLink": "Keine Verknüpfung (optional)",
   "radarNoTypeTrackers": "Keine",
+  "radarNoTypeTrackersFull": "Keine {type}-Tracker — oben suchen und speichern!",
   "radarNonstop": "Nonstop",
   "radarOutboundDate": "Hinflug",
   "radarPassengers": "Personen",
