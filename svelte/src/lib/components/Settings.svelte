@@ -48,7 +48,6 @@
   let testOk        = $state(null);
   let appTimezone   = $state('Europe/Rome');
   let appDateFormat = $state('DD.MM.YYYY');
-  let appCurrency   = $state('EUR');
   // Heimatort (global) — now lives here, not in IntegrationsTab
   let homeLat       = $state('');
   let homeLon       = $state('');
@@ -175,7 +174,6 @@
             gotifyToken   = gs.gotify_token         ? '••••••••' : '';
             appTimezone   = gs.timezone             || 'Europe/Rome';
             appDateFormat = gs.date_format          || 'DD.MM.YYYY';
-            appCurrency   = gs.currency             || 'EUR';
             homeLat       = gs.home_lat             || ls('s-homeLat');
             homeLon       = gs.home_lon             || ls('s-homeLon');
             homeName      = gs.home_name            || ls('s-homeName') || '';
@@ -238,7 +236,6 @@
             gotify_token:       (gotifyToken   && gotifyToken   !== '••••••••') ? gotifyToken   : null,
             timezone:           appTimezone   || null,
             date_format:        appDateFormat || null,
-            currency:           appCurrency   || null,
             home_lat:           homeLat       || null,
             home_lon:           homeLon       || null,
             home_name:          homeName      || null,
@@ -357,7 +354,6 @@
           bind:urlInput
           bind:appTimezone
           bind:appDateFormat
-          bind:appCurrency
           bind:homeLat
           bind:homeLon
           bind:homeName
