@@ -163,29 +163,33 @@
             Mit Passwort anmelden
           </button>
         {:else}
+          <form onsubmit={(e) => { e.preventDefault(); loginWithPassword(); }} autocomplete="on">
           <div>
             <label class="text-xs font-bold uppercase tracking-wider block mb-1.5" style="color:var(--ws-muted)">
               E-Mail
             </label>
             <input type="email" bind:value={email} placeholder="admin@example.com"
               onkeydown={onKeydown}
+              autocomplete="email"
               class="w-full px-3 py-2.5 rounded-xl border text-sm"
               style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
           </div>
-          <div>
+          <div class="mt-3">
             <label class="text-xs font-bold uppercase tracking-wider block mb-1.5" style="color:var(--ws-muted)">
               Passwort
             </label>
             <input type="password" bind:value={password} placeholder="••••••••"
               onkeydown={onKeydown}
+              autocomplete="current-password"
               class="w-full px-3 py-2.5 rounded-xl border text-sm"
               style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
           </div>
-          <button onclick={loginWithPassword} disabled={loading}
-            class="w-full py-2.5 rounded-xl text-sm font-semibold transition-opacity disabled:opacity-50"
+          <button type="submit" disabled={loading}
+            class="w-full mt-3 py-2.5 rounded-xl text-sm font-semibold transition-opacity disabled:opacity-50"
             style="background:var(--ws-surface2);border:1px solid var(--ws-border);color:var(--ws-text)">
             {loading ? '⏳ Anmelden…' : '→ Anmelden'}
           </button>
+          </form>
         {/if}
       </div>
     </div>
