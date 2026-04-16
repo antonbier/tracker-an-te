@@ -4,13 +4,14 @@ WanderWizzard Trip Container: anlegen, abrufen, To-Dos verwalten.
 KI-To-Do-Generierung via OpenAI gpt-4o-mini beim Trip-Anlegen.
 
 Fixes applied:
-  - POST /{trip_id}/todos now returns the new todo id + full object
-  - PATCH /{trip_id}/status  — update trip status
-  - PATCH /{trip_id}         — full trip field update
+  - POST todos returns real id
+  - PATCH /{id} full/partial trip update
+  - PATCH /{id}/status shortcut
+  - Validates end_date >= start_date (B2)
 """
 
 from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 from typing import Optional
 import logging, json, os
 
@@ -27,6 +28,8 @@ from settings_manager import get_setting_value
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+VALID_STATUSES = {"planning", "booked", "completed", "archived", "experienced"}
 
 
 def _uid(user: dict) -> int:
@@ -54,9 +57,19 @@ class WsTripCreate(BaseModel):
     children:     Optional[int] = 0
     notes:        Optional[str] = None
 
+    @model_validator(mode="after")
+    def validate_dates(self) -> "WsTripCreate":
+        """FIX B2: Ensure end_date >= start_date when both are provided."""
+        if self.start_date and self.end_date:
+            if self.end_date < self.start_date:
+                raise ValueError(
+                    f"end_date ({self.end_date}) darf nicht vor start_date ({self.start_date}) liegen"
+                )
+        return self
+
 
 class WsTripUpdate(BaseModel):
-    """FIX: Partial trip update — all fields optional."""
+    """Partial update — all fields optional."""
     title:        Optional[str]   = None
     destination:  Optional[str]   = None
     start_date:   Optional[str]   = None
@@ -69,18 +82,34 @@ class WsTripUpdate(BaseModel):
     notes:        Optional[str]   = None
     status:       Optional[str]   = None
 
+    @model_validator(mode="after")
+    def validate_status_and_dates(self) -> "WsTripUpdate":
+        if self.status is not None and self.status not in VALID_STATUSES:
+            raise ValueError(f"Ungültiger Status. Erlaubt: {sorted(VALID_STATUSES)}")
+        if self.start_date and self.end_date and self.end_date < self.start_date:
+            raise ValueError(
+                f"end_date ({self.end_date}) darf nicht vor start_date ({self.start_date}) liegen"
+            )
+        return self
+
 
 class StatusUpdate(BaseModel):
-    status: str   # 'planning' | 'booked' | 'completed' | 'archived'
+    status: str
 
-
-class TodoToggle(BaseModel):
-    pass
+    @model_validator(mode="after")
+    def validate_status(self) -> "StatusUpdate":
+        if self.status not in VALID_STATUSES:
+            raise ValueError(f"Ungültiger Status. Erlaubt: {sorted(VALID_STATUSES)}")
+        return self
 
 
 class TodoCreate(BaseModel):
     task:     str
     category: Optional[str] = "general"
+    due_date: Optional[str] = None
+
+
+class TodoUpdate(BaseModel):
     due_date: Optional[str] = None
 
 
@@ -121,16 +150,14 @@ Zeitraum: {dates or 'flexibel'}{budget_str}
 Mitreisende: {trip.get('adults', 2)} Erw.{', ' + str(trip.get('children')) + ' Kind.' if trip.get('children') else ''}
 
 Regeln:
-- KEINE generischen To-Dos (nicht "Koffer packen" allein — stattdessen was für diese Reise spezifisch ist)
-- Mische Kategorien sinnvoll: booking, documents, packing, general
-- Berücksichtige Reiseziel und -art konkret
+- KEINE generischen To-Dos — was für diese Reise spezifisch ist
+- Mische Kategorien: booking, documents, packing, general
 - Antworte NUR mit JSON-Array, kein Text, kein Markdown:
 
 [
   {{"task": "...", "category": "booking"}},
   ...
-]
-Kategorien: booking, documents, packing, general."""
+]"""
 
     try:
         import httpx
@@ -172,14 +199,13 @@ def _fallback_todos(trip: dict) -> list[dict]:
             {"task": "Reisekrankenversicherung abschließen", "category": "documents"},
             {"task": "Koffer packen", "category": "packing"},
         ]
-    else:
-        return [
-            {"task": "Route & Stopps planen", "category": "general"},
-            {"task": "Fahrzeug & Tankstand prüfen", "category": "general"},
-            {"task": "Unterkunft entlang der Route buchen", "category": "booking"},
-            {"task": "Pannenhilfe / ADAC-Mitgliedschaft prüfen", "category": "documents"},
-            {"task": "Koffer & Dachbox packen", "category": "packing"},
-        ]
+    return [
+        {"task": "Route & Stopps planen", "category": "general"},
+        {"task": "Fahrzeug & Tankstand prüfen", "category": "general"},
+        {"task": "Unterkunft entlang der Route buchen", "category": "booking"},
+        {"task": "Pannenhilfe / ADAC prüfen", "category": "documents"},
+        {"task": "Koffer & Dachbox packen", "category": "packing"},
+    ]
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -197,17 +223,15 @@ async def create_trip(data: WsTripCreate, user=Depends(get_current_user)):
     logger.info(f"[WsTrips] Trip #{trip_id} angelegt für user {uid}: {trip_data['title']}")
 
     from datetime import date
-    start = trip_data.get("start_date") or ""
+    start   = trip_data.get("start_date") or ""
     is_past = start and start < date.today().isoformat()
 
     if is_past:
-        logger.info(f"[WsTrips] Trip #{trip_id} ist vergangen — KI-Todos übersprungen")
         todos = []
     else:
         trip_data["id"] = trip_id
         todos = await _generate_todos(trip_data)
         create_trip_todos(trip_id, todos)
-        logger.info(f"[WsTrips] {len(todos)} To-Dos für Trip #{trip_id} gespeichert")
 
     return {"id": trip_id, "title": trip_data["title"], "todos": todos, "message": "Trip angelegt ✓"}
 
@@ -238,10 +262,7 @@ def get_trip(trip_id: int, user=Depends(get_current_user)):
 
 @router.patch("/{trip_id}")
 def update_trip(trip_id: int, data: WsTripUpdate, user=Depends(get_current_user)):
-    """
-    FIX: Partial update of any trip field including status.
-    Only provided (non-None) fields are written.
-    """
+    """Partial update — only provided (non-None) fields are written."""
     trip = get_ws_trip(trip_id, _uid(user))
     if not trip:
         raise HTTPException(404, "Trip nicht gefunden")
@@ -250,11 +271,11 @@ def update_trip(trip_id: int, data: WsTripUpdate, user=Depends(get_current_user)
     if not updates:
         return {"id": trip_id, "message": "Keine Änderungen"}
 
-    # Validate status if provided
-    if "status" in updates:
-        valid_statuses = {"planning", "booked", "completed", "archived", "experienced"}
-        if updates["status"] not in valid_statuses:
-            raise HTTPException(422, f"Ungültiger Status. Erlaubt: {sorted(valid_statuses)}")
+    # If only one date is being updated, validate against existing stored date
+    new_start = updates.get("start_date", trip.get("start_date"))
+    new_end   = updates.get("end_date",   trip.get("end_date"))
+    if new_start and new_end and new_end < new_start:
+        raise HTTPException(422, f"end_date ({new_end}) darf nicht vor start_date ({new_start}) liegen")
 
     from database import db as _db
     set_clauses = ", ".join(f"{k}=?" for k in updates)
@@ -270,10 +291,6 @@ def update_trip(trip_id: int, data: WsTripUpdate, user=Depends(get_current_user)
 
 @router.patch("/{trip_id}/status")
 def set_status(trip_id: int, data: StatusUpdate, user=Depends(get_current_user)):
-    """Shortcut endpoint for status-only updates."""
-    valid_statuses = {"planning", "booked", "completed", "archived", "experienced"}
-    if data.status not in valid_statuses:
-        raise HTTPException(422, f"Ungültiger Status. Erlaubt: {sorted(valid_statuses)}")
     if not update_ws_trip_status(trip_id, data.status, _uid(user)):
         raise HTTPException(404, "Trip nicht gefunden")
     return {"id": trip_id, "status": data.status, "message": "Status aktualisiert ✓"}
@@ -292,15 +309,14 @@ def remove_trip(trip_id: int, mode: str = "trip_only", user=Depends(get_current_
                     try:
                         conn.execute(f"DELETE FROM {tbl} WHERE trip_id=?", (trip_id,))
                     except Exception as e:
-                        logger.warning(f"[WsTrips] Delete {tbl} trip_id={trip_id}: {e}")
+                        logger.warning(f"[WsTrips] Delete {tbl}: {e}")
         except Exception as e:
-            logger.warning(f"[WsTrips] Tracker-Delete für Trip #{trip_id} teilweise fehlgeschlagen: {e}")
+            logger.warning(f"[WsTrips] Tracker-Cleanup teilweise fehlgeschlagen: {e}")
 
     if not delete_ws_trip(trip_id, _uid(user)):
         raise HTTPException(404, "Trip nicht gefunden")
 
-    msg = "Trip + Tracker gelöscht ✓" if mode == "all" else "Trip gelöscht ✓"
-    return {"message": msg}
+    return {"message": "Trip + Tracker gelöscht ✓" if mode == "all" else "Trip gelöscht ✓"}
 
 
 # ── To-Do Endpoints ───────────────────────────────────────────────────────────
@@ -314,15 +330,12 @@ def get_todos(trip_id: int, user=Depends(get_current_user)):
 
 @router.post("/{trip_id}/todos", status_code=201)
 def add_todo(trip_id: int, data: TodoCreate, user=Depends(get_current_user)):
-    """
-    FIX: Returns the new todo's id + full object so frontend doesn't need Date.now() fake-ids.
-    """
+    """Returns the new todo id + full object so frontend never needs Date.now() fake-ids."""
     if not get_ws_trip(trip_id, _uid(user)):
         raise HTTPException(404, "Trip nicht gefunden")
 
     create_trip_todos(trip_id, [{"task": data.task, "category": data.category, "due_date": data.due_date}])
 
-    # Fetch the just-created todo to return its real id
     from database import db as _db
     with _db() as conn:
         row = conn.execute(
@@ -343,10 +356,6 @@ def add_todo(trip_id: int, data: TodoCreate, user=Depends(get_current_user)):
             "message":  "To-Do hinzugefügt ✓",
         }
     return {"message": "To-Do hinzugefügt ✓"}
-
-
-class TodoUpdate(BaseModel):
-    due_date: Optional[str] = None
 
 
 @router.patch("/{trip_id}/todos/{todo_id}/due")
@@ -413,8 +422,7 @@ class BookPayload(BaseModel):
 def book_tracker(trip_id: int, tracker_id: int, data: BookPayload, user=Depends(get_current_user)):
     if not get_ws_trip(trip_id, _uid(user)):
         raise HTTPException(404, "Trip nicht gefunden")
-    ok = mark_tracker_booked(tracker_id, data.tracker_type, data.booked_price, trip_id=trip_id)
-    if not ok:
+    if not mark_tracker_booked(tracker_id, data.tracker_type, data.booked_price, trip_id=trip_id):
         raise HTTPException(404, "Tracker nicht gefunden")
     return {"message": "Als gebucht markiert ✓", "booked_price": data.booked_price}
 
@@ -423,8 +431,7 @@ def book_tracker(trip_id: int, tracker_id: int, data: BookPayload, user=Depends(
 def unbook_tracker(trip_id: int, tracker_id: int, tracker_type: str, user=Depends(get_current_user)):
     if not get_ws_trip(trip_id, _uid(user)):
         raise HTTPException(404, "Trip nicht gefunden")
-    ok = unmark_tracker_booked(tracker_id, tracker_type)
-    if not ok:
+    if not unmark_tracker_booked(tracker_id, tracker_type):
         raise HTTPException(404, "Tracker nicht gefunden")
     return {"message": "Buchung zurückgesetzt ✓"}
 
@@ -436,6 +443,7 @@ def get_trip_budget(trip_id: int, user=Depends(get_current_user)):
     trip = get_ws_trip(trip_id, _uid(user))
     if not trip:
         raise HTTPException(404, "Trip nicht gefunden")
+
     try:
         trackers = get_trackers_for_trip(trip_id)
     except Exception:
