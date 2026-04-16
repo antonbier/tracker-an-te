@@ -56,8 +56,7 @@ def save_notification_settings(
     """
     uid    = user.get("id", 1) or 1
     fernet = _get_fernet()
-    fernet_again = _get_fernet()
-    # Load existing to allow partial updates
+    # Load existing to allow partial updates (reuse same fernet instance)
     existing = get_user_notification_settings(uid, fernet)
     merged = {
         "telegram_bot_token": config.telegram_bot_token
@@ -69,7 +68,7 @@ def save_notification_settings(
         "gotify_app_token":   config.gotify_app_token
             if config.gotify_app_token   is not None else existing.get("gotify_app_token",    ""),
     }
-    save_user_notification_settings(uid, merged, fernet_again)
+    save_user_notification_settings(uid, merged, fernet)
     return {"success": True, "message": "Einstellungen gespeichert"}
 
 
