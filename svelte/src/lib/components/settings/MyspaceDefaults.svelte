@@ -288,7 +288,8 @@
             {#each [
               ['solo',    '🧍 ' + $t('defaultsCompSolo')],
               ['couple',  '👫 ' + $t('defaultsCompCouple')],
-              ['family',  '👨‍👩‍👧 ' + $t('defaultsCompFamily')],
+              ['family_kids',  '👶 ' + $t('defaultsCompFamilyKids')],
+              ['family_teens', '🧒 ' + $t('defaultsCompFamilyTeens')],
               ['friends', '👯 ' + $t('defaultsCompFriends')],
             ] as [val, label]}
               <button onclick={() => companions = companions === val ? '' : val}
