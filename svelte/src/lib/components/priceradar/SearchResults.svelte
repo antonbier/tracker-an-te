@@ -1,11 +1,12 @@
 <script>
   import { t } from '$lib/i18n.js';
-  import { overnightSuffix } from './helpers.js';
+  import { overnightSuffix, parseJsonField, fmtLayoverDur } from './helpers.js';
 
   const { searching, results, savingTracker, onsavetracker } = $props();
 
   let activeProviderFilter = $state('all');
   let savedTrackers = $state(new Set()); // IDs of recently saved trackers
+  let stopsOpen = $state({}); // result.id → bool
 
   function handleSave(result) {
     onsavetracker(result);
@@ -109,6 +110,31 @@
                   <span class="text-xs" style="color:var(--ws-muted)">({Math.floor(d.duration_min/60)}h{d.duration_min%60}m)</span>
                 {/if}
               </div>
+            {/if}
+            <!-- Stops dropdown (flights) -->
+            {#if d.stops > 0 || (d.layover_airports && d.layover_airports !== '[]')}
+              {@const stopKey = result.id}
+              {@const layAirports  = parseJsonField(d.layover_airports)}
+              {@const layDurations = parseJsonField(d.layover_durations)}
+              <div class="mt-1.5">
+                <button onclick={() => stopsOpen[stopKey] = !stopsOpen[stopKey]}
+                  class="text-xs px-2 py-0.5 rounded-full font-semibold border transition-colors"
+                  style="background:rgba(234,179,8,.1);border-color:rgba(234,179,8,.3);color:#ca8a04">
+                  {d.stops ?? layAirports.length} Stopp{(d.stops ?? layAirports.length) > 1 ? 's' : ''} {stopsOpen[stopKey] ? '▴' : '▾'}
+                </button>
+                {#if stopsOpen[stopKey] && layAirports.length > 0}
+                  <div class="mt-1 space-y-0.5 pl-2 border-l-2" style="border-color:var(--ws-border)">
+                    {#each layAirports as ap, idx}
+                      <div class="text-[10px]" style="color:var(--ws-muted)">
+                        📍 {ap}{layDurations[idx] ? ' · ' + fmtLayoverDur(layDurations[idx]) : ''}
+                      </div>
+                    {/each}
+                  </div>
+                {/if}
+              </div>
+            {:else if d.stops === 0}
+              <span class="text-xs px-2 py-0.5 rounded-full mt-1.5 inline-block"
+                style="background:rgba(22,163,74,.1);color:var(--ws-green)">Nonstop</span>
             {/if}
             <div class="flex gap-1.5 flex-wrap mt-1.5">
               <span class="text-xs px-2 py-0.5 rounded-full"
