@@ -138,34 +138,35 @@
   <div class="absolute inset-0 opacity-15 pointer-events-none"
     style="background-image:radial-gradient(circle at 15% 85%, rgba(255,255,255,.12) 0%, transparent 50%)"></div>
 
-  <!-- Refresh-Button oben rechts — z-20 damit er immer klickbar ist -->
-  {#if archivedTrips.length > 1}
-    <button
-      onclick={nextTrip}
-      title="Anderen Trip anzeigen"
-      class="absolute top-2.5 right-2.5 z-20 w-7 h-7 rounded-full flex items-center justify-center transition-all hover:opacity-80 active:scale-90"
-      style="background:rgba(0,0,0,.35);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.85);font-size:13px">
-      🔀
-    </button>
-  {/if}
-
   <!-- Content -->
   <div class="relative z-10 flex flex-col justify-between h-full p-4 flex-1">
 
-    <!-- Top -->
-    <div class="pr-8">
-      <!-- Reiselust-Badge / Zeit-Badge -->
-      {#if isOld}
-        <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold mb-2"
-          style="background:rgba(234,88,12,.35);color:#fed7aa;backdrop-filter:blur(6px)">
-          🌍 {$t('heroPastLust') || 'Reiselust meldet sich…'}
-        </div>
-      {:else}
-        <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold mb-2"
-          style="background:rgba(0,0,0,.25);color:rgba(255,255,255,.8);backdrop-filter:blur(6px)">
-          🕐 {timeLabel}
-        </div>
-      {/if}
+    <!-- Top row: Badge + Refresh-Button nebeneinander -->
+    <div>
+      <div class="flex items-start justify-between gap-2 mb-2">
+        <!-- Reiselust-Badge / Zeit-Badge -->
+        {#if isOld}
+          <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold"
+            style="background:rgba(234,88,12,.35);color:#fed7aa;backdrop-filter:blur(6px)">
+            🌍 {$t('heroPastLust') || 'Reiselust meldet sich…'}
+          </div>
+        {:else}
+          <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
+            style="background:rgba(0,0,0,.25);color:rgba(255,255,255,.8);backdrop-filter:blur(6px)">
+            🕐 {timeLabel}
+          </div>
+        {/if}
+        <!-- Refresh-Button: Teil des normalen Flows, kein absolute -->
+        {#if archivedTrips.length > 1}
+          <button
+            onclick={nextTrip}
+            title="Anderen Trip anzeigen"
+            class="shrink-0 w-7 h-7 rounded-full flex items-center justify-center transition-all hover:opacity-80 active:scale-90"
+            style="background:rgba(0,0,0,.35);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.85);font-size:13px">
+            🔀
+          </button>
+        {/if}
+      </div>
 
       <!-- Trip-Name -->
       <h2 class="text-lg font-bold leading-tight"
@@ -188,10 +189,10 @@
       <!-- Archiv-Counter -->
       {#if archivedTrips.length > 1}
         <p class="text-[10px] mt-1" style="color:rgba(255,255,255,.35)">
-          {currentIndex + 1} / {archivedTrips.length}
+          {currentIndex + 1}/{archivedTrips.length}
         </p>
       {/if}
-    </div>
+    </div>  <!-- end top row -->
 
     <!-- Action Button -->
     <div class="mt-3">
