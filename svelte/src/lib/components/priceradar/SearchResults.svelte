@@ -5,6 +5,20 @@
   const { searching, results, savingTracker, onsavetracker } = $props();
 
   let activeProviderFilter = $state('all');
+  let savedTrackers = $state(new Set()); // IDs of recently saved trackers
+
+  function handleSave(result) {
+    onsavetracker(result);
+    // Show '✓ Gespeichert' for 2s after clicking
+    setTimeout(() => {
+      savedTrackers = new Set([...savedTrackers, result.id]);
+      setTimeout(() => {
+        const next = new Set(savedTrackers);
+        next.delete(result.id);
+        savedTrackers = next;
+      }, 2000);
+    }, 100);
+  }
 
   const providerChips = $derived(() => {
     return ['all', ...new Set(results.map(r => r.provider))];
@@ -67,7 +81,7 @@
       <div class="rounded-xl p-4 border" style="background:var(--ws-surface);border-color:var(--ws-border)">
         <div class="flex items-start justify-between gap-2">
           <div class="flex-1 min-w-0 overflow-hidden">
-            <div class="font-bold text-sm truncate" style="color:var(--ws-text)">{result.title || result.label || '–'}</div>
+            <div class="font-bold text-sm truncate" style="color:var(--ws-text)" title={result.title || result.label || ''}>{result.title || result.label || '–'}</div>
             {#if result.subtitle}
               {@const cleanSubtitle = d.airline
                 ? result.subtitle
@@ -116,12 +130,12 @@
               </div>
             {/if}
             <button
-              onclick={() => onsavetracker(result)}
-              disabled={savingTracker === result.id || result._test_mode}
+              onclick={() => handleSave(result)}
+              disabled={savingTracker === result.id || savedTrackers.has(result.id) || result._test_mode}
               title={result._test_mode ? 'Testpreise können nicht gespeichert werden' : ''}
-              class="mt-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-opacity hover:opacity-80 disabled:opacity-50"
-              style="background:{result._test_mode ? 'var(--ws-surface2)' : 'linear-gradient(135deg,var(--ws-accent),#b84928)'};color:{result._test_mode ? 'var(--ws-muted)' : '#fff5ec'};border:1px solid {result._test_mode ? 'var(--ws-border)' : 'transparent'}">
-              {result._test_mode ? '🧪 Nur Test' : savingTracker === result.id ? '⏳…' : $t('radarSaveTracker')}
+              class="mt-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all hover:opacity-80 disabled:opacity-50"
+              style="background:{savedTrackers.has(result.id) ? 'rgba(45,106,79,.15)' : result._test_mode ? 'var(--ws-surface2)' : 'linear-gradient(135deg,var(--ws-accent),#b84928)'};color:{savedTrackers.has(result.id) ? 'var(--ws-green)' : result._test_mode ? 'var(--ws-muted)' : '#fff5ec'};border:1px solid {savedTrackers.has(result.id) ? 'var(--ws-green)' : result._test_mode ? 'var(--ws-border)' : 'transparent'}">
+              {result._test_mode ? '🧪 Nur Test' : savedTrackers.has(result.id) ? '✓ Gespeichert' : savingTracker === result.id ? '⏳…' : $t('radarSaveTracker')}
             </button>
             {#if result.booking_url}
               <a href={result.booking_url} target="_blank" rel="noopener noreferrer"
