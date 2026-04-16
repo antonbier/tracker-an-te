@@ -63,7 +63,9 @@ export function logout() {
 export async function loadSettingsFromBackend(baseUrl) {
   if (!browser || !baseUrl || baseUrl.trim() === '') return;
   try {
-    const res = await fetch(`${baseUrl.replace(/\/$/, '')}/api/settings`);
+    const token = localStorage.getItem('ws-jwt') || '';
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+    const res = await fetch(`${baseUrl.replace(/\/$/, '')}/api/settings`, { headers });
     if (!res.ok) return;
     const s = await res.json();
     const map = {
