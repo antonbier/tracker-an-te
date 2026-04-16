@@ -58,7 +58,7 @@
       <div class="text-2xl mb-2">📭</div>
       <p class="text-xs" style="color:var(--ws-muted)">
         {allCount > 0
-          ? ($t('radarNoTypeTrackers') || 'Keine') + ' ' + (activeCategory === 'flights' ? 'Flug' : activeCategory === 'hotels' ? 'Hotel' : 'Camping') + '-Tracker — oben suchen und speichern!'
+          ? $t('radarNoTypeTrackersFull').replace('{type}', activeCategory === 'flights' ? ($t('radarFlights') || 'Flug') : activeCategory === 'hotels' ? ($t('radarHotels') || 'Hotel') : ($t('radarCamping') || 'Camping'))
           : $t('dashNoTrackers')}
       </p>
     </div>
