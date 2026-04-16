@@ -8,7 +8,7 @@ Fixes applied:
 """
 
 from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 from typing import Optional
 import json, logging
 from datetime import datetime, date
@@ -60,6 +60,15 @@ def get_budget(user=Depends(get_current_user)):
 class BudgetPayload(BaseModel):
     year: int
     amount: float
+
+    @model_validator(mode="after")
+    def validate_budget(self) -> "BudgetPayload":
+        """FIX W4: budget amount must be >= 0 and year must be plausible."""
+        if self.amount < 0:
+            raise ValueError("Budget darf nicht negativ sein")
+        if not (2000 <= self.year <= 2100):
+            raise ValueError("Jahr muss zwischen 2000 und 2100 liegen")
+        return self
 
 
 @router.put("/budget")
