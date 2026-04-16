@@ -27,7 +27,7 @@ from typing import Optional
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 from auth_jwt import get_current_user
 from settings_manager import get_setting_value
@@ -178,6 +178,24 @@ class FlightSearchParams(BaseModel):
     arr_to:        Optional[str] = None   # Ankunft bis HH:MM
     max_stops:     int = -1               # -1=alle, 0=nonstop, 1=max 1 Stopp, 2=max 2
 
+    @model_validator(mode="after")
+    def validate_flight_params(self) -> "FlightSearchParams":
+        """FIX W2/W3: validate IATA codes and origin != destination."""
+        import re
+        for field, val in [("origin", self.origin), ("destination", self.destination)]:
+            v = (val or "").strip().upper()
+            if v and not re.match(r"^[A-Z]{3}$", v):
+                raise ValueError(f"{field} muss ein gültiger 3-Buchstaben IATA-Code sein (z.B. BGY, DUB)")
+        if self.origin and self.destination:
+            if self.origin.strip().upper() == self.destination.strip().upper():
+                raise ValueError("origin und destination dürfen nicht identisch sein")
+        if self.return_date and self.outbound_date:
+            if self.return_date < self.outbound_date:
+                raise ValueError(
+                    f"return_date ({self.return_date}) darf nicht vor outbound_date ({self.outbound_date}) liegen"
+                )
+        return self
+
 
 class HotelSearchParams(BaseModel):
     destination:   str
@@ -185,6 +203,16 @@ class HotelSearchParams(BaseModel):
     checkout_date: str
     adults:        int = 2
     rooms:         int = 1
+
+    @model_validator(mode="after")
+    def validate_dates(self) -> "HotelSearchParams":
+        """FIX B2: checkout must be after checkin."""
+        if self.checkout_date and self.checkin_date:
+            if self.checkout_date <= self.checkin_date:
+                raise ValueError(
+                    f"checkout_date ({self.checkout_date}) muss nach checkin_date ({self.checkin_date}) liegen"
+                )
+        return self
 
 
 class CampingSearchParams(BaseModel):
@@ -198,6 +226,16 @@ class CampingSearchParams(BaseModel):
     pets:            bool = False
     covered_terrace: bool = False
     final_cleaning:  bool = False          # Endreinigung einkalkulieren
+
+    @model_validator(mode="after")
+    def validate_dates(self) -> "CampingSearchParams":
+        """FIX B2: checkout must be after checkin."""
+        if self.checkout_date and self.checkin_date:
+            if self.checkout_date <= self.checkin_date:
+                raise ValueError(
+                    f"checkout_date ({self.checkout_date}) muss nach checkin_date ({self.checkin_date}) liegen"
+                )
+        return self
 
 
 # ── Provider functions (async) ─────────────────────────────────────────────
