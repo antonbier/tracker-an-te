@@ -1,6 +1,7 @@
 <script>
   import { bucketlist } from '$lib/stores.js';
   import { t } from '$lib/i18n.js';
+  import { fmtDate } from '$lib/components/priceradar/helpers.js';
 
   let { onadd, ontoggle, onremove } = $props();
 
@@ -121,7 +122,7 @@
           {#if item.dest}
             <div class="text-xs mt-1" style="color:var(--ws-muted)">📍 {item.dest}</div>
           {/if}
-          <div class="text-xs mt-2 font-mono" style="color:var(--ws-muted)">{item.created}</div>
+          <div class="text-xs mt-2 font-mono" style="color:var(--ws-muted)">{fmtDate((item.created || '').slice(0,10))}</div>
         </div>
       </div>
     {/each}
