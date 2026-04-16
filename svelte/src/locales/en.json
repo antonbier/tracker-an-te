@@ -444,6 +444,7 @@
   "settingsCurrentPassword": "Current password",
   "settingsDark": "🌙 Dark",
   "settingsDateFormat": "Date Format",
+  "settingsPreviewLabel": "Current",
   "settingsGeminiHint": "For AI travel recommendations — free",
   "settingsHomeCoordsHint": "Home coordinates for trip detection (>50km)",
   "settingsHomeLocation": "Home location",
