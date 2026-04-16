@@ -34,20 +34,39 @@
   let imgUrl   = $state(null);
   let imgError = $state(false);
 
+  function cacheKey(t) {
+    const dest = t?.destination || t?.title || t?.name || '';
+    return dest ? `ws-img-next-${dest}`.replace(/\s+/g, '_') : null;
+  }
+
   async function loadUnsplashImage() {
     if (!$apiUrl || !trip) return;
+    imgError = false;
+
+    // Check sessionStorage cache first
+    const key = cacheKey(trip);
+    if (key) {
+      const cached = sessionStorage.getItem(key);
+      if (cached) { imgUrl = cached === 'null' ? null : cached; return; }
+    }
+
     const dest = trip.destination || trip.title || trip.name || '';
     if (!dest) return;
     try {
       const res = await api(
-        `/api/discovery/trip-image?destination=${encodeURIComponent(dest)}&source=unsplash`
+        `/api/discovery/trip-image?destination=${encodeURIComponent(dest)}`
       );
-      imgUrl = res?.image_url || null;
-    } catch { imgUrl = null; }
+      const url = res?.image_url || null;
+      imgUrl = url;
+      if (key) sessionStorage.setItem(key, url ?? 'null');
+    } catch {
+      imgUrl = null;
+      if (key) sessionStorage.setItem(key, 'null');
+    }
   }
 
   onMount(() => { loadUnsplashImage(); });
-  $effect(() => { if (trip && $apiUrl) loadUnsplashImage(); });
+  $effect(() => { if (trip && $apiUrl) { imgUrl = null; imgError = false; loadUnsplashImage(); } });
 
   // ── Daten ─────────────────────────────────────────────────────────
   const tripName = $derived(
