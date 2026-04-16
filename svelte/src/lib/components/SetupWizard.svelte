@@ -550,7 +550,7 @@
               {#each [
                 [$t('defaultsTravelStyle'), travelStyle, v => travelStyle = v, [['adventure','🏔️ Abenteuer'],['relaxation','🏖️ Entspannung'],['culture','🏛️ Kultur'],['nature','🌿 Natur'],['city','🌆 City']]],
                 [$t('defaultsClimate'), climatePref, v => climatePref = v, [['warm','☀️ Warm'],['mild','🌤️ Mild'],['cold','❄️ Kalt'],['any','🌍 Egal']]],
-                [$t('defaultsCompanions'), companions, v => companions = v, [['solo','🧍 Solo'],['couple','👫 Pärchen'],['family','👨‍👩‍👧 Familie'],['friends','👯 Freunde']]],
+                [$t('defaultsCompanions'), companions, v => companions = v, [['solo','🧍 Solo'],['couple','👫 Pärchen'],['family_kids','👶 ' + $t('defaultsCompFamilyKids')],['family_teens','🧒 ' + $t('defaultsCompFamilyTeens')],['friends','👯 Freunde']]],
               ] as [lbl, cur, setter, opts]}
                 <div>
                   <div class="text-xs font-semibold mb-2" style="color:var(--ws-text)">{lbl}</div>
