@@ -368,31 +368,6 @@
     </div>
   {/if}
 
-  <!-- Trip linking selector (shown when wsTrips available) -->
-  {#if wsTrips.length > 0}
-    <div class="flex items-center gap-3 px-4 py-2.5 rounded-xl border text-sm"
-      style="background:var(--ws-surface2);border-color:var(--ws-border)">
-      <span class="text-sm shrink-0" style="color:var(--ws-muted)">🔗 {$t('radarLinkTrip')}</span>
-      <select
-        value={selectedTripId}
-        onchange={(e) => selectedTripId = e.target.value ? parseInt(e.target.value) : null}
-        class="flex-1 px-2 py-1 rounded-lg border text-sm focus:outline-none"
-        style="background:var(--ws-surface);border-color:var(--ws-border);color:var(--ws-text)">
-        <option value="">{$t('radarNoTripLink')}</option>
-        {#each wsTrips as trip}
-          <option value={trip.id}>{trip.title || trip.destination || 'Trip #' + trip.id}
-            {#if trip.start_date} · {trip.start_date}{/if}
-          </option>
-        {/each}
-      </select>
-      {#if selectedTripId}
-        <button onclick={() => selectedTripId = null}
-          class="text-xs px-2 py-1 rounded-lg hover:opacity-70"
-          style="color:var(--ws-muted)">✕</button>
-      {/if}
-    </div>
-  {/if}
-
   <!-- Search results -->
   <SearchResults
     {searching}
