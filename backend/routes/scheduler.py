@@ -1,12 +1,12 @@
 """
 WanderSuite — /api/scheduler
-Per-user scheduler settings: update interval, notification preferences.
-GET  /api/scheduler/settings        → get current user's settings
-PUT  /api/scheduler/settings        → update settings
-POST /api/scheduler/run             → manually trigger price fetch for current user
-GET  /api/scheduler/status          → last run time + next run info
+
+Fixes:
+  - asyncio.get_event_loop() → asyncio.get_running_loop() (Python 3.10+)
+  - POST /run now calls update_scheduler_last_run for the requesting user
 """
 
+import asyncio
 import logging
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 class SchedulerSettingsUpdate(BaseModel):
-    update_interval_hours: int = 24   # 6 | 12 | 24 | 48 | 168
+    update_interval_hours: int = 24
     notify_price_drop: bool = True
     notify_daily_summary: bool = False
 
@@ -33,29 +33,28 @@ def get_scheduler_settings(user: dict = Depends(get_current_user)):
     uid = user.get("id", 1) or 1
     s = get_user_scheduler_settings(uid)
     last_run = s.get("last_run_at")
-    # Format last_run_at using user's timezone if available
     if last_run:
         try:
             from datetime import datetime
             from settings_manager import get_user_setting_value, get_setting_value
-            # Try user-level timezone first, then global
-            tz_name = get_user_setting_value(uid, "timezone") or get_setting_value("timezone") or "UTC"
             import zoneinfo
-            tz = zoneinfo.ZoneInfo(tz_name)
+            tz_name = get_user_setting_value(uid, "timezone") or get_setting_value("timezone") or "UTC"
+            try:
+                tz = zoneinfo.ZoneInfo(tz_name)
+            except Exception:
+                tz = zoneinfo.ZoneInfo("UTC")
             dt = datetime.fromisoformat(last_run.replace("Z", "+00:00"))
             if dt.tzinfo is None:
-                import zoneinfo as _zi
-                dt = dt.replace(tzinfo=_zi.ZoneInfo("UTC"))
-            dt_local = dt.astimezone(tz)
-            last_run = dt_local.strftime("%Y-%m-%dT%H:%M:%S")
+                dt = dt.replace(tzinfo=zoneinfo.ZoneInfo("UTC"))
+            last_run = dt.astimezone(tz).strftime("%Y-%m-%dT%H:%M:%S")
         except Exception:
-            pass  # keep original if parsing fails
+            pass
     return {
         "update_interval_hours": s.get("update_interval_hours", 24),
-        "notify_price_drop": bool(s.get("notify_price_drop", True)),
-        "notify_daily_summary": bool(s.get("notify_daily_summary", False)),
-        "last_run_at": last_run,
-        "timezone": _get_user_tz(uid),
+        "notify_price_drop":     bool(s.get("notify_price_drop", True)),
+        "notify_daily_summary":  bool(s.get("notify_daily_summary", False)),
+        "last_run_at":           last_run,
+        "timezone":              _get_user_tz(uid),
     }
 
 
@@ -70,7 +69,7 @@ def _get_user_tz(uid: int) -> str:
 @router.put("/settings")
 def update_scheduler_settings(
     data: SchedulerSettingsUpdate,
-    user: dict = Depends(get_current_user)
+    user: dict = Depends(get_current_user),
 ):
     uid = user.get("id", 1) or 1
     allowed_intervals = {6, 12, 24, 48, 72, 168}
@@ -87,11 +86,17 @@ def update_scheduler_settings(
 
 @router.post("/run")
 async def trigger_run(user: dict = Depends(get_current_user)):
-    """Manually trigger a price fetch for the current user's trackers."""
+    """
+    Manually trigger a price fetch for the current user's trackers.
+    FIX: use get_running_loop() instead of deprecated get_event_loop().
+    FIX: update last_run_at for the requesting user after scheduling.
+    """
     uid = user.get("id", 1) or 1
     logger.info(f"🔄 Manueller Scheduler-Lauf für user_id={uid}")
-    import asyncio
     from scheduler import run_all_trackers
-    # Run in background so request returns immediately
-    asyncio.get_event_loop().run_in_executor(None, run_all_trackers, uid)
+    # FIX: asyncio.get_running_loop() is correct in async FastAPI context
+    loop = asyncio.get_running_loop()
+    loop.run_in_executor(None, run_all_trackers, uid)
+    # Update last_run_at immediately so UI reflects the triggered run
+    update_scheduler_last_run(uid)
     return {"message": "Preisabfrage wird im Hintergrund gestartet"}
