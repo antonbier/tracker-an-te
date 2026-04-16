@@ -292,14 +292,6 @@
         </div>
       </div>
       <div class="flex items-center gap-2">
-        <!-- Help button -->
-        {#if step > 0}
-          <button onclick={() => openHelp(STEP_HELP_TAB[step])}
-            class="text-xs px-2.5 py-1 rounded-lg font-semibold transition-opacity hover:opacity-80"
-            style="background:rgba(255,255,255,.15);color:#fff5ec;border:1px solid rgba(255,255,255,.25)">
-            📖 {$t('wizardHelp')}
-          </button>
-        {/if}
         <button onclick={() => open = false} class="p-1.5 rounded-lg hover:opacity-60" style="color:#fff5ec">✕</button>
       </div>
     </div>
