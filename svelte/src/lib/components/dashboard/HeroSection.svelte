@@ -20,6 +20,7 @@
     onclosebodgetedit,
     onsavebudget,
     onopenWizzard,
+    refreshKey = 0,
   } = $props();
 
 
@@ -40,6 +41,7 @@
   onMount(() => { loadWsTrips(); });
   // Re-fetch if apiUrl changes (e.g. after onboarding)
   $effect(() => { if ($apiUrl) loadWsTrips(); });
+  $effect(() => { refreshKey; loadWsTrips(); }); // reload when WW closes
 
   function goToTripHub(tripId) {
     activeWsTripId.set(tripId);
