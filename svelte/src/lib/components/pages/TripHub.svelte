@@ -15,6 +15,7 @@
   import ChecklistWidget from '$lib/components/triphub/ChecklistWidget.svelte';
   import SlotWidget      from '$lib/components/triphub/SlotWidget.svelte';
   import { destinationGradient } from '$lib/components/triphub/helpers.js';
+  import { fmtDate } from '$lib/components/priceradar/helpers.js';
 
   // ── State ───────────────────────────────────────────────────────────────
   let trip            = $state(null);
@@ -398,7 +399,7 @@
             {/if}
             {#if trip.start_date}
               <span class="text-sm font-mono" style="color:rgba(255,255,255,.65)">
-                📅 {trip.start_date}{trip.end_date && trip.end_date !== trip.start_date ? ' → ' + trip.end_date : ''}
+                📅 {fmtDate(trip.start_date)}{trip.end_date && trip.end_date !== trip.start_date ? ' → ' + fmtDate(trip.end_date) : ''}
               </span>
             {/if}
           </div>
