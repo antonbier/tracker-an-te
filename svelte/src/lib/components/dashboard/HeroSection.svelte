@@ -30,13 +30,21 @@
   let nextWsTrip = $state(null);
   let wsTripsLoaded = $state(false);
 
+  let archivedWsTrips = $state([]);
+
   async function loadWsTrips() {
     if (!$apiUrl) return;
     try {
       const trips = await api('/api/ws-trips');
+      const today = new Date().toISOString().slice(0, 10);
       const planning = (trips || []).filter(t => t.status === 'planning' || t.status === 'booked');
-      nextWsTrip = planning[0] || null;
-    } catch { nextWsTrip = null; }
+      nextWsTrip    = planning[0] || null;
+      // Archiv: alle WS-Trips deren end_date in der Vergangenheit liegt
+      archivedWsTrips = (trips || []).filter(t => {
+        const e = (t.end_date || t.start_date || '').slice(0, 10);
+        return e && e < today;
+      });
+    } catch { nextWsTrip = null; archivedWsTrips = []; }
     wsTripsLoaded = true;
   }
 
@@ -53,7 +61,7 @@
 
   // ── Hero content derived from trip state ──────────────────────────────────
   const hasNextTrip  = $derived(nextTrip !== null);
-  const hasLastTrip  = $derived(!hasNextTrip && lastTrip !== null);
+  const hasLastTrip  = $derived(!hasNextTrip && (lastTrip !== null || archivedWsTrips.length > 0));
   const hasNoTrips   = $derived(!hasNextTrip && !hasLastTrip);
 
   const heroTitle = $derived.by(() => {
@@ -108,9 +116,10 @@
   <!-- BEIDE: Nebeneinander -->
   <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
     <HeroPastTrip
-      trip={lastTrip}
-      ongoToHub={() => {
-        if (lastTrip?.id) { activeWsTripId.set(lastTrip.id); currentPage.set('triphub'); }
+      archivedTrips={archivedWsTrips.length > 0 ? archivedWsTrips : (lastTrip ? [lastTrip] : [])}
+      ongoToHub={(t) => {
+        const id = t?.id;
+        if (id) { activeWsTripId.set(id); currentPage.set('triphub'); }
       }}
     />
     <HeroNextTrip
@@ -135,9 +144,10 @@
 {:else if hasLastTrip}
   <!-- NUR letzter Trip (Nostalgie) -->
   <HeroPastTrip
-    trip={lastTrip}
-    ongoToHub={() => {
-      if (lastTrip?.id) { activeWsTripId.set(lastTrip.id); currentPage.set('triphub'); }
+    archivedTrips={archivedWsTrips.length > 0 ? archivedWsTrips : (lastTrip ? [lastTrip] : [])}
+    ongoToHub={(t) => {
+      const id = t?.id;
+      if (id) { activeWsTripId.set(id); currentPage.set('triphub'); }
     }}
   />
 
