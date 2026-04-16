@@ -2403,3 +2403,37 @@ Widget-Grid-Layout: `grid-cols-1 md:grid-cols-2` — Weather spannt `md:col-span
 **Fix:** `Settings.svelte` — `tabLabels` von `$derived.by(() => ({...}))` auf `$derived({...})` umgestellt (konsistent mit CLAUDE.md Entscheidung S2-1).
 
 ---
+---
+
+## QA-Hotfix Session 2 — Mobile & Edge Cases (April 2026)
+
+### Bug #19 — Checkliste Mobile Text-Overflow
+**Datei:** `ChecklistWidget.svelte`
+- Todo-Text-Span: `break-words` + `word-break:break-word;overflow-wrap:anywhere` hinzugefügt.
+- Container `<div class="flex-1 min-w-0">` um `overflow-hidden` ergänzt.
+
+### Bug #16/#18 — TripHub Datum Mobile Scrollbar
+**Datei:** `TripHub.svelte` (Header-Meta-Zeile)
+- Flex-Container von `flex-wrap` auf `flex-col sm:flex-row` umgestellt — auf Mobile stapelt Destination + Datum vertikal.
+- Datum-Span: `text-xs sm:text-sm` + `white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%` — verhindert horizontale Overflow-Scrollbar.
+
+### Bug #5 — Budget "-0 €"
+**Datei:** `BudgetWidget.svelte`
+- Barausgaben-Anzeige: Guard `parseFloat(...) === 0 ? '0' : '−' + ...` — zeigt `0 €` statt `-0 €`.
+- On-Site-Budget: `(v => v === 0 ? '0' : String(v))(parseFloat(...))` — selber Guard.
+
+### Bug #15 — Dashboard Hero statischer Text
+**Datei:** `HeroSection.svelte`
+- `heroTitle`: Fällt auf `nextWsTrip.destination || nextWsTrip.title` zurück wenn kein Dawarich-Trip vorhanden, aber ein WS-Trip geplant ist.
+- `heroSubtitle`: Berechnet Countdown aus `nextWsTrip.start_date` (heute/morgen/N Tage) wenn kein Dawarich-Trip, aber WS-Trip existiert.
+- Neue i18n-Keys in DE/EN/IT/ES: `heroNextAdventure`, `heroWelcomeTitle`, `heroTodayStart`, `heroTomorrow`, `heroInDays`, `heroNoTripsSubtitle`.
+
+### Bug #1 — Bucket-List Validierung
+**Datei:** `BucketListTab.svelte`
+- `disabled={!bucketItem.trim()}` war bereits vorhanden.
+- `disabled:cursor-not-allowed` zum Button ergänzt für klareres UX-Feedback.
+
+### Bug #14 — Text-Inkonsistenzen
+**de.json:** `plannedEmpty` — "Reiseplaner" → "WanderWizzard".
+**TrackerGrid.svelte:** Hardcodierter DE-String für leere Tracker-Liste durch i18n-Key `radarNoTypeTrackersFull` ersetzt.
+**en.json + de.json:** Neuer Key `radarNoTypeTrackersFull` — EN: `"No {type} trackers — search and save above!"` / DE: `"Keine {type}-Tracker — oben suchen und speichern!"`.
