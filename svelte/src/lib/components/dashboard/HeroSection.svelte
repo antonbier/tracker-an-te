@@ -73,7 +73,8 @@
       const name = lastTrip.location_name || lastTrip.name || 'dein letzter Trip';
       return name;
     }
-    return 'Willkommen bei WanderSuite';
+    if (nextWsTrip)   return nextWsTrip.destination || nextWsTrip.title || $t('heroNextAdventure');
+    return $t('heroWelcomeTitle') || 'Willkommen bei WanderSuite';
   });
 
   const heroSubtitle = $derived.by(() => {
@@ -90,7 +91,14 @@
       const months = Math.floor(days/30);
       return `📍 Vor ${months} Monat${months>1?'en':''} zurückgekehrt`;
     }
-    return '🌍 Deine nächste Reise wartet auf dich';
+    if (nextWsTrip && nextWsTrip.start_date) {
+      const ms   = new Date(nextWsTrip.start_date + 'T00:00:00').getTime() - new Date().setHours(0,0,0,0);
+      const days = Math.ceil(ms / 86400000);
+      if (days <= 0)  return '🎒 ' + ($t('heroTodayStart') || "Heute geht's los!");
+      if (days === 1) return '✈️ ' + ($t('heroTomorrow')   || 'Morgen startet das Abenteuer!');
+      return '✈️ ' + ($t('heroInDays') || 'Noch {n} Tage').replace('{n}', days);
+    }
+    return '🌍 ' + ($t('heroNoTripsSubtitle') || 'Deine nächste Reise wartet auf dich');
   });
 
   // Gradient by trip state
