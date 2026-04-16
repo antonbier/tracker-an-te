@@ -11,7 +11,7 @@
   <div class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Telegram</div>
   <div class="text-xs rounded-lg px-3 py-2" style="background:rgba(var(--ws-accent-rgb,211,95,57),.08);color:var(--ws-muted)">
     💡 <strong>Bot Token</strong>: Öffne <a href="https://t.me/BotFather" target="_blank" rel="noopener" style="color:var(--ws-accent)">@BotFather ↗</a> → /newbot → Token kopieren.<br/>
-    <strong>Chat ID</strong>: Schreib dem Bot, dann <a href="https://api.telegram.org/bot{DEIN_TOKEN}/getUpdates" target="_blank" rel="noopener" style="color:var(--ws-accent)">getUpdates aufrufen ↗</a> und <code>chat.id</code> entnehmen.
+    <strong>Chat ID</strong>: Schreib dem Bot, dann <a href="https://api.telegram.org/bot<BOT_TOKEN>/getUpdates" target="_blank" rel="noopener" style="color:var(--ws-accent)">getUpdates aufrufen ↗</a> und <code>chat.id</code> entnehmen.
   </div>
   <input bind:value={telegramToken} type="password" placeholder="Bot Token (von @BotFather)"
     class="w-full px-3 py-2 rounded-xl border text-sm"
