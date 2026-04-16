@@ -1,6 +1,8 @@
 """
 WanderSuite — Dawarich Integration (Multi-User)
-sync_trips now accepts user_id to isolate trips per user.
+
+Fix: float(home_lat) now guarded via normalize_coordinate()
+     to handle legacy DMS strings in user_settings.
 """
 
 import requests
@@ -110,12 +112,38 @@ def _reverse_geocode(lat: float, lon: float) -> tuple[str, str]:
         return "", ""
 
 
+def _safe_float_coord(value: str | float | None, label: str) -> float | None:
+    """
+    FIX B1: Safely convert a coordinate value to float.
+    Calls normalize_coordinate() first to handle legacy DMS strings
+    (e.g. "46°47'57.91\"N") in user_settings.
+    Returns None if the value cannot be parsed.
+    """
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value) if not math.isnan(float(value)) else None
+    # String: try normalize first (handles DMS), then direct float
+    from settings_manager import normalize_coordinate
+    normalized = normalize_coordinate(str(value))
+    if normalized:
+        try:
+            return float(normalized)
+        except ValueError:
+            pass
+    # Fallback: try direct float conversion
+    try:
+        return float(str(value).strip())
+    except (ValueError, TypeError):
+        logger.warning(f"[Dawarich] Invalid {label} value: {repr(value)}")
+        return None
+
+
 def sync_trips(base_url: str, token: str, home_lat: float, home_lon: float,
                start_date: Optional[str] = None, end_date: Optional[str] = None,
                user_id: int = 1, force_full: bool = False) -> dict:
     from database import save_detected_trip, list_detected_trips, unignore_detected_trips
 
-    # Full Sync: alle ignorierten Trips zurücksetzen
     if force_full:
         n = unignore_detected_trips(user_id=user_id)
         logger.info(f"[Dawarich] Full sync: {n} ignorierte Trips reaktiviert")
@@ -135,7 +163,6 @@ def sync_trips(base_url: str, token: str, home_lat: float, home_lon: float,
     if not dates:
         return {"points_loaded": len(points), "trips_detected": 0, "trips_saved": 0}
 
-    # Group consecutive dates
     groups = []
     current = [dates[0]]
     for d in dates[1:]:
@@ -149,34 +176,27 @@ def sync_trips(base_url: str, token: str, home_lat: float, home_lon: float,
             current = [d]
     groups.append(current)
 
-    # Filter: min 1 overnight (2 days)
     trips = [g for g in groups if len(g) >= 2]
 
-    # Ignorierte Trips laden damit wir sie überspringen können
     ignored_keys: set[tuple] = set()
     if not force_full:
         all_trips = list_detected_trips(limit=5000, user_id=user_id, include_ignored=True)
         for t in all_trips:
             if t.get("ignored"):
                 ignored_keys.add((t["start_date"], t["end_date"]))
-        if ignored_keys:
-            logger.info(f"[Dawarich] {len(ignored_keys)} ignorierte Trips werden übersprungen")
 
     saved = 0
     for g in trips:
         key = (g[0], g[-1])
         if key in ignored_keys:
-            logger.debug(f"[Dawarich] Trip {key} übersprungen (ignored)")
             continue
-
         pts = []
         for d in g:
             pts.extend(by_date[d])
         mid = pts[len(pts)//2]
         city, country = _reverse_geocode(mid["lat"], mid["lon"])
         nights = (date.fromisoformat(g[-1]) - date.fromisoformat(g[0])).days + 1
-
-        trip = {
+        save_detected_trip({
             "start_date":    g[0],
             "end_date":      g[-1],
             "location_name": city,
@@ -185,8 +205,7 @@ def sync_trips(base_url: str, token: str, home_lat: float, home_lon: float,
             "lon":           mid["lon"],
             "nights":        nights,
             "source":        "dawarich",
-        }
-        save_detected_trip(trip, user_id=user_id)
+        }, user_id=user_id)
         saved += 1
 
     return {
