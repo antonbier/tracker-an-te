@@ -181,6 +181,14 @@
   });
 
   $effect(() => { if ($apiUrl) { loadBudget(); loadWwDefaults(); } });
+
+  // Reactive version counter — bumps when WanderWizzard closes, triggers Hero refresh
+  let wsTripsVersion = $state(0);
+  let _prevWizzardOpen = false;
+  $effect(() => {
+    if (_prevWizzardOpen && !wizzardOpen) wsTripsVersion++;
+    _prevWizzardOpen = wizzardOpen;
+  });
 </script>
 
 <div class="space-y-5">
@@ -190,6 +198,7 @@
     {nextTrip}
     {lastTrip}
     {heroDays}
+    refreshKey={wsTripsVersion}
     {yearBudget}
     {yearSpent}
     {yearRemaining}
