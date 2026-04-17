@@ -40,10 +40,15 @@
   // detected_trips: location_name, country
   // ws_trips:       title, destination
   function notEmpty(v) { return v && v.trim() !== '' && v.trim() !== '-'; }
+  // Block 7 — Strikte Fallback-Kette:
+  // 1. title       = kosmetischer Name (WanderWizzard-Trips nach Edit)
+  // 2. destination = geocodierter Ort  (alle Trips, Kernfeld)
+  // 3. location_name/name = Dawarich-Altdaten
+  // 4. country     = letzter Fallback
   const tripTitle = $derived(
-    notEmpty(trip.location_name) ? trip.location_name :
     notEmpty(trip.title)         ? trip.title         :
     notEmpty(trip.destination)   ? trip.destination   :
+    notEmpty(trip.location_name) ? trip.location_name :
     notEmpty(trip.name)          ? trip.name          :
     notEmpty(trip.country)       ? trip.country       : '—'
   );
