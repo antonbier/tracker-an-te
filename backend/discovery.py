@@ -128,8 +128,10 @@ class DiscoveryService:
             ))
         return suggestions
 
-    async def background_refresh_suggestions(self, user_id: int, batch: int = 6) -> int:
+    async def background_refresh_suggestions(self, user_id: int, batch: int = 6,
+                                              temp_personality: dict | None = None) -> int:
         """LLM-Call + parallele Bild-Anreicherung → Pool befüllen.
+        temp_personality: optionale temporäre Überschreibungen (ohne DB-Speicherung)."
         Returns number of new entries inserted."""
         personality = self._load_personality(user_id)
         defaults = self._load_defaults(user_id)
