@@ -22,9 +22,32 @@ Fixes in dieser Version:
 import asyncio
 import json
 import logging
+import os
+import random
 from dataclasses import dataclass, field
 from typing import Optional
 from urllib.parse import quote
+
+# ── KI-Seed-Destinationen aus Datei laden ────────────────────────────────────
+def _load_ai_destinations() -> list[str]:
+    """Lädt 600+ diverse Seed-Destinationen für den LLM-Prompt."""    paths = [
+        os.path.join(os.path.dirname(__file__), "data", "ai_destinations.json"),
+        "/app/data/ai_destinations.json",
+    ]
+    for p in paths:
+        try:
+            with open(p, encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, list) and data:
+                    return data
+        except Exception:
+            pass
+    # Minimaler Fallback wenn Datei nicht gefunden
+    return ["Lissabon", "Kyoto", "Kapstadt", "Marrakesch", "Bali", "Sansibar",
+            "Cartagena", "Dubrovnik", "Oaxaca", "Luang Prabang", "Chiang Mai",
+            "Tbilisi", "Tallinn", "Reykjavík", "Queenstown", "Medellín"]
+
+_AI_DESTINATIONS: list[str] = _load_ai_destinations()
 
 import httpx
 
@@ -311,6 +334,10 @@ class DiscoveryService:
                     f"in {max_time} erreichbar sind."
                 )
 
+        # Zufällige Auswahl aus dem großen Seed-Pool (Inspiration + Diversität)
+        seed_sample = random.sample(_AI_DESTINATIONS, min(20, len(_AI_DESTINATIONS)))
+        seed_str = ", ".join(seed_sample)
+
         return f"""Schlage {count} Reiseziele vor.
 Nutzer-Profil:
   Reisestil: {personality.travel_style or 'nicht angegeben'}
@@ -320,6 +347,9 @@ Nutzer-Profil:
   Wünsche: {personality.wish_text or 'keine'}
 {history_block}
 {mobility_block}
+
+Inspiration (nutze diese als Ausgangspunkt, aber schlage passende Variationen vor):
+  {seed_str}
 
 Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
   destination (Stadtname/Region), country, reason (1 Satz warum), 
