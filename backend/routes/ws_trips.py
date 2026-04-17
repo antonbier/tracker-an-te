@@ -374,6 +374,35 @@ def remove_trip(trip_id: int, mode: str = "trip_only", user=Depends(get_current_
 
 
 
+
+
+# ── Trip Hero-Bild ────────────────────────────────────────────────────────────
+
+class TripImagePayload(BaseModel):
+    image_url:        Optional[str] = None
+    image_author:     Optional[str] = None
+    image_author_url: Optional[str] = None
+
+
+@router.patch("/{trip_id}/image")
+def set_trip_image(trip_id: int, data: TripImagePayload, user=Depends(get_current_user)):
+    """Speichert gecachtes Unsplash-Bild + Fotografen-Credits am Trip."""
+    uid = _uid(user)
+    trip = get_ws_trip(trip_id, uid)
+    if not trip:
+        raise HTTPException(404, "Trip nicht gefunden")
+    from database import db as _db
+    with _db() as conn:
+        conn.execute(
+            """UPDATE ws_trips
+               SET image_url=?, image_author=?, image_author_url=?,
+                   updated_at=datetime('now')
+               WHERE id=? AND user_id=?""",
+            (data.image_url, data.image_author, data.image_author_url, trip_id, uid)
+        )
+    logger.info(f"[WsTrips] Trip #{trip_id} image cached: {data.image_url}")
+    return {"ok": True, "image_url": data.image_url}
+
 # ── ActualBudget Sync ─────────────────────────────────────────────────────────
 
 @router.post("/{trip_id}/sync-budget")
