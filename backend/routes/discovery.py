@@ -20,11 +20,13 @@ logger = logging.getLogger(__name__)
 
 def _serialize(s) -> dict:
     return {
-        "destination":  s.destination,
-        "reason":       s.reason,
-        "image_url":    s.image_url,
-        "image_source": s.image_source,
-        "prefill":      s.prefill,
+        "destination":        s.destination,
+        "reason":             s.reason,
+        "image_url":          s.image_url,
+        "image_source":       s.image_source,
+        "prefill":            s.prefill,
+        "unsplash_author_name": getattr(s, "unsplash_author_name", None),
+        "unsplash_author_url":  getattr(s, "unsplash_author_url",  None),
     }
 
 
@@ -33,8 +35,13 @@ async def get_suggestions(
     count: int = Query(default=3, ge=1, le=6),
     user: dict = Depends(get_current_user),
 ):
-    suggestions = await discovery_service.get_suggestions(user["id"], count=count)
-    return [_serialize(s) for s in suggestions]
+    try:
+        suggestions = await discovery_service.get_suggestions(user["id"], count=count)
+        return [_serialize(s) for s in suggestions]
+    except RuntimeError as e:
+        if "api_rate_limit" in str(e):
+            raise HTTPException(429, "API-Limit erreicht. Bitte versuche es später erneut.")
+        raise
 
 
 @router.post("/refresh")
@@ -43,10 +50,15 @@ async def refresh_suggestions(
     user: dict = Depends(get_current_user),
 ):
     """Pool leeren + neu befüllen."""
-    discovery_pool_clear(user["id"])
-    await discovery_service.background_refresh_suggestions(user["id"], batch=count)
-    suggestions = await discovery_service.get_suggestions(user["id"], count=count)
-    return [_serialize(s) for s in suggestions]
+    try:
+        discovery_pool_clear(user["id"])
+        await discovery_service.background_refresh_suggestions(user["id"], batch=count)
+        suggestions = await discovery_service.get_suggestions(user["id"], count=count)
+        return [_serialize(s) for s in suggestions]
+    except RuntimeError as e:
+        if "api_rate_limit" in str(e):
+            raise HTTPException(429, "API-Limit erreicht. Bitte versuche es später erneut.")
+        raise
 
 
 @router.post("/mark-shown")
@@ -63,8 +75,17 @@ async def get_trip_image(
     destination: str = Query(...),
     user: dict = Depends(get_current_user),
 ):
-    image_url, image_source = await discovery_service.get_trip_image(user["id"], destination)
-    return {"image_url": image_url, "image_source": image_source}
+    result = await discovery_service.get_trip_image(user["id"], destination)
+    image_url    = result[0]
+    image_source = result[1]
+    author_name  = result[2] if len(result) > 2 else None
+    author_url   = result[3] if len(result) > 3 else None
+    return {
+        "image_url":    image_url,
+        "image_source": image_source,
+        "author_name":  author_name,
+        "author_url":   author_url,
+    }
 
 
 @router.get("/detail")
