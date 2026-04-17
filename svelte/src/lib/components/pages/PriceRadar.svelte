@@ -264,6 +264,15 @@
       await api(endpoints[tracker._type], { method: 'POST' });
       toast(get(t)('radarUpdatePrice') + ' ✓', 'success');
       await loadAllTrackers();
+      // Chart-History neu laden falls das Akkordeon bereits offen ist
+      const key = `${tracker._type}-${tracker.id}`;
+      if (chartState[key]?.open) {
+        chartState[key] = { ...chartState[key], loading: true };
+        try {
+          const res = await api(`/api/prices/history/${tracker._type}/${tracker.id}`);
+          chartState[key] = { ...chartState[key], history: res.history || [], loading: false };
+        } catch { chartState[key] = { ...chartState[key], loading: false }; }
+      }
     } catch (e) { toast(e.message, 'error'); }
   }
 
