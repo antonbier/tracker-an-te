@@ -118,7 +118,6 @@
         style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-accent)">
         🧳 {$t('dashAllPlanned') || 'Alle geplanten Reisen'} →
       </button>
-      </div>
     {/if}
   </div>
 
