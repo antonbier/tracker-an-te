@@ -64,7 +64,7 @@
 
   // ── Hero content derived from trip state ──────────────────────────────────
   const hasNextTrip  = $derived(nextTrip !== null);
-  const hasLastTrip  = $derived(!hasNextTrip && (lastTrip !== null || archivedWsTrips.length > 0));
+  const hasLastTrip  = $derived(lastTrip !== null || archivedWsTrips.length > 0);
   const hasNoTrips   = $derived(!hasNextTrip && !hasLastTrip);
 
   const heroTitle = $derived.by(() => {
@@ -115,9 +115,9 @@
 </script>
 
 <!-- ── Hero: 2-Kachel-Layout wenn beide Trips vorhanden ── -->
-{#if (hasNextTrip || nextWsTrip) && hasLastTrip}
+{#if (hasNextTrip || nextWsTrip) && (hasLastTrip || archivedWsTrips.length > 0)}
   <!-- BEIDE: Nebeneinander -->
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
     <HeroPastTrip
       archivedTrips={archivedWsTrips.length > 0 ? archivedWsTrips : (lastTrip ? [lastTrip] : [])}
       ongoToHub={(t) => {
