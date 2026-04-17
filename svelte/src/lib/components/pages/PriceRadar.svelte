@@ -263,15 +263,26 @@
     try {
       await api(endpoints[tracker._type], { method: 'POST' });
       toast(get(t)('radarUpdatePrice') + ' ✓', 'success');
+
+      // ── Reaktivitäts-Fix (Block 7) ─────────────────────────────────────────
+      // loadAllTrackers() ersetzt allTrackers komplett → neue Array-Referenz.
+      // Svelte 5 rendert jede TrackerCard neu, weil tr-Prop ein neues Objekt ist.
       await loadAllTrackers();
-      // Chart-History neu laden falls das Akkordeon bereits offen ist
+
+      // Chart-History immer aktualisieren (offen oder nicht), damit beim
+      // nächsten Öffnen des Akkordeons die frischen Daten sofort da sind.
       const key = `${tracker._type}-${tracker.id}`;
-      if (chartState[key]?.open) {
-        chartState[key] = { ...chartState[key], loading: true };
-        try {
-          const res = await api(`/api/prices/history/${tracker._type}/${tracker.id}`);
-          chartState[key] = { ...chartState[key], history: res.history || [], loading: false };
-        } catch { chartState[key] = { ...chartState[key], loading: false }; }
+      const wasOpen = chartState[key]?.open ?? false;
+      chartState[key] = { ...chartState[key], open: wasOpen, loading: true, history: chartState[key]?.history || [] };
+      try {
+        const res = await api(`/api/prices/history/${tracker._type}/${tracker.id}`);
+        const fresh = res.history || [];
+        chartState[key] = { open: wasOpen, loading: false, history: fresh };
+        // Trigger Svelte-Reaktivität: neues Objekt für chartState erzwingen
+        chartState = { ...chartState };
+      } catch {
+        chartState[key] = { open: wasOpen, loading: false, history: chartState[key]?.history || [] };
+        chartState = { ...chartState };
       }
     } catch (e) { toast(e.message, 'error'); }
   }
