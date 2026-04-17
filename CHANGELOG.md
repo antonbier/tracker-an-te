@@ -6,6 +6,26 @@ Alle nennenswerten Änderungen am Projekt. Format basiert auf [Keep a Changelog]
 
 ## [1.0.0-beta.1] — 2026-04-17
 
+### Added — Block 7: Tracker-Reaktivität, Smartes Trip-Editing & Soft-Migration
+
+- **Smartes Trip-Edit-Modal** (`TripHub.svelte`): Stift-Icon ✏️ im Hero öffnet ein Modal mit zwei getrennten Feldern:
+  - *Titel* (kosmetisch, optional): Freitext wie „Roadtrip 2025" — steuert keine Wetter- oder Kartendaten
+  - *Ort / Hauptziel* (geocodiert, Pflichtfeld): Suchfeld mit Nominatim-Autocomplete via `GET /api/settings/geocode`; gewählter Eintrag setzt `destination`, `lat`, `lon`; grünes ✓ + Koordinaten-Anzeige bestätigen die Auswahl
+  - Speichert `title`, `destination`, `lat`, `lon` via `PATCH /api/ws-trips/{id}`; lokaler Soft-Update ohne Reload
+- **WsTripUpdate + lat/lon** (`routes/ws_trips.py`): Pydantic-Modell um `lat: Optional[float]` und `lon: Optional[float]` erweitert; Doc-String erklärt title-vs-destination-Semantik
+- **DB Soft-Migration** (`database.py`): Zwei neue Spalten idempotent per `ALTER TABLE ADD COLUMN`: `lat REAL DEFAULT NULL`, `lon REAL DEFAULT NULL` auf `ws_trips` — Altdaten (Dawarich-Sync) bleiben unberührt, `DEFAULT NULL` bricht keine bestehenden Zeilen
+
+### Fixed — Block 7
+
+- **Tracker-Reaktivitäts-Bug** (`PriceRadar.svelte`): Nach manuellem Scrape eines Trackers (⟳-Button) aktualisierte sich Preis-Anzeige und SVG-Chart nicht.
+  - Fix: `loadAllTrackers()` erzeugt bereits eine neue Array-Referenz → Svelte 5 rendert alle TrackerCards neu (tr-Prop = neues Objekt). Zusätzlich: `chartState` wird nach dem History-Reload per `chartState = { ...chartState }` als neues Objekt zugewiesen, was auch verschachtelte `$derived`-Abhängigkeiten auf `chartData` invalidiert
+  - History wird jetzt **immer** nach Scrape neu geladen (nicht nur wenn Akkordeon offen), sodass die frischen Daten beim nächsten Öffnen sofort verfügbar sind
+- **Soft-Migration Fallback-Kette** (`TripCard.svelte`, `TripHub.svelte`): Altdaten ohne `title`-Feld zeigen weiterhin korrekt `destination`/`location_name` an.
+  - Neue strikte Priorität: `title → destination → location_name → name → country`
+  - TripHub Hero: `destination` nur als Unterzeile angezeigt wenn `title` gesetzt UND verschieden von `destination` — kein Doppeln des Ortsnamens
+
+---
+
 ### Added — Block 6: Bugfixes & Discovery-Erweiterungen
 
 - **PersonalityModal** (`PersonalityModal.svelte`, `TravelInspo.svelte`): Neuer „🧭 Personalisieren"-Button bei den KI-Vorschlägen öffnet ein Modal mit allen Reisepersönlichkeits-Einstellungen (Stil, Klima, Landschaft, Begleitung, Modus, Max. Zeit, Freitext). Checkbox „Dauerhaft speichern": ohne Checkbox → Settings nur für diesen Refresh (temporär, kein DB-Write); mit Checkbox → `PUT /api/settings/user` + Refresh. Modal schließt sich automatisch nach erfolgreicher Generierung.
