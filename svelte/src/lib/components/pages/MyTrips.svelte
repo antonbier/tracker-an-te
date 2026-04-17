@@ -113,15 +113,8 @@
     journalTrips.filter(t => (t.start_date || '').slice(0, 4) === String(selectedYear))
   );
 
-  // Dedupliziert nach id (Dawarich kann mehrfache Einträge haben)
-  const archiveTripsDeduped = $derived.by(() => {
-    const seen = new Set();
-    return journalYear.filter(t => {
-      if (seen.has(t.id)) return false;
-      seen.add(t.id);
-      return true;
-    });
-  });
+  // Backend dedupliziert bereits via GROUP BY — direkter Alias
+  const archiveTripsDeduped = $derived(journalYear);
 
   // WS-trips that are archived (end_date < today) — shown in archive tab with TripHub link
   const archivedWsTrips = $derived(
