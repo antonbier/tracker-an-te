@@ -397,6 +397,12 @@ def init_db():
             # WS-Trips: manual expenses
             ("ws_trips",         "manual_expenses REAL NOT NULL DEFAULT 0"),
             ("trip_todos",        "due_date TEXT DEFAULT NULL"),
+            # Block 7 — Smart Trip Editing: kosmetischer title + geocodierte Geodaten
+            # lat/lon: Koordinaten des Hauptziels (optional, aus Geocoder befüllt)
+            # Altdaten (Dawarich-Sync) behalten ihre bestehenden Werte, da ADD COLUMN
+            # DEFAULT NULL ist → keine Datenverlust, Wetter/Maps weiterhin funktional
+            ("ws_trips",         "lat REAL DEFAULT NULL"),
+            ("ws_trips",         "lon REAL DEFAULT NULL"),
         ]
         for table, col_def in migrations:
             col_name = col_def.split()[0]
