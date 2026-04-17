@@ -623,7 +623,8 @@ def save_price_snapshot(tracker_id: int, snap: dict) -> int:
 
 
 def get_latest_snapshot(tracker_id: int) -> dict | None:
-    """Neuester fehlerfreier Snapshot (status='ok'). Fallback auf neuesten Eintrag."""    with db() as conn:
+    """Neuester fehlerfreier Snapshot (status='ok'). Fallback auf neuesten Eintrag."""    
+    with db() as conn:
         row = conn.execute(
             "SELECT * FROM price_snapshots WHERE tracker_id=? AND status='ok' ORDER BY fetched_at DESC LIMIT 1",
             (tracker_id,)
