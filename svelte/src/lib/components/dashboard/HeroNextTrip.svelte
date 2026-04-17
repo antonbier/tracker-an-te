@@ -31,8 +31,10 @@
   });
 
   // ── Unsplash-Bild ─────────────────────────────────────────────────
-  let imgUrl   = $state(null);
-  let imgError = $state(false);
+  let imgUrl        = $state(null);
+  let imgError      = $state(false);
+  let authorName    = $state('');
+  let authorUrl     = $state('');
 
   function cacheKey(t) {
     const dest = t?.destination || t?.title || t?.name || '';
@@ -47,7 +49,17 @@
     const key = cacheKey(trip);
     if (key) {
       const cached = sessionStorage.getItem(key);
-      if (cached) { imgUrl = cached === 'null' ? null : cached; return; }
+      if (cached) {
+        try {
+          const obj = JSON.parse(cached);
+          imgUrl     = obj.url    ?? null;
+          authorName = obj.author ?? '';
+          authorUrl  = obj.authorUrl ?? '';
+        } catch {
+          imgUrl = cached === 'null' ? null : cached;
+        }
+        return;
+      }
     }
 
     const dest = trip.destination || trip.title || trip.name || '';
@@ -56,9 +68,13 @@
       const res = await api(
         `/api/discovery/trip-image?destination=${encodeURIComponent(dest)}`
       );
-      const url = res?.image_url || null;
-      imgUrl = url;
-      if (key) sessionStorage.setItem(key, url ?? 'null');
+      const url  = res?.image_url      || null;
+      const name = res?.author_name    || '';
+      const href = res?.author_url     || '';
+      imgUrl     = url;
+      authorName = name;
+      authorUrl  = href;
+      if (key) sessionStorage.setItem(key, JSON.stringify({ url, author: name, authorUrl: href }));
     } catch {
       imgUrl = null;
       if (key) sessionStorage.setItem(key, 'null');
@@ -67,6 +83,11 @@
 
   onMount(() => { loadUnsplashImage(); });
   $effect(() => { if (trip && $apiUrl) { imgUrl = null; imgError = false; loadUnsplashImage(); } });
+
+  // Unsplash UTM links
+  const UTM = '?utm_source=wandersuite&utm_medium=referral';
+  const unsplashAuthorLink = $derived(authorUrl ? authorUrl + UTM : 'https://unsplash.com' + UTM);
+  const unsplashBaseLink   = 'https://unsplash.com' + UTM;
 
   // ── Daten ─────────────────────────────────────────────────────────
   const tripName = $derived(
@@ -141,5 +162,18 @@
       </button>
     </div>
   </div>
+
+  <!-- Unsplash Attribution Overlay -->
+  {#if imgUrl && !imgError && authorName}
+    <div class="absolute bottom-1 right-1 z-20 text-[9px] rounded px-1.5 py-0.5 leading-tight"
+      style="background:rgba(0,0,0,.45);color:rgba(255,255,255,.65);backdrop-filter:blur(4px)">
+      Foto von
+      <a href={unsplashAuthorLink} target="_blank" rel="noopener noreferrer"
+        class="underline hover:opacity-90" style="color:rgba(255,255,255,.75)">{authorName}</a>
+      auf
+      <a href={unsplashBaseLink} target="_blank" rel="noopener noreferrer"
+        class="underline hover:opacity-90" style="color:rgba(255,255,255,.75)">Unsplash</a>
+    </div>
+  {/if}
 
 </div>
