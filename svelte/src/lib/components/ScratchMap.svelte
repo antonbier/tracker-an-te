@@ -60,14 +60,12 @@
       await new Promise(r => setTimeout(r, 100));
     }
 
-    // ── Visited: ausschliesslich Dawarich GPS-Daten (lat/lon vorhanden) ────────
-    // Nur echte GPS-Koordinaten aus Dawarich werden angezeigt.
-    // Manuell erfasste Reisen ohne GPS-Daten werden ignoriert (kein Geocoding).
+    // ── Visited: GPS-Koordinaten aus journalTrips (Dawarich + manuell mit Geocoding) ─
     // Jahresfilter: nur Reisen des im Header gewaehlten Jahres.
     const visited = journalTrips
       .filter(t =>
         (t.start_date || '').slice(0, 4) === String(selectedYear) &&
-        t.lat && t.lon  // nur echte GPS-Koordinaten
+        t.lat && t.lon
       )
       .map(t => ({
         lat: +t.lat,
@@ -134,22 +132,25 @@
   }
 
   $effect(() => {
-    // Reaktive Abhängigkeiten — inkl. refreshKey für Tab-Wechsel
-    const _jt = journalTrips.length;
+    // Reaktive Abhängigkeiten — refreshKey triggert sofortige Neu-Initialisierung
+    // auch wenn journalTrips.length sich nicht ändert (erster Tab-Öffnen-Fix).
+    const _jt = JSON.stringify(journalTrips.map(t => t.id ?? t.start_date));
     const _pt = plannedTrips.length;
     const _yr = selectedYear;
-    const _rk = refreshKey;   // changes on tab switch → forces redraw
+    const _rk = refreshKey;   // ändert sich bei Tab-Wechsel → erzwingt Redraw
     const _el = mapEl;
     if (!_el) return;
 
+    // Sofort starten (kein Debounce beim ersten Render) wenn refreshKey sich ändert
     clearTimeout(initTimer);
+    const delay = _rk ? 50 : 300;  // erste Init schneller
     initTimer = setTimeout(() => {
       initMap().catch(e => {
         console.error('[ScratchMap]', e);
         loadErr = e.message;
         loading = false;
       });
-    }, 300);
+    }, delay);
   });
 
   onDestroy(() => {
