@@ -1,7 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { api } from '$lib/api.js';
-  import { apiUrl, settingsOpen } from '$lib/stores.js';
+  import { apiUrl, settingsOpen, bucketlist, currentPage } from '$lib/stores.js';
   import { t } from '$lib/i18n.js';
   import DestinationDetail from '$lib/components/dashboard/DestinationDetail.svelte';
 
@@ -11,41 +11,9 @@
     onnavto,
   } = $props();
 
-  // ── Nostalgie: random archived trip ──────────────────────────────────────
-  let archivedTrips = $state([]);
-  let nostalgiaIndex = $state(0);
-
-  // Load archived (erlebt) ws-trips for Nostalgie tile
-  async function loadArchivedTrips() {
-    if (!$apiUrl) return;
-    try {
-      const trips = await api('/api/ws-trips');
-      archivedTrips = (trips || []).filter(t => t.status === 'archived' || t.status === 'experienced');
-    } catch {}
-    // pick random start index
-    if (archivedTrips.length > 0) {
-      nostalgiaIndex = Math.floor(Math.random() * archivedTrips.length);
-    }
-  }
-
-  function refreshNostalgia() {
-    if (archivedTrips.length > 1) {
-      nostalgiaIndex = (nostalgiaIndex + Math.floor(Math.random() * (archivedTrips.length - 1)) + 1) % archivedTrips.length;
-    } else if (archivedTrips.length === 1) {
-      nostalgiaIndex = 0;
-    }
-  }
-
-  const nostalgiaTrip = $derived.by(() => {
-    if (archivedTrips.length > 0) return archivedTrips[nostalgiaIndex] ?? null;
-    // fallback: first Dawarich trip
-    return recentDawarich[0] ?? null;
-  });
-
-  const nostalgiaName = $derived.by(() => {
-    if (!nostalgiaTrip) return null;
-    return nostalgiaTrip.destination || nostalgiaTrip.location_name || nostalgiaTrip.country || null;
-  });
+  // ── Bucket List Widget ────────────────────────────────────────────────────
+  const bucketOpen     = $derived(($bucketlist ?? []).filter(b => !b.done).length);
+  const bucketTopItems = $derived(($bucketlist ?? []).filter(b => !b.done).slice(0, 3));
 
   // AI Suggestions
   let suggestions  = $state([]);
@@ -61,7 +29,6 @@
   ];
 
   onMount(async () => {
-    await loadArchivedTrips();
     if (!$apiUrl) return;
     loadingSugg = true;
     apiError = '';
@@ -133,51 +100,39 @@
         <div class="absolute top-4 right-4 w-2 h-2 rounded-full animate-pulse" style="background:var(--ws-green)"></div>
       </button>
 
-      <!-- Card 3: Nostalgie (archived trips) or Discover -->
-      {#if nostalgiaName}
-        <div class="group relative rounded-2xl text-left transition-all hover:scale-[1.02] active:scale-[.98]"
-          style="background:linear-gradient(135deg,#2d6a4f 0%,#1e4a37 100%);min-height:140px">
-          <div class="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
-            style="background:rgba(255,255,255,.06)"></div>
-
-          <!-- Content-Button: volle Fläche, Padding rechts oben für Refresh-Button freilassen -->
-          <button
-            class="relative w-full h-full text-left p-5 flex flex-col"
-            style="min-height:140px"
-            onclick={() => onstartwizard({ destination: nostalgiaName })}>
-            <div class="text-2xl mb-2">🔁</div>
-            <!-- Titel mit rechts genug Platz für den Refresh-Button -->
-            <div class="font-bold text-sm leading-snug mb-1 pr-9" style="color:#ecfdf5;font-family:var(--ws-serif)">
-              {$t('inspoNostalgiaTitle')} {nostalgiaName}?
-            </div>
-            <div class="text-xs mt-auto" style="color:rgba(236,253,245,.5)">{$t('inspoNostalgiaSub')}</div>
-          </button>
-
-          <!-- Refresh-Button: nach Content-Button im DOM → höherer paint-order → liegt automatisch oben -->
-          <button
-            onclick={(e) => { e.stopPropagation(); refreshNostalgia(); }}
-            class="absolute top-3 right-3 w-7 h-7 flex items-center justify-center rounded-full transition-all hover:opacity-80 active:scale-[.95]"
-            style="background:rgba(255,255,255,.18);color:rgba(255,255,255,.9);font-size:13px"
-            title={$t('inspoNostalgiaRefresh')}>
-            🔄
-          </button>
-
-          <span class="absolute bottom-3 left-5 text-[10px] font-bold px-2 py-0.5 rounded-full pointer-events-none"
-            style="background:rgba(255,255,255,.15);color:rgba(255,255,255,.7)">{$t('inspoNostalgiaLabel')}</span>
-        </div>
-      {:else}
-        <button onclick={() => onnavto('discover')}
-          class="group relative rounded-2xl p-5 text-left overflow-hidden transition-all hover:scale-[1.02] active:scale-[.98] border-2 border-dashed"
-          style="background:var(--ws-surface);border-color:var(--ws-border);min-height:140px">
-          <div class="relative z-10 flex flex-col h-full" style="min-height:100px">
-            <div class="text-2xl mb-2">🌍</div>
-            <div class="font-bold text-sm leading-snug mb-1" style="color:var(--ws-text);font-family:var(--ws-serif)">
-              {$t('inspoDiscover')}
-            </div>
-            <div class="text-xs mt-auto" style="color:var(--ws-muted)">{$t('inspoDiscoverSub')}</div>
+      <!-- Card 3: Bucket List Widget — Top-Wunschziele + Link zum Tab -->
+      <button onclick={() => onnavto('mytrips')}
+        class="group relative rounded-2xl p-5 text-left overflow-hidden transition-all hover:scale-[1.02] active:scale-[.98]"
+        style="background:linear-gradient(135deg,#3b1f5e 0%,#1e1035 100%);min-height:140px">
+        <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
+          style="background:rgba(255,255,255,.05)"></div>
+        <div class="relative z-10 flex flex-col h-full" style="min-height:100px">
+          <div class="flex items-center justify-between mb-2">
+            <div class="text-2xl">🌟</div>
+            {#if bucketOpen > 0}
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                style="background:rgba(196,98,45,.25);color:#fcd5a8">{bucketOpen} offen</span>
+            {/if}
           </div>
-        </button>
-      {/if}
+          <div class="font-bold text-sm leading-snug mb-2" style="color:#f3e8ff;font-family:var(--ws-serif)">
+            Bucket List
+          </div>
+          {#if bucketTopItems.length > 0}
+            <div class="space-y-1 flex-1 overflow-hidden">
+              {#each bucketTopItems as item}
+                <div class="text-xs truncate" style="color:rgba(243,232,255,.65)">
+                  · {item.dest || item.item}
+                </div>
+              {/each}
+            </div>
+          {:else}
+            <div class="text-xs mt-auto" style="color:rgba(243,232,255,.45)">Noch keine Wunschziele</div>
+          {/if}
+          <div class="text-[10px] mt-auto pt-2" style="color:rgba(243,232,255,.4)">
+            → Zu Meine Reisen
+          </div>
+        </div>
+      </button>
 
     </div>
   </div>
