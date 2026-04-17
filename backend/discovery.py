@@ -30,7 +30,8 @@ from urllib.parse import quote
 
 # ── KI-Seed-Destinationen aus Datei laden ────────────────────────────────────
 def _load_ai_destinations() -> list[str]:
-    """Lädt 600+ diverse Seed-Destinationen für den LLM-Prompt."""    paths = [
+    """Lädt 600+ diverse Seed-Destinationen für den LLM-Prompt."""    
+    paths = [
         os.path.join(os.path.dirname(__file__), "data", "ai_destinations.json"),
         "/app/data/ai_destinations.json",
     ]
