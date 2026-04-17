@@ -14,6 +14,7 @@
   // ── Loading / raw data ────────────────────────────────────────────────────
   let loading       = $state(true);
   let dawarichTrips = $state([]);
+  let wsTrips       = $state([]);   // alle WanderWizzard + on-the-fly Trips
   let allTrackers   = $state([]);
 
   // ── Budget ────────────────────────────────────────────────────────────────
@@ -68,11 +69,18 @@
   const yearBudget    = $derived(parseFloat(budgetByYear[String(currentYear)]) || 0);
   const CIRC          = 2 * Math.PI * 38;
 
+  // Budget: ws_trips-basiert (booked + manual + synced) für aktuelles Jahr
   const yearSpent = $derived.by(() => {
     const yr = String(currentYear);
-    return $trips
-      .filter(t => (t.dateStart || t.date || '').slice(0, 4) === yr)
-      .reduce((s, t) => s + (parseFloat(t.cost) || 0), 0);
+    return wsTrips
+      .filter(t => (t.start_date || '').slice(0, 4) === yr)
+      .reduce((s, t) => {
+        const booked = parseFloat(t.booked_flight || 0) + parseFloat(t.booked_hotel || 0);
+        const manual = parseFloat(t.manual_expenses || 0);
+        const synced = parseFloat(t.synced_expenses || 0);
+        // Fallback: wenn noch kein Tracking → nutze budget
+        return s + (booked + manual + synced || parseFloat(t.budget || 0));
+      }, 0);
   });
 
   const yearRemaining  = $derived(Math.max(0, yearBudget - yearSpent));
@@ -124,43 +132,47 @@
     } catch {}
   }
 
-  // ── Derived trip lists ────────────────────────────────────────────────────
+  // ── Derived trip lists — unified across ws_trips (Wizzard + Dawarich + Manual) ──
   const today     = new Date().toISOString().slice(0, 10);
+  // upcoming: ws_trips mit start_date in der Zukunft (alle Typen)
   const upcoming  = $derived(
-    [...$trips]
-      .filter(t => (t.dateStart || t.date || '') >= today)
-      .sort((a, b) => (a.dateStart || a.date || '').localeCompare(b.dateStart || b.date || ''))
+    wsTrips
+      .filter(t => (t.start_date || '') >= today && (t.status === 'planning' || t.status === 'booked'))
+      .sort((a, b) => (a.start_date || '').localeCompare(b.start_date || ''))
   );
+  // completed: ws_trips mit end_date in der Vergangenheit (alle Typen)
   const completed = $derived(
-    [...$trips]
-      .filter(t => (t.dateStart || t.date || '') < today)
-      .sort((a, b) => (b.dateStart || b.date || '').localeCompare(a.dateStart || a.date || ''))
+    wsTrips
+      .filter(t => {
+        const e = (t.end_date || t.start_date || '').slice(0, 10);
+        return e && e < today;
+      })
+      .sort((a, b) => (b.start_date || '').localeCompare(a.start_date || ''))
+      .slice(0, 8)
   );
   const recentDawarich = $derived(
     [...dawarichTrips]
-      .sort((a, b) => b.start_date.localeCompare(a.start_date))
+      .sort((a, b) => (b.start_date || '').localeCompare(a.start_date || ''))
       .slice(0, 5)
   );
 
-  // ── Hero data: next trip or last trip for nostalgia ───────────────────────
+  // ── Hero data: next trip or last trip for nostalgia ─────────────────────
   const nextTrip = $derived(upcoming[0] ?? null);
-  const lastTrip = $derived.by(() => {
-    if (recentDawarich.length > 0) return recentDawarich[0];
-    if (completed.length > 0) return completed[0];
-    return null;
-  });
+  const lastTrip = $derived(completed[0] ?? recentDawarich[0] ?? null);
 
   // Days until next trip (positive) or since last trip (negative/nostalgia)
   const heroDays = $derived.by(() => {
     if (nextTrip) {
-      const ms = new Date(nextTrip.dateStart || nextTrip.date) - new Date(today);
+      const d = nextTrip.start_date || nextTrip.dateStart || nextTrip.date || '';
+      if (!d) return null;
+      const ms = new Date(d) - new Date(today);
       return Math.ceil(ms / 86400000);
     }
     if (lastTrip) {
-      const dateStr = lastTrip.start_date || lastTrip.dateStart || lastTrip.date || '';
-      if (!dateStr) return null;
-      const ms = new Date(today) - new Date(dateStr);
-      return -Math.floor(ms / 86400000); // negative = past
+      const d = lastTrip.start_date || lastTrip.dateStart || lastTrip.date || '';
+      if (!d) return null;
+      const ms = new Date(today) - new Date(d);
+      return -Math.floor(ms / 86400000);
     }
     return null;
   });
@@ -170,6 +182,9 @@
     if (!$apiUrl) { loading = false; return; }
     try {
       await Promise.all([
+        api('/api/ws-trips')
+          .then(r => { wsTrips = r || []; })
+          .catch(() => {}),
         api('/api/dawarich/trips?limit=20')
           .then(r => { dawarichTrips = r || []; })
           .catch(() => {}),
