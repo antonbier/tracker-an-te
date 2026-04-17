@@ -62,7 +62,8 @@ async def refresh_suggestions(
     payload: TemporaryPersonality | None = None,
     user: dict = Depends(get_current_user),
 ):
-    """Pool leeren + neu befüllen. Optionaler Payload überschreibt Personality temporär (ohne DB-Speicherung)."""    try:
+    """Pool leeren + neu befüllen. Optionaler Payload überschreibt Personality temporär (ohne DB-Speicherung)."""    
+    try:
         discovery_pool_clear(user["id"])
         await discovery_service.background_refresh_suggestions(
             user["id"], batch=count,
