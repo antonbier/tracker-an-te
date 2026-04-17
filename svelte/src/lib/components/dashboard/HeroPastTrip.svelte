@@ -87,9 +87,10 @@
     const endDate   = trip.end_date   || trip.dateEnd   || startDate;
 
     try {
-      const res = await api(
-        `/api/discovery/trip-image?destination=${encodeURIComponent(dest)}`
-      );
+      let imgEndpoint = `/api/discovery/trip-image?destination=${encodeURIComponent(dest)}`;
+      if (startDate) imgEndpoint += `&date_from=${encodeURIComponent(startDate)}`;
+      if (endDate)   imgEndpoint += `&date_to=${encodeURIComponent(endDate)}`;
+      const res = await api(imgEndpoint);
       const url = res?.image_url || null;
       imgUrl = url;
       if (key) sessionStorage.setItem(key, url ?? 'null');
