@@ -638,7 +638,11 @@
             </button>
           </div>
           <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
-            {#if trip.destination}
+            {#if trip.destination && trip.title && trip.title !== trip.destination}
+              <!-- title gesetzt + verschieden von destination → beide anzeigen -->
+              <span class="text-sm font-mono" style="color:rgba(255,255,255,.75)">📍 {trip.destination}</span>
+            {:else if trip.destination && !trip.title}
+              <!-- kein kosmetischer title → destination ist der Hauptname (schon im H1) -->
               <span class="text-sm font-mono" style="color:rgba(255,255,255,.75)">📍 {trip.destination}</span>
             {/if}
             {#if trip.start_date}
