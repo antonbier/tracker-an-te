@@ -373,6 +373,93 @@ def remove_trip(trip_id: int, mode: str = "trip_only", user=Depends(get_current_
     return {"message": "Trip + Tracker gelöscht ✓" if mode == "all" else "Trip gelöscht ✓"}
 
 
+
+# ── ActualBudget Sync ─────────────────────────────────────────────────────────
+
+@router.post("/{trip_id}/sync-budget")
+def sync_actual_budget(trip_id: int, user=Depends(get_current_user)):
+    """Sync ActualBudget transactions for the trip date range.
+    Reads actual_url, actual_token, actual_file from user settings.
+    Stores total + compact transaction list in ws_trips row.
+    """
+    uid  = _uid(user)
+    trip = get_ws_trip(trip_id, uid)
+    if not trip:
+        raise HTTPException(404, "Trip nicht gefunden")
+
+    start_date = trip.get("start_date")
+    end_date   = trip.get("end_date") or start_date
+    if not start_date:
+        raise HTTPException(400, "Trip hat kein Startdatum — Budget-Sync nicht möglich")
+
+    from settings_manager import get_user_setting_value, get_setting_value
+    actual_url   = (get_user_setting_value(uid, "actual_url")   or get_setting_value("actual_url")   or "").strip()
+    actual_token = (get_user_setting_value(uid, "actual_token") or get_setting_value("actual_token") or "").strip()
+    actual_file  = (get_user_setting_value(uid, "actual_file")  or get_setting_value("actual_file")  or "").strip()
+    travel_cats  = (get_user_setting_value(uid, "travel_categories") or "").strip()
+
+    if not actual_url or not actual_token:
+        raise HTTPException(400, "ActualBudget URL oder Passwort nicht konfiguriert (Einstellungen → Bridges)")
+
+    # Parse category filter
+    cats = [c.strip() for c in travel_cats.split(",") if c.strip()] if travel_cats else []
+
+    try:
+        from actual_budget import get_travel_expenses
+        result = get_travel_expenses(
+            base_url=actual_url,
+            password=actual_token,
+            budget_file=actual_file or "",
+            category_names=cats,
+            year=None,  # Wir filtern manuell nach Datum
+        )
+    except Exception as e:
+        raise HTTPException(502, f"ActualBudget Verbindung fehlgeschlagen: {e}")
+
+    if "error" in result:
+        raise HTTPException(502, result["error"])
+
+    # Filter transactions to trip date range
+    all_txs = result.get("transactions", [])
+    trip_txs = [
+        tx for tx in all_txs
+        if start_date <= (tx.get("date") or "") <= end_date
+    ]
+
+    # Compact transaction list: date, payee/notes, amount
+    compact = [
+        {
+            "date":   tx.get("date", ""),
+            "name":   (tx.get("payee") or tx.get("notes") or "").strip()[:60],
+            "amount": round(abs(tx.get("amount", 0)), 2),
+        }
+        for tx in trip_txs
+        if tx.get("amount", 0) != 0
+    ]
+    compact.sort(key=lambda x: x["date"], reverse=True)
+
+    total_synced = round(sum(c["amount"] for c in compact), 2)
+
+    from database import db as _db
+    from datetime import datetime
+    now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
+    with _db() as conn:
+        conn.execute(
+            """UPDATE ws_trips
+               SET synced_expenses=?, synced_transactions_json=?, synced_at=?,
+                   updated_at=datetime('now')
+               WHERE id=? AND user_id=?""",
+            (total_synced, json.dumps(compact), now, trip_id, uid)
+        )
+
+    logger.info(f"[WsTrips] Budget-Sync Trip #{trip_id}: {len(compact)} Tx, {total_synced} €")
+    return {
+        "synced_expenses":     total_synced,
+        "synced_transactions": compact,
+        "synced_at":           now,
+        "tx_count":            len(compact),
+        "message":             f"{len(compact)} Transaktionen synchronisiert ✓",
+    }
 # ── To-Do Endpoints ───────────────────────────────────────────────────────────
 
 @router.get("/{trip_id}/todos")
@@ -517,15 +604,31 @@ def get_trip_budget(trip_id: int, user=Depends(get_current_user)):
 
     total           = float(trip.get("budget") or 0)
     manual_expenses = float(trip.get("manual_expenses") or 0)
-    on_site_net     = max(0, total - booked_flight - booked_hotel - manual_expenses)
+    synced_expenses = float(trip.get("synced_expenses") or 0)
+
+    # synced_transactions: parse stored JSON list
+    synced_tx_raw = trip.get("synced_transactions_json") or "[]"
+    try:
+        synced_transactions = json.loads(synced_tx_raw)
+    except Exception:
+        synced_transactions = []
+
+    total_spent = booked_flight + booked_hotel + manual_expenses + synced_expenses
+    remaining   = total - total_spent  # kann negativ sein
+    on_site_net = max(0.0, total - booked_flight - booked_hotel - manual_expenses - synced_expenses)
 
     return {
-        "total_budget":    total,
-        "booked_flight":   booked_flight,
-        "booked_hotel":    booked_hotel,
-        "manual_expenses": manual_expenses,
-        "on_site_budget":  on_site_net,
-        "has_budget":      total > 0,
+        "total_budget":         total,
+        "booked_flight":        booked_flight,
+        "booked_hotel":         booked_hotel,
+        "manual_expenses":      manual_expenses,
+        "synced_expenses":      synced_expenses,
+        "synced_transactions":  synced_transactions,
+        "synced_at":            trip.get("synced_at"),
+        "on_site_budget":       on_site_net,
+        "remaining":            remaining,
+        "total_spent":          total_spent,
+        "has_budget":           total > 0,
     }
 
 
