@@ -149,11 +149,30 @@
 
   // ── Add trip modal ─────────────────────────────────────────────────────────
   let addModalOpen = $state(false);
-  let mName  = $state('');
-  let mStart = $state(new Date().toISOString().slice(0, 10));
-  let mEnd   = $state('');
-  let mCost  = $state('');
-  let mAdding = $state(false);
+  let mName    = $state('');
+  let mStart   = $state(new Date().toISOString().slice(0, 10));
+  let mEnd     = $state('');
+  let mCost    = $state('');
+  let mAdding  = $state(false);
+  let mLat     = $state(null);
+  let mLon     = $state(null);
+  let mGeoLoad = $state(false);
+  let mGeoHint = $state('');
+
+  // Geocoding beim Verlassen des Namensfelds
+  async function geocodeManualTrip() {
+    const q = mName.trim();
+    if (!q || !$apiUrl) return;
+    mGeoLoad = true; mGeoHint = '';
+    try {
+      const res = await api(`/api/settings/geocode?q=${encodeURIComponent(q)}`);
+      if (res?.lat && res?.lon) {
+        mLat = res.lat; mLon = res.lon;
+        mGeoHint = `📍 ${res.display_name || q}`;
+      }
+    } catch { /* silent */ }
+    mGeoLoad = false;
+  }
 
   async function addManualTrip() {
     if (!mName || !mStart) { toast('Name + Startdatum pflicht', 'error'); return; }
@@ -162,13 +181,53 @@
       await api('/api/trips', { method: 'POST', body: JSON.stringify({
         name: mName, start_date: mStart, end_date: mEnd || mStart,
         cost: mCost ? parseFloat(mCost) : null,
+        lat: mLat, lon: mLon,
       }) });
-      mName = ''; mEnd = ''; mCost = '';
+      mName = ''; mEnd = ''; mCost = ''; mLat = null; mLon = null; mGeoHint = '';
       addModalOpen = false;
       toast('Reise eingetragen ✓', 'success');
       await loadJournal();
     } catch (e) { toast(e.message, 'error'); }
     mAdding = false;
+  }
+
+  // ── On-the-fly TripHub: detected_trips → ws_trips Container ───────────────
+  // Öffnet (oder erstellt) einen ws_trips Container für Dawarich/manuelle Trips
+  async function openOrCreateHub(trip) {
+    // WS-Trips haben start_date aber kein "source"-Feld
+    // detected_trips haben source: 'dawarich' | 'manual'
+    if (!trip.source) {
+      // Ist ein ws_trip → direkt öffnen
+      goToTripHub(trip.id);
+      return;
+    }
+    // Detected trip (Dawarich oder Manuell) → on-the-fly Container
+    if (!$apiUrl) { toast('Backend-URL fehlt', 'warning'); return; }
+    try {
+      const dest = trip.location_name || trip.destination || trip.name || trip.country || 'Reise';
+      const body = {
+        title:       dest,
+        destination: trip.country || '',
+        start_date:  trip.start_date,
+        end_date:    trip.end_date || trip.start_date,
+        source_detected_id: trip.id,
+      };
+      // Check if a ws_trip already exists for this detected_trip
+      const existing = wsTrips.find(w =>
+        w.source_detected_id === trip.id ||
+        (w.start_date === trip.start_date && (w.title === dest || w.destination === trip.country))
+      );
+      if (existing) {
+        goToTripHub(existing.id);
+        return;
+      }
+      const res = await api('/api/ws-trips', { method: 'POST', body: JSON.stringify(body) });
+      if (res?.id) {
+        await loadWsTrips();
+        goToTripHub(res.id);
+        toast('Trip Hub erstellt ✓', 'success');
+      }
+    } catch (e) { toast('Hub konnte nicht erstellt werden: ' + e.message, 'error'); }
   }
 
   // ── Dawarich Sync ──────────────────────────────────────────────────────────
@@ -273,7 +332,17 @@
   <div class="fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,.45);backdrop-filter:blur(4px)" role="dialog">
     <div class="w-full max-w-sm mx-4 rounded-2xl shadow-2xl border p-6 space-y-4" style="background:var(--ws-surface);border-color:var(--ws-border)">
       <h3 class="font-bold text-base" style="color:var(--ws-text)">{$t('addTripTitle')}</h3>
-      <input bind:value={mName} placeholder={$t('addTripDest')} class={inp} style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
+      <div class="relative">
+        <input bind:value={mName} placeholder={$t('addTripDest')} class={inp}
+          style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"
+          onblur={geocodeManualTrip} />
+        {#if mGeoLoad}
+          <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs" style="color:var(--ws-muted)">⏳</span>
+        {/if}
+      </div>
+      {#if mGeoHint}
+        <p class="text-[10px] px-1" style="color:var(--ws-muted)">{mGeoHint}</p>
+      {/if}
       <div class="grid grid-cols-2 gap-3">
         <div>
           <label class="text-xs mb-1 block" style="color:var(--ws-muted)">{$t('addTripStart')}</label>
@@ -532,12 +601,20 @@
           </div>
         {/if}
 
-        <!-- Dawarich -->
-        <button onclick={syncJournal} disabled={syncing}
-          class="flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all hover:opacity-80 disabled:opacity-40"
-          style="background:var(--ws-surface);border:1px solid var(--ws-border);color:var(--ws-muted)">
-          {syncing ? '⏳' : $t('archiveDawarichSync')}
-        </button>
+        <!-- Dawarich sync + force-full checkbox -->
+        <div class="flex items-center gap-1.5">
+          <button onclick={syncJournal} disabled={syncing}
+            class="flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all hover:opacity-80 disabled:opacity-40"
+            style="background:var(--ws-surface);border:1px solid var(--ws-border);color:var(--ws-muted)">
+            {syncing ? '⏳' : $t('archiveDawarichSync')}
+          </button>
+          <label class="flex items-center gap-1 text-xs cursor-pointer" style="color:var(--ws-muted)"
+            title="Gelöschte Reisen erneut laden (setzt ignored-Flag zurück)">
+            <input type="checkbox" bind:checked={forceFull}
+              class="rounded" style="accent-color:var(--ws-accent)" />
+            🔄
+          </label>
+        </div>
 
         <!-- ActualBudget -->
         <button onclick={syncActual} disabled={actualSyncing}
@@ -586,50 +663,47 @@
           <p class="text-sm" style="color:var(--ws-muted)">{$t('archiveEmpty')}</p>
         </div>
       {:else if viewMode === 'list'}
+        <!-- Unified list: alle Trips chronologisch -->
+        {@const allListTrips = [
+          ...archivedWsTrips.filter(t => (t.start_date||'').slice(0,4)===String(selectedYear)),
+          ...journalYear,
+        ].sort((a, b) => (b.start_date||'').localeCompare(a.start_date||''))}
         <div class="rounded-2xl border overflow-hidden" style="border-color:var(--ws-border)">
-          {#each journalYear as trip, i}
-            <div class="flex items-center gap-4 px-5 py-3 transition-all hover:opacity-90 {i > 0 ? 'border-t' : ''}"
-              style="background:var(--ws-surface);border-color:var(--ws-border)">
-              <span class="text-2xl shrink-0">🌍</span>
+          {#each allListTrips as trip, i}
+            {@const srcIcon = trip.source === 'dawarich' ? '📡' : trip.source === 'manual' ? '✍️' : '🪄'}
+            {@const label = trip.title || trip.destination || trip.location_name || trip.name || 'Reise'}
+            <div class="flex items-center gap-4 px-5 py-3 transition-all hover:opacity-90 cursor-pointer {i > 0 ? 'border-t' : ''}"
+              style="background:var(--ws-surface);border-color:var(--ws-border)"
+              role="button" tabindex="0"
+              onclick={() => openOrCreateHub(trip)}
+              onkeydown={(e) => e.key === 'Enter' && openOrCreateHub(trip)}>
+              <span class="text-lg shrink-0">{srcIcon}</span>
               <div class="flex-1 min-w-0">
-                <div class="font-semibold text-sm truncate" style="font-family:var(--ws-serif);color:var(--ws-text)">{trip.name || trip.destination || 'Reise'}</div>
+                <div class="font-semibold text-sm truncate capitalize" style="font-family:var(--ws-serif);color:var(--ws-text)">{label}</div>
                 {#if trip.start_date}
                   <div class="text-xs font-mono" style="color:var(--ws-muted)">{trip.start_date}{trip.end_date && trip.end_date !== trip.start_date ? ' → ' + trip.end_date : ''}</div>
                 {/if}
               </div>
-              {#if (trip.cost ?? trip.auto_cost)}
-                <div class="text-sm font-mono font-bold shrink-0" style="color:var(--ws-text)">{parseFloat(trip.cost ?? trip.auto_cost).toFixed(0)} €</div>
+              {#if (trip.cost ?? trip.auto_cost ?? trip.budget)}
+                <div class="text-sm font-mono font-bold shrink-0" style="color:var(--ws-text)">{parseFloat(trip.cost ?? trip.auto_cost ?? trip.budget ?? 0).toFixed(0)} €</div>
               {/if}
-              <button onclick={() => deleteJournalTrip(trip.id)}
-                class="text-xs px-2 py-1 rounded-lg border hover:border-red-400 hover:text-red-400 shrink-0 transition-colors"
-                style="border-color:var(--ws-border);color:var(--ws-muted)">✕</button>
+              <span style="color:var(--ws-muted)">›</span>
             </div>
           {/each}
         </div>
       {:else}
-        <!-- WS-Trips (archived — have TripHub) -->
-        {#if archivedWsTrips.filter(t => (t.start_date||'').slice(0,4)===String(selectedYear)).length > 0}
-          <div class="space-y-2 mb-4">
-            <p class="text-xs font-semibold px-1" style="color:var(--ws-muted)">📋 WanderWizzard Reisen</p>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
-              {#each archivedWsTrips.filter(t => (t.start_date||'').slice(0,4)===String(selectedYear)) as trip}
-                <TripCard
-                  {trip}
-                  mode="planned"
-                  ongoToHub={(t) => goToTripHub(t.id)}
-                />
-              {/each}
-            </div>
-          </div>
-        {/if}
-        <!-- Detected trips (Dawarich/manual — no TripHub) -->
+        <!-- Unified archive grid: alle Trip-Arten chronologisch sortiert, keine Gruppierung -->
+        {@const allArchiveTrips = [
+          ...archivedWsTrips
+            .filter(t => (t.start_date||'').slice(0,4)===String(selectedYear)),
+          ...journalYear,
+        ].sort((a, b) => (b.start_date||'').localeCompare(a.start_date||''))}
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
-          {#each journalYear as trip}
+          {#each allArchiveTrips as trip}
             <TripCard
               {trip}
-              mode="archive"
-              ongoToHub={() => {}}
-              ondelete={(t) => deleteJournalTrip(t.id)}
+              mode="planned"
+              ongoToHub={(t) => openOrCreateHub(t)}
             />
           {/each}
         </div>
