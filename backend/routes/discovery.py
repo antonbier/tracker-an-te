@@ -73,9 +73,11 @@ async def mark_shown(
 @router.get("/trip-image")
 async def get_trip_image(
     destination: str = Query(...),
+    date_from: Optional[str] = Query(default=None, description="ISO-Datum YYYY-MM-DD Reisebeginn"),
+    date_to: Optional[str] = Query(default=None, description="ISO-Datum YYYY-MM-DD Reiseende"),
     user: dict = Depends(get_current_user),
 ):
-    result = await discovery_service.get_trip_image(user["id"], destination)
+    result = await discovery_service.get_trip_image(user["id"], destination, date_from=date_from, date_to=date_to)
     image_url    = result[0]
     image_source = result[1]
     author_name  = result[2] if len(result) > 2 else None
