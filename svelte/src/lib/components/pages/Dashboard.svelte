@@ -156,9 +156,34 @@
       .slice(0, 5)
   );
 
-  // ── Hero data: next trip or last trip for nostalgia ─────────────────────
-  const nextTrip = $derived(upcoming[0] ?? null);
-  const lastTrip = $derived(completed[0] ?? recentDawarich[0] ?? null);
+  // ── Hero data: phase-basierte Trip-Ermittlung ────────────────────────────
+  // nextTrip: nächster geplanter ODER aktuell aktiver Trip (planning/booked + active phase)
+  const nextTrip = $derived.by(() => {
+    const t_today = today;
+    return wsTrips
+      .filter(t => {
+        const s = (t.start_date || '').slice(0, 10);
+        const e = (t.end_date   || t.start_date || '').slice(0, 10);
+        // active: läuft gerade
+        if (s <= t_today && t_today <= e) return true;
+        // planning/booked: in der Zukunft
+        if (s > t_today && (t.status === 'planning' || t.status === 'booked')) return true;
+        return false;
+      })
+      .sort((a, b) => (a.start_date || '').localeCompare(b.start_date || ''))[0] ?? null;
+  });
+
+  // lastTrip: aktuellster archivierter Trip (end_date < today)
+  const lastTrip = $derived.by(() => {
+    return wsTrips
+      .filter(t => {
+        const e = (t.end_date || t.start_date || '').slice(0, 10);
+        return e && e < today;
+      })
+      .sort((a, b) => (b.end_date || b.start_date || '').localeCompare(a.end_date || a.start_date || ''))[0]
+      ?? recentDawarich[0]
+      ?? null;
+  });
 
   // Days until next trip (positive) or since last trip (negative/nostalgia)
   const heroDays = $derived.by(() => {
