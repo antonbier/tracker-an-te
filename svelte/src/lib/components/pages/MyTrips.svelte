@@ -274,14 +274,40 @@
     actualFilesLoad = false;
   }
 
+  // Synct alle ws_trips des gewählten Jahres über POST /api/ws-trips/{id}/sync-budget.
+  // Das Backend liest actual_url, actual_token, actual_file aus den User-Settings (DB) —
+  // kein localStorage-Zugriff nötig.
   async function syncActual() {
-    const url      = browser ? localStorage.getItem('s-actualUrl')        || '' : '';
-    const password = browser ? localStorage.getItem('s-actualPassword')   || '' : '';
-    const file     = browser ? localStorage.getItem('s-actualFile')       || '' : '';
-    const cats     = browser ? localStorage.getItem('s-travelCategories') || '' : '';
-    if (!url || !password) { toast('ActualBudget URL + Passwort fehlen → Einstellungen', 'warning'); return; }
+    if (!$apiUrl) { toast('Backend-URL fehlt', 'warning'); return; }
+    // Alle archivierten WS-Trips des aktuell gewählten Jahres
+    const yearTrips = archivedWsTrips.filter(
+      t => (t.start_date || '').slice(0, 4) === String(selectedYear)
+    );
+    // Fallback: alle archivierten WS-Trips wenn kein Jahr-Filter greift
+    const targets = yearTrips.length > 0 ? yearTrips : archivedWsTrips;
+    if (targets.length === 0) {
+      toast('Keine WanderWizzard-Reisen zum Syncen gefunden', 'warning');
+      return;
+    }
     actualSyncing = true;
-    try { const r = await api('/api/budget/actual/transactions', { method: 'POST', body: JSON.stringify({ actual_url: url, actual_token: password, actual_file: file || null, categories: cats || null }) }); actualResult = r; toast(`${r.transactions?.length ?? 0} Transaktionen ✓`, 'success'); } catch (e) { toast(e.message, 'error'); }
+    let synced = 0; let failed = 0;
+    for (const trip of targets) {
+      try {
+        await api(`/api/ws-trips/${trip.id}/sync-budget`, { method: 'POST' });
+        synced++;
+      } catch (e) {
+        // 400 = keine Credentials → einmal warnen und abbrechen
+        if (e?.message?.includes('nicht konfiguriert') || e?.status === 400 || String(e).includes('400')) {
+          toast('ActualBudget Zugangsdaten fehlen — bitte in Einstellungen → Bridges hinterlegen', 'warning');
+          actualSyncing = false;
+          return;
+        }
+        failed++;
+      }
+    }
+    actualResult = { synced, failed };
+    if (synced > 0) toast(`${synced} Reise${synced > 1 ? 'n' : ''} mit ActualBudget synchronisiert ✓`, 'success');
+    if (failed > 0) toast(`${failed} Sync${failed > 1 ? 's' : ''} fehlgeschlagen`, 'warning');
     actualSyncing = false;
   }
 
@@ -619,11 +645,12 @@
           </label>
         </div>
 
-        <!-- ActualBudget -->
+        <!-- ActualBudget — synct alle ws_trips des Jahres via Backend-Credentials -->
         <button onclick={syncActual} disabled={actualSyncing}
           class="flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all hover:opacity-80 disabled:opacity-40"
-          style="background:var(--ws-surface);border:1px solid var(--ws-border);color:var(--ws-muted)">
-          {actualSyncing ? '⏳' : $t('archiveActualSync')}
+          style="background:var(--ws-surface);border:1px solid var(--ws-border);color:var(--ws-muted)"
+          title="Synct alle Archiv-Reisen mit ActualBudget (Credentials aus Einstellungen)">
+          {actualSyncing ? '⏳ Synce…' : $t('archiveActualSync')}
         </button>
 
         <!-- Spacer -->
