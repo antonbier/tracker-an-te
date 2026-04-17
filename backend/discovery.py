@@ -162,11 +162,14 @@ class DiscoveryService:
         logger.info(f"[Discovery] Pool refresh: {inserted} new entries for user={user_id}")
         return inserted
 
-    async def get_trip_image(self, user_id: int, destination: str) -> tuple:
+    async def get_trip_image(self, user_id: int, destination: str,
+                             date_from: str | None = None,
+                             date_to: str | None = None) -> tuple:
         """Bild-Pipeline ohne LLM — für HeroSection Nostalgie-Bild."""
         defaults = self._load_defaults(user_id)
         visited = self._load_visited(user_id)
-        return await self._get_image(user_id, defaults, visited, destination)
+        return await self._get_image(user_id, defaults, visited, destination,
+                                     date_from=date_from, date_to=date_to)
 
     async def get_destination_detail(self, user_id: int, destination: str, country: str = "") -> dict:
         """Full detail: LLM description + things_to_do + multiple images (mit Proxy)."""
@@ -430,7 +433,9 @@ Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
         return "/api/discovery/image-proxy?url=" + quote(url, safe="")
 
     async def _get_image(self, user_id: int, defaults: TravelDefaults,
-                          visited: list[str], destination: str) -> tuple:
+                          visited: list[str], destination: str,
+                          date_from: str | None = None,
+                          date_to: str | None = None) -> tuple:
         is_visited = any(destination.lower() in v.lower() for v in visited)
 
         # ── a) Immich (nur für bereits besuchte Orte) ─────────────────────────
@@ -438,11 +443,17 @@ Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
             immich_url = defaults.immich_url
             immich_key = defaults.immich_api_key
             try:
+                # Baue Immich-Suchbody mit optionalem Datums-Filter
+                immich_body: dict = {"query": destination, "size": 1, "type": "IMAGE", "withExif": False}
+                if date_from:
+                    immich_body["takenAfter"] = date_from + "T00:00:00.000Z"
+                if date_to:
+                    immich_body["takenBefore"] = date_to + "T23:59:59.999Z"
                 async with httpx.AsyncClient(timeout=TIMEOUT, trust_env=False, follow_redirects=True) as client:
                     resp = await client.post(
                         f"{immich_url}/api/search/metadata",
                         headers={"x-api-key": immich_key, "Content-Type": "application/json"},
-                        json={"query": destination, "size": 1, "type": "IMAGE", "withExif": False},
+                        json=immich_body,
                     )
                     if resp.status_code == 200:
                         items = resp.json().get("assets", {}).get("items", [])
