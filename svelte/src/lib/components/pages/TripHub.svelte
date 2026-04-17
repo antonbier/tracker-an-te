@@ -522,10 +522,19 @@
           <span class="text-2xl">{trip.travel_mode === 'car' ? '🚗' : '✈️'}</span>
         </div>
         <div>
-          <h1 class="text-2xl font-bold leading-tight mb-1"
-            style="font-family:var(--ws-serif);color:#fff;text-shadow:0 2px 12px rgba(0,0,0,.4)">
-            {trip.title || trip.destination || $t('tripHubTitle')}
-          </h1>
+          <div class="flex items-start gap-2">
+            <h1 class="text-2xl font-bold leading-tight mb-1"
+              style="font-family:var(--ws-serif);color:#fff;text-shadow:0 2px 12px rgba(0,0,0,.4)">
+              {trip.title || trip.destination || $t('tripHubTitle')}
+            </h1>
+            <button
+              onclick={openEditModal}
+              title="Reise bearbeiten"
+              class="mt-1 shrink-0 p-1 rounded-lg opacity-60 hover:opacity-100 transition-opacity"
+              style="background:rgba(255,255,255,.15);backdrop-filter:blur(6px);border:none;color:#fff;line-height:1">
+              ✏️
+            </button>
+          </div>
           <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
             {#if trip.destination}
               <span class="text-sm font-mono" style="color:rgba(255,255,255,.75)">📍 {trip.destination}</span>
