@@ -14,10 +14,11 @@
   </div>
   <p class="text-xs mb-3 ml-7" style="color:var(--ws-muted)">GPS-Reisen automatisch erkennen und importieren.</p>
 
-  <label class="flex items-center gap-2 text-xs mb-3 ml-7 cursor-pointer">
+  <label class="flex items-center gap-2 text-xs mb-3 ml-7 cursor-pointer"
+    title="Setzt das ignored-Flag zurück: gelöschte/ignorierte Dawarich-Reisen werden beim nächsten Sync erneut importiert">
     <input type="checkbox" bind:checked={forceFull}
       class="rounded text-orange-500 focus:ring-orange-400" />
-    Gelöschte Reisen erzwingen (Full Sync)
+    Gelöschte Reisen erneut laden (Force Full Sync)
   </label>
 
   <button onclick={onsync} disabled={syncing}
