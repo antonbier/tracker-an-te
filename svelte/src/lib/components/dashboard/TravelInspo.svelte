@@ -1,7 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { api } from '$lib/api.js';
-  import { apiUrl, settingsOpen, bucketlist, currentPage } from '$lib/stores.js';
+  import { apiUrl, settingsOpen, bucketlist, currentPage, activeMyTripsTab } from '$lib/stores.js';
   import { t } from '$lib/i18n.js';
   import DestinationDetail from '$lib/components/dashboard/DestinationDetail.svelte';
 
@@ -101,7 +101,7 @@
       </button>
 
       <!-- Card 3: Bucket List Widget — Top-Wunschziele + Link zum Tab -->
-      <button onclick={() => onnavto('mytrips')}
+      <button onclick={() => { activeMyTripsTab.set('bucketlist'); onnavto('mytrips'); }}
         class="group relative rounded-2xl p-5 text-left overflow-hidden transition-all hover:scale-[1.02] active:scale-[.98]"
         style="background:linear-gradient(135deg,#3b1f5e 0%,#1e1035 100%);min-height:140px">
         <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
