@@ -116,6 +116,11 @@
   // Backend dedupliziert bereits via GROUP BY — direkter Alias
   const archiveTripsDeduped = $derived(journalYear);
 
+  // Stats für Overview-Tab (als $derived statt {@const} im Template)
+  const allTripsTotal = $derived(wsTrips.length);
+  const allTripsYear  = $derived(wsTrips.filter(t => (t.start_date||'').slice(0,4) === String(selectedYear)).length);
+  const bucketOpen    = $derived(($bucketlist ?? []).filter(b => !b.done).length);
+
   // WS-trips that are archived (end_date < today) — shown in archive tab with TripHub link
   const archivedWsTrips = $derived(
     wsTrips.filter(t => {
@@ -461,10 +466,7 @@
           </button>
         {/each}
       </div>
-      <!-- Stats row: ws_trips als einheitliche Zählquelle -->
-      {@const allTripsTotal = wsTrips.length}
-      {@const allTripsYear  = wsTrips.filter(t => (t.start_date||'').slice(0,4) === String(selectedYear)).length}
-      {@const bucketOpen    = $bucketlist.filter(b => !b.done).length}
+      <!-- Stats row: ws_trips als einheitliche Zählquelle (Werte als $derived im Script) -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
         {#each [
           ['🗺️', allTripsTotal,                                              'Reisen gesamt'],
