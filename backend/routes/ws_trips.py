@@ -71,9 +71,17 @@ class WsTripCreate(BaseModel):
 
 
 class WsTripUpdate(BaseModel):
-    """Partial update — all fields optional."""
+    """Partial update — all fields optional.
+
+    title vs. destination:
+      - title       = kosmetischer Anzeigename (z.B. "Roadtrip 2025"), darf NULL sein
+      - destination = geocodierter Ortname, steuert Wetter/Maps, zwingend bei Geo-Edit
+      - lat / lon   = Koordinaten zum Ort, werden zusammen mit destination gesetzt
+    """
     title:        Optional[str]   = None
     destination:  Optional[str]   = None
+    lat:          Optional[float] = None
+    lon:          Optional[float] = None
     start_date:   Optional[str]   = None
     end_date:     Optional[str]   = None
     budget:       Optional[float] = None
