@@ -14,7 +14,32 @@ function persisted(key, defaultValue) {
 }
 
 export const apiUrl         = persisted('apiUrl', '');
-export const lang           = persisted('lang', 'de');
+// Sprache: localStorage → Browser-Sprache → 'en' als Fallback
+function getInitialLang() {
+  if (typeof localStorage === 'undefined') return 'en';
+  const stored = localStorage.getItem('ws-lang') || localStorage.getItem('lang');
+  const supported = ['de', 'en', 'it', 'es'];
+  if (stored && supported.includes(stored)) return stored;
+  // Browser-Sprache auslesen
+  if (typeof navigator !== 'undefined' && navigator.language) {
+    const browserLang = navigator.language.split('-')[0];
+    if (supported.includes(browserLang)) return browserLang;
+  }
+  return 'en';
+}
+export const lang = (() => {
+  const initial = typeof window !== 'undefined' ? getInitialLang() : 'en';
+  const store = writable(initial);
+  if (typeof window !== 'undefined') {
+    store.subscribe((val) => {
+      if (val) {
+        localStorage.setItem('ws-lang', val);
+        localStorage.setItem('lang', val);
+      }
+    });
+  }
+  return store;
+})();
 export const theme          = persisted('theme', '');
 export const onboardingDone = persisted('ws-onboarding-done', '');
 
