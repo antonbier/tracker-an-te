@@ -6,6 +6,20 @@ Alle nennenswerten Änderungen am Projekt. Format basiert auf [Keep a Changelog]
 
 ## [1.0.0-beta.1] — 2026-04-17
 
+### Added — Block 6: Bugfixes & Discovery-Erweiterungen
+
+- **PersonalityModal** (`PersonalityModal.svelte`, `TravelInspo.svelte`): Neuer „🧭 Personalisieren"-Button bei den KI-Vorschlägen öffnet ein Modal mit allen Reisepersönlichkeits-Einstellungen (Stil, Klima, Landschaft, Begleitung, Modus, Max. Zeit, Freitext). Checkbox „Dauerhaft speichern": ohne Checkbox → Settings nur für diesen Refresh (temporär, kein DB-Write); mit Checkbox → `PUT /api/settings/user` + Refresh. Modal schließt sich automatisch nach erfolgreicher Generierung.
+- **Discovery /refresh Payload** (`routes/discovery.py`, `discovery.py`): `POST /api/discovery/refresh` akzeptiert jetzt optionalen JSON-Body (`TemporaryPersonality`) der die Persönlichkeit ohne DB-Speicherung temporär überschreibt. `background_refresh_suggestions()` erhält `temp_personality`-Parameter.
+- **Massive Daten-Erweiterung**: `airports.json` (476 Flughäfen weltweit), `destinations.json` (1114 Reiseziele), `ai_destinations.json` (614 KI-Seed-Destinationen) — alle als externe JSON-Dateien unter `svelte/src/lib/data/` und `backend/data/`.
+- **constants.js Refactoring**: `AIRPORTS` und `DESTINATIONS` werden jetzt aus den JSON-Dateien importiert statt hardcoded — vollständig ersetzt durch 476 bzw. 1114 Einträge.
+- **KI-Seeds Erweiterung** (`discovery.py`): `_AI_DESTINATIONS`-Liste (614 Einträge) wird beim Start aus `ai_destinations.json` geladen. `_build_prompt()` sampelt zufällig 20 Seeds als Inspiration für den LLM-Prompt → deutlich diversere Vorschläge.
+
+### Fixed — Block 6
+
+- **Hero Grid 2-Kachel** (`Dashboard.svelte`, `HeroSection.svelte`): `nextTrip`/`lastTrip` nutzen jetzt phase-basierte Logik (aktiver Trip = `start <= today <= end`, archivierter = `end < today`). `hasLastTrip` ist unabhängig von `hasNextTrip`. Grid-Breakpoint `md:` → `lg:` für korrekte Side-by-Side-Darstellung.
+- **Tracker-Preis Reset** (`database.py`): `get_latest_snapshot()` bevorzugt jetzt `status='ok'`-Einträge — kein Preis-Reset mehr wenn ein Fehler-Snapshot folgt.
+- **Chart-History nach Scrape** (`PriceRadar.svelte`): Nach manuellem Scrape eines Trackers wird `chartState[key].history` sofort neu von `GET /api/prices/history/...` geladen wenn das Akkordeon offen ist.
+
 ### Added — Block 5 Teil 1: UX-Polish, Routing & Bugfixes
 
 - **i18n Browser-Language Fallback** (`stores.js`, `i18n.js`): App liest beim ersten Start `navigator.language` aus und nutzt Browser-Sprache sofern unterstützt (de/en/it/es), sonst `en` als sicherer Fallback. User-Wahl wird in `ws-lang` und `lang` im localStorage persistiert.
