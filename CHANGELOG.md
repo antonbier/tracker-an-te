@@ -44,6 +44,20 @@ Alle nennenswerten Änderungen am Projekt. Format basiert auf [Keep a Changelog]
 - **DB-Migrationen**: `synced_expenses REAL`, `synced_transactions_json TEXT`, `synced_at TEXT` zu `ws_trips`
 
 
+### Added — Block 4: Dashboard & MyTrips Cleanup
+
+- **Bucket List Widget** (Dashboard `TravelInspo`): ersetzt die grüne Nostalgie-Kachel; zeigt Top-3-Wunschziele + offene Ziel-Anzahl, navigiert zu Meine Reisen → Bucket List
+- **Unified Trip-Listen** (`CompactTripsList`): „Geplante Reisen" und „Abgeschlossene Reisen" im Dashboard zeigen jetzt alle 3 Typen — `📡` Dawarich, `✍️` Manuell, `🪄` WanderWizzard — mit Source-Badge und `capitalize`-Titel
+- **`wsTrips` im Dashboard** (`Dashboard.svelte`): `/api/ws-trips` wird beim Mount geladen; `upcoming` + `completed` basieren auf `wsTrips` statt Legacy-`$trips`-Store
+
+### Fixed — Block 4
+
+- **Statistik-Kacheln** (`MyTrips` Übersicht): „Reisen gesamt" zählt jetzt `wsTrips.length`; „Reisen [Jahr]" filtert `wsTrips` nach `selectedYear`; „Wunschziele" zeigt `$bucketlist.filter(!done).length` (war: `upcomingTrips.length`)
+- **ScratchMap Initialisierung**: `$effect`-Abhängigkeit auf `JSON.stringify(journalTrips.map(id))` statt nur `.length` → sofortige Initialisierung beim ersten Tab-Öffnen ohne Jahreswechsel-Workaround
+- **Budget Jahressumme** (`MyTrips`, `Dashboard`): `totalSpentYear` und `yearSpent` berechnen sich aus `wsTrips` (booked + manual + synced) statt altem `detected_trips`/`$trips`-Ansatz
+- **Archive ActualBudget-Sync** (`syncActual()`): liest Credentials aus DB-Settings via `/api/ws-trips/{id}/sync-budget` statt `localStorage` — behebt „URL + Passwort fehlen"-Fehler bei gespeicherten Settings
+
+
 ## [0.9.0] — 2026-04 (QA & Security Sprint)
 
 ### Added
