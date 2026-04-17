@@ -34,6 +34,48 @@
   let manualExpDraft   = $state('');
   let manualExpSaving  = $state(false);
 
+  // ── Hero-Bild (Unsplash mit Caching + Attribution) ────────────────────────
+  let heroImgUrl        = $state(null);
+  let heroImgAuthor     = $state('');
+  let heroImgAuthorUrl  = $state('');
+  let heroImgError      = $state(false);
+  const UTM = '?utm_source=wandersuite&utm_medium=referral';
+
+  async function loadHeroImage(t) {
+    if (!t) return;
+
+    // 1. Gecachtes Bild aus Trip-DB nutzen
+    if (t.image_url) {
+      heroImgUrl       = t.image_url;
+      heroImgAuthor    = t.image_author    || '';
+      heroImgAuthorUrl = t.image_author_url || '';
+      return;
+    }
+
+    // 2. Destination für Unsplash-Suche ermitteln
+    const dest = t.destination || t.title || '';
+    if (!dest) return;
+
+    try {
+      const res = await api(`/api/discovery/trip-image?destination=${encodeURIComponent(dest)}&source=unsplash`);
+      if (!res?.image_url) return;
+
+      heroImgUrl       = res.image_url;
+      heroImgAuthor    = res.author_name  || '';
+      heroImgAuthorUrl = res.author_url   || '';
+
+      // 3. Sofort am Backend cachen (fire-and-forget)
+      api(`/api/ws-trips/${t.id}/image`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          image_url:        res.image_url,
+          image_author:     res.author_name || null,
+          image_author_url: res.author_url  || null,
+        }),
+      }).catch(() => {});
+    } catch { /* kein Bild verfügbar */ }
+  }
+
   // ── Load ─────────────────────────────────────────────────────────────────
   onMount(async () => {
     const id = $activeWsTripId;
@@ -48,6 +90,8 @@
       trip  = res;
       todos = res.todos || [];
       manualExpDraft = String(res.manual_expenses ?? 0);
+      // Hero-Bild laden (gecacht oder neu)
+      await loadHeroImage(res);
     } catch { toast('Trip konnte nicht geladen werden', 'error'); }
   }
 
@@ -368,6 +412,16 @@
 
     <!-- ── Hero Card ───────────────────────────────────────────────────── -->
     <div class="relative rounded-2xl overflow-hidden" style="min-height:200px;background:{heroBg}">
+
+      <!-- Unsplash background image -->
+      {#if heroImgUrl && !heroImgError}
+        <img src={heroImgUrl} alt=""
+          class="absolute inset-0 w-full h-full object-cover"
+          style="opacity:.35"
+          onerror={() => { heroImgError = true; }} />
+        <div class="absolute inset-0" style="background:rgba(0,0,0,.45)"></div>
+      {/if}
+
       <div class="absolute inset-0 opacity-10"
         style="background-image:radial-gradient(circle at 20% 80%,rgba(255,255,255,.2) 0%,transparent 50%)"></div>
       <div class="relative z-10 p-6 flex flex-col justify-between" style="min-height:200px">
@@ -405,6 +459,21 @@
           </div>
         </div>
       </div>
+
+      <!-- Unsplash Attribution Overlay -->
+      {#if heroImgUrl && !heroImgError && heroImgAuthor}
+        <div class="absolute bottom-1 right-1 z-20 text-[9px] rounded px-1.5 py-0.5 leading-tight"
+          style="background:rgba(0,0,0,.45);color:rgba(255,255,255,.65);backdrop-filter:blur(4px)">
+          Foto von
+          <a href="{heroImgAuthorUrl ? heroImgAuthorUrl + UTM : 'https://unsplash.com' + UTM}"
+            target="_blank" rel="noopener noreferrer"
+            class="underline hover:opacity-90" style="color:rgba(255,255,255,.75)">{heroImgAuthor}</a>
+          auf
+          <a href="{'https://unsplash.com' + UTM}" target="_blank" rel="noopener noreferrer"
+            class="underline hover:opacity-90" style="color:rgba(255,255,255,.75)">Unsplash</a>
+        </div>
+      {/if}
+
     </div>
 
     <!-- ── Widget Grid ─────────────────────────────────────────────────── -->
