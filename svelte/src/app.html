@@ -3,7 +3,9 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#D95D39" />
+    <!-- theme-color: dark/light via media query -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f5ebe0" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)"  content="#0f172a" />
     <meta name="color-scheme" content="light dark" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -12,6 +14,17 @@
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="manifest" href="/manifest.webmanifest" />
+    <!-- FOUC-Prevention: Dark-Mode sofort setzen bevor Seite rendert -->
+    <script>
+      (function() {
+        try {
+          var t = localStorage.getItem('ws-theme');
+          if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+          }
+        } catch(e) {}
+      })();
+    </script>
     <title>WanderSuite</title>
     %sveltekit.head%
   </head>
