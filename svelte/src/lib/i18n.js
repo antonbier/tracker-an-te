@@ -19,7 +19,7 @@ export const localeLabels = {
 };
 
 // Reaktiver translations-Store
-export const translations = writable(allLocales[get(lang)] || de);
+export const translations = writable(allLocales[get(lang)] || en);
 
 // t als derived Store — Komponenten nutzen $t('key') und re-rendern automatisch
 export const t = derived(
@@ -34,7 +34,11 @@ export async function loadLocale(locale) {
 // Sprache wechseln + reaktiv updaten + Backend-Sync
 export async function setLang(locale) {
   lang.set(locale);
-  translations.set(allLocales[locale] || allLocales['de']);
+  translations.set(allLocales[locale] || allLocales['en']);
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem('ws-lang', locale);
+    localStorage.setItem('lang', locale);
+  }
   if (!browser) return;
   const url = localStorage.getItem('apiUrl') || get(apiUrl);
   if (url) {
