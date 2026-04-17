@@ -117,7 +117,7 @@
 <!-- ── Hero: 2-Kachel-Layout wenn beide Trips vorhanden ── -->
 {#if (hasNextTrip || nextWsTrip) && hasLastTrip}
   <!-- BEIDE: Nebeneinander -->
-  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
     <HeroPastTrip
       archivedTrips={archivedWsTrips.length > 0 ? archivedWsTrips : (lastTrip ? [lastTrip] : [])}
       ongoToHub={(t) => {
