@@ -36,12 +36,16 @@
     return base;
   });
 
-  // FIX: robustes Fallback-Mapping: title → destination → name → '—'
+  // Robustes Fallback-Mapping für beide Trip-Typen:
+  // detected_trips: location_name, country
+  // ws_trips:       title, destination
+  function notEmpty(v) { return v && v.trim() !== '' && v.trim() !== '-'; }
   const tripTitle = $derived(
-    trip.title       && trip.title       !== '-' ? trip.title       :
-    trip.destination && trip.destination !== '-' ? trip.destination :
-    trip.name        && trip.name        !== '-' ? trip.name        :
-    trip.location_name ? trip.location_name : '—'
+    notEmpty(trip.location_name) ? trip.location_name :
+    notEmpty(trip.title)         ? trip.title         :
+    notEmpty(trip.destination)   ? trip.destination   :
+    notEmpty(trip.name)          ? trip.name          :
+    notEmpty(trip.country)       ? trip.country       : '—'
   );
 
   const badgeText = $derived.by(() => {
