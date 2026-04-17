@@ -15,6 +15,8 @@ Fixes in dieser Version:
   - _load_visited() wird nicht mehr doppelt aufgerufen
   - Smart History Toggle: blacklist | context
   - travel_mode + max_travel_time in LLM-Prompt integriert
+  - Unsplash: author_name + author_url in Response (Attribution)
+  - 429 Rate-Limit sauber abgefangen (OpenAI + SerpAPI)
 """
 
 import asyncio
@@ -54,6 +56,9 @@ class Suggestion:
     image_url:    Optional[str]
     image_source: str          # immich | unsplash | local_fallback | css_fallback
     prefill:      dict = field(default_factory=dict)
+    # Unsplash attribution (nur gesetzt wenn image_source == "unsplash")
+    unsplash_author_name: Optional[str] = None
+    unsplash_author_url:  Optional[str] = None
 
 
 # ── DiscoveryService ──────────────────────────────────────────────────────────
@@ -95,6 +100,8 @@ class DiscoveryService:
                 image_url=img_url,
                 image_source=img_src,
                 prefill=prefill,
+                unsplash_author_name=r.get("unsplash_author_name"),
+                unsplash_author_url=r.get("unsplash_author_url"),
             ))
         return suggestions
 
@@ -123,23 +130,30 @@ class DiscoveryService:
                 continue
             if isinstance(img_result, Exception):
                 image_url, image_source = None, "local_fallback"
+                author_name, author_url = None, None
             else:
-                image_url, image_source = img_result
+                if len(img_result) == 4:
+                    image_url, image_source, author_name, author_url = img_result
+                else:
+                    image_url, image_source = img_result
+                    author_name, author_url = None, None
 
             landscape = raw.get("landscape") or raw.get("climate") or "mix"
             # Bei Fallback: landscape-spezifische SVG-URL setzen
             if image_source == "local_fallback":
                 image_url = get_fallback_url(landscape)
             entry = {
-                "destination":  dest,
-                "country":      raw.get("country", ""),
-                "reason":       raw.get("reason", ""),
-                "climate":      raw.get("climate"),
-                "landscape":    landscape,
-                "trip_type":    raw.get("trip_type"),
-                "image_url":    image_url,
-                "image_source": image_source,
-                "prefill":      self._build_prefill(defaults, raw, personality),
+                "destination":         dest,
+                "country":             raw.get("country", ""),
+                "reason":              raw.get("reason", ""),
+                "climate":             raw.get("climate"),
+                "landscape":           landscape,
+                "trip_type":           raw.get("trip_type"),
+                "image_url":           image_url,
+                "image_source":        image_source,
+                "unsplash_author_name": author_name,
+                "unsplash_author_url":  author_url,
+                "prefill":             self._build_prefill(defaults, raw, personality),
             }
             if discovery_pool_upsert(user_id, entry):
                 inserted += 1
@@ -148,7 +162,7 @@ class DiscoveryService:
         logger.info(f"[Discovery] Pool refresh: {inserted} new entries for user={user_id}")
         return inserted
 
-    async def get_trip_image(self, user_id: int, destination: str) -> tuple[Optional[str], str]:
+    async def get_trip_image(self, user_id: int, destination: str) -> tuple:
         """Bild-Pipeline ohne LLM — für HeroSection Nostalgie-Bild."""
         defaults = self._load_defaults(user_id)
         visited = self._load_visited(user_id)
@@ -163,10 +177,10 @@ class DiscoveryService:
         system = ("Du bist ein Reise-Experte. Antworte NUR als JSON-Objekt. "
                   "Kein Markdown, keine Erklärung.")
         user_msg = (
-            f"Beschreibe das Reiseziel '{dest_label}' detailliert. "
-            f"Nutzer-Profil: Reisestil={personality.travel_style or '?'}, "
-            f"Klima={personality.climate_pref or '?'}, "
-            f"Begleitung={personality.companions or '?'}. "
+            f"Beschreibe das Reiseziel \'{dest_label}\' detailliert. "
+            f"Nutzer-Profil: Reisestil={personality.travel_style or \'?\'}, "
+            f"Klima={personality.climate_pref or \'?\'}, "
+            f"Begleitung={personality.companions or \'?\'}. "
             "Antworte als JSON mit: "
             "description (3-4 Saetze warum ideal fuer dieses Profil), "
             "things_to_do (Array mit 5-7 Aktivitaeten als kurze Strings), "
@@ -348,9 +362,14 @@ Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
                         "temperature": 0.7,
                     },
                 )
+                if resp.status_code == 429:
+                    logger.warning("[Discovery] OpenAI rate limit (429)")
+                    raise RuntimeError("api_rate_limit:openai")
                 resp.raise_for_status()
                 text = resp.json()["choices"][0]["message"]["content"]
                 return self._parse_json_array(text)
+        except RuntimeError:
+            raise
         except httpx.HTTPStatusError as e:
             logger.warning(f"[Discovery] OpenAI HTTP {e.response.status_code}: {e.response.text}")
             return []
@@ -407,10 +426,10 @@ Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
     def _make_proxy_url(self, url: str) -> str:
         """Nur Immich-URLs durch Backend-Proxy schleusen (brauchen x-api-key).
         Unsplash-URLs werden DIREKT zurückgegeben — CDN akzeptiert nur Browser-Requests."""
-        return f"/api/discovery/image-proxy?url={quote(url, safe='')}"
+        return f"/api/discovery/image-proxy?url={quote(url, safe=\'\')}"
 
     async def _get_image(self, user_id: int, defaults: TravelDefaults,
-                          visited: list[str], destination: str) -> tuple[Optional[str], str]:
+                          visited: list[str], destination: str) -> tuple:
         is_visited = any(destination.lower() in v.lower() for v in visited)
 
         # ── a) Immich (nur für bereits besuchte Orte) ─────────────────────────
@@ -431,7 +450,7 @@ Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
                             if asset_id:
                                 raw_url = f"{immich_url}/api/assets/{asset_id}/thumbnail?size=preview"
                                 logger.info(f"[Discovery] Immich hit: {asset_id}")
-                                return self._make_proxy_url(raw_url), "immich"
+                                return self._make_proxy_url(raw_url), "immich", None, None
             except Exception as e:
                 logger.warning(f"[Discovery/Immich] search/metadata failed: {e}")
 
@@ -449,7 +468,7 @@ Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
                             asset_id = items[0].get("id")
                             if asset_id:
                                 raw_url = f"{immich_url}/api/assets/{asset_id}/thumbnail?size=preview"
-                                return self._make_proxy_url(raw_url), "immich"
+                                return self._make_proxy_url(raw_url), "immich", None, None
             except Exception as e:
                 logger.warning(f"[Discovery/Immich] GET /assets failed: {e}")
 
@@ -466,18 +485,24 @@ Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
                         },
                         headers={"Authorization": f"Client-ID {defaults.unsplash_key}"},
                     )
-                    if resp.status_code == 200:
-                        img_url = resp.json().get("urls", {}).get("regular")
+                    if resp.status_code == 429:
+                        logger.warning("[Discovery/Unsplash] Rate limit (429)")
+                    elif resp.status_code == 200:
+                        data = resp.json()
+                        img_url = data.get("urls", {}).get("regular")
+                        user_data = data.get("user", {})
+                        author_name = user_data.get("name") or user_data.get("username") or ""
+                        author_url  = user_data.get("links", {}).get("html") or ""
                         if img_url:
-                            logger.info(f"[Discovery] Unsplash hit for {destination}")
-                            return img_url, "unsplash"  # Direkt — Unsplash CDN nur Browser
+                            logger.info(f"[Discovery] Unsplash hit for {destination} by {author_name}")
+                            return img_url, "unsplash", author_name, author_url
                     else:
                         logger.warning(f"[Discovery/Unsplash] {resp.status_code}: {resp.text[:200]}")
             except Exception as e:
                 logger.warning(f"[Discovery/Unsplash] exception: {e}")
 
         # ── c) Local SVG Fallback ─────────────────────────────────────────────
-        return None, "local_fallback"
+        return None, "local_fallback", None, None
 
     async def _get_multiple_images(self, user_id: int, defaults: TravelDefaults,
                                     destination: str, count: int = 4) -> list:
@@ -497,13 +522,20 @@ Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
                         },
                         headers={"Authorization": f"Client-ID {defaults.unsplash_key}"},
                     )
-                    if resp.status_code == 200:
+                    if resp.status_code == 429:
+                        logger.warning("[Discovery/Unsplash-multi] Rate limit (429)")
+                    elif resp.status_code == 200:
                         for item in resp.json().get("results", [])[:count]:
                             url = item.get("urls", {}).get("regular")
+                            user_data = item.get("user", {})
+                            author_name = user_data.get("name") or user_data.get("username") or ""
+                            author_url  = user_data.get("links", {}).get("html") or ""
                             if url:
                                 images.append({
-                                    "url": url,  # Direkt — kein Proxy für Unsplash
-                                    "source": "unsplash"
+                                    "url":         url,
+                                    "source":      "unsplash",
+                                    "author_name": author_name,
+                                    "author_url":  author_url,
                                 })
             except Exception as e:
                 logger.warning(f"[Discovery/Unsplash-multi] {e}")
@@ -511,9 +543,18 @@ Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
         # Einzel-Fallback wenn search leer
         if not images and defaults.unsplash_key:
             visited = []  # detail view: kein visited-kontext nötig
-            url, src = await self._get_image(user_id, defaults, visited, destination)
+            result = await self._get_image(user_id, defaults, visited, destination)
+            url = result[0]
+            src = result[1]
+            author_name = result[2] if len(result) > 2 else None
+            author_url  = result[3] if len(result) > 3 else None
             if url:
-                images.append({"url": url, "source": src})
+                images.append({
+                    "url":         url,
+                    "source":      src,
+                    "author_name": author_name or "",
+                    "author_url":  author_url  or "",
+                })
 
         return images
 
@@ -559,7 +600,8 @@ Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
         for entry, result in zip(entries, results):
             if isinstance(result, Exception):
                 continue
-            image_url, image_source = result
+            image_url   = result[0]
+            image_source = result[1]
             if image_source in ("immich", "unsplash") and image_url:
                 if discovery_pool_update_image(user_id, entry["destination"],
                                                image_url, image_source):
