@@ -39,23 +39,25 @@ def _uid(user: dict) -> int:
 # ── Pydantic Models ───────────────────────────────────────────────────────────
 
 class WsTripCreate(BaseModel):
-    title:        str
-    destination:  Optional[str] = ""
-    start_date:   Optional[str] = None
-    end_date:     Optional[str] = None
-    trip_type:    Optional[str] = "flight"
-    budget:       Optional[float] = None
-    path:         Optional[str] = "known"
-    travel_mode:  Optional[str] = "flight"
-    vibes:        Optional[list[str]] = []
-    wish_text:    Optional[str] = None
-    flex_month:   Optional[str] = None
-    flex_nights:  Optional[int] = None
-    max_time:     Optional[str] = None
-    home_airport: Optional[str] = None
-    adults:       Optional[int] = 2
-    children:     Optional[int] = 0
-    notes:        Optional[str] = None
+    title:              str
+    destination:        Optional[str] = ""
+    start_date:         Optional[str] = None
+    end_date:           Optional[str] = None
+    trip_type:          Optional[str] = "flight"
+    budget:             Optional[float] = None
+    path:               Optional[str] = "known"
+    travel_mode:        Optional[str] = "flight"
+    vibes:              Optional[list[str]] = []
+    wish_text:          Optional[str] = None
+    flex_month:         Optional[str] = None
+    flex_nights:        Optional[int] = None
+    max_time:           Optional[str] = None
+    home_airport:       Optional[str] = None
+    adults:             Optional[int] = 2
+    children:           Optional[int] = 0
+    notes:              Optional[str] = None
+    # On-the-fly container: verknüpft mit detected_trip
+    source_detected_id: Optional[int] = None
 
     @model_validator(mode="after")
     def validate_dates(self) -> "WsTripCreate":
@@ -219,8 +221,29 @@ async def create_trip(data: WsTripCreate, user=Depends(get_current_user)):
         dest = trip_data.get("destination") or trip_data.get("flex_month") or "Neue Reise"
         trip_data["title"] = dest
 
+    # On-the-fly: link to detected_trip if provided
+    detected_id = trip_data.pop("source_detected_id", None)
     trip_id = create_ws_trip(trip_data, user_id=uid)
     logger.info(f"[WsTrips] Trip #{trip_id} angelegt für user {uid}: {trip_data['title']}")
+    # Store link in ws_trips row for future hub lookups
+    if detected_id:
+        try:
+            from database import db as _db
+            with _db() as conn:
+                conn.execute(
+                    "ALTER TABLE ws_trips ADD COLUMN source_detected_id INTEGER DEFAULT NULL"
+                )
+        except Exception:
+            pass  # column already exists
+        try:
+            from database import db as _db
+            with _db() as conn:
+                conn.execute(
+                    "UPDATE ws_trips SET source_detected_id=? WHERE id=?",
+                    (detected_id, trip_id)
+                )
+        except Exception as e:
+            logger.warning(f"[WsTrips] source_detected_id link failed: {e}")
 
     from datetime import date
     start   = trip_data.get("start_date") or ""
@@ -298,9 +321,40 @@ def set_status(trip_id: int, data: StatusUpdate, user=Depends(get_current_user))
 
 @router.delete("/{trip_id}")
 def remove_trip(trip_id: int, mode: str = "trip_only", user=Depends(get_current_user)):
-    if not get_ws_trip(trip_id, _uid(user)):
+    """3-Wege-Löschlogik:
+    - Dawarich-Trips (source_detected_id gesetzt, source='dawarich'): SOFT-DELETE → ignored=1
+    - Manuelle Trips (source_detected_id, source='manual'): HARD-DELETE des detected_trip
+    - WanderWizzard-Trips (kein source_detected_id): HARD-DELETE ws_trip + optional Tracker
+    """
+    uid = _uid(user)
+    trip = get_ws_trip(trip_id, uid)
+    if not trip:
         raise HTTPException(404, "Trip nicht gefunden")
 
+    detected_id = trip.get("source_detected_id")
+
+    if detected_id:
+        # Typ A/B: Hat verknüpften detected_trip
+        from database import db as _db, delete_detected_trip
+        # Herausfinden ob Dawarich oder Manuell
+        with _db() as conn:
+            det_row = conn.execute(
+                "SELECT source FROM detected_trips WHERE id=?", (detected_id,)
+            ).fetchone()
+        if det_row and det_row["source"] == "dawarich":
+            # Typ A: Soft-Delete — ignored=1
+            delete_detected_trip(detected_id, user_id=uid, hard=False)
+            delete_ws_trip(trip_id, uid)
+            logger.info(f"[WsTrips] Dawarich Trip #{detected_id} soft-deleted (ignored=1), ws_trip #{trip_id} removed")
+            return {"message": "Reise archiviert (Dawarich-Sync bleibt aktiv) ✓"}
+        else:
+            # Typ B: Hard-Delete des detected_trip
+            delete_detected_trip(detected_id, user_id=uid, hard=True)
+            delete_ws_trip(trip_id, uid)
+            logger.info(f"[WsTrips] Manual Trip #{detected_id} hard-deleted, ws_trip #{trip_id} removed")
+            return {"message": "Manuelle Reise vollständig gelöscht ✓"}
+
+    # Typ C: Reiner WanderWizzard-Trip — kein detected_trip
     if mode == "all":
         from database import db as _db
         try:
@@ -313,7 +367,7 @@ def remove_trip(trip_id: int, mode: str = "trip_only", user=Depends(get_current_
         except Exception as e:
             logger.warning(f"[WsTrips] Tracker-Cleanup teilweise fehlgeschlagen: {e}")
 
-    if not delete_ws_trip(trip_id, _uid(user)):
+    if not delete_ws_trip(trip_id, uid):
         raise HTTPException(404, "Trip nicht gefunden")
 
     return {"message": "Trip + Tracker gelöscht ✓" if mode == "all" else "Trip gelöscht ✓"}
