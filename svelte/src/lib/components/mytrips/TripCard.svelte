@@ -1,10 +1,9 @@
 <script>
   /**
    * TripCard.svelte — Wiederverwendbare Reisekarte
-   * Phase-aware: berechnet 3-Phasen-Logik direkt aus Datum,
-   * unabhängig vom übergebenen mode-Prop.
-   *   mode="planned"  → Gradient, Status-Badge, "Trip Hub →"-Button
-   *   mode="archive"  → Gedämpfter Gradient, ⋮-Menü für Aktionen
+   * Phase-aware: berechnet 3-Phasen-Logik direkt aus Datum.
+   * Alle Karten (planned, archive, dawarich, manual) haben "Trip Hub →"-Button.
+   * Source-Badge: 📡 Dawarich · ✍️ Manuell · 🪄 WanderWizzard
    */
   import { t } from '$lib/i18n.js';
   import { destinationGradient } from '$lib/components/triphub/helpers.js';
@@ -18,7 +17,7 @@
 
   const isFlight = $derived(trip.travel_mode === 'flight');
 
-  // FIX: 3-Phasen-Logik direkt aus Datum — nicht nur aus mode-Prop
+  // 3-Phasen-Logik direkt aus Datum
   const today = new Date().toISOString().slice(0, 10);
 
   const phase = $derived.by(() => {
@@ -30,18 +29,21 @@
     return 'planning';
   });
 
-  // Hero gradient — generative from destination, no external images
+  // Hero gradient
   const heroGradient = $derived.by(() => {
     if (phase === 'active') return 'linear-gradient(135deg,#0f4c2a 0%,#1a6b3a 50%,#0d3d22 100%)';
     const base = destinationGradient(trip.destination || trip.title || trip.name, trip.travel_mode);
-    if (phase === 'archived') {
-      // desaturate archived: overlay dark tint
-      return base.replace('linear-gradient(', 'linear-gradient(').replace(/,#/g, ',#');
-    }
     return base;
   });
 
-  // FIX: badge text basiert auf phase, nicht nur auf mode
+  // FIX: robustes Fallback-Mapping: title → destination → name → '—'
+  const tripTitle = $derived(
+    trip.title       && trip.title       !== '-' ? trip.title       :
+    trip.destination && trip.destination !== '-' ? trip.destination :
+    trip.name        && trip.name        !== '-' ? trip.name        :
+    trip.location_name ? trip.location_name : '—'
+  );
+
   const badgeText = $derived.by(() => {
     if (phase === 'archived') return $t('tripCardExperienced') || 'ERLEBT';
     if (phase === 'active')   return $t('tripPhaseActive')     || 'ON TOUR';
@@ -56,19 +58,23 @@
     return 'rgba(255,255,255,.2)';
   });
 
-  // FIX: Pulseeffekt für aktive Reisen
   const badgePulse = $derived(phase === 'active');
 
-  // Label: ws-trips get "Trip Hub →", detected_trips (archive mode) get "Erlebt ✓"
-  const actionBtnLabel = $derived(
-    mode === 'archive' ? ($t('tripCardExperienced') || 'ERLEBT') : ($t('tripCardGoToHub') || 'Trip Hub →')
-  );
-  // Archive-mode cards (detected_trips) are not navigable to TripHub
-  const isNavigable = $derived(mode !== 'archive');
+  // Source-Badge Icon
+  const sourceIcon = $derived.by(() => {
+    const src = trip.source || (trip.id && !trip.start_date ? 'ws' : '');
+    // ws_trips haben kein "source"-Feld — sie kommen von /api/ws-trips
+    // detected_trips haben source: 'dawarich' | 'manual'
+    if (src === 'dawarich') return '📡';
+    if (src === 'manual')   return '✍️';
+    // WanderWizzard-Trips (ws_trips) haben kein source-Feld
+    return '🪄';
+  });
 
-  const travelIcon   = $derived(isFlight ? '✈️' : '🚗');
-  const tripTitle    = $derived(trip.title || trip.destination || trip.name || '—');
-  const tripDateStr  = $derived.by(() => {
+  // Alle Karten navigieren zum Trip Hub
+  // detected_trips (dawarich/manual) triggern on-the-fly Container-Erstellung
+  const travelIcon  = $derived(isFlight ? '✈️' : '🚗');
+  const tripDateStr = $derived.by(() => {
     const s = trip.start_date || trip.dateStart || '';
     const e = trip.end_date   || trip.dateEnd   || '';
     if (!s) return '';
@@ -81,12 +87,15 @@
 
   <!-- ── Hero header ──────────────────────────────────────────────────────── -->
   <div class="px-5 pt-5 pb-3 relative" style="background:{heroGradient};min-height:88px;{phase==='archived'?'opacity:0.85;filter:saturate(0.6)':''}">
-    <!-- Generative gradient background — no external image requests -->
     <div class="flex items-start justify-between">
       <span class="text-2xl">{travelIcon}</span>
 
-      <div class="flex items-center gap-2">
-        <!-- Status badge mit Pulse für active -->
+      <div class="flex items-center gap-1.5">
+        <!-- Source-Badge -->
+        <span class="text-sm" title={trip.source === 'dawarich' ? 'Dawarich GPS' : trip.source === 'manual' ? 'Manuell eingetragen' : 'WanderWizzard'}>
+          {sourceIcon}
+        </span>
+        <!-- Status badge -->
         <span class="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full"
           style="background:{badgeBg};color:rgba(255,255,255,.9)">
           {#if badgePulse}
@@ -94,13 +103,12 @@
           {/if}
           {badgeText}
         </span>
-
-        <!-- Delete moved to TripHub — no menu on cards -->
       </div>
     </div>
 
+    <!-- FIX: capitalize für Ortnamen -->
     <h3 class="font-bold text-base mt-2 leading-tight pr-2"
-      style="font-family:var(--ws-serif);color:#fff;text-shadow:0 1px 8px rgba(0,0,0,.45)">
+      style="font-family:var(--ws-serif);color:#fff;text-shadow:0 1px 8px rgba(0,0,0,.45);text-transform:capitalize">
       {tripTitle}
     </h3>
   </div>
@@ -123,21 +131,13 @@
     {/if}
   </div>
 
-  <!-- ── Action button ─────────────────────────────────────────────────────── -->
+  <!-- ── Action button — immer "Trip Hub →" ───────────────────────────────── -->
   <div class="px-5 pb-4">
-    {#if isNavigable}
-      <button onclick={() => ongoToHub(trip)}
-        class="w-full py-2 rounded-xl text-sm font-semibold transition-all hover:opacity-85 active:scale-[.98]"
-        style="background:var(--ws-accent);color:#fff5ec">
-        {actionBtnLabel}
-      </button>
-    {:else}
-      <!-- detected_trip — no TripHub, just show "Erlebt" label -->
-      <div class="w-full py-2 rounded-xl text-sm font-semibold text-center cursor-default"
-        style="background:var(--ws-surface);border:1px solid var(--ws-border);color:var(--ws-muted)">
-        ✓ {$t('tripCardExperienced') || 'ERLEBT'}
-      </div>
-    {/if}
+    <button onclick={() => ongoToHub(trip)}
+      class="w-full py-2 rounded-xl text-sm font-semibold transition-all hover:opacity-85 active:scale-[.98]"
+      style="background:var(--ws-accent);color:#fff5ec">
+      {$t('tripCardGoToHub') || 'Trip Hub →'}
+    </button>
   </div>
 
 </div>
