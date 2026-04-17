@@ -3,7 +3,8 @@
   import { api } from '$lib/api.js';
   import { apiUrl, settingsOpen, bucketlist, currentPage, activeMyTripsTab } from '$lib/stores.js';
   import { t } from '$lib/i18n.js';
-  import DestinationDetail from '$lib/components/dashboard/DestinationDetail.svelte';
+  import DestinationDetail  from '$lib/components/dashboard/DestinationDetail.svelte';
+  import PersonalityModal   from '$lib/components/dashboard/PersonalityModal.svelte';
 
   let {
     recentDawarich,
@@ -19,8 +20,9 @@
   let suggestions  = $state([]);
   let loadingSugg  = $state(false);
   let apiError        = $state('');
-  let detailOpen      = $state(false);
-  let detailSuggestion = $state(null);
+  let detailOpen           = $state(false);
+  let detailSuggestion      = $state(null);
+  let personalityModalOpen  = $state(false);
 
   const PANEL_GRADS = [
     'linear-gradient(135deg,#1a3a4a,#0f2a38)',
@@ -144,10 +146,11 @@
         🤖 {$t('inspoAiTitle')}
       </h2>
       <div class="flex items-center gap-2">
-        {#if !loadingSugg && suggestions.length > 0}
-          <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold"
-            style="background:rgba(196,98,45,.12);color:var(--ws-accent)">✨ {$t('inspoPersonalized')}</span>
-        {/if}
+        <button onclick={() => personalityModalOpen = true}
+          class="text-[10px] px-2 py-1 rounded-lg border transition-opacity hover:opacity-70 flex items-center gap-1"
+          style="border-color:var(--ws-border);color:var(--ws-accent);background:rgba(196,98,45,.08)">
+          🧭 Personalisieren
+        </button>
         <button onclick={refreshSuggestions} disabled={loadingSugg}
           class="text-[10px] px-2 py-1 rounded-lg border transition-opacity hover:opacity-70 disabled:opacity-30 flex items-center gap-1"
           style="border-color:var(--ws-border);color:var(--ws-muted);background:var(--ws-surface2)">
@@ -269,6 +272,13 @@
   bind:open={detailOpen}
   suggestion={detailSuggestion}
   onplan={(prefill) => onstartwizard(prefill)}
+/>
+
+<PersonalityModal
+  bind:open={personalityModalOpen}
+  onrefreshed={(data) => {
+    if (Array.isArray(data)) suggestions = data;
+  }}
 />
 
 </div>
