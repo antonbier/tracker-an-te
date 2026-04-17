@@ -176,11 +176,12 @@ class DiscoveryService:
         dest_label = f"{destination}, {country}" if country else destination
         system = ("Du bist ein Reise-Experte. Antworte NUR als JSON-Objekt. "
                   "Kein Markdown, keine Erklärung.")
+        _dest_q = "'" + dest_label + "'"
         user_msg = (
-            f"Beschreibe das Reiseziel \'{dest_label}\' detailliert. "
-            f"Nutzer-Profil: Reisestil={personality.travel_style or \'?\'}, "
-            f"Klima={personality.climate_pref or \'?\'}, "
-            f"Begleitung={personality.companions or \'?\'}. "
+            f"Beschreibe das Reiseziel {_dest_q} detailliert. "
+            f"Nutzer-Profil: Reisestil={personality.travel_style or chr(63)}, "
+            f"Klima={personality.climate_pref or chr(63)}, "
+            f"Begleitung={personality.companions or chr(63)}. "
             "Antworte als JSON mit: "
             "description (3-4 Saetze warum ideal fuer dieses Profil), "
             "things_to_do (Array mit 5-7 Aktivitaeten als kurze Strings), "
@@ -426,7 +427,7 @@ Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
     def _make_proxy_url(self, url: str) -> str:
         """Nur Immich-URLs durch Backend-Proxy schleusen (brauchen x-api-key).
         Unsplash-URLs werden DIREKT zurückgegeben — CDN akzeptiert nur Browser-Requests."""
-        return f"/api/discovery/image-proxy?url={quote(url, safe=\'\')}"
+        return "/api/discovery/image-proxy?url=" + quote(url, safe="")
 
     async def _get_image(self, user_id: int, defaults: TravelDefaults,
                           visited: list[str], destination: str) -> tuple:
