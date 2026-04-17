@@ -105,8 +105,15 @@ export async function loadSettingsFromBackend(baseUrl) {
     for (const [dbKey, lsKey] of Object.entries(map)) {
       if (s[dbKey]) localStorage.setItem(lsKey, s[dbKey]);
     }
-    if (s.language && s.language !== localStorage.getItem('lang')) {
-      lang.set(s.language);
+    // Backend-Sprache nur nutzen wenn der User noch NIE explizit eine Sprache gewählt hat.
+    // ws-lang ist der "explizit gesetzt"-Marker — lang/language sind Legacy-Keys vom Backend.
+    const userChoseLang = localStorage.getItem('ws-lang');
+    if (!userChoseLang && s.language) {
+      const supported = ['de', 'en', 'it', 'es'];
+      if (supported.includes(s.language)) {
+        lang.set(s.language);
+        localStorage.setItem('lang', s.language);
+      }
     }
     const health = await fetch(`${baseUrl.replace(/\/$/, '')}/health`);
     if (health.ok) {
