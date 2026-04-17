@@ -113,6 +113,16 @@
     journalTrips.filter(t => (t.start_date || '').slice(0, 4) === String(selectedYear))
   );
 
+  // Dedupliziert nach id (Dawarich kann mehrfache Einträge haben)
+  const archiveTripsDeduped = $derived.by(() => {
+    const seen = new Set();
+    return journalYear.filter(t => {
+      if (seen.has(t.id)) return false;
+      seen.add(t.id);
+      return true;
+    });
+  });
+
   // WS-trips that are archived (end_date < today) — shown in archive tab with TripHub link
   const archivedWsTrips = $derived(
     wsTrips.filter(t => {
@@ -657,21 +667,15 @@
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {#each [1,2,3] as _}<div class="rounded-2xl border p-5 animate-pulse h-40" style="background:var(--ws-surface2);border-color:var(--ws-border)"></div>{/each}
         </div>
-      {:else if journalYear.length === 0}
+      {:else if archiveTripsDeduped.length === 0}
         <div class="rounded-2xl border p-10 text-center" style="background:var(--ws-surface2);border-color:var(--ws-border)">
           <p class="text-4xl mb-3">📓</p>
           <p class="text-sm" style="color:var(--ws-muted)">{$t('archiveEmpty')}</p>
         </div>
       {:else if viewMode === 'list'}
-        <!-- List: nur detected_trips, dedupliziert nach id -->
-        {@const seenListIds = new Set()}
-        {@const dedupedListTrips = journalYear.filter(t => {
-          if (seenListIds.has(t.id)) return false;
-          seenListIds.add(t.id);
-          return true;
-        })}
+        <!-- List: detected_trips dedupliziert nach id -->
         <div class="rounded-2xl border overflow-hidden" style="border-color:var(--ws-border)">
-          {#each dedupedListTrips as trip, i}
+          {#each archiveTripsDeduped as trip, i}
             {@const srcIcon = trip.source === 'dawarich' ? '📡' : trip.source === 'manual' ? '✍️' : '🪄'}
             {@const label = trip.title || trip.destination || trip.location_name || trip.name || 'Reise'}
             <div class="flex items-center gap-4 px-5 py-3 transition-all hover:opacity-90 cursor-pointer {i > 0 ? 'border-t' : ''}"
@@ -694,17 +698,9 @@
           {/each}
         </div>
       {:else}
-        <!-- Archive grid: nur detected_trips (journalYear) — dawarich + manuell.
-             WS-Trip-Container werden via openOrCreateHub on-demand geöffnet.
-             Deduplizierung: innerhalb journalYear nach id (Dawarich kann Duplikate haben). -->
-        {@const seenIds = new Set()}
-        {@const dedupedJournalYear = journalYear.filter(t => {
-          if (seenIds.has(t.id)) return false;
-          seenIds.add(t.id);
-          return true;
-        })}
+        <!-- Archive grid: detected_trips dedupliziert nach id -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
-          {#each dedupedJournalYear as trip}
+          {#each archiveTripsDeduped as trip}
             <TripCard
               {trip}
               mode="planned"
