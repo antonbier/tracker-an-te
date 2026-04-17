@@ -12,6 +12,17 @@ Alle nennenswerten Änderungen am Projekt. Format basiert auf [Keep a Changelog]
 - **Dashboard-Routing Bucket List** (`TravelInspo.svelte`): Klick auf Bucket-List-Kachel setzt `activeMyTripsTab.set('bucketlist')` vor der Navigation zu MyTrips.
 - **Dashboard-Routing Listen-Buttons** (`CompactTripsList.svelte`): Generischer „Alle im Reisetagebuch"-Button ersetzt durch „Alle geplanten Reisen →" (setzt Tab auf `planned`) unter der Geplant-Liste und „Zum Archiv →" (setzt Tab auf `archive`) unter der Abgeschlossen-Liste.
 
+### Added — Block 5 Teil 2: TripHub Hero-Bilder & Unsplash-Caching
+
+- **DB-Migration** (`database.py`): Drei neue Spalten idempotent zu `ws_trips` hinzugefügt: `image_url TEXT DEFAULT NULL`, `image_author TEXT DEFAULT NULL`, `image_author_url TEXT DEFAULT NULL` — persistiert das gecachte Unsplash-Bild inkl. Fotografen-Credits direkt am Trip-Datensatz.
+- **Backend-Endpoint** (`routes/ws_trips.py`): `PATCH /api/ws-trips/{id}/image` — speichert `image_url`, `image_author` und `image_author_url` am Trip. Idempotenter Partial-Update, ignoriert `null`-Werte nicht (überschreibt bewusst für Reset-Möglichkeit).
+- **TripHub Hero-Bild** (`TripHub.svelte`): In allen 3 Phasen (Planning / Active / Archived) wird jetzt ein Unsplash-Bild im Hero angezeigt:
+  1. Ist `trip.image_url` gesetzt → gecachtes Bild sofort anzeigen (kein API-Call).
+  2. Kein Bild gecacht → `GET /api/discovery/trip-image?destination=...&source=unsplash` aufrufen.
+  3. Erhaltenes Bild sofort anzeigen UND per `PATCH /api/ws-trips/{id}/image` am Backend cachen (fire-and-forget).
+- **Unsplash Attribution** (`TripHub.svelte`): Dezentes, halbdurchsichtiges Overlay unten rechts im Hero: „Foto von [Autor] auf Unsplash". Links enthalten `?utm_source=wandersuite&utm_medium=referral` gemäß Unsplash API-Richtlinien.
+- **Bild-Skalierung**: Hero-`<img>` hat `absolute inset-0 w-full h-full object-cover` mit `.35` Opacity + `rgba(0,0,0,.45)` Overlay für Lesbarkeit des Textes.
+
 ### Fixed — Block 5 Teil 1
 
 - **Immich Zeitraum-Bilder** (`backend/discovery.py`, `routes/discovery.py`, `HeroPastTrip.svelte`): `GET /api/discovery/trip-image` akzeptiert jetzt `date_from` und `date_to` Query-Parameter; Backend leitet diese als `takenAfter`/`takenBefore` an die Immich Metadata-Search-API weiter. `HeroPastTrip` übergibt `start_date`/`end_date` des Trips.
