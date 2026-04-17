@@ -179,7 +179,6 @@ class ManualTripPayload(BaseModel):
     cost:          Optional[float] = None
     notes:         Optional[str] = None
 
-
 @router.post("")
 def create_manual_trip(data: ManualTripPayload, user=Depends(get_current_user)):
     end = data.end_date or data.start_date
@@ -195,8 +194,8 @@ def create_manual_trip(data: ManualTripPayload, user=Depends(get_current_user)):
         "end_date":      end,
         "location_name": data.name,
         "country":       data.country or "",
-        "lat":           None,
-        "lon":           None,
+        "lat":           data.lat if hasattr(data, "lat") else None,
+        "lon":           data.lon if hasattr(data, "lon") else None,
         "nights":        nights,
         "source":        "manual",
         "cost":          data.cost,
