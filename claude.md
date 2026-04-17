@@ -24,6 +24,24 @@ WanderSuite ist eine **selbst-gehostete KI-gestützte Travel-Hub-Anwendung**.
 
 ---
 
+## title vs. destination — Semantik (Block 7)
+
+In `ws_trips` gibt es zwei konzeptionell verschiedene Felder:
+
+| Feld | Bedeutung | Steuert |
+|------|-----------|---------|
+| `title` | Kosmetischer Anzeigename (optional, z.B. „Roadtrip 2025") | Nur UI-Anzeige |
+| `destination` | Geocodierter Ortname (z.B. „Barcelona, Spanien") | Wetter-Widget, Maps, Bildsuche |
+| `lat` / `lon` | Koordinaten aus Geocoder | Wetter-API, zukünftige Map-Features |
+
+**Fallback-Kette** (in TripCard, TripHub Hero, Dashboard):
+`title → destination → location_name → name → country`
+
+**Regel**: `title` darf `NULL` sein. `destination` ist das Pflichtfeld für alle Geo-Features.
+Alte Dawarich-Sync-Trips haben kein `title` — sie fallen sauber auf `destination` zurück.
+
+---
+
 ## 3-Phasen-Logik (Kernkonzept)
 
 Jede WS-Trip durchläuft drei Phasen — berechnet aus Datum, nicht aus DB-Status:
