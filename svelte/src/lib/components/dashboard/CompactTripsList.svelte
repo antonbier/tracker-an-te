@@ -1,5 +1,6 @@
 <script>
   import { t } from '$lib/i18n.js';
+  import { activeMyTripsTab } from '$lib/stores.js';
 
   let {
     upcoming,
@@ -112,6 +113,12 @@
           </button>
         {/if}
       </div>
+      <button onclick={() => { activeMyTripsTab.set('planned'); onnavto('mytrips'); }}
+        class="mt-2 w-full py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80 border"
+        style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-accent)">
+        🧳 {$t('dashAllPlanned') || 'Alle geplanten Reisen'} →
+      </button>
+      </div>
     {/if}
   </div>
 
@@ -148,10 +155,10 @@
       </div>
     {/if}
 
-    <button onclick={() => onnavto('mytrips')}
+    <button onclick={() => { activeMyTripsTab.set('archive'); onnavto('mytrips'); }}
       class="mt-3 w-full py-2 rounded-xl text-xs font-semibold transition-opacity hover:opacity-80 border"
       style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)">
-      {$t('dashAllJournal')} →
+      🗄️ {$t('dashToArchive') || 'Zum Archiv'} →
     </button>
   </div>
 
