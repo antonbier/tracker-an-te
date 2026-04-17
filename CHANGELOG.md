@@ -6,6 +6,18 @@ Alle nennenswerten Änderungen am Projekt. Format basiert auf [Keep a Changelog]
 
 ## [1.0.0-beta.1] — 2026-04-17
 
+### Added — Block 5 Teil 1: UX-Polish, Routing & Bugfixes
+
+- **i18n Browser-Language Fallback** (`stores.js`, `i18n.js`): App liest beim ersten Start `navigator.language` aus und nutzt Browser-Sprache sofern unterstützt (de/en/it/es), sonst `en` als sicherer Fallback. User-Wahl wird in `ws-lang` und `lang` im localStorage persistiert.
+- **Dashboard-Routing Bucket List** (`TravelInspo.svelte`): Klick auf Bucket-List-Kachel setzt `activeMyTripsTab.set('bucketlist')` vor der Navigation zu MyTrips.
+- **Dashboard-Routing Listen-Buttons** (`CompactTripsList.svelte`): Generischer „Alle im Reisetagebuch"-Button ersetzt durch „Alle geplanten Reisen →" (setzt Tab auf `planned`) unter der Geplant-Liste und „Zum Archiv →" (setzt Tab auf `archive`) unter der Abgeschlossen-Liste.
+
+### Fixed — Block 5 Teil 1
+
+- **Immich Zeitraum-Bilder** (`backend/discovery.py`, `routes/discovery.py`, `HeroPastTrip.svelte`): `GET /api/discovery/trip-image` akzeptiert jetzt `date_from` und `date_to` Query-Parameter; Backend leitet diese als `takenAfter`/`takenBefore` an die Immich Metadata-Search-API weiter. `HeroPastTrip` übergibt `start_date`/`end_date` des Trips.
+- **HeroSection Grid** (`HeroSection.svelte`): `sm:grid-cols-2` → `md:grid-cols-2` für korrektes 2-Kachel-Layout bei Tablet-Breakpoint.
+- **ScratchMap 401-Fehler** (`ScratchMap.svelte`): Geocoding-Funktion nutzt jetzt `api()`-Helper statt rohem `fetch()` → JWT-Token wird korrekt mitgesendet.
+
 ### Added — Block 1: Unsplash Attribution & PWA
 
 - **Unsplash Attribution**: `discovery.py` extrahiert `author_name` + `author_url` aus Unsplash-Response; `HeroNextTrip`, `TravelInspo`-Thumbnails und `DestinationDetail`-Galerie zeigen dezentes Foto-Attribution-Overlay (UTM-Links mit `?utm_source=wandersuite&utm_medium=referral`)
