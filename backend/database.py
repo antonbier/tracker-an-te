@@ -329,6 +329,7 @@ def init_db():
             ("homair_trackers",  "user_id INTEGER NOT NULL DEFAULT 1"),
             ("booking_trackers", "user_id INTEGER NOT NULL DEFAULT 1"),
             ("detected_trips",   "user_id INTEGER NOT NULL DEFAULT 1"),
+            ("ws_trips",          "source_detected_id INTEGER DEFAULT NULL"),
             ("trackers",         "threshold_price REAL DEFAULT NULL"),
             ("trackers",         "wish_price REAL DEFAULT NULL"),
             ("gf_trackers",      "wish_price REAL DEFAULT NULL"),
