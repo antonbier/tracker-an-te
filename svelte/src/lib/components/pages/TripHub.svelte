@@ -34,6 +34,85 @@
   let manualExpDraft   = $state('');
   let manualExpSaving  = $state(false);
 
+  // ── Trip-Edit-Modal (Block 7: kosmetischer Titel vs. Geo-Ort) ────────────
+  let editModal        = $state(false);
+  let editTitle        = $state('');
+  let editDest         = $state('');
+  let editLat          = $state(null);
+  let editLon          = $state(null);
+  let editSaving       = $state(false);
+  let geoQuery         = $state('');
+  let geoResults       = $state([]);
+  let geoLoading       = $state(false);
+  let geoDebounce      = null;
+
+  function openEditModal() {
+    editTitle  = trip.title        || '';
+    editDest   = trip.destination  || '';
+    editLat    = trip.lat          ?? null;
+    editLon    = trip.lon          ?? null;
+    geoQuery   = trip.destination  || '';
+    geoResults = [];
+    editModal  = true;
+  }
+
+  function closeEditModal() {
+    editModal  = false;
+    geoResults = [];
+    if (geoDebounce) clearTimeout(geoDebounce);
+  }
+
+  function onGeoInput(e) {
+    geoQuery = e.target.value;
+    // Wenn der Nutzer den Ort-Text ändert, Koordinaten invalidieren
+    editLat = null;
+    editLon = null;
+    editDest = geoQuery;
+    if (geoDebounce) clearTimeout(geoDebounce);
+    if (geoQuery.length < 2) { geoResults = []; return; }
+    geoDebounce = setTimeout(async () => {
+      geoLoading = true;
+      try {
+        const res = await api(`/api/settings/geocode?q=${encodeURIComponent(geoQuery)}`);
+        geoResults = res || [];
+      } catch { geoResults = []; }
+      geoLoading = false;
+    }, 350);
+  }
+
+  function selectGeoResult(result) {
+    editDest   = result.name || result.display_name || geoQuery;
+    editLat    = result.lat  ?? null;
+    editLon    = result.lon  ?? null;
+    geoQuery   = editDest;
+    geoResults = [];
+  }
+
+  async function saveEditModal() {
+    if (!editDest.trim()) return;
+    editSaving = true;
+    try {
+      const payload = { title: editTitle.trim() || null, destination: editDest.trim() };
+      if (editLat !== null) payload.lat = editLat;
+      if (editLon !== null) payload.lon = editLon;
+      await api(`/api/ws-trips/${trip.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      });
+      // Lokal aktualisieren ohne Reload (Soft-Update)
+      trip = {
+        ...trip,
+        title:       payload.title,
+        destination: payload.destination,
+        lat:         payload.lat  ?? trip.lat,
+        lon:         payload.lon  ?? trip.lon,
+      };
+      toast('✅ Reise aktualisiert', 'success');
+      closeEditModal();
+    } catch (e) { toast(e.message || 'Fehler', 'error'); }
+    editSaving = false;
+  }
+
   // ── Hero-Bild (Unsplash mit Caching + Attribution) ────────────────────────
   let heroImgUrl        = $state(null);
   let heroImgAuthor     = $state('');
