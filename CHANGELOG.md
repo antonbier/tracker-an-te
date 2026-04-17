@@ -6,36 +6,43 @@ Alle nennenswerten Änderungen am Projekt. Format basiert auf [Keep a Changelog]
 
 ## [1.0.0-beta.1] — 2026-04-17
 
-### Added
-- **Dashboard Hero 2-Kachel-Layout**: `HeroPastTrip.svelte` (Nostalgie, Immich-Bild, Reiselust-Modus >6 Monate) + `HeroNextTrip.svelte` (Countdown, Unsplash-Bild) — nebeneinander im Dashboard
-- **sessionStorage-Cache** für Hero-Bilder (Immich + Unsplash) — kein Reload bei Navigation
-- **Random-Trip + Refresh-Button** in Nostalgie-Kachel: shuffelt durch alle archivierten WS-Trips
-- **TravelInspo Nostalgie-Karte**: Refresh-Button (🔄) nach Content-Button im DOM verschoben (paint-order fix), `pr-9` gegen Text-Overlap
-- **Browser-Tab-Titel** "WanderSuite" in `app.html`
-- **Live-Datumsformat-Vorschau** in Settings BasicTab (`$derived` in Script, kein `{@const}`)
-- **@userinfobot Tipp** in NotificationsTab für einfache Telegram Chat-ID Ermittlung
-- **Familie gesplittet**: `family_kids` (👶) + `family_teens` (🧒) in allen 4 Sprachen
-- **WanderWizzard**: Hilfe-Button aus Header entfernt (Modal-Overlap), Währungsauswahl entfernt (fix EUR)
+### Added — Block 1: Unsplash Attribution & PWA
 
-### Fixed
-- **CSP** (`nginx.conf`): Unsplash, Picsum, Google Fonts (googleapis + gstatic), Open-Meteo erlaubt
-- **DOM-Warnings**: Password-Inputs in `<form>` gewrappt (Login + AccountTab), `mobile-web-app-capable` Meta-Tag
-- **401 bei Seitenstart**: `loadSettingsFromBackend()` sendet jetzt JWT-Header
-- **Dashboard Hero Reaktivität**: `wsTripsVersion`-Counter bumpt bei WanderWizzard-Close → `refreshKey`-Prop triggert Re-Load
-- **WanderWizzard IATA → Stadtname**: `pickDest()` speichert `a.city` statt `a.iata` als Trip-Destination
-- **PriceRadar**: Trip-Link-Dropdown aus Suchergebnis-Bereich entfernt; `✓ Gespeichert`-Feedback nach Save; Stops-Dropdown in Suchergebnissen (wie TrackerCard)
-- **Settings Alerts-Tab**: `tabLabels` von `$derived.by()` auf `$derived` umgestellt (Svelte-5-Reaktivitätsbug)
-- **Budget Widget "-0 €"**: Guard für `=== 0` in Barausgaben + On-Site-Budget
-- **TripHub Mobile**: Datum-Zeile auf `flex-col sm:flex-row` umgestellt; `break-words` für Checklisten-Todos
-- **DEIN_TOKEN ReferenceError**: `NotificationsTab.svelte` — Platzhalter `{DEIN_TOKEN}` durch Literal ersetzt
-- **Datumsformat global**: `fmtDate()` jetzt in TripCard, TripHub, BucketListTab, TrackerCard
-- **plannedEmpty**: "Reiseplaner starten" → "WanderWizzard starten" (de.json)
+- **Unsplash Attribution**: `discovery.py` extrahiert `author_name` + `author_url` aus Unsplash-Response; `HeroNextTrip`, `TravelInspo`-Thumbnails und `DestinationDetail`-Galerie zeigen dezentes Foto-Attribution-Overlay (UTM-Links mit `?utm_source=wandersuite&utm_medium=referral`)
+- **Image Scaling Fix**: `TravelInspo` Thumbnail-Wrapper mit `self-stretch`; alle Hero-Images haben `absolute inset-0 w-full h-full object-cover`
+- **PWA FOUC-Fix** (`app.html`): Inline-IIFE im `<head>` liest `localStorage('ws-theme')` und setzt `dark`-Klasse sofort vor dem Render — eliminiert weißes Aufblitzen
+- **Dual `theme-color`**: `<meta name="theme-color">` mit `media`-Query für Dark/Light (#0f172a / #f5ebe0)
+- **API Rate-Limit (429)**: `_openai_call()` und Unsplash werfen sauber `RuntimeError("api_rate_limit:*")` → HTTP 429 mit lesbarer Fehlermeldung ans Frontend
 
-### Changed
-- **HeroSection**: Monolithisch → orchestriert Sub-Komponenten; Budget-Widget als eigenständiger Block
-- **PriceRadar SearchResults**: `title`-Tooltip für lange Hotelnamen
+### Added — Block 2: Archiv-Refactoring & Trip-Quellen
 
----
+- **Unified Archive Timeline**: Archiv zeigt alle Trips chronologisch in einem Grid — keine Gruppierung nach Typ mehr
+- **Source-Badge** auf `TripCard`: `📡` Dawarich · `✍️` Manuell · `🪄` WanderWizzard
+- **Geocoding im Add-Modal**: `onblur` auf Ortsfeld → `GET /api/settings/geocode` → `lat/lon` werden mit gespeichert (Karte + Wetter-Widget)
+- **Einheitlicher CTA**: Alle Archiv-Karten haben „Trip Hub →"-Button; `⋮`-Menü entfernt
+- **On-the-fly TripHub-Container**: Klick auf Dawarich/Manuelle Karte erstellt bei Bedarf automatisch einen `ws_trips`-Container (`source_detected_id`-Verknüpfung)
+- **Dawarich Force-Full Checkbox** im Archiv-Admin-Bar: „Gelöschte Reisen erneut laden" setzt `ignored=0` vor dem Sync
+- **3-Wege-Löschlogik** (`DELETE /api/ws-trips/{id}`): Typ A (Dawarich) → Soft-Delete `ignored=1`; Typ B (Manuell) → Hard-Delete; Typ C (WanderWizzard) → vollständiger Hard-Delete
+
+### Fixed — Block 2
+
+- **Duplikat-Trips im Archiv**: `list_detected_trips()` dedupliziert Python-seitig nach `(start_date, end_date, location_name, user_id)` — behebt 4x-Anzeige durch Dawarich-Mehrfachimporte
+- **Leere Titel (`—`)**: `location_name`-Fallback auf `country` im Backend + in `TripCard` `location_name` an erster Stelle der Fallback-Kette
+- **`SyntaxError` in `discovery.py`**: Ungültige Backslash-Escapes in f-Strings entfernt (`\'?\'` → `chr(63)`); `_make_proxy_url` ohne f-String-Backslash
+- **SQLite Binding-Fehler (`database.py`)**: `list_detected_trips`-Subquery-Ansatz durch Python-seitiges Dedup ersetzt → `ProgrammingError: Incorrect number of bindings` behoben
+
+### Added — Block 3: Finanz-Upgrade
+
+- **`POST /api/ws-trips/{id}/sync-budget`**: Holt ActualBudget-Transaktionen im Reisezeitraum (`start_date`–`end_date`), filtert nach Travel-Kategorien aus Settings, speichert `synced_expenses` + `synced_transactions_json` + `synced_at` in `ws_trips`
+- **Budget-Breakdown erweitert**: `GET /api/ws-trips/{id}/budget` liefert jetzt `synced_expenses`, `synced_transactions`, `synced_at`, `remaining`, `total_spent`
+- **`BudgetWidget.svelte` Redesign** — 4 klare Finanz-Säulen:
+  1. Gesamtbudget (editierbar via ✏️)
+  2. Gebuchte Kosten (Tracker: Flug + Hotel, aufklappbar)
+  3. Manuelle Ausgaben (inline editierbar)
+  4. ActualBudget Synced (ausklappbar Akkordeon mit Transaktionsliste, 🔄 Sync-Button, ↗ Link)
+- **Progress Bar** mit Color-Coding: Grün (≤85%), Orange (85–100%), Rot (>100% / überschritten)
+- **DB-Migrationen**: `synced_expenses REAL`, `synced_transactions_json TEXT`, `synced_at TEXT` zu `ws_trips`
+
 
 ## [0.9.0] — 2026-04 (QA & Security Sprint)
 
