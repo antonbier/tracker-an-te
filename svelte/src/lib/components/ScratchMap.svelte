@@ -31,16 +31,12 @@
     if (cached) return cached;
     await new Promise(r => setTimeout(r, 600));
     try {
-      // Use backend proxy to avoid CORS issues on HTTPS
-      const base = $apiUrl || '';
-      const res = await fetch(`${base}/api/settings/geocode?q=${encodeURIComponent(name)}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.length > 0) {
-          const c = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
-          setCached(name, c);
-          return c;
-        }
+      // Use api() helper — sendet automatisch JWT-Token
+      const data = await api(`/api/settings/geocode?q=${encodeURIComponent(name)}`);
+      if (Array.isArray(data) && data.length > 0) {
+        const c = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+        setCached(name, c);
+        return c;
       }
     } catch {}
     return null;
