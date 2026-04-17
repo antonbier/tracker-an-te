@@ -44,15 +44,30 @@ async def get_suggestions(
         raise
 
 
+from pydantic import BaseModel
+
+class TemporaryPersonality(BaseModel):
+    travel_style:   str | None = None
+    climate_pref:   str | None = None
+    landscape_pref: str | None = None
+    companions:     str | None = None
+    wish_text:      str | None = None
+    travel_mode:    str | None = None
+    max_travel_time: str | None = None
+
+
 @router.post("/refresh")
 async def refresh_suggestions(
     count: int = Query(default=6, ge=1, le=12),
+    payload: TemporaryPersonality | None = None,
     user: dict = Depends(get_current_user),
 ):
-    """Pool leeren + neu befüllen."""
-    try:
+    """Pool leeren + neu befüllen. Optionaler Payload überschreibt Personality temporär (ohne DB-Speicherung)."""    try:
         discovery_pool_clear(user["id"])
-        await discovery_service.background_refresh_suggestions(user["id"], batch=count)
+        await discovery_service.background_refresh_suggestions(
+            user["id"], batch=count,
+            temp_personality=payload.model_dump(exclude_none=True) if payload else None
+        )
         suggestions = await discovery_service.get_suggestions(user["id"], count=count)
         return [_serialize(s) for s in suggestions]
     except RuntimeError as e:
