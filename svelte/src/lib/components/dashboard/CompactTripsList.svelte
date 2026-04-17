@@ -16,26 +16,31 @@
     onnavto,
   } = $props();
 
-  // Merge completed localStorage trips + recent Dawarich for display
-  const pastItems = $derived.by(() => {
-    const lsItems = completed.slice(0, 2).map(t => ({
-      name:  t.name,
-      date:  t.dateStart || t.date || '',
-      cost:  t.cost ? parseFloat(t.cost) : null,
-      src:   'planned',
-    }));
-    const dwItems = recentDawarich.slice(0, 3).map(t => ({
-      name:  t.location_name || t.country || '?',
-      date:  t.start_date || '',
-      cost:  null,
-      nights: t.nights,
-      src:   'dawarich',
-    }));
-    // Merge, deduplicate by date prefix
-    const seen = new Set(lsItems.map(i => i.date.slice(0, 7)));
-    const filtered = dwItems.filter(i => !seen.has(i.date.slice(0, 7)));
-    return [...lsItems, ...filtered].slice(0, 4);
-  });
+  // Source-Icon für alle Trip-Typen
+  function srcIcon(trip) {
+    if (trip.source === 'dawarich') return '📡';
+    if (trip.source === 'manual')   return '✍️';
+    return '🪄';  // ws_trips / WanderWizzard
+  }
+
+  // Titel: ws_trips haben title/destination, detected_trips haben location_name
+  function tripLabel(trip) {
+    return trip.title || trip.destination || trip.location_name || trip.name || '—';
+  }
+
+  // Datum: ws_trips haben start_date, detected_trips auch
+  function tripDate(trip) {
+    return trip.start_date || trip.dateStart || trip.date || '';
+  }
+
+  // Kosten aus ws_trips
+  function tripCost(trip) {
+    const booked = parseFloat(trip.booked_flight||0) + parseFloat(trip.booked_hotel||0);
+    const manual = parseFloat(trip.manual_expenses||0);
+    const synced = parseFloat(trip.synced_expenses||0);
+    const total  = booked + manual + synced;
+    return total || parseFloat(trip.budget||0) || parseFloat(trip.cost||0) || null;
+  }
 </script>
 
 <div class="rounded-xl border overflow-hidden" style="background:var(--ws-surface);border-color:var(--ws-border)">
@@ -72,7 +77,7 @@
     </div>
   {/if}
 
-  <!-- Upcoming trips -->
+  <!-- Geplante Reisen: alle Typen (📡 / ✍️ / 🪄) -->
   <div class="p-4 border-b" style="border-color:var(--ws-border)">
     <div class="flex items-center justify-between mb-2">
       <h2 class="text-xs font-bold uppercase tracking-widest" style="color:var(--ws-muted)">{$t('dashUpcoming')}</h2>
@@ -86,16 +91,17 @@
       <p class="text-xs py-3 text-center" style="color:var(--ws-muted)">{$t('dashNoUpcoming')}</p>
     {:else}
       <div class="space-y-1.5">
-        {#each upcoming.slice(0, 3) as tr}
+        {#each upcoming.slice(0, 3) as trip}
           <div class="flex items-center gap-2 p-2 rounded-lg" style="background:var(--ws-surface2)">
-            <span class="text-base shrink-0">✈️</span>
+            <span class="text-base shrink-0">{srcIcon(trip)}</span>
             <div class="flex-1 min-w-0">
-              <div class="text-sm font-semibold truncate" style="font-family:var(--ws-serif);color:var(--ws-text)">{tr.name}</div>
-              <div class="text-xs font-mono" style="color:var(--ws-muted)">{tr.dateStart || tr.date}</div>
+              <div class="text-sm font-semibold truncate capitalize"
+                style="font-family:var(--ws-serif);color:var(--ws-text)">{tripLabel(trip)}</div>
+              <div class="text-xs font-mono" style="color:var(--ws-muted)">{tripDate(trip)}</div>
             </div>
-            {#if tr.cost}
+            {#if tripCost(trip)}
               <div class="text-sm font-bold font-mono shrink-0" style="color:var(--ws-accent2)">
-                {parseFloat(tr.cost).toFixed(0)} €
+                {tripCost(trip).toFixed(0)} €
               </div>
             {/if}
           </div>
@@ -109,35 +115,33 @@
     {/if}
   </div>
 
-  <!-- Past / Dawarich trips -->
+  <!-- Abgeschlossene Reisen: alle Typen (📡 / ✍️ / 🪄) -->
   <div class="p-4">
     <div class="flex items-center justify-between mb-2">
       <h2 class="text-xs font-bold uppercase tracking-widest" style="color:var(--ws-muted)">{$t('dashCompleted')}</h2>
     </div>
 
-    {#if pastItems.length === 0}
+    {#if completed.length === 0}
       <p class="text-xs py-3 text-center" style="color:var(--ws-muted)">{$t('dashNoCompleted')}</p>
     {:else}
       <div class="space-y-1.5">
-        {#each pastItems as item}
+        {#each completed.slice(0, 4) as trip}
           <div class="flex items-center gap-2 p-2 rounded-lg opacity-85" style="background:var(--ws-surface2)">
-            <span class="text-base shrink-0">{item.src === 'dawarich' ? '📍' : '✅'}</span>
+            <span class="text-base shrink-0">{srcIcon(trip)}</span>
             <div class="flex-1 min-w-0">
-              <div class="text-sm font-semibold truncate" style="font-family:var(--ws-serif);color:var(--ws-text)">{item.name}</div>
-              <div class="flex items-center gap-1.5">
-                <span class="text-xs font-mono" style="color:var(--ws-muted)">{item.date}</span>
-                {#if item.nights}
-                  <span class="text-xs" style="color:var(--ws-muted)">· {item.nights}N</span>
-                {/if}
-              </div>
+              <div class="text-sm font-semibold truncate capitalize"
+                style="font-family:var(--ws-serif);color:var(--ws-text)">{tripLabel(trip)}</div>
+              <div class="text-xs font-mono" style="color:var(--ws-muted)">{tripDate(trip)}</div>
             </div>
-            {#if item.cost != null}
+            {#if tripCost(trip)}
               <div class="text-sm font-bold font-mono shrink-0" style="color:var(--ws-muted)">
-                {item.cost.toFixed(0)} €
+                {tripCost(trip).toFixed(0)} €
               </div>
-            {:else if item.src === 'dawarich'}
+            {:else}
               <span class="text-[10px] px-1.5 py-0.5 rounded-full shrink-0"
-                style="background:rgba(196,98,45,.1);color:var(--ws-accent)">GPS</span>
+                style="background:rgba(196,98,45,.1);color:var(--ws-accent)">
+                {trip.source === 'dawarich' ? 'GPS' : trip.nights ? trip.nights + 'N' : '—'}
+              </span>
             {/if}
           </div>
         {/each}
