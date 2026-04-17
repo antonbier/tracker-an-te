@@ -323,7 +323,19 @@
   }
 
   // ── Overview derived ───────────────────────────────────────────────────────
-  const totalSpentYear = $derived(journalSpentYear);
+  // totalSpentYear: detected_trips (journalYear) + ws_trips des Jahres
+  const wsSpentYear = $derived.by(() =>
+    wsTrips
+      .filter(t => (t.start_date||'').slice(0,4) === String(selectedYear))
+      .reduce((s, t) => {
+        const booked = (parseFloat(t.booked_flight||0) + parseFloat(t.booked_hotel||0));
+        const manual = parseFloat(t.manual_expenses||0);
+        const synced = parseFloat(t.synced_expenses||0);
+        // Falls kein explizites Budget-Tracking → nutze budget als Proxy
+        return s + booked + manual + synced;
+      }, 0)
+  );
+  const totalSpentYear = $derived(journalSpentYear + wsSpentYear);
   const remainingYear  = $derived(Math.max(0, yearBudget - totalSpentYear));
   const pctYear        = $derived(yearBudget > 0 ? Math.min(100, (totalSpentYear / yearBudget) * 100) : 0);
   const overBudget     = $derived(yearBudget > 0 && totalSpentYear > yearBudget);
@@ -449,13 +461,16 @@
           </button>
         {/each}
       </div>
-      <!-- Stats row -->
+      <!-- Stats row: ws_trips als einheitliche Zählquelle -->
+      {@const allTripsTotal = wsTrips.length}
+      {@const allTripsYear  = wsTrips.filter(t => (t.start_date||'').slice(0,4) === String(selectedYear)).length}
+      {@const bucketOpen    = $bucketlist.filter(b => !b.done).length}
       <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
         {#each [
-          ['🗺️', journalTrips.length, 'Reisen gesamt'],
-          ['📅', journalYear.length, `Reisen ${selectedYear}`],
-          ['💶', yearBudget > 0 ? remainingYear.toFixed(0) + ' €' : '—', 'Budget frei'],
-          ['🌟', $bucketlist.filter(b=>!b.done).length, 'Wunschziele'],
+          ['🗺️', allTripsTotal,                                              'Reisen gesamt'],
+          ['📅', allTripsYear,                                               `Reisen ${selectedYear}`],
+          ['💶', yearBudget > 0 ? remainingYear.toFixed(0) + ' €' : '—',   'Budget frei'],
+          ['🌟', bucketOpen,                                                 'Wunschziele'],
         ] as [icon, val, label]}
           <div class="rounded-xl border p-4 text-center" style="background:var(--ws-surface2);border-color:var(--ws-border)">
             <div class="text-2xl mb-1">{icon}</div>
@@ -493,7 +508,7 @@
       <!-- World map -->
       <div class="rounded-xl border overflow-hidden" style="border-color:var(--ws-border)">
         {#key mapRefreshKey}
-        <ScratchMap journalTrips={journalYear} plannedTrips={[]} selectedYear={String(selectedYear)} />
+        <ScratchMap journalTrips={journalYear} plannedTrips={[]} selectedYear={String(selectedYear)} refreshKey={mapRefreshKey} />
       {/key}
       </div>
     </div>
