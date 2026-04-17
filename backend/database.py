@@ -1086,7 +1086,7 @@ def list_detected_trips(user_id: int | None = None,
                          include_ignored: bool = False,
                          limit: int = 500) -> list[dict]:
     """Returns deduplicated trips: one entry per (start_date, end_date, location_name).
-    Keeps the row with MAX(id) (newest import) per logical trip.
+    Dedup done in Python to avoid SQLite subquery binding complexity.
     Also enriches empty location_name with country as fallback.
     """
     with db() as conn:
@@ -1098,31 +1098,34 @@ def list_detected_trips(user_id: int | None = None,
         if not include_ignored:
             where_parts.append("(ignored IS NULL OR ignored=0)")
         where = ("WHERE " + " AND ".join(where_parts)) if where_parts else ""
-        # Deduplicate by (start_date, end_date, COALESCE(location_name,''), user_id)
-        # Keep the row with MAX(id) per group (most complete import)
         rows = conn.execute(
-            f"""SELECT dt.*
-                 FROM detected_trips dt
-                 INNER JOIN (
-                     SELECT MAX(id) as max_id
-                     FROM detected_trips
-                     {where}
-                     GROUP BY start_date, end_date,
-                              COALESCE(NULLIF(TRIM(location_name),''), country, ''),
-                              user_id
-                 ) dedup ON dt.id = dedup.max_id
-                 ORDER BY dt.start_date DESC
-                 LIMIT ?""",
-            params + params + [limit]
+            f"SELECT * FROM detected_trips {where} ORDER BY id DESC LIMIT ?",
+            params + [limit * 10]   # fetch more to allow dedup
         ).fetchall()
+
+    # Deduplicate in Python: keep first seen (highest id) per logical key
+    seen: dict = {}
     result = []
     for r in rows:
         d = dict(r)
-        # Fallback: wenn location_name leer/'-', nutze country
+        # Normalise location_name / country fallback
         name = (d.get("location_name") or "").strip()
         if not name or name == "-":
             d["location_name"] = (d.get("country") or "").strip() or None
-        result.append(d)
+        key = (
+            d.get("start_date", ""),
+            d.get("end_date", ""),
+            (d.get("location_name") or d.get("country") or "").lower().strip(),
+            d.get("user_id", 0),
+        )
+        if key not in seen:
+            seen[key] = True
+            result.append(d)
+        if len(result) >= limit:
+            break
+
+    # Re-sort by start_date DESC (was ordered by id DESC above)
+    result.sort(key=lambda x: x.get("start_date") or "", reverse=True)
     return result
 
 
