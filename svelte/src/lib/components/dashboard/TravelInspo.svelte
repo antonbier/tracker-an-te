@@ -227,7 +227,7 @@
             style="background:var(--ws-surface2);border:1px solid var(--ws-border)">
 
             <!-- Thumbnail -->
-            <div class="relative w-28 sm:w-36 shrink-0 overflow-hidden"
+            <div class="relative w-28 sm:w-36 shrink-0 overflow-hidden self-stretch"
               style="background:{PANEL_GRADS[i % 3]};min-height:96px">
               {#if sugg.image_url}
                 <img src={sugg.image_url} alt={sugg.destination}
@@ -236,9 +236,19 @@
               {:else}
                 <div class="absolute inset-0 flex items-center justify-center text-4xl opacity-30">🌍</div>
               {/if}
+              <!-- Attribution badge -->
               {#if sugg.image_source === 'immich'}
                 <span class="absolute bottom-1 left-1 text-[8px] px-1 py-0.5 rounded"
                   style="background:rgba(0,0,0,.6);color:rgba(255,255,255,.7)">📸</span>
+              {:else if sugg.image_source === 'unsplash' && sugg.unsplash_author_name}
+                {@const utm = '?utm_source=wandersuite&utm_medium=referral'}
+                <a href={sugg.unsplash_author_url ? sugg.unsplash_author_url + utm : 'https://unsplash.com' + utm}
+                  target="_blank" rel="noopener noreferrer"
+                  onclick={(e) => e.stopPropagation()}
+                  class="absolute bottom-1 left-1 text-[8px] px-1 py-0.5 rounded leading-tight hover:opacity-80"
+                  style="background:rgba(0,0,0,.6);color:rgba(255,255,255,.7);max-width:calc(100% - 4px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block">
+                  📷 {sugg.unsplash_author_name}
+                </a>
               {:else if sugg.image_source === 'unsplash'}
                 <span class="absolute bottom-1 left-1 text-[8px] px-1 py-0.5 rounded"
                   style="background:rgba(0,0,0,.6);color:rgba(255,255,255,.7)">🖼️</span>
