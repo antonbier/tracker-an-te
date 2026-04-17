@@ -425,6 +425,7 @@
         bind:manualExpDraft
         {manualExpSaving}
         onsaveManualExp={saveManualExp}
+        onreloadBudget={() => loadBudget(trip.id)}
       />
 
       <!-- Phase-specific placeholders -->
