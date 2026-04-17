@@ -130,10 +130,22 @@
               </div>
             {/if}
 
-            <!-- Source badge -->
+            <!-- Source / Attribution badge -->
             {#if allImages[activeImg]?.source === 'unsplash'}
-              <span class="absolute top-3 right-3 text-[9px] px-1.5 py-0.5 rounded"
-                style="background:rgba(0,0,0,.5);color:rgba(255,255,255,.7)">🖼️ Unsplash</span>
+              {@const utm = '?utm_source=wandersuite&utm_medium=referral'}
+              {@const aName = allImages[activeImg]?.author_name || ''}
+              {@const aHref = allImages[activeImg]?.author_url  || 'https://unsplash.com'}
+              <div class="absolute bottom-2 right-2 z-20 text-[9px] px-1.5 py-0.5 rounded leading-tight"
+                style="background:rgba(0,0,0,.5);color:rgba(255,255,255,.65)">
+                {#if aName}
+                  Foto von
+                  <a href={aHref + utm} target="_blank" rel="noopener noreferrer"
+                    class="underline hover:opacity-90" style="color:rgba(255,255,255,.8)">{aName}</a>
+                  auf
+                {/if}
+                <a href={'https://unsplash.com' + utm} target="_blank" rel="noopener noreferrer"
+                  class="underline hover:opacity-90" style="color:rgba(255,255,255,.8)">Unsplash</a>
+              </div>
             {:else if allImages[activeImg]?.source === 'immich'}
               <span class="absolute top-3 right-3 text-[9px] px-1.5 py-0.5 rounded"
                 style="background:rgba(0,0,0,.5);color:rgba(255,255,255,.7)">📸 Immich</span>
