@@ -663,13 +663,15 @@
           <p class="text-sm" style="color:var(--ws-muted)">{$t('archiveEmpty')}</p>
         </div>
       {:else if viewMode === 'list'}
-        <!-- Unified list: alle Trips chronologisch -->
-        {@const allListTrips = [
-          ...archivedWsTrips.filter(t => (t.start_date||'').slice(0,4)===String(selectedYear)),
-          ...journalYear,
-        ].sort((a, b) => (b.start_date||'').localeCompare(a.start_date||''))}
+        <!-- List: nur detected_trips, dedupliziert nach id -->
+        {@const seenListIds = new Set()}
+        {@const dedupedListTrips = journalYear.filter(t => {
+          if (seenListIds.has(t.id)) return false;
+          seenListIds.add(t.id);
+          return true;
+        })}
         <div class="rounded-2xl border overflow-hidden" style="border-color:var(--ws-border)">
-          {#each allListTrips as trip, i}
+          {#each dedupedListTrips as trip, i}
             {@const srcIcon = trip.source === 'dawarich' ? '📡' : trip.source === 'manual' ? '✍️' : '🪄'}
             {@const label = trip.title || trip.destination || trip.location_name || trip.name || 'Reise'}
             <div class="flex items-center gap-4 px-5 py-3 transition-all hover:opacity-90 cursor-pointer {i > 0 ? 'border-t' : ''}"
@@ -692,14 +694,17 @@
           {/each}
         </div>
       {:else}
-        <!-- Unified archive grid: alle Trip-Arten chronologisch sortiert, keine Gruppierung -->
-        {@const allArchiveTrips = [
-          ...archivedWsTrips
-            .filter(t => (t.start_date||'').slice(0,4)===String(selectedYear)),
-          ...journalYear,
-        ].sort((a, b) => (b.start_date||'').localeCompare(a.start_date||''))}
+        <!-- Archive grid: nur detected_trips (journalYear) — dawarich + manuell.
+             WS-Trip-Container werden via openOrCreateHub on-demand geöffnet.
+             Deduplizierung: innerhalb journalYear nach id (Dawarich kann Duplikate haben). -->
+        {@const seenIds = new Set()}
+        {@const dedupedJournalYear = journalYear.filter(t => {
+          if (seenIds.has(t.id)) return false;
+          seenIds.add(t.id);
+          return true;
+        })}
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
-          {#each allArchiveTrips as trip}
+          {#each dedupedJournalYear as trip}
             <TripCard
               {trip}
               mode="planned"
