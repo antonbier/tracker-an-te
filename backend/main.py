@@ -127,6 +127,27 @@ app.add_middleware(
     max_age=3600,
 )
 
+
+# ── SEC-BUG 2: Security-Headers Middleware ────────────────────────────────────
+# X-XSS-Protection fehlte bisher; alle anderen Headers zur Sicherheit
+# ebenfalls hier zentral gesetzt, damit kein Nginx-Config-Drift entsteht.
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request as _Request
+from starlette.responses import Response as _Response
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: _Request, call_next):
+        response: _Response = await call_next(request)
+        response.headers["X-XSS-Protection"]       = "1; mode=block"
+        response.headers["X-Content-Type-Options"]  = "nosniff"
+        response.headers["X-Frame-Options"]         = "DENY"
+        response.headers["Referrer-Policy"]         = "strict-origin-when-cross-origin"
+        return response
+
+
+app.add_middleware(SecurityHeadersMiddleware)
+
 app.include_router(trackers.router,            prefix="/api/trackers",         tags=["Ryanair"])
 app.include_router(prices.router,              prefix="/api/prices",           tags=["Prices"])
 app.include_router(google_flights.router,      prefix="/api/google-flights",   tags=["Google Flights"])
