@@ -275,9 +275,8 @@
       await api(endpoints[tracker._type], { method: 'POST' });
       toast(get(t)('radarUpdatePrice') + ' ✓', 'success');
 
-      // ── Reaktivitäts-Fix (Block 7) ─────────────────────────────────────────
-      // loadAllTrackers() ersetzt allTrackers komplett → neue Array-Referenz.
-      // Svelte 5 rendert jede TrackerCard neu, weil tr-Prop ein neues Objekt ist.
+      // Reaktivitäts-Fix: loadAllTrackers() ersetzt Array komplett → Svelte rendert neu.
+      // Wichtig: loadAllTrackers MUSS nach dem Scrape kommen damit current_price frisch ist.
       await loadAllTrackers();
 
       // Chart-History immer aktualisieren (offen oder nicht), damit beim
@@ -295,7 +294,19 @@
         chartState[key] = { open: wasOpen, loading: false, history: chartState[key]?.history || [] };
         chartState = { ...chartState };
       }
-    } catch (e) { toast(e.message, 'error'); }
+    } catch (e) {
+      // Strukturierte Fehler aus BUG 3-Fix: {error, message}
+      const detail = (typeof e?.detail === 'object') ? e.detail : null;
+      if (detail?.error === 'missing_api_key') {
+        toast('⚠️ API-Key fehlt — Einstellungen → Provider prüfen', 'error');
+      } else if (detail?.error === 'provider_unavailable') {
+        toast('⚠️ Anbieter nicht verfügbar — später erneut versuchen', 'error');
+      } else {
+        toast(e.message || 'Preisabfrage fehlgeschlagen', 'error');
+      }
+      // Auch bei Fehler: UI-State nicht nullen — bestehende Preise behalten
+      // loadAllTrackers() NICHT aufrufen da kein neuer Preis vorhanden
+    }
   }
 
   async function saveWishPrice(type, id, table, newPrice) {
@@ -332,17 +343,37 @@
   async function refreshAllTrackers() {
     if (isRefreshing) return;
     isRefreshing = true;
-    try {
-      await api('/api/scheduler/run', { method: 'POST' });
-      toast('⏳ Alle Tracker werden aktualisiert… dauert 1–2 Min.', 'warning');
-      setTimeout(async () => {
-        await loadAllTrackers();
-        isRefreshing = false;
-      }, 90000);
-    } catch (e) {
-      toast(e.message, 'error');
+    const endpoints = {
+      flight:        (id) => `/api/trackers/${id}/scrape`,
+      google_flight: (id) => `/api/google-flights/${id}/scrape`,
+      camping:       (id) => `/api/accommodations/homair/${id}/scrape`,
+      hotel:         (id) => `/api/accommodations/booking/${id}/scrape`,
+    };
+    const toScrape = allTrackers.filter(tr => endpoints[tr._type]);
+    if (toScrape.length === 0) {
+      toast('Keine aktiven Tracker', 'warning');
       isRefreshing = false;
+      return;
     }
+    toast(`⏳ ${toScrape.length} Tracker werden aktualisiert…`, 'warning');
+    let ok = 0, fail = 0;
+    for (const tr of toScrape) {
+      try {
+        await api(endpoints[tr._type](tr.id), { method: 'POST' });
+        ok++;
+      } catch (e) {
+        // 422 = kein API-Key oder Scraper-Fehler — kein Crash, weitermachen
+        const detail = e?.detail || {};
+        if (detail.error === 'missing_api_key') {
+          toast(`⚠️ ${tr._type} #${tr.id}: API-Key fehlt`, 'error');
+        }
+        fail++;
+      }
+    }
+    // Einmal neu laden nach allen Scrapes — UI bekommt frische Werte
+    await loadAllTrackers();
+    isRefreshing = false;
+    toast(`✅ ${ok} aktualisiert${fail > 0 ? ` · ${fail} Fehler` : ''}`, ok > 0 ? 'success' : 'error');
   }
 
   // ── Link tracker to trip ─────────────────────────────────────────────────
