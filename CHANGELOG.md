@@ -6,6 +6,12 @@ Alle nennenswerten Änderungen am Projekt. Format basiert auf [Keep a Changelog]
 
 ## [1.0.0-beta.1] — 2026-04-20
 
+### Fixed — NEU-BUG A/B/C
+
+- **NEU-BUG A — is_booked/booked_price ignoriert** (`routes/trackers.py`): `TrackerUpdate`-Modell um `is_booked: Optional[int]` und `booked_price: Optional[float]` erweitert. PATCH-Handler berücksichtigt jetzt `is_booked=0` (Buchung zurücksetzen) explizit — war vorher durch `if v is not None`-Filter ausgeschlossen. Wenn `booked_price` ohne `is_booked` gesendet wird, wird `is_booked=1` implizit gesetzt.
+- **NEU-BUG B — manual_expenses per PATCH nicht setzbar** (`routes/ws_trips.py`): `WsTripUpdate`-Modell um `manual_expenses: Optional[float]` ergänzt. Das Feld war bisher nicht im Modell → wurde nie in den `updates`-Dict übernommen → Budget-Widget konnte nicht persistent speichern.
+- **NEU-BUG C — Scheduler Run ohne Schutz** (`routes/scheduler.py`): In-Memory Cooldown (5 Minuten pro User) auf `POST /api/scheduler/run`. HTTP 429 mit `Retry-After`-Header bei zu häufigen Aufrufen. Run bleibt user-scoped (`run_all_trackers(uid)`) — kein Admin-Zwang, da jeder User nur seine eigenen Tracker scannt.
+
 ### Fixed — API-Findings Zusatz (API-BUG 1–2, NEU-BUG 1–6, D1–D3)
 
 - **API-BUG 1 — PATCH /todos/{id}** (`routes/ws_trips.py`): Neuer `PATCH /api/ws-trips/{trip_id}/todos/{todo_id}` Endpoint akzeptiert `is_done` (0/1), `task` und `due_date` direkt. Ergänzt den bestehenden `/toggle`-Endpoint. `TodoUpdate`-Modell um `is_done` und `task` erweitert. Validierung: `is_done ∈ {0,1}`, `task` nicht leer, HTML-sanitized.
