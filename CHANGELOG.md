@@ -4,6 +4,26 @@ Alle nennenswerten Änderungen am Projekt. Format basiert auf [Keep a Changelog]
 
 ---
 
+## [1.0.0-beta.1] — 2026-04-20
+
+### Added — Block 8: Settings-Polish, Date-Logic & Tracker-Fix
+
+- **Test-Buttons für Alerts** (`NotificationsTab.svelte`): Telegram- und Gotify-Sektionen haben jetzt je einen „🚀 Testnachricht"-Button. Der Button ist deaktiviert solange die nötigen Credentials (Token + Chat-ID bzw. URL + App-Token) nicht ausgefüllt sind. Nutzt die bereits vorhandenen Endpoints `POST /api/notifications/test-telegram` und `POST /api/notifications/test-gotify`.
+- **Home Airport Autocomplete** (`MyspaceDefaults.svelte`): Das IATA-Eingabefeld unter Reisedefaults → Logistik hat jetzt Autocomplete aus `airports.json` (476 Einträge). Ab 2 Zeichen erscheint ein Dropdown mit passendem IATA-Code, Airportname und Stadt. Auswahl setzt `homeAirport` direkt.
+- **Scheduler i18n** (`SchedulerTab.svelte`): Intervall-Buttons zeigen jetzt übersetzte Labels via i18n-Keys (`schedEvery6h` … `schedEveryWeek`) statt hartcodierter `h/d`-Kürzel. Sektionsüberschriften, Checkboxen, Buttons alle via `$t()`. Alle 4 Locale-Dateien aktualisiert.
+- **i18n-Keys** (alle 4 Locales): Neu: `dashAllPlanned`, `dashToArchive`, `settingsTestSend`, `settingsTestSending`, `schedEvery6h/12h/24h/48h/72h/Week`.
+- **Tracker current_price** (`routes/trackers.py`, `routes/google_flights.py`, `routes/accommodations.py`): Alle 4 Tracker-List-Endpoints (`/api/trackers`, `/api/google-flights`, `/api/accommodations/homair`, `/api/accommodations/booking`) liefern jetzt `current_price` direkt auf Root-Ebene des Tracker-Objekts — als einfach zugängliche Zahl ohne Umweg über `latest_snapshot.total_price`.
+
+### Fixed — Block 8
+
+- **Dashboard Hero Datum-Bug** (`HeroPastTrip.svelte`): Archivierte Reisen zeigten „Gerade zurückgekehrt / Heute" obwohl sie Monate zurücklagen. Ursache: `daysAgo` wurde vom `start_date` berechnet. Fix: `end_date` wird bevorzugt, `start_date` als Fallback. Außerdem exakte Mitternachts-Datumsberechnung via `T00:00:00`-Suffix.
+- **Dashboard i18n-Variablen** (`CompactTripsList.svelte`): Buttons „Alle geplanten Reisen →" und „Zum Archiv →" nutzten `|| 'Fallback'`-Syntax. Nun direkte `$t()`-Keys — Keys in allen 4 Locales eingetragen.
+- **Tracker-Preis Erstanzeige** (`TrackerCard.svelte`): `price`-Derived nutzt jetzt `tr.current_price ?? s?.total_price` — der Root-Level-Wert ist beim initialen Laden sofort verfügbar ohne Klick auf ⟳.
+- **Wetter-Widget bei archivierten Trips** (`TripHub.svelte`): `WeatherWidget` wird bei `phase === 'archived'` nicht mehr gerendert — aktuelles Wetter für vergangene Reisen ist nutzlos.
+- **MyTrips Reisenzähler** (`database.py`): `list_ws_trips()` hatte `LIMIT 100` als Default — bei >100 Trips zählte der „Gesamtreisen"-Counter zu wenig. Erhöht auf 2000.
+
+---
+
 ## [1.0.0-beta.1] — 2026-04-17
 
 ### Added — Block 7: Tracker-Reaktivität, Smartes Trip-Editing & Soft-Migration
