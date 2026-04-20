@@ -8,6 +8,14 @@ Fixes applied:
   - PATCH /{id} full/partial trip update
   - PATCH /{id}/status shortcut
   - Validates end_date >= start_date (B2)
+  - BUG 2: start_date optional (Flex-Trips), aber Response-Warning wenn beide fehlen
+  - BUG 5: budget >= 0 Validierung
+  - BUG 6: HTML-Sanitizer auf title/destination/notes
+  - BUG 7: max_length Constraints
+
+API-BUG 1 Klarstellung:
+  Todo-Toggle läuft über PATCH /{trip_id}/todos/{todo_id}/toggle
+  (nicht über PATCH /{trip_id}/todos/{todo_id} — dieser Endpoint existiert nicht).
 """
 
 from fastapi import APIRouter, HTTPException, Depends
@@ -629,6 +637,12 @@ def set_todo_due(trip_id: int, todo_id: int, data: TodoUpdate, user=Depends(get_
 
 @router.patch("/{trip_id}/todos/{todo_id}/toggle")
 def toggle_todo(trip_id: int, todo_id: int, user=Depends(get_current_user)):
+    """Toggle is_done (0→1 oder 1→0) für ein einzelnes To-Do.
+    API-BUG 1 Klarstellung: Der korrekte Endpoint ist
+    PATCH /api/ws-trips/{trip_id}/todos/{todo_id}/toggle
+    — nicht PATCH /api/ws-trips/{trip_id}/todos/{todo_id}.
+    Letzterer existiert nicht und liefert 405.
+    """
     if not get_ws_trip(trip_id, _uid(user)):
         raise HTTPException(404, "Trip nicht gefunden")
     if not toggle_trip_todo(todo_id, trip_id):
