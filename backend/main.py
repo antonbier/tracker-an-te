@@ -137,12 +137,15 @@ from starlette.responses import Response as _Response
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """NEU-BUG 1: Nur X-XSS-Protection hier setzen — alle anderen Headers
+    werden von Nginx gesetzt. Doppelte Headers (z.B. X-Frame-Options: DENY,
+    SAMEORIGIN) führen zu inkonsistentem Browser-Verhalten.
+    """
     async def dispatch(self, request: _Request, call_next):
         response: _Response = await call_next(request)
-        response.headers["X-XSS-Protection"]       = "1; mode=block"
-        response.headers["X-Content-Type-Options"]  = "nosniff"
-        response.headers["X-Frame-Options"]         = "DENY"
-        response.headers["Referrer-Policy"]         = "strict-origin-when-cross-origin"
+        # X-XSS-Protection fehlt in nginx.conf → hier ergänzen
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        # X-Content-Type-Options, X-Frame-Options, Referrer-Policy: Nginx only
         return response
 
 
