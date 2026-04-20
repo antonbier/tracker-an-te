@@ -218,9 +218,10 @@
   }
 
   // ── Tracker CRUD ──────────────────────────────────────────────────────────
-  async function loadAllTrackers() {
+  async function loadAllTrackers(silent = false) {
     if (!get(apiUrl)) { trackersLoading = false; return; }
-    trackersLoading = true;
+    // silent=true: kein Loading-State → verhindert Preis-Flash nach Scrape
+    if (!silent) trackersLoading = true;
     try {
       const [ry, gf, hm, bk] = await Promise.allSettled([
         api('/api/trackers'),
@@ -275,9 +276,9 @@
       await api(endpoints[tracker._type], { method: 'POST' });
       toast(get(t)('radarUpdatePrice') + ' ✓', 'success');
 
-      // Reaktivitäts-Fix: loadAllTrackers() ersetzt Array komplett → Svelte rendert neu.
-      // Wichtig: loadAllTrackers MUSS nach dem Scrape kommen damit current_price frisch ist.
-      await loadAllTrackers();
+      // silent=true: kein trackersLoading=true → kein Preis-Flash während Reload.
+      // Svelte rendert TrackerCards neu weil allTrackers eine neue Array-Referenz bekommt.
+      await loadAllTrackers(true);
 
       // Chart-History immer aktualisieren (offen oder nicht), damit beim
       // nächsten Öffnen des Akkordeons die frischen Daten sofort da sind.
@@ -370,8 +371,8 @@
         fail++;
       }
     }
-    // Einmal neu laden nach allen Scrapes — UI bekommt frische Werte
-    await loadAllTrackers();
+    // silent=true: kein Loading-Flash — bestehende Preise bleiben sichtbar
+    await loadAllTrackers(true);
     isRefreshing = false;
     toast(`✅ ${ok} aktualisiert${fail > 0 ? ` · ${fail} Fehler` : ''}`, ok > 0 ? 'success' : 'error');
   }
