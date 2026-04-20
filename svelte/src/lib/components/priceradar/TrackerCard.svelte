@@ -23,9 +23,12 @@
 
   const wKey       = $derived(`${tr._type}-${tr.id}`);
   const s          = $derived(tr.latest_snapshot);
-  // Block 8: current_price (root-level, immer frisch vom Backend) als primäre
-  // Quelle — fällt auf latest_snapshot.total_price zurück wenn nicht vorhanden
-  const price      = $derived(tr.current_price ?? s?.total_price);
+  // Block 8 + [object Object]-Fix: current_price als primäre Quelle.
+  // Number()-Cast + isFinite()-Guard verhindert .toFixed()-Crash auf Objekt/NaN.
+  const _rawPrice  = $derived(tr.current_price ?? s?.total_price);
+  const price      = $derived(
+    _rawPrice != null && isFinite(Number(_rawPrice)) ? Number(_rawPrice) : null
+  );
   const wish       = $derived(tr.wish_price);
   const wishMet    = $derived(wish && price && price <= wish);
   const badges     = $derived(trackerBadges(tr, $t));
@@ -193,7 +196,7 @@
           {/if}
         </div>
         <div class="font-bold font-mono text-xl" style="color:{price ? 'var(--ws-green)' : 'var(--ws-muted)'}">
-          {price ? price.toFixed(2) + ' €' : '–'}
+          {price != null ? price.toFixed(2) + ' €' : '–'}
         </div>
         {#if (tr._type === 'hotel' || tr._type === 'camping') && tr.checkin_date && tr.checkout_date}
           {@const nights = Math.max(1, Math.round((new Date(tr.checkout_date) - new Date(tr.checkin_date)) / 86400000))}
