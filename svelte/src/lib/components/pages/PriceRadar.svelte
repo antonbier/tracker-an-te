@@ -228,11 +228,22 @@
         api('/api/accommodations/homair'),
         api('/api/accommodations/booking'),
       ]);
+      // [object Object]-Fix: current_price immer als Number normalisieren
+      // bevor Tracker ins State-Array kommen
+      function _normalizeTracker(tr, type, table) {
+        const raw = tr.current_price ?? tr.latest_snapshot?.total_price;
+        return {
+          ...tr,
+          _type:         type,
+          _table:        table,
+          current_price: (raw != null && isFinite(Number(raw))) ? Number(raw) : null,
+        };
+      }
       allTrackers = [
-        ...(ry.status === 'fulfilled' ? (ry.value || []).map(tr => ({ ...tr, _type: 'flight',        _table: 'trackers' }))         : []),
-        ...(gf.status === 'fulfilled' ? (gf.value || []).map(tr => ({ ...tr, _type: 'google_flight', _table: 'gf_trackers' }))      : []),
-        ...(hm.status === 'fulfilled' ? (hm.value || []).map(tr => ({ ...tr, _type: 'camping',       _table: 'homair_trackers' }))  : []),
-        ...(bk.status === 'fulfilled' ? (bk.value || []).map(tr => ({ ...tr, _type: 'hotel',         _table: 'booking_trackers' })) : []),
+        ...(ry.status === 'fulfilled' ? (ry.value || []).map(tr => _normalizeTracker(tr, 'flight',        'trackers'))         : []),
+        ...(gf.status === 'fulfilled' ? (gf.value || []).map(tr => _normalizeTracker(tr, 'google_flight', 'gf_trackers'))      : []),
+        ...(hm.status === 'fulfilled' ? (hm.value || []).map(tr => _normalizeTracker(tr, 'camping',       'homair_trackers'))  : []),
+        ...(bk.status === 'fulfilled' ? (bk.value || []).map(tr => _normalizeTracker(tr, 'hotel',         'booking_trackers')) : []),
       ];
     } catch {}
     trackersLoading = false;
