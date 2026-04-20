@@ -197,13 +197,18 @@ def _do_scrape(tracker_id: int, user: dict) -> dict:
 
 
 class TrackerUpdate(BaseModel):
-    """BUG 4: Partial update für einen bestehenden Ryanair-Tracker."""
+    """BUG 4 + NEU-BUG A: Partial update für einen bestehenden Ryanair-Tracker.
+    NEU-BUG A: is_booked + booked_price fehlten → "Keine Änderungen" bei Buchung.
+    """
     return_date:  Optional[str]   = None
     adults:       Optional[int]   = None
     children:     Optional[int]   = None
     seat_cost:    Optional[float] = None
     wish_price:   Optional[float] = None
     trip_id:      Optional[int]   = None
+    # NEU-BUG A: Buchungsfelder
+    is_booked:    Optional[int]   = None   # 0 oder 1
+    booked_price: Optional[float] = None
 
     @field_validator("adults")
     @classmethod
@@ -234,13 +239,28 @@ def update_tracker(tracker_id: int, data: TrackerUpdate, user: dict = Depends(ge
     if not t:
         raise HTTPException(404, f"Tracker #{tracker_id} nicht gefunden")
 
-    updates = {k: v for k, v in data.model_dump().items() if v is not None}
+    raw = data.model_dump()
+    # is_booked=0 ist ein gültiger Wert (Buchung zurücksetzen) — nicht via "is not None" filtern
+    updates = {}
+    for k, v in raw.items():
+        if v is None:
+            continue
+        updates[k] = v
+    # is_booked=0 explizit erlauben (False-y aber gültig)
+    if raw.get("is_booked") == 0:
+        updates["is_booked"] = 0
+
     if not updates:
         return {"id": tracker_id, "message": "Keine Änderungen"}
 
-    # wish_price geht in eigene Tabelle (set_tracker_threshold)
+    # wish_price → eigene Tabelle
     wish = updates.pop("wish_price", None)
 
+    # NEU-BUG A: booked_price ohne is_booked → is_booked=1 implizit setzen
+    if "booked_price" in updates and "is_booked" not in updates:
+        updates["is_booked"] = 1
+
+    # DB-Update für alle verbleibenden Felder
     if updates:
         from database import db as _db
         set_clauses = ", ".join(f"{k}=?" for k in updates)
@@ -253,9 +273,11 @@ def update_tracker(tracker_id: int, data: TrackerUpdate, user: dict = Depends(ge
     if wish is not None:
         set_tracker_threshold(tracker_id, wish)
 
-    logger.info(f"[Trackers] #{tracker_id} updated: {list(data.model_dump(exclude_none=True).keys())}")
-    return {"id": tracker_id, "updated": list(data.model_dump(exclude_none=True).keys()),
-            "message": "Tracker aktualisiert ✓"}
+    changed = list(data.model_dump(exclude_none=True).keys())
+    if raw.get("is_booked") == 0:
+        changed.append("is_booked")
+    logger.info(f"[Trackers] #{tracker_id} updated: {changed}")
+    return {"id": tracker_id, "updated": changed, "message": "Tracker aktualisiert ✓"}
 
 
 @router.post("/{tracker_id}/scrape")
