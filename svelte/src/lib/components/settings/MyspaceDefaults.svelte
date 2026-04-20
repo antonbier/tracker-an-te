@@ -91,12 +91,44 @@
               </div>
             </div>
 
-            <div class="rounded-xl border p-3 flex flex-col gap-1"
+            <div class="rounded-xl border p-3 flex flex-col gap-1 relative"
               style="background:var(--ws-surface);border-color:var(--ws-border)">
               <div class="text-xs font-semibold" style="color:var(--ws-muted)">{$t('wwHomeAirportShort')}</div>
-              <input bind:value={homeAirport} maxlength="3" placeholder="BGY"
-                class="w-full px-2 py-1 rounded-lg border text-sm font-mono uppercase text-center focus:outline-none focus:ring-2 focus:ring-[var(--ws-accent)]"
-                style={inputStyle}/>
+              {#snippet airportAC()}
+                {@const airportQuery = (homeAirport || '').toUpperCase()}
+                {@const airportSugg = airportQuery.length >= 2
+                  ? AIRPORTS.filter(a =>
+                      a.iata?.toUpperCase().startsWith(airportQuery) ||
+                      a.name?.toUpperCase().includes(airportQuery) ||
+                      a.city?.toUpperCase().includes(airportQuery)
+                    ).slice(0, 6)
+                  : []}
+                <input
+                  value={homeAirport}
+                  oninput={(e) => { homeAirport = e.target.value.toUpperCase().slice(0,3); }}
+                  maxlength="3"
+                  placeholder="BGY"
+                  class="w-full px-2 py-1 rounded-lg border text-sm font-mono uppercase text-center focus:outline-none focus:ring-2 focus:ring-[var(--ws-accent)]"
+                  style={inputStyle}
+                  autocomplete="off"
+                />
+                {#if airportSugg.length > 0}
+                  <div class="absolute top-full left-0 right-0 z-30 rounded-xl border shadow-xl overflow-hidden mt-1"
+                    style="background:var(--ws-surface);border-color:var(--ws-border);max-height:180px;overflow-y:auto">
+                    {#each airportSugg as ap}
+                      <button
+                        onclick={() => { homeAirport = ap.iata; }}
+                        class="w-full text-left px-3 py-2 text-xs border-b last:border-b-0 hover:opacity-80 transition-opacity"
+                        style="color:var(--ws-text);border-color:var(--ws-border);background:var(--ws-surface)">
+                        <span class="font-mono font-bold" style="color:var(--ws-accent)">{ap.iata}</span>
+                        <span class="ml-1.5">{ap.name}</span>
+                        {#if ap.city}<span style="color:var(--ws-muted)"> · {ap.city}</span>{/if}
+                      </button>
+                    {/each}
+                  </div>
+                {/if}
+              {/snippet}
+              {@render airportAC()}
             </div>
 
           </div>
