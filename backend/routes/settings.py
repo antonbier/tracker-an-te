@@ -125,6 +125,11 @@ def get_global_settings(user: dict = Depends(get_current_user)):
 
 @router.post("")
 def update_global_settings(data: GlobalSettingsPayload, admin: dict = Depends(require_admin)):
+    """NEU-BUG 6 Klarstellung: Dieser Endpoint ist durch require_admin geschützt.
+    Nur Admin-User können globale Keys (serpapi_key, openai_key, …) schreiben.
+    Normale User müssen POST /api/settings/user für per-user Settings nutzen.
+    HTTP 403 bei nicht-Admin-Zugriffen.
+    """
     payload = {k: v for k, v in data.model_dump().items() if v is not None and v != ""}
     save_settings_bulk(payload)
     return {"message": "Gespeichert", "updated": list(payload.keys())}
