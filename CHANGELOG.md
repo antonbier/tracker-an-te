@@ -6,6 +6,23 @@ Alle nennenswerten Änderungen am Projekt. Format basiert auf [Keep a Changelog]
 
 ## [1.0.0-beta.1] — 2026-04-20
 
+### Fixed — API-Findings Zusatz (API-BUG 1–2, NEU-BUG 1–6, D1–D3)
+
+- **API-BUG 1 — PATCH /todos/{id}** (`routes/ws_trips.py`): Neuer `PATCH /api/ws-trips/{trip_id}/todos/{todo_id}` Endpoint akzeptiert `is_done` (0/1), `task` und `due_date` direkt. Ergänzt den bestehenden `/toggle`-Endpoint. `TodoUpdate`-Modell um `is_done` und `task` erweitert. Validierung: `is_done ∈ {0,1}`, `task` nicht leer, HTML-sanitized.
+- **API-BUG 2 — Trip ohne Datum** (`routes/ws_trips.py`): `start_date`/`end_date` bleiben `Optional` für Flex-Trips. `POST /api/ws-trips` gibt jetzt `warnings[]` im Response zurück wenn eines der Datumsfelder fehlt — kein 422, aber klare Rückmeldung.
+- **NEU-BUG 1 — Doppelte Security-Headers** (`main.py`, `docker/nginx.conf`): `SecurityHeadersMiddleware` setzt jetzt nur noch `X-XSS-Protection: 1; mode=block` (fehlte in Nginx). `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy` werden ausschließlich von Nginx gesetzt — kein Konflikt mehr. `X-XSS-Protection` in `nginx.conf` zentral ergänzt.
+- **NEU-BUG 2 — Tracker Datum in Vergangenheit** (`routes/trackers.py`): `@field_validator("outbound_date", "return_date")` prüft jetzt `parsed >= date.today()` → HTTP 422 mit Fehlermeldung bei Vergangenheitsdaten.
+- **NEU-BUG 3 — Path-Konflikt /export** (`routes/ws_trips.py`): Neuer `GET /api/ws-trips/export` Endpoint **vor** `/{trip_id}` registriert — FastAPI matcht jetzt korrekt. Liefert alle Trips des Users als JSON-Export mit Zeitstempel.
+- **NEU-BUG 4 — Todo task ohne Limits** (`routes/ws_trips.py`): `TodoCreate.task` mit `@field_validator`: min 1 Zeichen (kein Leerstring), max 500 Zeichen, HTML-sanitized.
+- **NEU-BUG 5 — due_date Vergangenheit** (`routes/ws_trips.py`): `@field_validator("due_date")` auf `TodoCreate` validiert ISO-Format. Vergangenheitsdaten werden akzeptiert (Import-Szenarien), aber das Format wird geprüft.
+- **NEU-BUG 6 — Non-Admin Global Keys** (`routes/settings.py`): Kein echter Bug — `POST /api/settings` ist durch `require_admin` abgesichert (HTTP 403 für normale User). Docstring klargestellt: globale Keys nur via `POST /api/settings`, per-user Settings via `POST /api/settings/user`.
+
+### Design-Anmerkungen (D1–D3)
+
+- **D1 — PATCH gibt vollständiges Objekt** (`routes/ws_trips.py`): `PATCH /api/ws-trips/{id}` liest nach dem Update den aktuellen Trip-State und gibt `{id, updated[], message, trip: {...}}` zurück.
+- **D2 — Hotel/Camping origin als IATA** (Design-Limitation, kein Code-Change): `origin` auf Hotel-/Camping-Trackern ist historisch als IATA-Code modelliert. Refactoring zu `city_name` würde Breaking Change bedeuten — dokumentiert für zukünftige API-Version.
+- **D3 — Search-Endpoints nur POST** (By Design): `GET /api/search/*` → 405 ist korrekt — Suchanfragen sind Payload-lastig und nutzen POST. Dokumentiert.
+
 ### Fixed — Security & Design Session (SEC-BUG 1–2, DES-1)
 
 - **SEC-BUG 1 — Brute-Force Login** (`routes/auth.py`): In-Memory Rate-Limiter auf `POST /api/auth/login`. Max. 5 Fehlversuche pro IP innerhalb von 60 Sekunden → HTTP 429 mit `Retry-After`-Header. Implementierung via `collections.deque` + `threading.Lock` — kein externer Dep. Counter wird nach erfolgreichem Login zurückgesetzt. Client-IP aus `request.client.host`; fehlgeschlagene Versuche werden geloggt.
