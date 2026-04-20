@@ -155,14 +155,16 @@ class WsTripUpdate(BaseModel):
       - destination = geocodierter Ortname, steuert Wetter/Maps, zwingend bei Geo-Edit
       - lat / lon   = Koordinaten zum Ort, werden zusammen mit destination gesetzt
     """
-    title:        Optional[str]   = None
-    destination:  Optional[str]   = None
-    lat:          Optional[float] = None
-    lon:          Optional[float] = None
-    start_date:   Optional[str]   = None
-    end_date:     Optional[str]   = None
-    budget:       Optional[float] = None
-    travel_mode:  Optional[str]   = None
+    title:           Optional[str]   = None
+    destination:     Optional[str]   = None
+    lat:             Optional[float] = None
+    lon:             Optional[float] = None
+    start_date:      Optional[str]   = None
+    end_date:        Optional[str]   = None
+    budget:          Optional[float] = None
+    # NEU-BUG B: manual_expenses fehlte — Budget-Widget konnte nicht speichern
+    manual_expenses: Optional[float] = None
+    travel_mode:     Optional[str]   = None
     home_airport: Optional[str]   = None
     adults:       Optional[int]   = None
     children:     Optional[int]   = None
