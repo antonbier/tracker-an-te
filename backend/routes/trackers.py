@@ -61,6 +61,17 @@ class TrackerCreate(BaseModel):
             return v
         if not re.match(r"^\d{4}-\d{2}-\d{2}$", v):
             raise ValueError("Datum muss im Format YYYY-MM-DD sein")
+        # NEU-BUG 2: Datum darf nicht in der Vergangenheit liegen
+        from datetime import date as _date
+        try:
+            parsed = _date.fromisoformat(v)
+        except ValueError:
+            raise ValueError(f"Ungültiges Datum: {v!r}")
+        if parsed < _date.today():
+            raise ValueError(
+                f"outbound_date/return_date darf nicht in der Vergangenheit liegen "
+                f"({v} < {_date.today().isoformat()})"
+            )
         return v
 
     @field_validator("adults")
