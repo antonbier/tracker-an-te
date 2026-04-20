@@ -833,11 +833,17 @@ def save_gf_snapshot(tracker_id: int, snap: dict) -> int:
 
 
 def get_latest_gf_snapshot(tracker_id: int) -> dict | None:
+    """Neuester fehlerfreier GF-Snapshot (status='ok'). Fallback auf neuesten Eintrag."""
     with db() as conn:
         row = conn.execute(
-            "SELECT * FROM gf_snapshots WHERE tracker_id=? ORDER BY fetched_at DESC LIMIT 1",
+            "SELECT * FROM gf_snapshots WHERE tracker_id=? AND status='ok' ORDER BY fetched_at DESC LIMIT 1",
             (tracker_id,)
         ).fetchone()
+        if not row:
+            row = conn.execute(
+                "SELECT * FROM gf_snapshots WHERE tracker_id=? ORDER BY fetched_at DESC LIMIT 1",
+                (tracker_id,)
+            ).fetchone()
     return dict(row) if row else None
 
 def get_gf_history(tracker_id: int, limit: int = 90) -> list[dict]:
@@ -941,11 +947,17 @@ def save_homair_snapshot(tracker_id: int, snap: dict) -> int:
 
 
 def get_latest_homair_snapshot(tracker_id: int) -> dict | None:
+    """Neuester fehlerfreier Homair-Snapshot (status='ok'). Fallback auf neuesten Eintrag."""
     with db() as conn:
         row = conn.execute(
-            "SELECT * FROM homair_snapshots WHERE tracker_id=? ORDER BY fetched_at DESC LIMIT 1",
+            "SELECT * FROM homair_snapshots WHERE tracker_id=? AND status='ok' ORDER BY fetched_at DESC LIMIT 1",
             (tracker_id,)
         ).fetchone()
+        if not row:
+            row = conn.execute(
+                "SELECT * FROM homair_snapshots WHERE tracker_id=? ORDER BY fetched_at DESC LIMIT 1",
+                (tracker_id,)
+            ).fetchone()
     return dict(row) if row else None
 
 
@@ -1042,11 +1054,17 @@ def save_booking_snapshot(tracker_id: int, snap: dict) -> int:
 
 
 def get_latest_booking_snapshot(tracker_id: int) -> dict | None:
+    """Neuester fehlerfreier Booking-Snapshot (status='ok'). Fallback auf neuesten Eintrag."""
     with db() as conn:
         row = conn.execute(
-            "SELECT * FROM booking_snapshots WHERE tracker_id=? ORDER BY fetched_at DESC LIMIT 1",
+            "SELECT * FROM booking_snapshots WHERE tracker_id=? AND status='ok' ORDER BY fetched_at DESC LIMIT 1",
             (tracker_id,)
         ).fetchone()
+        if not row:
+            row = conn.execute(
+                "SELECT * FROM booking_snapshots WHERE tracker_id=? ORDER BY fetched_at DESC LIMIT 1",
+                (tracker_id,)
+            ).fetchone()
     return dict(row) if row else None
 
 
