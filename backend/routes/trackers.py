@@ -91,7 +91,11 @@ def _uid(user: dict) -> int | None:
 def get_all_trackers(user: dict = Depends(get_current_user)):
     trackers = list_trackers(active_only=False, user_id=_uid(user))
     for t in trackers:
-        t["latest_snapshot"] = get_latest_snapshot(t["id"])
+        snap = get_latest_snapshot(t["id"])
+        t["latest_snapshot"] = snap
+        # Block 8: current_price direkt auf Root für sofortige UI-Anzeige
+        # ohne dass der User erst auf Refresh klicken muss
+        t["current_price"] = snap.get("total_price") if snap else None
     return trackers
 
 
