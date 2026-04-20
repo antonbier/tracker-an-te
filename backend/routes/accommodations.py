@@ -56,7 +56,8 @@ def list_homair(user: dict = Depends(get_current_user)):
     for t in trackers:
         snap = get_latest_homair_snapshot(t["id"])
         t["latest_snapshot"] = snap
-        t["current_price"] = snap.get("total_price") if snap else None
+        raw_price = snap.get("total_price") if snap else None
+        t["current_price"] = float(raw_price) if raw_price is not None else None
     return trackers
 
 
@@ -131,7 +132,8 @@ def list_booking(user: dict = Depends(get_current_user)):
     for t in trackers:
         snap = get_latest_booking_snapshot(t["id"])
         t["latest_snapshot"] = snap
-        t["current_price"] = snap.get("total_price") if snap else None
+        raw_price = snap.get("total_price") if snap else None
+        t["current_price"] = float(raw_price) if raw_price is not None else None
     return trackers
 
 
