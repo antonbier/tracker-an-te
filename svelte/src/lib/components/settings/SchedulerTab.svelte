@@ -50,22 +50,45 @@
     schedSaving = false;
   }
 
+  let schedCountdown = $state(0);
+
   async function triggerSchedulerRun() {
     if (schedRunning) return;
     schedRunning = true;
+    schedCountdown = 0;
     try {
       await api('/api/scheduler/run', { method: 'POST' });
-      toast('⏳ Preisabfrage gestartet — läuft im Hintergrund…', 'warning');
-      // UI nach 10s entsperren (Backend läuft async weiter)
-      setTimeout(() => { schedRunning = false; }, 10000);
+      toast('⏳ Preisabfrage gestartet — dauert ca. 30–90 Sek.', 'warning');
+
+      // Countdown anzeigen während Scheduler läuft
+      const start = Date.now();
+      const tick = setInterval(() => {
+        schedCountdown = Math.floor((Date.now() - start) / 1000);
+      }, 1000);
+
+      // Nach 45s: letzten Lauf neu laden (zeigt updated last_run_at)
+      setTimeout(async () => {
+        await loadSchedulerSettings();
+      }, 45000);
+
+      // Nach 95s: UI entsperren + Seite neu laden damit Preise aktuell sind
+      setTimeout(() => {
+        clearInterval(tick);
+        schedCountdown = 0;
+        schedRunning = false;
+        toast('✅ Preisabfrage abgeschlossen — Seite wird aktualisiert', 'success');
+        // Kurze Verzögerung damit Toast sichtbar ist
+        setTimeout(() => window.location.reload(), 1500);
+      }, 95000);
+
     } catch (e) {
-      // 429: Cooldown noch aktiv
+      schedRunning = false;
+      schedCountdown = 0;
       if (e?.status === 429 || (e?.message || '').includes('warten')) {
         toast('⏳ ' + (e.detail || e.message || 'Bitte kurz warten…'), 'warning');
       } else {
         toast(e.message || 'Fehler beim Starten', 'error');
       }
-      schedRunning = false;
     }
   }
 
@@ -127,7 +150,9 @@
     <button onclick={triggerSchedulerRun} disabled={schedRunning}
       class="flex-1 py-2.5 rounded-xl text-sm font-semibold border transition-opacity disabled:opacity-50"
       style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)">
-      {schedRunning ? '⏳ ' + ($t('settingsSchedulerRun') || 'Läuft') + '…' : '▶ ' + $t('settingsSchedulerRun')}
+      {schedRunning
+        ? '⏳ ' + ($t('settingsSchedulerRun') || 'Läuft') + (schedCountdown > 0 ? ` (${schedCountdown}s)` : '…')
+        : '▶ ' + $t('settingsSchedulerRun')}
     </button>
   </div>
 </div>
