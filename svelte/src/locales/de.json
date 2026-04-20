@@ -660,5 +660,15 @@
   "wwVibeSea": "🏖️ Strand",
   "wwWishLabel": "💬 Besondere Wünsche?",
   "wwWishPlaceholder": "z.B. flach abfallender Sandstrand, kein Massentourismus…",
-  "yearSelect": "Jahr"
+  "yearSelect": "Jahr",
+  "dashAllPlanned": "Alle geplanten Reisen →",
+  "dashToArchive": "Zum Archiv →",
+  "settingsTestSend": "🚀 Testnachricht",
+  "settingsTestSending": "⏳ Sende…",
+  "schedEvery6h": "Alle 6 Std.",
+  "schedEvery12h": "Alle 12 Std.",
+  "schedEvery24h": "Täglich",
+  "schedEvery48h": "Alle 2 Tage",
+  "schedEvery72h": "Alle 3 Tage",
+  "schedEveryWeek": "Wöchentlich"
 }
