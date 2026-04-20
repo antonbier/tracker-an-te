@@ -51,14 +51,22 @@
   }
 
   async function triggerSchedulerRun() {
+    if (schedRunning) return;
     schedRunning = true;
     try {
-      // Block 8: /api/scheduler/run mit notify=true → Benachrichtigungen werden
-      // ausgelöst wenn ein Preissturz erkannt wird (Backend wertet schedPriceDrop aus)
-      await api('/api/scheduler/run?notify=true', { method: 'POST' });
-      toast('⏳ ' + ($t('settingsSchedulerRun') || 'Preisabfrage') + ' gestartet…', 'warning');
-    } catch (e) { toast(e.message, 'error'); }
-    setTimeout(() => { schedRunning = false; }, 8000);
+      await api('/api/scheduler/run', { method: 'POST' });
+      toast('⏳ Preisabfrage gestartet — läuft im Hintergrund…', 'warning');
+      // UI nach 10s entsperren (Backend läuft async weiter)
+      setTimeout(() => { schedRunning = false; }, 10000);
+    } catch (e) {
+      // 429: Cooldown noch aktiv
+      if (e?.status === 429 || (e?.message || '').includes('warten')) {
+        toast('⏳ ' + (e.detail || e.message || 'Bitte kurz warten…'), 'warning');
+      } else {
+        toast(e.message || 'Fehler beim Starten', 'error');
+      }
+      schedRunning = false;
+    }
   }
 
   $effect(() => { loadSchedulerSettings(); });
