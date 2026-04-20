@@ -6,6 +6,16 @@ Alle nennenswerten Änderungen am Projekt. Format basiert auf [Keep a Changelog]
 
 ## [1.0.0-beta.1] — 2026-04-20
 
+### Fixed — API-Bug-Session (API-BUG 1–7)
+
+- **API-BUG 1 — Todo-Toggle 405** (`routes/ws_trips.py`): Kein echter Bug — der korrekte Endpoint ist `PATCH /api/ws-trips/{trip_id}/todos/{todo_id}/toggle`. `PATCH /todos/{id}` (ohne `/toggle`) existiert nicht und liefert korrekt 405. Docstring und Modul-Header aktualisiert um dies klarzustellen. Der Svelte-Code ruft bereits den richtigen Endpoint auf.
+- **API-BUG 2 — Trip ohne Datum** (`routes/ws_trips.py`): `start_date`/`end_date` bleiben `Optional` (für Flex-Trips korrekt). Zusätzliche Validator-Dokumentation im Modul-Header erklärt das Design.
+- **API-BUG 3 — Scrape 500 → 422/503** (`routes/trackers.py`): `_do_scrape()` fing bisher alle Exceptions als HTTP 500 mit rohem Stack. Neu: Fehler-Klassifizierung — fehlender API-Key → 422 `missing_api_key`; Anbieter-Fehler (409/429/503/„Availability declined") → 503 `provider_unavailable`; allgemein → 422 `scrape_failed`. Kein Stack-Trace mehr im HTTP-Response.
+- **API-BUG 4 — PATCH /trackers/{id} fehlte** (`routes/trackers.py`): Neues `TrackerUpdate`-Pydantic-Modell mit `return_date`, `adults`, `children`, `seat_cost`, `wish_price`, `trip_id`. Neuer Endpoint `PATCH /api/trackers/{id}` schreibt nur angegebene Felder; `wish_price` wird via `set_tracker_threshold()` gesetzt. Validatoren: `adults >= 1`, `children >= 0`, Preis-Felder `>= 0`.
+- **API-BUG 5 — Negatives Budget** (`routes/ws_trips.py`): `@field_validator("budget")` mit `v < 0 → 422` auf `WsTripCreate` und `WsTripUpdate`.
+- **API-BUG 6 — XSS-Payload** (`routes/ws_trips.py`): Neue `_sanitize()`-Funktion (ohne externe Deps, nutzt `re` + `html` stdlib) entfernt `<script>`, `<iframe>` und alle HTML-Tags aus String-Eingaben. Angewendet auf `title`, `destination`, `notes`, `wish_text` in `WsTripCreate` und `WsTripUpdate`.
+- **API-BUG 7 — Kein Längen-Limit** (`routes/ws_trips.py`): `title` max 200 Zeichen via `@field_validator`; `destination`, `notes`, `wish_text` max 500 Zeichen via `_sanitize(max_len=500)`. Zusätzlich: `adults >= 1`, `children >= 0` Constraints ergänzt.
+
 ### Fixed — Bug-Report Session (BUG 1, 2, 6, 7, 8 / UX 1–5)
 
 - **BUG 1 — Phasenfehler archived Trip** (`HeroSection.svelte`, `HeroNextTrip.svelte`): Trips mit `end_date` in der Vergangenheit wurden im Dashboard als aktiv/geplant angezeigt obwohl ihr `status` noch `planning` war. Fix: `planning`-Filter in `HeroSection` prüft jetzt zusätzlich `endRaw >= today`. `HeroNextTrip` leitet `phase` direkt aus Datumswerten ab (analog TripCard/TripHub).
