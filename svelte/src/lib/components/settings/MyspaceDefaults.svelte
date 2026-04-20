@@ -1,5 +1,6 @@
 <script>
   import { t } from '$lib/i18n.js';
+  import AIRPORTS from '$lib/data/airports.json';
 
   const inputCls   = 'w-full px-3 py-2 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-[var(--ws-accent)]';
   const inputStyle = 'background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)';
