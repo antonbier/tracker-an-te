@@ -29,9 +29,10 @@
   }
 
   function wishMet(tr) {
-    const price = tr.latest_snapshot?.total_price;
+    const rawPrice = tr.current_price ?? tr.latest_snapshot?.total_price;
+    const price = (rawPrice != null && isFinite(Number(rawPrice))) ? Number(rawPrice) : null;
     const wish  = tr.wish_price;
-    return wish && price && price <= wish;
+    return !!(wish && price && price <= wish);
   }
 
   // Sort: wish-met first, then by price availability
@@ -39,8 +40,10 @@
     [...allTrackers].sort((a, b) => {
       if (wishMet(a) && !wishMet(b)) return -1;
       if (!wishMet(a) && wishMet(b)) return 1;
-      const pa = a.latest_snapshot?.total_price ?? Infinity;
-      const pb = b.latest_snapshot?.total_price ?? Infinity;
+      const _pa = a.current_price ?? a.latest_snapshot?.total_price;
+      const _pb = b.current_price ?? b.latest_snapshot?.total_price;
+      const pa = (_pa != null && isFinite(Number(_pa))) ? Number(_pa) : Infinity;
+      const pb = (_pb != null && isFinite(Number(_pb))) ? Number(_pb) : Infinity;
       return pa - pb;
     })
   );
@@ -78,7 +81,8 @@
       <div class="space-y-2">
         {#each sortedTrackers.slice(0, 6) as tr}
           {@const snap     = tr.latest_snapshot}
-          {@const price    = snap?.total_price}
+          {@const _raw     = tr.current_price ?? snap?.total_price}
+          {@const price    = (_raw != null && isFinite(Number(_raw))) ? Number(_raw) : null}
           {@const met      = wishMet(tr)}
           <button onclick={() => onnavto('priceradar')}
             class="w-full flex items-center gap-2.5 p-2.5 rounded-xl border text-left transition-all hover:border-[var(--ws-accent)] hover:shadow-sm"
