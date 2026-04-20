@@ -45,6 +45,13 @@ def run_ryanair_trackers(user_id: int | None = None):
         logger.info(f"  [{i+1}/{len(trackers)}] Ryanair #{tid}: "
                     f"{tracker['origin']}→{tracker['destination']} {tracker['outbound_date']}")
         try:
+            # BUG 2 FIX: Letzten bekannten Preis VOR dem Scrape aus DB holen.
+            # fetch_flights() liefert KEIN previous_price-Feld — daher müssen
+            # wir den Vergleichswert selbst aus der Snapshot-History ziehen.
+            prev_snap = get_latest_snapshot(tid)
+            prev_price = float(prev_snap["total_price"]) if prev_snap and prev_snap.get("total_price") else None
+            logger.info(f"  [Ryanair] #{tid} prev_price={prev_price}")
+
             result = fetch_flights(tracker)
             snap = result["snapshot"]
             status = result.get("status", "error")
@@ -54,7 +61,10 @@ def run_ryanair_trackers(user_id: int | None = None):
                 # Nur bei Erfolg speichern — Fehler ueberschreiben niemals die Historie
                 save_snapshot(tid, snap)
                 _log_provider("ryanair", "ok", tid, "scrape=success", price)
-                _check_and_notify(tracker, snap, result.get("previous_price"))
+                # BUG 2 FIX: prev_price aus DB statt aus result.get("previous_price")
+                logger.info(f"  [Notify-Check] #{tid} new={price} prev={prev_price} "
+                            f"wish={tracker.get('wish_price')} threshold={tracker.get('threshold_price')}")
+                _check_and_notify(tracker, snap, prev_price)
             else:
                 _log_provider("ryanair", status, tid, snap.get("error_message", "unknown"))
 
@@ -84,13 +94,18 @@ def run_gf_trackers(user_id: int | None = None):
         logger.info(f"  [{i+1}/{len(trackers)}] GF #{tid}: "
                     f"{tracker['origin']}→{tracker['destination']} {tracker['outbound_date']}")
         try:
+            # BUG 2 FIX: prev_price vor Scrape aus DB
+            from database import get_latest_gf_snapshot as _gf_snap
+            prev_gf = _gf_snap(tid)
+            prev_gf_price = float(prev_gf["total_price"]) if prev_gf and prev_gf.get("total_price") else None
+
             snap = fetch_google_flights(tracker, api_key=api_key)
             status = snap.get("status", "error")
             if status == "ok":
                 # Nur bei Erfolg speichern
                 save_gf_snapshot(tid, snap)
                 _log_provider("google_flights", "ok", tid, "source=serpapi", snap.get("total_price"))
-                _check_and_notify_generic(tracker, snap)
+                _check_and_notify_generic(tracker, snap, prev_price=prev_gf_price)
             else:
                 _log_provider("google_flights", status, tid, snap.get("error_message", ""))
         except Exception as e:
@@ -172,37 +187,88 @@ def run_booking_trackers(user_id: int | None = None):
 # ── Notification Helpers ──────────────────────────────────────────────────────
 
 def _check_and_notify(tracker: dict, snap: dict, prev_price: float | None):
+    """BUG 2 FIX + Deep-Logging: Preissturz- und Threshold-Benachrichtigung.
+
+    Warum Notifications vorher nicht gesendet wurden:
+    fetch_flights() gibt KEIN 'previous_price' zurück.
+    _check_and_notify wurde mit prev_price=None aufgerufen.
+    Bedingung 'if prev_price and new_price < prev_price' ist bei prev_price=None
+    immer False — daher wurden NIE Preissturz-Notifications gesendet.
+
+    Fix: prev_price wird jetzt VOR dem Scrape aus der DB geholt (run_ryanair_trackers).
+    """
+    new_price = snap.get("total_price")
+    if not new_price:
+        logger.debug(f"  [Notify] Kein neuer Preis — übersprungen")
+        return
+
+    # ── Preissturz-Check ─────────────────────────────────────────────────────
+    if prev_price is not None:
+        if new_price < prev_price:
+            diff = round(prev_price - new_price, 2)
+            pct  = round((diff / prev_price) * 100, 1)
+            logger.info(f"  📉 PREISSTURZ #{tracker['id']}: {prev_price:.2f}→{new_price:.2f} "
+                        f"(-{diff:.2f}€ / -{pct}%) — sende Notification")
+            try:
+                from notifications import notify_price_drop
+                notify_price_drop(tracker, old_price=prev_price, new_price=new_price)
+            except Exception as ne:
+                logger.warning(f"  ⚠️ Preissturz-Notification fehlgeschlagen: {ne}")
+        else:
+            logger.debug(f"  [Notify] Kein Preissturz ({prev_price:.2f}→{new_price:.2f})")
+    else:
+        logger.info(f"  [Notify] Kein Vergleichspreis verfügbar — Preissturz-Check übersprungen")
+
+    # ── Threshold/Wunschpreis-Check ──────────────────────────────────────────
+    threshold = tracker.get("threshold_price") or tracker.get("wish_price")
+    if threshold:
+        if new_price <= threshold:
+            already_below = prev_price is not None and prev_price <= threshold
+            if not already_below:
+                logger.info(f"  🎯 ZIEL ERREICHT #{tracker['id']}: {new_price:.2f}€ ≤ {threshold:.2f}€ "
+                            f"— sende Threshold-Notification")
+                try:
+                    from notifications import notify_threshold_reached
+                    notify_threshold_reached(tracker, price=new_price, threshold=threshold)
+                except Exception as ne:
+                    logger.warning(f"  ⚠️ Threshold-Alert fehlgeschlagen: {ne}")
+            else:
+                logger.debug(f"  [Notify] Ziel bereits unterschritten — kein erneuter Alert")
+        else:
+            logger.debug(f"  [Notify] Preis {new_price:.2f}€ über Ziel {threshold:.2f}€")
+    else:
+        logger.debug(f"  [Notify] Kein Wunschpreis gesetzt — Threshold-Check übersprungen")
+
+
+def _check_and_notify_generic(tracker: dict, snap: dict, prev_price: float | None = None):
+    """BUG 2 FIX: prev_price-Parameter ergänzt für Preissturz-Checks."""
     new_price = snap.get("total_price")
     if not new_price:
         return
-    if prev_price and new_price < prev_price:
+
+    # Preissturz-Check (falls prev_price verfügbar)
+    if prev_price is not None and new_price < prev_price:
+        diff = round(prev_price - new_price, 2)
+        logger.info(f"  📉 PREISSTURZ #{tracker.get('id')}: {prev_price:.2f}→{new_price:.2f} (-{diff:.2f}€)")
         try:
             from notifications import notify_price_drop
             notify_price_drop(tracker, old_price=prev_price, new_price=new_price)
         except Exception as ne:
-            logger.warning(f"  ⚠️ Benachrichtigung fehlgeschlagen: {ne}")
-    threshold = tracker.get("threshold_price") or tracker.get("wish_price")
-    if threshold and new_price <= threshold:
-        already_below = prev_price and prev_price <= threshold
-        if not already_below:
-            try:
-                from notifications import notify_threshold_reached
-                notify_threshold_reached(tracker, price=new_price, threshold=threshold)
-            except Exception as ne:
-                logger.warning(f"  ⚠️ Threshold-Alert fehlgeschlagen: {ne}")
+            logger.warning(f"  ⚠️ Preissturz-Notification fehlgeschlagen: {ne}")
 
-
-def _check_and_notify_generic(tracker: dict, snap: dict):
-    new_price = snap.get("total_price")
+    # Wunschpreis-Check
     wish_price = tracker.get("wish_price")
-    if not new_price or not wish_price:
+    if not wish_price:
         return
     if new_price <= wish_price:
-        try:
-            from notifications import notify_threshold_reached
-            notify_threshold_reached(tracker, price=new_price, threshold=wish_price)
-        except Exception as ne:
-            logger.warning(f"  ⚠️ Wish-price alert fehlgeschlagen: {ne}")
+        already_below = prev_price is not None and prev_price <= wish_price
+        if not already_below:
+            logger.info(f"  🎯 ZIEL ERREICHT #{tracker.get('id')}: {new_price:.2f}€ ≤ {wish_price:.2f}€")
+            try:
+                from notifications import notify_threshold_reached
+                notify_threshold_reached(tracker, price=new_price, threshold=wish_price)
+            except Exception as ne:
+                logger.warning(f"  ⚠️ Wish-price alert fehlgeschlagen: {ne}")
 
 
 # ── Master Run ────────────────────────────────────────────────────────────────
