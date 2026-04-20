@@ -408,6 +408,7 @@
             type="text"
             bind:value={editTitle}
             placeholder='z.B. "Roadtrip 2025" oder leer lassen'
+            autocapitalize="words"
             class="w-full px-3 py-2 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-[var(--ws-accent)]"
             style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"
           />
