@@ -111,10 +111,11 @@
     <!-- Flight detail info -->
     {#if tr._type === 'flight' || tr._type === 'google_flight'}
       {@const snap         = tr.latest_snapshot}
-      {@const showAirline  = snap?.airline}
-      {@const showFlight   = snap?.flight_number || snap?.outbound_flight}
-      {@const showTimes    = snap?.departure_time && snap?.arrival_time}
-      {@const showDuration = snap?.duration_min}
+      {@const showAirline  = snap?.airline && snap.airline.length > 0}
+      {@const showFlight   = (snap?.flight_number && snap.flight_number.length > 0) || (snap?.outbound_flight && snap.outbound_flight.length > 0)}
+      {@const showTimes    = snap?.departure_time && snap.departure_time.length > 0 && snap?.arrival_time && snap.arrival_time.length > 0}
+      {@const showDuration = snap?.duration_min && snap.duration_min > 0}
+      {@const hasPrice     = price != null}
       {#if showAirline || showFlight || showTimes}
         <div class="flex items-center gap-1.5 flex-wrap">
           <span class="text-xs">✈️</span>
@@ -164,7 +165,12 @@
         </div>
       {:else}
         <div class="text-xs" style="color:var(--ws-muted)">
-          ✈️ {tr._type === 'flight' ? 'Ryanair' : 'Google Flights'} · {$t('radarNoScanYet') || 'noch kein Preis-Scan'}
+          ✈️ {tr._type === 'flight' ? 'Ryanair' : 'Google Flights'}
+          {#if hasPrice}
+            · {$t('radarLastScan') || 'Stand'} {price != null ? price.toFixed(2) + ' €' : ''}
+          {:else}
+            · {$t('radarNoScanYet') || 'noch kein Preis-Scan'}
+          {/if}
         </div>
       {/if}
     {/if}
