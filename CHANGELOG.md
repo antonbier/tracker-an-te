@@ -6,6 +6,12 @@ Alle nennenswerten Änderungen am Projekt. Format basiert auf [Keep a Changelog]
 
 ## [1.0.0-beta.1] — 2026-04-20
 
+### Fixed — Security & Design Session (SEC-BUG 1–2, DES-1)
+
+- **SEC-BUG 1 — Brute-Force Login** (`routes/auth.py`): In-Memory Rate-Limiter auf `POST /api/auth/login`. Max. 5 Fehlversuche pro IP innerhalb von 60 Sekunden → HTTP 429 mit `Retry-After`-Header. Implementierung via `collections.deque` + `threading.Lock` — kein externer Dep. Counter wird nach erfolgreichem Login zurückgesetzt. Client-IP aus `request.client.host`; fehlgeschlagene Versuche werden geloggt.
+- **SEC-BUG 2 — X-XSS-Protection Header** (`main.py`): Neue `SecurityHeadersMiddleware` (Starlette `BaseHTTPMiddleware`) setzt `X-XSS-Protection: 1; mode=block` auf allen Responses. Gleichzeitig werden `X-Content-Type-Options`, `X-Frame-Options` und `Referrer-Policy` als Backstop zentral im Backend gesetzt — verhindert Drift wenn Nginx-Config sich ändert.
+- **DES-1 — Feldlängen-Limits** (`routes/ws_trips.py`): `notes` auf max. 2000 Zeichen begrenzt (war 50.000 ohne Fehler). `title` bleibt 200, `destination`/`wish_text` 500 Zeichen. Separate `@field_validator`-Methoden für `notes` vs. Kurzfelder in `WsTripCreate` und `WsTripUpdate`.
+
 ### Fixed — API-Bug-Session (API-BUG 1–7)
 
 - **API-BUG 1 — Todo-Toggle 405** (`routes/ws_trips.py`): Kein echter Bug — der korrekte Endpoint ist `PATCH /api/ws-trips/{trip_id}/todos/{todo_id}/toggle`. `PATCH /todos/{id}` (ohne `/toggle`) existiert nicht und liefert korrekt 405. Docstring und Modul-Header aktualisiert um dies klarzustellen. Der Svelte-Code ruft bereits den richtigen Endpoint auf.
