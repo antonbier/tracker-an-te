@@ -6,6 +6,26 @@ Alle nennenswerten Änderungen am Projekt. Format basiert auf [Keep a Changelog]
 
 ## [1.0.0-beta.1] — 2026-04-20
 
+### Fixed — Bug-Report Session (BUG 1, 2, 6, 7, 8 / UX 1–5)
+
+- **BUG 1 — Phasenfehler archived Trip** (`HeroSection.svelte`, `HeroNextTrip.svelte`): Trips mit `end_date` in der Vergangenheit wurden im Dashboard als aktiv/geplant angezeigt obwohl ihr `status` noch `planning` war. Fix: `planning`-Filter in `HeroSection` prüft jetzt zusätzlich `endRaw >= today`. `HeroNextTrip` leitet `phase` direkt aus Datumswerten ab (analog TripCard/TripHub).
+- **BUG 2 — Overnight-Flugdauer** (`backend/routes/search.py`, `SearchResults.svelte`): BGY→DUB 17:15→20:55+1 zeigte 17h40m statt 3h40m. Backend: neue Hilfsfunktion `_calc_duration_min(dep, arr)` berechnet Dauer mit Mitternachts-Wrap (`+1440 min` wenn arr < dep). Frontend: Fallback-Berechnung direkt aus `departure_time`/`arrival_time` wenn `duration_min` fehlt; Minuten-Anzeige jetzt mit `padStart(2,'0')`.
+- **BUG 6 — Falscher i18n-Key Mietwagen-Tab** (`TrackerGrid.svelte`): Empty-State zeigte „Keine Camping-Tracker" für rentals-Kategorie. Fix: `rentals`-Branch in der Label-Ersetzungskette ergänzt → `$t('radarRentals')`.
+- **BUG 7 — ISO-Datumsformat im WanderWizzard** (`WanderWizzard.svelte`): Zusammenfassung zeigte `2026-06-15 → 2026-06-22` statt `15.06.2026 → 22.06.2026`. Fix: `fmtDate()` aus `$lib/i18n.js` importiert und in `dateSummary`-Derived verwendet.
+- **BUG 8 — ScratchMap Render-Fehler** (`ScratchMap.svelte`): „Attempt to use map which was not loaded: world" beim ersten Load. Fix: neue `ensureLib()`-Funktion lädt `jsvectormap` + `world.js` einmalig und wartet 150ms bis die Map-Registry bereit ist; `initMap()` ruft `ensureLib()` idempotent auf bevor `new jsVMClass()` aufgerufen wird.
+
+### Changed (UX) — Bug-Report Session
+
+- **UX 1 — autocapitalize** (`WanderWizzard.svelte`, `TripHub.svelte`): `autocapitalize="words"` auf Destination-Input im WanderWizzard und Titel-Input im Edit-Modal — verhindert Kleinschreibung bei mobiler Eingabe.
+- **UX 2 — archived Trip CTA** (`HeroNextTrip.svelte`): Hero-Karte für archivierte Trips zeigt jetzt neutralen Button „📖 Trip ansehen" (halbtransparent weiß) statt orangefarbenem „🗺️ Zur Reiseplanung"-CTA.
+- **UX 3 — Tracker-Label Truncate** (`CompactTrackerGrid.svelte`): `overflow-hidden` + `title`-Tooltip auf dem Label-Container — lange Hotel-/Camping-Namen brechen nicht mehr unsauber um.
+- **UX 4 — Gepäck-Spalten-Header** (`FlightSearchForm.svelte`): Spalten-Header-Zeile (`Typ | Anzahl | Aufpreis / Stück | Total`) über dem Gepäck-Stepper ergänzt; `hidden sm:flex` für Mobile-Kompatibilität.
+- **UX 5 — Budget-Betrag Tooltip** (`CompactTripsList.svelte`): `title="Gebuchte Kosten + Ausgaben"` auf Budget-Betrag — klärt dass Orange die Standard-Akzentfarbe ist (kein Warnsignal).
+
+---
+
+## [1.0.0-beta.1] — 2026-04-20
+
 ### Added — Block 8: Settings-Polish, Date-Logic & Tracker-Fix
 
 - **Test-Buttons für Alerts** (`NotificationsTab.svelte`): Telegram- und Gotify-Sektionen haben jetzt je einen „🚀 Testnachricht"-Button. Der Button ist deaktiviert solange die nötigen Credentials (Token + Chat-ID bzw. URL + App-Token) nicht ausgefüllt sind. Nutzt die bereits vorhandenen Endpoints `POST /api/notifications/test-telegram` und `POST /api/notifications/test-gotify`.
