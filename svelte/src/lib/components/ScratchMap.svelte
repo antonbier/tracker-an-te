@@ -42,6 +42,19 @@
     return null;
   }
 
+  // BUG 8: jsvectormap+world.js einmalig vorladen (außerhalb von initMap),
+  // damit "world" Map immer registriert ist wenn die Karte gerendert wird.
+  let libReady = false;
+  async function ensureLib() {
+    if (libReady) return;
+    const mod = await import('jsvectormap');
+    jsVMClass  = mod.default;
+    await import('jsvectormap/dist/maps/world.js');
+    // Kurz warten bis die Map-Registry den world-Eintrag verarbeitet hat
+    await new Promise(r => setTimeout(r, 150));
+    libReady = true;
+  }
+
   async function initMap() {
     if (!mapEl) return;
     try { map?.destroy?.(); } catch {}
@@ -49,12 +62,8 @@
     loading = true;
     loadErr = '';
 
-    if (!jsVMClass) {
-      const mod = await import('jsvectormap');
-      jsVMClass = mod.default;
-      await import('jsvectormap/dist/maps/world.js');
-      await new Promise(r => setTimeout(r, 100));
-    }
+    // Bibliothek laden (idempotent) — bevor mapEl benutzt wird
+    await ensureLib();
 
     // ── Visited: GPS-Koordinaten aus journalTrips (Dawarich + manuell mit Geocoding) ─
     // Jahresfilter: nur Reisen des im Header gewaehlten Jahres.
