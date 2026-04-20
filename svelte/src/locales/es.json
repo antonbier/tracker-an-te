@@ -660,5 +660,15 @@
   "wwVibeSea": "🏖️ Playa",
   "wwWishLabel": "💬 ¿Deseos especiales?",
   "wwWishPlaceholder": "ej. playa de arena fina, sin turismo de masas…",
-  "yearSelect": "Año"
+  "yearSelect": "Año",
+  "dashAllPlanned": "Todos los viajes planificados →",
+  "dashToArchive": "Al archivo →",
+  "settingsTestSend": "🚀 Mensaje de prueba",
+  "settingsTestSending": "⏳ Enviando…",
+  "schedEvery6h": "Cada 6 h",
+  "schedEvery12h": "Cada 12 h",
+  "schedEvery24h": "Cada día",
+  "schedEvery48h": "Cada 2 días",
+  "schedEvery72h": "Cada 3 días",
+  "schedEveryWeek": "Semanalmente"
 }
