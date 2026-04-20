@@ -6,6 +6,15 @@ Alle nennenswerten Änderungen am Projekt. Format basiert auf [Keep a Changelog]
 
 ## [1.0.0-beta.1] — 2026-04-20
 
+### Fixed — Bug 1 ([object Object]) + Bug 2 (Scheduler Notifications)
+
+- **Bug 1 — [object Object] in PriceRadar** (`routes/trackers.py`, `routes/google_flights.py`, `routes/accommodations.py`): `current_price` auf Root-Level des Tracker-Objekts wird jetzt mit explizitem `float(raw_price)`-Cast gesetzt. Verhindert dass SQLite-interne Typen (Decimal, sqlite3.Row-Werte) als `[object Object]` gerendert werden wenn das Frontend `{price.toFixed(2)}` aufruft.
+- **Bug 2 — Scheduler sendet keine Notifications** (`scheduler.py`):
+  - **Ursache**: `_check_and_notify(tracker, snap, result.get("previous_price"))` wurde immer mit `prev_price=None` aufgerufen, weil `fetch_flights()` das Feld `previous_price` **nicht** im Return-Dict hat. Die Bedingung `if prev_price and new_price < prev_price` war deshalb für jeden Ryanair-Tracker immer `False` — keine einzige Preissturz-Notification wurde je gesendet.
+  - **Fix**: Vor dem Scrape den letzten bekannten Preis aus der DB holen (`get_latest_snapshot(tid)`) und als `prev_price` an `_check_and_notify()` übergeben. Gleiche Logik für Google Flights via `get_latest_gf_snapshot`.
+  - **Logging**: Detailliertes `logger.info()` in `_check_and_notify` und `_check_and_notify_generic` — Logs zeigen jetzt explizit ob ein Preissturz erkannt wurde, warum ein Check übersprungen wurde, und ob die Notification gesendet wurde. Sichtbar in Docker-Logs mit `docker logs wandersuite-beta-bac`.
+  - `_check_and_notify_generic` um `prev_price`-Parameter erweitert → Google Flights und Homair/Booking profitieren ebenfalls von Preissturz-Checks.
+
 ### Fixed — NEU-BUG A/B/C
 
 - **NEU-BUG A — is_booked/booked_price ignoriert** (`routes/trackers.py`): `TrackerUpdate`-Modell um `is_booked: Optional[int]` und `booked_price: Optional[float]` erweitert. PATCH-Handler berücksichtigt jetzt `is_booked=0` (Buchung zurücksetzen) explizit — war vorher durch `if v is not None`-Filter ausgeschlossen. Wenn `booked_price` ohne `is_booked` gesendet wird, wird `is_booked=1` implizit gesetzt.
