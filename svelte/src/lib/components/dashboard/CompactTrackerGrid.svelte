@@ -88,8 +88,8 @@
             <span class="text-base shrink-0">{providerIcon(tr._type)}</span>
 
             <!-- Label + date -->
-            <div class="flex-1 min-w-0">
-              <div class="text-sm font-semibold truncate" style="color:var(--ws-text)">{trackerLabel(tr)}</div>
+            <div class="flex-1 min-w-0 overflow-hidden">
+              <div class="text-sm font-semibold truncate" title={trackerLabel(tr)} style="color:var(--ws-text)">{trackerLabel(tr)}</div>
               <div class="text-xs font-mono" style="color:var(--ws-muted)">{trackerDate(tr)}</div>
             </div>
 
