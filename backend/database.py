@@ -1549,8 +1549,11 @@ def create_ws_trip(data: dict, user_id: int) -> int:
     return cur.lastrowid
 
 
-def list_ws_trips(user_id: int, limit: int = 100) -> list[dict]:
-    """Alle WanderWizzard-Trips eines Users, neueste zuerst."""
+def list_ws_trips(user_id: int, limit: int = 2000) -> list[dict]:
+    """Alle WanderWizzard-Trips eines Users, neueste zuerst.
+    Block 8: Limit von 100 auf 2000 erhöht — MyTrips-Statistik zählte
+    zu wenige Trips wenn >100 Einträge vorhanden.
+    """
     with db() as conn:
         rows = conn.execute(
             "SELECT * FROM ws_trips WHERE user_id=? ORDER BY created_at DESC LIMIT ?",
