@@ -341,9 +341,12 @@
     }
   }
 
+  let refreshProgress = $state('');  // Fortschritts-Text für UI
+
   async function refreshAllTrackers() {
     if (isRefreshing) return;
     isRefreshing = true;
+    refreshProgress = '';
     const endpoints = {
       flight:        (id) => `/api/trackers/${id}/scrape`,
       google_flight: (id) => `/api/google-flights/${id}/scrape`,
@@ -352,29 +355,38 @@
     };
     const toScrape = allTrackers.filter(tr => endpoints[tr._type]);
     if (toScrape.length === 0) {
-      toast('Keine aktiven Tracker', 'warning');
+      toast('Keine aktiven Tracker vorhanden', 'warning');
       isRefreshing = false;
       return;
     }
-    toast(`⏳ ${toScrape.length} Tracker werden aktualisiert…`, 'warning');
-    let ok = 0, fail = 0;
+    let done = 0, fail = 0;
     for (const tr of toScrape) {
+      const label = tr.origin && tr.destination
+        ? `${tr.origin}→${tr.destination}`
+        : tr.destination || `#${tr.id}`;
+      refreshProgress = `${done + 1}/${toScrape.length} · ${label}`;
       try {
         await api(endpoints[tr._type](tr.id), { method: 'POST' });
-        ok++;
+        done++;
       } catch (e) {
-        // 422 = kein API-Key oder Scraper-Fehler — kein Crash, weitermachen
         const detail = e?.detail || {};
         if (detail.error === 'missing_api_key') {
-          toast(`⚠️ ${tr._type} #${tr.id}: API-Key fehlt`, 'error');
+          toast(`⚠️ ${label}: API-Key fehlt`, 'error');
+        } else if (detail.error === 'provider_unavailable') {
+          toast(`⚠️ ${label}: Anbieter nicht verfügbar`, 'error');
         }
         fail++;
       }
     }
-    // silent=true: kein Loading-Flash — bestehende Preise bleiben sichtbar
+    refreshProgress = '';
+    // silent=true: kein Loading-Flash — bestehende Preise bleiben sichtbar bis neue da sind
     await loadAllTrackers(true);
     isRefreshing = false;
-    toast(`✅ ${ok} aktualisiert${fail > 0 ? ` · ${fail} Fehler` : ''}`, ok > 0 ? 'success' : 'error');
+    if (done > 0) {
+      toast(`✅ ${done} Tracker aktualisiert${fail > 0 ? ` · ${fail} Fehler` : ''}`, 'success');
+    } else {
+      toast(`❌ Alle ${fail} Scrapes fehlgeschlagen`, 'error');
+    }
   }
 
   // ── Link tracker to trip ─────────────────────────────────────────────────
@@ -450,6 +462,7 @@
     bind:chartState
     bind:wishState
     bind:stopsOpen
+    {refreshProgress}
     onrefreshall={refreshAllTrackers}
     ondelete={deleteTracker}
     onscrape={scrapeTracker}
