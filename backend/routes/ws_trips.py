@@ -215,9 +215,33 @@ class TodoCreate(BaseModel):
     category: Optional[str] = "general"
     due_date: Optional[str] = None
 
+    @field_validator("task")
+    @classmethod
+    def validate_task(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("task darf nicht leer sein")
+        if len(v) > 500:
+            raise ValueError("task darf maximal 500 Zeichen haben")
+        return _sanitize(v, max_len=500) or v
+
+    @field_validator("due_date")
+    @classmethod
+    def validate_due_date_create(cls, v):
+        # NEU-BUG 5: Format prüfen, Vergangenheit erlaubt (für Import-Szenarien)
+        if v is None: return v
+        try:
+            date.fromisoformat(v)
+        except ValueError:
+            raise ValueError(f"due_date muss im Format YYYY-MM-DD sein, erhalten: {v!r}")
+        return v
+
 
 class TodoUpdate(BaseModel):
+    """NEU-BUG 4 + API-BUG 1: is_done + due_date + task editierbar."""
+    is_done:  Optional[int] = None   # 0 oder 1 — direktes Setzen statt Toggle
     due_date: Optional[str] = None
+    task:     Optional[str] = None
 
 
 # ── KI To-Do Generierung ──────────────────────────────────────────────────────
@@ -361,12 +385,33 @@ async def create_trip(data: WsTripCreate, user=Depends(get_current_user)):
         todos = await _generate_todos(trip_data)
         create_trip_todos(trip_id, todos)
 
-    return {"id": trip_id, "title": trip_data["title"], "todos": todos, "message": "Trip angelegt ✓"}
+    warnings = []
+    if not trip_data.get("start_date"):
+        warnings.append("start_date fehlt — Phasenberechnung und Wetter-Widget nicht verfügbar")
+    if not trip_data.get("end_date"):
+        warnings.append("end_date fehlt — Archivierungserkennung nicht verfügbar")
+    resp = {"id": trip_id, "title": trip_data["title"], "todos": todos, "message": "Trip angelegt ✓"}
+    if warnings:
+        resp["warnings"] = warnings
+    return resp
 
 
 @router.get("")
 def get_trips(user=Depends(get_current_user)):
     return list_ws_trips(_uid(user))
+
+
+@router.get("/export")
+def export_trips(user=Depends(get_current_user)):
+    """NEU-BUG 3: Route muss VOR /{trip_id} stehen — sonst 422 'not a valid int'.
+    Exportiert alle Trips des Users als JSON.
+    """
+    trips = list_ws_trips(_uid(user))
+    return {
+        "exported_at": __import__("datetime").datetime.utcnow().isoformat() + "Z",
+        "count":       len(trips),
+        "trips":       trips,
+    }
 
 
 @router.get("/{trip_id}")
@@ -414,6 +459,12 @@ def update_trip(trip_id: int, data: WsTripUpdate, user=Depends(get_current_user)
             values,
         )
     logger.info(f"[WsTrips] Trip #{trip_id} updated: {list(updates.keys())}")
+    # D1: vollständiges Objekt zurückgeben
+    updated_trip = get_ws_trip(trip_id, _uid(user))
+    if updated_trip:
+        updated_trip.setdefault("todos", [])
+        return {"id": trip_id, "updated": list(updates.keys()),
+                "message": "Trip aktualisiert ✓", "trip": updated_trip}
     return {"id": trip_id, "updated": list(updates.keys()), "message": "Trip aktualisiert ✓"}
 
 
@@ -646,6 +697,39 @@ def set_todo_due(trip_id: int, todo_id: int, data: TodoUpdate, user=Depends(get_
     if r.rowcount == 0:
         raise HTTPException(404, "To-Do nicht gefunden")
     return {"ok": True, "due_date": data.due_date}
+
+
+@router.patch("/{trip_id}/todos/{todo_id}")
+def update_todo(trip_id: int, todo_id: int, data: TodoUpdate, user=Depends(get_current_user)):
+    """API-BUG 1: Direkter PATCH auf Todo — setzt is_done, task oder due_date.
+    Ergänzt den /toggle-Endpoint: ist_done=0/1 kann direkt gesetzt werden.
+    """
+    if not get_ws_trip(trip_id, _uid(user)):
+        raise HTTPException(404, "Trip nicht gefunden")
+    updates: dict = {}
+    if data.is_done is not None:
+        if data.is_done not in (0, 1):
+            raise HTTPException(422, "is_done muss 0 oder 1 sein")
+        updates["is_done"] = data.is_done
+    if data.due_date is not None:
+        updates["due_date"] = data.due_date
+    if data.task is not None:
+        task = data.task.strip()
+        if not task:
+            raise HTTPException(422, "task darf nicht leer sein")
+        updates["task"] = _sanitize(task, max_len=500) or task
+    if not updates:
+        return {"ok": True, "message": "Keine Änderungen"}
+    from database import db as _db
+    set_clause = ", ".join(f"{k}=?" for k in updates)
+    vals = list(updates.values()) + [todo_id, trip_id]
+    with _db() as conn:
+        r = conn.execute(
+            f"UPDATE trip_todos SET {set_clause} WHERE id=? AND trip_id=?", vals
+        )
+    if r.rowcount == 0:
+        raise HTTPException(404, "To-Do nicht gefunden")
+    return {"ok": True, "updated": list(updates.keys()), "message": "To-Do aktualisiert ✓"}
 
 
 @router.patch("/{trip_id}/todos/{todo_id}/toggle")
