@@ -109,9 +109,7 @@
                 {#if d.duration_min}
                   <span class="text-xs" style="color:var(--ws-muted)">({Math.floor(d.duration_min/60)}h{String(d.duration_min%60).padStart(2,'0')}m)</span>
                 {:else if d.departure_time && d.arrival_time}
-                  {@const _dh = parseInt(d.departure_time.slice(0,2)), _dm = parseInt(d.departure_time.slice(3,5))}
-                  {@const _ah = parseInt(d.arrival_time.slice(0,2)),   _am = parseInt(d.arrival_time.slice(3,5))}
-                  {@const _dur = (_ah*60+_am - (_dh*60+_dm) + 1440) % 1440}
+                  {@const _dur = ((parseInt(d.arrival_time.slice(0,2))*60 + parseInt(d.arrival_time.slice(3,5))) - (parseInt(d.departure_time.slice(0,2))*60 + parseInt(d.departure_time.slice(3,5))) + 1440) % 1440}
                   {#if _dur > 0}
                     <span class="text-xs" style="color:var(--ws-muted)">({Math.floor(_dur/60)}h{String(_dur%60).padStart(2,'0')}m)</span>
                   {/if}
