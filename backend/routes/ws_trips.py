@@ -101,11 +101,18 @@ class WsTripCreate(BaseModel):
             raise ValueError("title darf nicht leer oder nur HTML sein")
         return clean
 
-    @field_validator("destination", "notes", "wish_text", mode="before")
+    @field_validator("destination", "wish_text", mode="before")
     @classmethod
-    def sanitize_text(cls, v):
+    def sanitize_short_text(cls, v):
         if v is None: return v
         return _sanitize(str(v), max_len=500)
+
+    @field_validator("notes", mode="before")
+    @classmethod
+    def sanitize_notes(cls, v):
+        # DES-1: notes max 2000 Zeichen (50.000 wurde ohne Fehler akzeptiert)
+        if v is None: return v
+        return _sanitize(str(v), max_len=2000)
 
     @field_validator("budget", mode="before")
     @classmethod
@@ -162,12 +169,18 @@ class WsTripUpdate(BaseModel):
     notes:        Optional[str]   = None
     status:       Optional[str]   = None
 
-    @field_validator("title", "destination", "notes", mode="before")
+    @field_validator("title", "destination", mode="before")
     @classmethod
-    def sanitize_update_text(cls, v):
+    def sanitize_update_short(cls, v):
         if v is None: return v
-        s = _sanitize(str(v), max_len=200)
-        return s  # None → field bleibt unverändert
+        return _sanitize(str(v), max_len=200)
+
+    @field_validator("notes", mode="before")
+    @classmethod
+    def sanitize_update_notes(cls, v):
+        # DES-1: notes max 2000 Zeichen
+        if v is None: return v
+        return _sanitize(str(v), max_len=2000)
 
     @field_validator("budget", mode="before")
     @classmethod
