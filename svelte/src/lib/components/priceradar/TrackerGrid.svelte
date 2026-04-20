@@ -7,6 +7,7 @@
     allCount,
     loading,
     isRefreshing,
+    refreshProgress = '',
     activeCategory,
     wsTrips      = [],
     chartState   = $bindable(),
@@ -35,7 +36,9 @@
         disabled={isRefreshing}
         class="px-3 py-1.5 rounded-xl text-xs border transition-all disabled:opacity-50"
         style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)">
-        {isRefreshing ? '⏳ ' + $t('radarRefreshing') : '🔄 ' + $t('radarRefreshAll')}
+        {isRefreshing
+          ? '⏳ ' + (refreshProgress || $t('radarRefreshing'))
+          : '🔄 ' + $t('radarRefreshAll')}
       </button>
     {/if}
   </div>
