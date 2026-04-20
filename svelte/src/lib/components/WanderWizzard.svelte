@@ -1,5 +1,5 @@
 <script>
-  import { t } from '$lib/i18n.js';
+  import { t, fmtDate } from '$lib/i18n.js';
   import { AIRPORTS } from '$lib/components/priceradar/constants.js';
   import { currentPage, activeWsTripId } from '$lib/stores.js';
   import { api } from '$lib/api.js';
@@ -120,7 +120,7 @@
   const flexMonthOptions = $derived($t('wwFlexMonthOptions').split(','));
   const dateSummary = $derived.by(() => {
     if (path === 'inspire' && s1DateMode === 'flexible') return `${s1FlexMonth || '—'} · ${s1FlexNights} ${$t('wwFlexNights')}`;
-    return s1DateFrom ? `${s1DateFrom}${s1DateTo ? ' → ' + s1DateTo : ''}` : '—';
+    return s1DateFrom ? `${fmtDate(s1DateFrom)}${s1DateTo ? ' → ' + fmtDate(s1DateTo) : ''}` : '—';
   });
   const travelersSummary = $derived(`${s1Adults} ${$t('wwAdultsShort')}${s1Children > 0 ? ' · ' + s1Children + ' ' + $t('wwChildrenShort') : ''}`);
   const budgetHint = $derived.by(() => {
