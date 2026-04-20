@@ -673,8 +673,8 @@
     <!-- ── Widget Grid ─────────────────────────────────────────────────── -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-      <!-- Weather Widget (active or ≤7 days) — spans full row on desktop when alone -->
-      {#if phase === 'active' || daysUntilStart <= 7}
+      <!-- Weather Widget: nur für active/planning — archived zeigt aktuelles Wetter, was nutzlos ist -->
+      {#if phase !== 'archived' && (phase === 'active' || daysUntilStart <= 7)}
         <div class="md:col-span-2">
           <WeatherWidget destination={trip.destination || trip.title || ''} {phase} {daysUntilStart} />
         </div>
