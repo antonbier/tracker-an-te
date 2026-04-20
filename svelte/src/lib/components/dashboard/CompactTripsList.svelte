@@ -101,7 +101,9 @@
               <div class="text-xs font-mono" style="color:var(--ws-muted)">{tripDate(trip)}</div>
             </div>
             {#if tripCost(trip)}
-              <div class="text-sm font-bold font-mono shrink-0" style="color:var(--ws-accent2)">
+              <div class="text-sm font-bold font-mono shrink-0"
+                title="Gebuchte Kosten + Ausgaben"
+                style="color:var(--ws-accent2)">
                 {tripCost(trip).toFixed(0)} €
               </div>
             {/if}
