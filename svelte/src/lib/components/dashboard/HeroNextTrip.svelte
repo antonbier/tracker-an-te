@@ -105,6 +105,16 @@
 
   // Urgency-Indikator: < 7 Tage = pulsierend grün
   const isUrgent = $derived((daysUntil ?? 999) <= 7 && (daysUntil ?? 999) >= 0);
+
+  // UX 2: Phase aus Datum ableiten (analog TripCard/TripHub)
+  const phase = $derived.by(() => {
+    const s = (trip?.start_date || '').slice(0, 10);
+    const e = (trip?.end_date   || trip?.start_date || '').slice(0, 10);
+    if (!e) return 'planning';
+    if (today > e)    return 'archived';
+    if (today >= s)   return 'active';
+    return 'planning';
+  });
 </script>
 
 <div class="relative rounded-2xl overflow-hidden flex flex-col" style="min-height:200px;background:{bgGrad}">
@@ -152,14 +162,23 @@
       {/if}
     </div>
 
-    <!-- Action Button -->
+    <!-- Action Button — UX 2: neutral für archived, aktiv für planning/active -->
     <div class="mt-3">
-      <button
-        onclick={ongoToHub}
-        class="w-full py-2 rounded-xl text-xs font-semibold transition-all hover:opacity-90 active:scale-[.98]"
-        style="background:linear-gradient(135deg,var(--ws-accent),#b84928);color:#fff5ec;border:none">
-        🗺️ {$t('dashTripHub') || 'Zur Reiseplanung'}
-      </button>
+      {#if phase === 'archived'}
+        <button
+          onclick={ongoToHub}
+          class="w-full py-2 rounded-xl text-xs font-semibold transition-all hover:opacity-80 active:scale-[.98] border"
+          style="background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.2);color:rgba(255,255,255,.85);backdrop-filter:blur(6px)">
+          📖 {$t('tripHubBack') || 'Trip ansehen'}
+        </button>
+      {:else}
+        <button
+          onclick={ongoToHub}
+          class="w-full py-2 rounded-xl text-xs font-semibold transition-all hover:opacity-90 active:scale-[.98]"
+          style="background:linear-gradient(135deg,var(--ws-accent),#b84928);color:#fff5ec;border:none">
+          🗺️ {$t('dashTripHub') || 'Zur Reiseplanung'}
+        </button>
+      {/if}
     </div>
   </div>
 
