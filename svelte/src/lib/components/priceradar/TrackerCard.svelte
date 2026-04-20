@@ -23,7 +23,9 @@
 
   const wKey       = $derived(`${tr._type}-${tr.id}`);
   const s          = $derived(tr.latest_snapshot);
-  const price      = $derived(s?.total_price);
+  // Block 8: current_price (root-level, immer frisch vom Backend) als primäre
+  // Quelle — fällt auf latest_snapshot.total_price zurück wenn nicht vorhanden
+  const price      = $derived(tr.current_price ?? s?.total_price);
   const wish       = $derived(tr.wish_price);
   const wishMet    = $derived(wish && price && price <= wish);
   const badges     = $derived(trackerBadges(tr, $t));
