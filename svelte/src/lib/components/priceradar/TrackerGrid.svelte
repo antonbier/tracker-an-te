@@ -58,7 +58,11 @@
       <div class="text-2xl mb-2">📭</div>
       <p class="text-xs" style="color:var(--ws-muted)">
         {allCount > 0
-          ? $t('radarNoTypeTrackersFull').replace('{type}', activeCategory === 'flights' ? ($t('radarFlights') || 'Flug') : activeCategory === 'hotels' ? ($t('radarHotels') || 'Hotel') : ($t('radarCamping') || 'Camping'))
+          ? $t('radarNoTypeTrackersFull').replace('{type}',
+              activeCategory === 'flights' ? $t('radarFlights') :
+              activeCategory === 'hotels'  ? $t('radarHotels')  :
+              activeCategory === 'camping' ? $t('radarCamping') :
+              activeCategory === 'rentals' ? $t('radarRentals') : activeCategory)
           : $t('dashNoTrackers')}
       </p>
     </div>
