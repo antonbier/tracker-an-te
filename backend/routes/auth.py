@@ -7,7 +7,10 @@ WanderSuite — Auth Routes
 
 import os
 import logging
-from fastapi import APIRouter, HTTPException, Depends
+import time
+import threading
+from collections import defaultdict, deque
+from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel, EmailStr
 
 from auth_db import (
@@ -21,6 +24,39 @@ router_auth   = APIRouter()
 router_admin  = APIRouter()
 
 logger = logging.getLogger(__name__)
+
+
+# ── SEC-BUG 1: In-Memory Rate-Limiter für Login-Brute-Force-Schutz ────────────
+# Max. 5 Versuche pro IP innerhalb von 60 Sekunden.
+# Thread-sicher via Lock; Speicher-footprint minimal (deque mit maxlen).
+_RATE_LIMIT_ATTEMPTS = 5
+_RATE_LIMIT_WINDOW   = 60   # Sekunden
+_login_attempts: dict[str, deque] = defaultdict(lambda: deque(maxlen=_RATE_LIMIT_ATTEMPTS + 1))
+_rate_lock = threading.Lock()
+
+
+def _check_rate_limit(ip: str) -> None:
+    """Raise HTTP 429 wenn die IP zu viele Login-Versuche hatte."""
+    now = time.monotonic()
+    with _rate_lock:
+        dq = _login_attempts[ip]
+        # Alte Einträge außerhalb des Fensters entfernen
+        while dq and now - dq[0] > _RATE_LIMIT_WINDOW:
+            dq.popleft()
+        if len(dq) >= _RATE_LIMIT_ATTEMPTS:
+            wait = int(_RATE_LIMIT_WINDOW - (now - dq[0])) + 1
+            raise HTTPException(
+                status_code=429,
+                detail=f"Zu viele Login-Versuche. Bitte {wait}s warten.",
+                headers={"Retry-After": str(wait)},
+            )
+        dq.append(now)
+
+
+def _clear_rate_limit(ip: str) -> None:
+    """Nach erfolgreichem Login Zähler zurücksetzen."""
+    with _rate_lock:
+        _login_attempts.pop(ip, None)
 
 
 # ══ /api/status ══════════════════════════════════════════════════════════════
@@ -74,19 +110,27 @@ def setup(data: SetupPayload):
 
 
 @router_auth.post("/auth/login")
-def login(data: LoginPayload):
+def login(data: LoginPayload, request: Request):
     """
     Authenticate with email + password. Returns a 30-day JWT on success.
+    SEC-BUG 1: Rate-Limit 5 Versuche / 60s pro IP — danach HTTP 429.
     """
     if not AUTH_ENABLED:
         raise HTTPException(400, "AUTH_ENABLED=false — kein Login erforderlich.")
 
+    # Rate-Limit prüfen (vor DB-Query, um Timing-Leaks zu minimieren)
+    client_ip = request.client.host if request.client else "unknown"
+    _check_rate_limit(client_ip)
+
     user = get_user_by_email(data.email)
     if not user or not verify_password(data.password, user["password_hash"]):
+        logger.warning(f"[Auth] Fehlgeschlagener Login für {data.email!r} von {client_ip}")
         raise HTTPException(401, "E-Mail oder Passwort falsch.")
 
+    # Erfolgreicher Login → Zähler zurücksetzen
+    _clear_rate_limit(client_ip)
     token = create_token(user["id"], user["email"], user["role"])
-    logger.info(f"[Auth] Login: {user['email']}")
+    logger.info(f"[Auth] Login: {user['email']} von {client_ip}")
     return {"token": token, "user": {"email": user["email"], "role": user["role"]}}
 
 
