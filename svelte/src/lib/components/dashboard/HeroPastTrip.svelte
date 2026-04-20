@@ -36,9 +36,15 @@
   const today = new Date().toISOString().slice(0, 10);
 
   const daysAgo = $derived.by(() => {
-    const d = trip?.start_date || trip?.dateStart || trip?.date || '';
+    // Block 8 Fix: end_date für vergangene Reisen nutzen (nicht start_date).
+    // start_date → "Heute geht's los" Bug bei archivierten Trips.
+    const endRaw   = trip?.end_date   || trip?.dateEnd   || '';
+    const startRaw = trip?.start_date || trip?.dateStart || trip?.date || '';
+    const d = endRaw || startRaw;  // end_date bevorzugen
     if (!d) return null;
-    return Math.floor((new Date(today) - new Date(d)) / 86400000);
+    const tripDate = new Date(d.slice(0, 10) + 'T00:00:00');
+    const todayDate = new Date(today + 'T00:00:00');
+    return Math.floor((todayDate - tripDate) / 86400000);
   });
 
   const isOld = $derived((daysAgo ?? 0) > 180);
