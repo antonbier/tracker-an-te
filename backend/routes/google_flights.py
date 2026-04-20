@@ -55,7 +55,9 @@ def _uid(user: dict) -> int | None:
 def list_trackers(user: dict = Depends(get_current_user)):
     trackers = list_gf_trackers(user_id=_uid(user))
     for t in trackers:
-        t["latest_snapshot"] = get_latest_gf_snapshot(t["id"])
+        snap = get_latest_gf_snapshot(t["id"])
+        t["latest_snapshot"] = snap
+        t["current_price"] = snap.get("total_price") if snap else None
     return trackers
 
 
