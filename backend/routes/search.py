@@ -259,6 +259,20 @@ async def _search_ryanair(params: FlightSearchParams) -> list[dict]:
             return iso.split("T")[1][:5]
         return None
 
+    def _calc_duration_min(dep: str | None, arr: str | None) -> int | None:
+        """BUG 2: Dauer in Minuten aus HH:MM-Strings — Overnight-Flüge korrekt."""
+        if not dep or not arr:
+            return None
+        try:
+            dh, dm = map(int, dep[:5].split(":"))
+            ah, am = map(int, arr[:5].split(":"))
+            total = ah * 60 + am - (dh * 60 + dm)
+            if total <= 0:      # Tageswechsel
+                total += 1440
+            return total
+        except Exception:
+            return None
+
     def _build_extras(base_price: float) -> tuple[float, list[str]]:
         total_pax = params.adults + params.children
         baggage_cost = 0.0
@@ -393,6 +407,8 @@ async def _search_ryanair(params: FlightSearchParams) -> list[dict]:
                     "seat_cost":      params.seat_cost,
                     "departure_time": dep_time,
                     "arrival_time":   arr_time,
+                    # BUG 2 Fix: Dauer aus dep/arr berechnen (Overnight berücksichtigen)
+                    "duration_min":   _calc_duration_min(dep_time, arr_time),
                     "flight_number":  flight_num_fmt,
                     "airline":        "Ryanair",
                     "stops":          0,
