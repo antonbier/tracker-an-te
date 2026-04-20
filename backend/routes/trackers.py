@@ -104,9 +104,10 @@ def get_all_trackers(user: dict = Depends(get_current_user)):
     for t in trackers:
         snap = get_latest_snapshot(t["id"])
         t["latest_snapshot"] = snap
-        # Block 8: current_price direkt auf Root für sofortige UI-Anzeige
-        # ohne dass der User erst auf Refresh klicken muss
-        t["current_price"] = snap.get("total_price") if snap else None
+        # Block 8 + BUG-1-Fix: current_price als expliziter Float auf Root-Level.
+        # float()-Cast verhindert [object Object] wenn SQLite einen Decimal o.ä. liefert.
+        raw_price = snap.get("total_price") if snap else None
+        t["current_price"] = float(raw_price) if raw_price is not None else None
     return trackers
 
 
