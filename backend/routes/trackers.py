@@ -149,16 +149,102 @@ def set_threshold(tracker_id: int, data: ThresholdPayload, user: dict = Depends(
 
 
 def _do_scrape(tracker_id: int, user: dict) -> dict:
-    """Shared scrape logic for /scrape and /scan endpoints."""
+    """Shared scrape logic for /scrape and /scan endpoints.
+    BUG 3: Exception-Klassifizierung — kein roher 500-Stack.
+    """
     t = get_tracker(tracker_id, user_id=_uid(user))
     if not t:
         raise HTTPException(404, f"Tracker #{tracker_id} nicht gefunden")
     try:
         snap = run_single_tracker(tracker_id)
         return {"message": "Scraping abgeschlossen", "snapshot": snap}
+    except HTTPException:
+        raise  # Bereits klassifiziert — durchreichen
     except Exception as e:
-        logger.error(f"Scraping Fehler Tracker #{tracker_id}:\n{traceback.format_exc()}")
-        raise HTTPException(500, detail=f"{type(e).__name__}: {str(e)}")
+        err_msg = str(e)
+        logger.error(f"Scraping Fehler Tracker #{tracker_id}: {err_msg}")
+        # Kein API-Key konfiguriert
+        if "api_key" in err_msg.lower() or "serpapi" in err_msg.lower() or "key" in err_msg.lower():
+            raise HTTPException(422, detail={
+                "error": "missing_api_key",
+                "message": "API-Key fehlt oder ist ungültig — Einstellungen → Provider prüfen",
+                "raw": err_msg,
+            })
+        # Externe API antwortet mit Fehler (409, 503, Rate Limit …)
+        if any(code in err_msg for code in ["409", "429", "503", "502", "Availability declined",
+                                             "rate limit", "Rate limit", "temporarily"]):
+            raise HTTPException(503, detail={
+                "error": "provider_unavailable",
+                "message": "Anbieter vorübergehend nicht verfügbar — später erneut versuchen",
+                "raw": err_msg,
+            })
+        # Allgemeiner Scraping-Fehler — 422 mit verständlicher Meldung
+        raise HTTPException(422, detail={
+            "error": "scrape_failed",
+            "message": f"Preisabfrage fehlgeschlagen: {err_msg}",
+        })
+
+
+class TrackerUpdate(BaseModel):
+    """BUG 4: Partial update für einen bestehenden Ryanair-Tracker."""
+    return_date:  Optional[str]   = None
+    adults:       Optional[int]   = None
+    children:     Optional[int]   = None
+    seat_cost:    Optional[float] = None
+    wish_price:   Optional[float] = None
+    trip_id:      Optional[int]   = None
+
+    @field_validator("adults")
+    @classmethod
+    def validate_adults(cls, v):
+        if v is not None and v < 1:
+            raise ValueError("adults muss mindestens 1 sein")
+        return v
+
+    @field_validator("children")
+    @classmethod
+    def validate_children(cls, v):
+        if v is not None and v < 0:
+            raise ValueError("children darf nicht negativ sein")
+        return v
+
+    @field_validator("seat_cost", "wish_price")
+    @classmethod
+    def validate_price(cls, v):
+        if v is not None and v < 0:
+            raise ValueError("Preis-Felder dürfen nicht negativ sein")
+        return v
+
+
+@router.patch("/{tracker_id}")
+def update_tracker(tracker_id: int, data: TrackerUpdate, user: dict = Depends(get_current_user)):
+    """BUG 4: Partial update — nur angegebene Felder werden überschrieben."""
+    t = get_tracker(tracker_id, user_id=_uid(user))
+    if not t:
+        raise HTTPException(404, f"Tracker #{tracker_id} nicht gefunden")
+
+    updates = {k: v for k, v in data.model_dump().items() if v is not None}
+    if not updates:
+        return {"id": tracker_id, "message": "Keine Änderungen"}
+
+    # wish_price geht in eigene Tabelle (set_tracker_threshold)
+    wish = updates.pop("wish_price", None)
+
+    if updates:
+        from database import db as _db
+        set_clauses = ", ".join(f"{k}=?" for k in updates)
+        vals = list(updates.values()) + [tracker_id]
+        with _db() as conn:
+            conn.execute(
+                f"UPDATE trackers SET {set_clauses} WHERE id=?", vals
+            )
+
+    if wish is not None:
+        set_tracker_threshold(tracker_id, wish)
+
+    logger.info(f"[Trackers] #{tracker_id} updated: {list(data.model_dump(exclude_none=True).keys())}")
+    return {"id": tracker_id, "updated": list(data.model_dump(exclude_none=True).keys()),
+            "message": "Tracker aktualisiert ✓"}
 
 
 @router.post("/{tracker_id}/scrape")
