@@ -84,19 +84,36 @@ def update_scheduler_settings(
     return {"message": "Scheduler-Einstellungen gespeichert"}
 
 
+# NEU-BUG C: Cooldown pro User — max 1 manueller Run alle 5 Minuten
+import time as _time
+_run_cooldown: dict[int, float] = {}
+_COOLDOWN_SECS = 300  # 5 Minuten
+
+
 @router.post("/run")
 async def trigger_run(user: dict = Depends(get_current_user)):
     """
     Manually trigger a price fetch for the current user's trackers.
-    FIX: use get_running_loop() instead of deprecated get_event_loop().
-    FIX: update last_run_at for the requesting user after scheduling.
+    NEU-BUG C: Cooldown 5 min/User — verhindert Ressourcen-Missbrauch.
+    Der Run ist user-scoped (nur eigene Tracker) — kein Admin nötig.
     """
     uid = user.get("id", 1) or 1
+
+    # Cooldown-Check
+    last = _run_cooldown.get(uid, 0)
+    now  = _time.monotonic()
+    if now - last < _COOLDOWN_SECS:
+        wait = int(_COOLDOWN_SECS - (now - last))
+        raise HTTPException(
+            status_code=429,
+            detail=f"Bitte {wait}s warten bevor du den Scan erneut startest.",
+            headers={"Retry-After": str(wait)},
+        )
+    _run_cooldown[uid] = now
+
     logger.info(f"🔄 Manueller Scheduler-Lauf für user_id={uid}")
     from scheduler import run_all_trackers
-    # FIX: asyncio.get_running_loop() is correct in async FastAPI context
     loop = asyncio.get_running_loop()
     loop.run_in_executor(None, run_all_trackers, uid)
-    # Update last_run_at immediately so UI reflects the triggered run
     update_scheduler_last_run(uid)
     return {"message": "Preisabfrage wird im Hintergrund gestartet"}
