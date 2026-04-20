@@ -660,5 +660,15 @@
   "wwVibeSea": "🏖️ Beach",
   "wwWishLabel": "💬 Special wishes?",
   "wwWishPlaceholder": "e.g. gently sloping sandy beach, no mass tourism…",
-  "yearSelect": "Year"
+  "yearSelect": "Year",
+  "dashAllPlanned": "All planned trips →",
+  "dashToArchive": "To archive →",
+  "settingsTestSend": "🚀 Test message",
+  "settingsTestSending": "⏳ Sending…",
+  "schedEvery6h": "Every 6 hrs",
+  "schedEvery12h": "Every 12 hrs",
+  "schedEvery24h": "Daily",
+  "schedEvery48h": "Every 2 days",
+  "schedEvery72h": "Every 3 days",
+  "schedEveryWeek": "Weekly"
 }
