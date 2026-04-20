@@ -204,6 +204,13 @@
       <!-- Gepäck-Stepper: 10kg / 20kg / 23kg -->
       <div>
         <label class="{labelCls}" style="color:var(--ws-muted)">🧳 {$t('radarBaggage')} — {$t('radarInclusions')}</label>
+        <!-- UX 4: Spalten-Header Gepäck-Stepper -->
+        <div class="hidden sm:flex items-center gap-2 px-2.5 pt-1 pb-0.5">
+          <span class="text-[10px] font-semibold w-10 shrink-0" style="color:var(--ws-muted)">Typ</span>
+          <span class="text-[10px] font-semibold w-24 shrink-0 text-center" style="color:var(--ws-muted)">Anzahl</span>
+          <span class="text-[10px] font-semibold flex-1 text-center" style="color:var(--ws-muted)">Aufpreis / Stück</span>
+          <span class="text-[10px] font-semibold w-14 shrink-0 text-right" style="color:var(--ws-muted)">Total</span>
+        </div>
         <div class="space-y-2 mt-1">
           {#each [
             [() => fl10kg, v => fl10kg = v, () => fl10kgPrice, v => fl10kgPrice = v, '10 kg'],
