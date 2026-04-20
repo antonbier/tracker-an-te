@@ -37,7 +37,16 @@
     try {
       const trips = await api('/api/ws-trips');
       const today = new Date().toISOString().slice(0, 10);
-      const planning = (trips || []).filter(t => t.status === 'planning' || t.status === 'booked');
+      // BUG 1 Fix: Trips mit end_date in der Vergangenheit sind archived —
+      // auch wenn ihr status noch 'planning'/'booked' ist (nicht manuell umgestellt).
+      const planning = (trips || []).filter(t => {
+        if (t.status !== 'planning' && t.status !== 'booked') return false;
+        const endRaw = (t.end_date || t.start_date || '').slice(0, 10);
+        // Kein Datum → als geplant behandeln (Flex-Trip)
+        if (!endRaw) return true;
+        // end_date in Vergangenheit → archived, nicht planning
+        return endRaw >= today;
+      });
       nextWsTrip    = planning[0] || null;
       // Archiv: WS-Trips die bereits stattgefunden haben
       // → end_date < heute ODER (kein end_date, aber start_date < heute)
