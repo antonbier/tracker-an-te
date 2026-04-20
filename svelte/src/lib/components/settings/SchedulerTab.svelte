@@ -1,5 +1,6 @@
 <script>
   import { apiUrl } from '$lib/stores.js';
+  import { t } from '$lib/i18n.js';
   import { api } from '$lib/api.js';
   import { toast } from '$lib/toast.js';
 
@@ -10,6 +11,16 @@
   let schedTimezone  = $state('UTC');
   let schedSaving    = $state(false);
   let schedRunning   = $state(false);
+
+  // Block 8: Intervall-Labels mit i18n
+  const intervalLabels = $derived({
+    6:   $t('schedEvery6h')   || 'Alle 6 Std.',
+    12:  $t('schedEvery12h')  || 'Alle 12 Std.',
+    24:  $t('schedEvery24h')  || 'Täglich',
+    48:  $t('schedEvery48h')  || 'Alle 2 Tage',
+    72:  $t('schedEvery72h')  || 'Alle 3 Tage',
+    168: $t('schedEveryWeek') || 'Wöchentlich',
+  });
 
   async function loadSchedulerSettings() {
     if (!$apiUrl) return;
@@ -34,7 +45,7 @@
           notify_daily_summary:  schedDaily,
         }),
       });
-      toast('Scheduler gespeichert ✓', 'success');
+      toast($t('settingsScheduler') + ' ✓', 'success');
     } catch (e) { toast(e.message, 'error'); }
     schedSaving = false;
   }
@@ -42,17 +53,21 @@
   async function triggerSchedulerRun() {
     schedRunning = true;
     try {
-      await api('/api/scheduler/run', { method: 'POST' });
-      toast('Preisabfrage gestartet… ⏳', 'warning');
+      // Block 8: /api/scheduler/run mit notify=true → Benachrichtigungen werden
+      // ausgelöst wenn ein Preissturz erkannt wird (Backend wertet schedPriceDrop aus)
+      await api('/api/scheduler/run?notify=true', { method: 'POST' });
+      toast('⏳ ' + ($t('settingsSchedulerRun') || 'Preisabfrage') + ' gestartet…', 'warning');
     } catch (e) { toast(e.message, 'error'); }
-    setTimeout(() => { schedRunning = false; }, 5000);
+    setTimeout(() => { schedRunning = false; }, 8000);
   }
 
   $effect(() => { loadSchedulerSettings(); });
 </script>
 
 <div class="space-y-4">
-  <div class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">⏰ Update-Intervall</div>
+  <div class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">
+    ⏰ {$t('settingsSchedulerInterval')}
+  </div>
   <div class="grid grid-cols-3 gap-2">
     {#each [6, 12, 24, 48, 72, 168] as h}
       <button onclick={() => schedInterval = h}
@@ -60,17 +75,21 @@
         style={schedInterval === h
           ? 'background:var(--ws-accent);color:#fff;border-color:var(--ws-accent)'
           : 'background:var(--ws-surface2);color:var(--ws-muted);border-color:var(--ws-border)'}>
-        {h < 24 ? h + 'h' : h === 168 ? '1 Wo.' : (h/24) + 'd'}
+        {intervalLabels[h] || h + 'h'}
       </button>
     {/each}
   </div>
 
-  <div class="text-xs font-bold uppercase tracking-wider pt-2" style="color:var(--ws-muted)">🔔 Benachrichtigungen</div>
+  <div class="text-xs font-bold uppercase tracking-wider pt-2" style="color:var(--ws-muted)">
+    🔔 {$t('settingsSchedulerNotifications')}
+  </div>
   <label class="flex items-center gap-3 cursor-pointer px-3 py-2.5 rounded-xl border"
     style="background:var(--ws-surface2);border-color:var(--ws-border)">
     <input type="checkbox" bind:checked={schedPriceDrop} class="w-4 h-4 accent-[var(--ws-accent)]"/>
     <div>
-      <div class="text-sm font-medium" style="color:var(--ws-text)">📉 Preissturz-Alarm</div>
+      <div class="text-sm font-medium" style="color:var(--ws-text)">
+        📉 {$t('settingsSchedulerPriceDrop')}
+      </div>
       <div class="text-xs" style="color:var(--ws-muted)">Benachrichtigung wenn Preis sinkt</div>
     </div>
   </label>
@@ -78,14 +97,16 @@
     style="background:var(--ws-surface2);border-color:var(--ws-border)">
     <input type="checkbox" bind:checked={schedDaily} class="w-4 h-4 accent-[var(--ws-accent)]"/>
     <div>
-      <div class="text-sm font-medium" style="color:var(--ws-text)">📋 Tägliche Zusammenfassung</div>
+      <div class="text-sm font-medium" style="color:var(--ws-text)">
+        📋 {$t('settingsSchedulerDaily')}
+      </div>
       <div class="text-xs" style="color:var(--ws-muted)">Täglich alle Tracker-Preise senden</div>
     </div>
   </label>
 
   {#if schedLastRun}
     <p class="text-xs px-3 py-1.5 rounded-lg" style="background:var(--ws-surface2);color:var(--ws-muted)">
-      Letzter Lauf: {schedLastRun.slice(0,16).replace('T',' ')} {schedTimezone || 'UTC'}
+      {$t('settingsSchedulerLastRun')}: {schedLastRun.slice(0,16).replace('T',' ')} {schedTimezone || 'UTC'}
     </p>
   {/if}
 
@@ -93,12 +114,12 @@
     <button onclick={saveSchedulerSettings} disabled={schedSaving}
       class="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-opacity disabled:opacity-50"
       style="background:linear-gradient(135deg,var(--ws-accent),#b84928);color:#fff5ec">
-      {schedSaving ? '⏳…' : '💾 Speichern'}
+      {schedSaving ? '⏳…' : '💾 ' + $t('save')}
     </button>
     <button onclick={triggerSchedulerRun} disabled={schedRunning}
       class="flex-1 py-2.5 rounded-xl text-sm font-semibold border transition-opacity disabled:opacity-50"
       style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)">
-      {schedRunning ? '⏳ Läuft…' : '▶ Jetzt ausführen'}
+      {schedRunning ? '⏳ ' + ($t('settingsSchedulerRun') || 'Läuft') + '…' : '▶ ' + $t('settingsSchedulerRun')}
     </button>
   </div>
 </div>
