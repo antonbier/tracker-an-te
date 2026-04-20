@@ -11,9 +11,29 @@ Fixes applied:
 """
 
 from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, model_validator, field_validator, constr
 from typing import Optional
-import logging, json, os
+import logging, json, os, re, html
+
+
+# ── Minimal HTML-Sanitizer (kein externen Deps) ───────────────────────────────
+# Entfernt <script>, <iframe>, Event-Handler-Attribute und HTML-Tags komplett.
+# Für reine Texteingaben (Titel, Notizen) ausreichend — BUG 6.
+_TAG_RE   = re.compile(r'<[^>]+>')
+_SCRIPT_RE = re.compile(r'<\s*script[\s\S]*?</\s*script\s*>', re.IGNORECASE)
+_IFRAME_RE = re.compile(r'<\s*iframe[\s\S]*?</\s*iframe\s*>', re.IGNORECASE)
+
+def _sanitize(value: str | None, max_len: int = 500) -> str | None:
+    """Strip HTML tags + limit length. Returns None for empty strings."""
+    if value is None:
+        return None
+    v = str(value)
+    v = _SCRIPT_RE.sub('', v)
+    v = _IFRAME_RE.sub('', v)
+    v = _TAG_RE.sub('', v)
+    v = html.unescape(v).strip()
+    v = v[:max_len]
+    return v or None
 
 from database import (
     create_ws_trip, list_ws_trips, get_ws_trip,
@@ -39,11 +59,13 @@ def _uid(user: dict) -> int:
 # ── Pydantic Models ───────────────────────────────────────────────────────────
 
 class WsTripCreate(BaseModel):
+    # BUG 7: max_length Validierung auf alle String-Felder
     title:              str
     destination:        Optional[str] = ""
     start_date:         Optional[str] = None
     end_date:           Optional[str] = None
     trip_type:          Optional[str] = "flight"
+    # BUG 5: budget darf nicht negativ sein
     budget:             Optional[float] = None
     path:               Optional[str] = "known"
     travel_mode:        Optional[str] = "flight"
@@ -58,6 +80,46 @@ class WsTripCreate(BaseModel):
     notes:              Optional[str] = None
     # On-the-fly container: verknüpft mit detected_trip
     source_detected_id: Optional[int] = None
+
+    @field_validator("title")
+    @classmethod
+    def validate_title(cls, v: str) -> str:
+        # BUG 7: Längen-Limit
+        if len(v) > 200:
+            raise ValueError("title darf maximal 200 Zeichen haben")
+        # BUG 6: HTML-Sanitizing
+        clean = _sanitize(v, max_len=200)
+        if not clean:
+            raise ValueError("title darf nicht leer oder nur HTML sein")
+        return clean
+
+    @field_validator("destination", "notes", "wish_text", mode="before")
+    @classmethod
+    def sanitize_text(cls, v):
+        if v is None: return v
+        return _sanitize(str(v), max_len=500)
+
+    @field_validator("budget", mode="before")
+    @classmethod
+    def validate_budget(cls, v):
+        # BUG 5: kein negatives Budget
+        if v is not None and float(v) < 0:
+            raise ValueError("budget muss >= 0 sein")
+        return v
+
+    @field_validator("adults")
+    @classmethod
+    def validate_adults(cls, v):
+        if v is not None and v < 1:
+            raise ValueError("adults muss mindestens 1 sein")
+        return v
+
+    @field_validator("children")
+    @classmethod
+    def validate_children(cls, v):
+        if v is not None and v < 0:
+            raise ValueError("children darf nicht negativ sein")
+        return v
 
     @model_validator(mode="after")
     def validate_dates(self) -> "WsTripCreate":
@@ -91,6 +153,20 @@ class WsTripUpdate(BaseModel):
     children:     Optional[int]   = None
     notes:        Optional[str]   = None
     status:       Optional[str]   = None
+
+    @field_validator("title", "destination", "notes", mode="before")
+    @classmethod
+    def sanitize_update_text(cls, v):
+        if v is None: return v
+        s = _sanitize(str(v), max_len=200)
+        return s  # None → field bleibt unverändert
+
+    @field_validator("budget", mode="before")
+    @classmethod
+    def validate_update_budget(cls, v):
+        if v is not None and float(v) < 0:
+            raise ValueError("budget muss >= 0 sein")
+        return v
 
     @model_validator(mode="after")
     def validate_status_and_dates(self) -> "WsTripUpdate":
