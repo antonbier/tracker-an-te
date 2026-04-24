@@ -5,7 +5,7 @@ Users + WebAuthn credentials (Passkeys).
 
 import bcrypt
 import json
-from database import db
+from core.database import db
 
 
 def init_auth_tables() -> None:
