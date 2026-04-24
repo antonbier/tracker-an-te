@@ -49,6 +49,8 @@
 
   // ── Trip linking dropdown ─────────────────────────────────────────────────
   let linkDropdownOpen = $state(false);
+  // ── Chart Tooltip ─────────────────────────────────────────────────────────
+  let tooltip = $state(null); // { x, y, price, date } | null
   const linkedTrip = $derived(
     wsTrips.find(t => t.id === tr.trip_id) || null
   );
@@ -344,8 +346,21 @@
           <p class="text-xs text-center py-4" style="color:var(--ws-muted)">{$t('radarTooFewData')}</p>
         {:else}
           {#each [chartPts(chartData.history, 290, 70, 5)] as cp}
-            <div class="relative h-24">
-              <svg viewBox="0 0 300 80" class="w-full h-full" preserveAspectRatio="none">
+            <div class="relative h-24"
+              onmouseleave={() => tooltip = null}>
+              <svg viewBox="0 0 300 80" class="w-full h-full" preserveAspectRatio="none"
+                onmousemove={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const rx   = ((e.clientX - rect.left) / rect.width) * 300;
+                  // find nearest point
+                  let nearest = cp.pts[0];
+                  let minDist = Infinity;
+                  for (const p of cp.pts) {
+                    const d = Math.abs(p.x - rx);
+                    if (d < minDist) { minDist = d; nearest = p; }
+                  }
+                  tooltip = nearest;
+                }}>
                 <defs>
                   <linearGradient id="cg-{tr._type}-{tr.id}" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%"   stop-color="var(--ws-accent)" stop-opacity="0.25"/>
@@ -356,13 +371,39 @@
                 <line x1="0" y1="75" x2="300" y2="75" stroke="var(--ws-green)" stroke-width="0.5" stroke-dasharray="4,4" opacity="0.5"/>
                 <polygon fill="url(#cg-{tr._type}-{tr.id})" points={cp.area}/>
                 <polyline fill="none" stroke="var(--ws-accent)" stroke-width="2" stroke-linejoin="round" points={cp.polyline}/>
+                <!-- Min/Max Dots -->
                 <circle cx={cp.minPt.x} cy={cp.minPt.y} r="3" fill="var(--ws-green)" opacity="0.9"/>
                 <circle cx={cp.maxPt.x} cy={cp.maxPt.y} r="3" fill="#ef4444" opacity="0.6"/>
+                <!-- Hover crosshair -->
+                {#if tooltip}
+                  <line x1={tooltip.x} y1="0" x2={tooltip.x} y2="80"
+                    stroke="var(--ws-accent)" stroke-width="0.75" stroke-dasharray="3,3" opacity="0.6"/>
+                  <circle cx={tooltip.x} cy={tooltip.y} r="4"
+                    fill="var(--ws-surface)" stroke="var(--ws-accent)" stroke-width="2"/>
+                {/if}
               </svg>
-              <div class="absolute top-0 right-0 text-[10px] font-mono" style="color:var(--ws-muted)">{cp.maxP.toFixed(0)}€</div>
-              <div class="absolute bottom-0 right-0 text-[10px] font-mono" style="color:var(--ws-green)">{cp.minP.toFixed(0)}€ ↓min</div>
+              <!-- Tooltip Popup -->
+              {#if tooltip}
+                <div class="absolute z-10 pointer-events-none px-2 py-1 rounded-lg text-[10px] font-mono shadow-lg border"
+                  style="
+                    left: {Math.min(tooltip.x / 300 * 100, 72)}%;
+                    top: -2px;
+                    transform: translateX(-50%);
+                    background:var(--ws-surface);
+                    border-color:var(--ws-border);
+                    color:var(--ws-text);
+                    white-space:nowrap;
+                  ">
+                  <span class="font-bold" style="color:var(--ws-accent)">{tooltip.price.toFixed(2)} €</span>
+                  {#if tooltip.date}
+                    <span style="color:var(--ws-muted)"> · {fmtDate(tooltip.date)}</span>
+                  {/if}
+                </div>
+              {/if}
+              <div class="absolute top-0 right-0 text-[10px] font-mono" style="color:var(--ws-muted)">{cp.maxP.toFixed(0)}€ ↑</div>
+              <div class="absolute bottom-0 right-0 text-[10px] font-mono" style="color:var(--ws-green)">{cp.minP.toFixed(0)}€ ↓</div>
               <div class="absolute bottom-0 left-0 text-xs" style="color:var(--ws-muted)">
-                {fmtDate(chartData.history[0].fetched_at.slice(0, 10))}
+                {fmtDate(chartData.history[0].fetched_at?.slice(0, 10) || '')}
               </div>
             </div>
           {/each}
