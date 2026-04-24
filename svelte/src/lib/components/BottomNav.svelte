@@ -26,7 +26,13 @@
     <button onclick={() => currentPage.set(item.id)}
       class="flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-xs font-medium transition-colors"
       style={$currentPage === item.id ? 'color:var(--ws-accent)' : 'color:var(--ws-muted)'}>
-      <span class="text-lg leading-none">{item.icon}</span>
+      <span class="text-lg leading-none relative">
+        {item.icon}
+        {#if item.id === 'mytrips' && activeTripsCount > 0}
+          <span class="absolute -top-0.5 -right-1.5 w-2 h-2 rounded-full animate-pulse"
+            style="background:var(--ws-green,#2d6a4f)"></span>
+        {/if}
+      </span>
       {$t(item.labelKey)}
     </button>
   {/each}
