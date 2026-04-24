@@ -1,13 +1,11 @@
 <script>
   /**
-   * WeatherWidget.svelte — 3-day forecast, cached per destination per day.
-   * Uses backend proxy /api/settings/geocode-weather to avoid CORS.
-   * Cache key: ws-weather:<destination>:<YYYY-MM-DD> in sessionStorage.
+   * WeatherWidget.svelte — 3-7 Tage Vorschau, per sessionStorage gecacht.
+   * Nutzt api()-Helper (JWT), reagiert reaktiv auf destination-Änderungen.
    */
-  import { onMount } from 'svelte';
-  import { apiUrl } from '$lib/stores.js';
-  import { api } from '$lib/api.js';
-  import { wmoIcon } from './helpers.js';
+  import { api }        from '$lib/api.js';
+  import { wmoIcon }    from './helpers.js';
+  import { today, fmtDate } from '$lib/utils.js';
 
   let { destination = '', phase = 'planning', daysUntilStart = 999 } = $props();
 
@@ -17,38 +15,28 @@
 
   const shouldShow = $derived(phase === 'active' || daysUntilStart <= 7);
 
-  const CACHE_KEY = `ws-weather:${(destination || '').toLowerCase().trim()}:${today}`;
+  // Reaktiv: wenn destination oder shouldShow sich ändert → neu laden
+  $effect(() => {
+    const dest = destination.trim();
+    const show = phase === 'active' || daysUntilStart <= 7;
+    if (!dest || !show) return;
 
-  onMount(() => {
-    if ((phase === 'active' || daysUntilStart <= 7) && destination.trim()) {
-      // Try cache first
-      try {
-        const cached = sessionStorage.getItem(CACHE_KEY);
-        if (cached) {
-          days = JSON.parse(cached);
-          return; // no fetch needed
-        }
-      } catch {}
-      fetchForecast();
-    }
+    const cacheKey = `ws-weather:${dest.toLowerCase()}:${today}`;
+    try {
+      const cached = sessionStorage.getItem(cacheKey);
+      if (cached) { days = JSON.parse(cached); return; }
+    } catch {}
+
+    fetchForecast(dest, cacheKey);
   });
 
-  async function fetchForecast() {
+  async function fetchForecast(dest, cacheKey) {
     if (loading || days.length > 0) return;
-    loading = true;
-    errMsg  = '';
+    loading = true; errMsg = '';
     try {
-      const base = get(apiUrl) || '';
-      const url  = `${base}/api/settings/geocode-weather?q=${encodeURIComponent(destination.trim())}`;
-      const res  = await fetch(url);
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.detail || `HTTP ${res.status}`);
-      }
-      const data = await res.json();
-      const d    = data.daily;
-      if (!d?.time?.length) throw new Error('Keine Wetterdaten erhalten');
-
+      const data = await api(`/api/settings/geocode-weather?q=${encodeURIComponent(dest)}`);
+      const d = data.daily;
+      if (!d?.time?.length) throw new Error('Keine Wetterdaten');
       const result = d.time.slice(0, 3).map((date, i) => ({
         date,
         tempMax: Math.round(d.temperature_2m_max[i]),
@@ -57,9 +45,7 @@
         precip:  Math.round((d.precipitation_sum?.[i] ?? 0) * 10) / 10,
         city:    i === 0 ? data.city : '',
       }));
-
-      // Cache for the rest of the day
-      try { sessionStorage.setItem(CACHE_KEY, JSON.stringify(result)); } catch {}
+      try { sessionStorage.setItem(cacheKey, JSON.stringify(result)); } catch {}
       days = result;
     } catch (e) {
       console.warn('[WeatherWidget]', e.message);
