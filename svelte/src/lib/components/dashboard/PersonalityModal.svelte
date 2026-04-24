@@ -74,17 +74,17 @@
       open = false;
       onrefreshed?.(data);
     } catch (e) {
-      toast(e?.message || 'Fehler', 'error');
+      toast(e?.message || $t('toastError') || 'Fehler', 'error');
     }
     loading = false;
   }
 
-  const STYLES     = [{v:'',l:'Egal'},{v:'adventure',l:'🏔️ Abenteuer'},{v:'relaxation',l:'🌅 Entspannung'},{v:'culture',l:'🏛️ Kultur'},{v:'nature',l:'🌿 Natur'},{v:'city',l:'🏙️ City-Trip'}];
-  const CLIMATES   = [{v:'',l:'Egal'},{v:'warm',l:'☀️ Warm'},{v:'mild',l:'🌤️ Mild'},{v:'cold',l:'❄️ Kalt'}];
-  const LANDSCAPES = [{v:'',l:'Egal'},{v:'mountains',l:'⛰️ Berge'},{v:'sea',l:'🏖️ Meer'},{v:'forest',l:'🌲 Wald'},{v:'city',l:'🏙️ Stadt'},{v:'mix',l:'🌍 Mix'}];
-  const COMPANIONS = [{v:'',l:'Egal'},{v:'solo',l:'🧍 Solo'},{v:'couple',l:'👫 Pärchen'},{v:'familie_kleinkinder',l:'👨‍👩‍👧 Familie (Kleinkinder)'},{v:'familie_teenager',l:'👨‍👩‍👦 Familie (Teenager)'},{v:'friends',l:'👯 Freunde'}];
+  const STYLES     = [{v:'',l:$t('personalityModalEgal')||'Egal'},{v:'adventure',l:'🏔️ Abenteuer'},{v:'relaxation',l:'🌅 Entspannung'},{v:'culture',l:'🏛️ Kultur'},{v:'nature',l:'🌿 Natur'},{v:'city',l:'🏙️ City-Trip'}];
+  const CLIMATES   = [{v:'',l:$t('personalityModalEgal')||'Egal'},{v:'warm',l:'☀️ Warm'},{v:'mild',l:'🌤️ Mild'},{v:'cold',l:'❄️ Kalt'}];
+  const LANDSCAPES = [{v:'',l:$t('personalityModalEgal')||'Egal'},{v:'mountains',l:'⛰️ Berge'},{v:'sea',l:'🏖️ Meer'},{v:'forest',l:'🌲 Wald'},{v:'city',l:'🏙️ Stadt'},{v:'mix',l:'🌍 Mix'}];
+  const COMPANIONS = [{v:'',l:$t('personalityModalEgal')||'Egal'},{v:'solo',l:'🧍 Solo'},{v:'couple',l:'👫 Pärchen'},{v:'familie_kleinkinder',l:'👨‍👩‍👧 Familie (Kleinkinder)'},{v:'familie_teenager',l:'👨‍👩‍👦 Familie (Teenager)'},{v:'friends',l:'👯 Freunde'}];
   const MODES      = [{v:'flight',l:'✈️ Flug'},{v:'car',l:'🚗 Auto'}];
-  const TIMES      = [{v:'any',l:'Keine Beschränkung'},{v:'2h',l:'bis 2 Stunden'},{v:'4h',l:'bis 4 Stunden'},{v:'6h',l:'bis 6 Stunden'},{v:'8h',l:'bis 8 Stunden'},{v:'12h',l:'bis 12 Stunden'}];
+  const TIMES      = [{v:'any',l:$t('personalityModalEgal')||'Keine Beschränkung'},{v:'2h',l:'bis 2 Stunden'},{v:'4h',l:'bis 4 Stunden'},{v:'6h',l:'bis 6 Stunden'},{v:'8h',l:'bis 8 Stunden'},{v:'12h',l:'bis 12 Stunden'}];
 
   const sel = 'w-full px-3 py-2 rounded-xl border text-sm focus:outline-none';
   const selSt = 'background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)';
@@ -102,10 +102,10 @@
       style="border-color:var(--ws-border)">
       <div>
         <h3 class="font-bold text-base" style="color:var(--ws-text)">
-          🧭 KI-Vorschläge personalisieren
+          🧭 {$t('personalityModalTitle')}
         </h3>
         <p class="text-xs mt-0.5" style="color:var(--ws-muted)">
-          Passe die Reisepersönlichkeit an — einmalig oder dauerhaft
+          {$t('personalityModalSubtitle')}
         </p>
       </div>
       <button onclick={() => open = false}
@@ -175,9 +175,9 @@
       <!-- Wunsch-Freitext -->
       <div>
         <label class="block text-xs font-bold uppercase tracking-wider mb-1"
-          style="color:var(--ws-muted)">Freitext-Wunsch</label>
+          style="color:var(--ws-muted)">{$t('personalityModalFreitext')}</label>
         <textarea bind:value={wish_text} rows="2"
-          placeholder="z.B. Strände mit türkisem Wasser, keine Touristenmassen…"
+          placeholder={$t('personalityModalFreitextPh')||'z.B. Strände mit türkisem Wasser…'}
           class="w-full px-3 py-2 rounded-xl border text-sm focus:outline-none resize-none"
           style={selSt + ';font-family:inherit'}
           maxlength="500"></textarea>
@@ -191,10 +191,10 @@
           class="w-4 h-4 rounded accent-[var(--ws-accent)]" />
         <div>
           <div class="text-sm font-semibold" style="color:var(--ws-text)">
-            Dauerhaft in meinen Einstellungen speichern
+            {$t('personalityModalSavePerm')}
           </div>
           <div class="text-xs" style="color:var(--ws-muted)">
-            Ohne Checkbox: gilt nur für diese Sitzung
+            {$t('personalityModalSaveHint')}
           </div>
         </div>
       </label>
@@ -205,15 +205,15 @@
       <button onclick={() => open = false}
         class="flex-1 py-2.5 rounded-xl border text-sm font-semibold hover:opacity-70"
         style="border-color:var(--ws-border);color:var(--ws-muted)">
-        Abbrechen
+        {$t('personalityModalCancel')}
       </button>
       <button onclick={apply} disabled={loading}
         class="flex-1 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-40 flex items-center justify-center gap-1.5"
         style="background:var(--ws-accent);color:#fff5ec">
         {#if loading}
-          <span class="animate-spin">⏳</span> Lädt…
+          <span class="animate-spin">⏳</span> {$t('personalityModalLoading')}
         {:else}
-          🤖 Vorschläge generieren
+          🤖 {$t('personalityModalGenerate')}
         {/if}
       </button>
     </div>
