@@ -2,7 +2,7 @@
 WanderSuite — Country name → ISO-2 mapping + visited countries query.
 """
 
-from database import db
+from core.database import db
 
 # ... (keep existing mapping table)
 
