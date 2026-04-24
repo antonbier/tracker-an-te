@@ -86,7 +86,7 @@
     {syncing ? '⏳' : $t('archiveDawarichSync')}
   </button>
   <label class="flex items-center gap-1 text-xs cursor-pointer" style="color:var(--ws-muted)"
-    title="Gelöschte Reisen erneut laden (setzt ignored-Flag zurück)">
+    title={$t('syncBarDawarichTitle')||'Gelöschte Reisen erneut laden'}>
     <input type="checkbox" bind:checked={forceFull}
       class="rounded" style="accent-color:var(--ws-accent)" />
     🔄
@@ -96,7 +96,7 @@
   <button onclick={syncActual} disabled={actualSyncing}
     class="flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all hover:opacity-80 disabled:opacity-40"
     style="background:var(--ws-surface);border:1px solid var(--ws-border);color:var(--ws-muted)"
-    title="Synct alle Archiv-Reisen mit ActualBudget (Credentials aus Einstellungen)">
+    title={$t('syncBarActualTitle')||'ActualBudget-Sync'}>
     {actualSyncing ? '⏳ Synce…' : $t('archiveActualSync')}
   </button>
 
