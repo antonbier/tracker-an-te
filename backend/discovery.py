@@ -55,8 +55,7 @@ import httpx
 from discovery_models import TravelPersonality, TravelDefaults
 from discovery_fallbacks import get_fallback_url
 from settings_manager import get_user_setting_value, get_setting_value
-from database import (
-    list_detected_trips,
+from crud.discovery import (
     discovery_pool_get_unseen,
     discovery_pool_upsert,
     discovery_pool_rotate,
@@ -65,6 +64,7 @@ from database import (
     discovery_pool_update_image,
     DISCOVERY_POOL_REFILL_THRESHOLD,
 )
+from crud.trips import list_detected_trips
 
 logger = logging.getLogger(__name__)
 
