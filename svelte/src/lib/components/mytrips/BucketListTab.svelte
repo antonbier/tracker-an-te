@@ -1,7 +1,7 @@
 <script>
   import { bucketlist } from '$lib/stores.js';
   import { t } from '$lib/i18n.js';
-  import { fmtDate } from '$lib/components/priceradar/helpers.js';
+  import { fmtDate } from '$lib/utils.js';
 
   let { onadd, ontoggle, onremove } = $props();
 
