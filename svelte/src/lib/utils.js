@@ -96,3 +96,11 @@ export function daysBetween(targetIso, fromIso) {
   const to   = new Date(targetIso + 'T00:00:00');
   return Math.round((to - from) / 86400000);
 }
+
+// ── Trip-Visuals (re-export aus triphub/helpers.js für App-weite Nutzung) ─
+// Komponenten außerhalb von /triphub sollen hier importieren, nicht direkt
+// aus $lib/components/triphub/helpers.js.
+export { destinationGradient, strHash, wmoIcon } from '$lib/components/triphub/helpers.js';
+
+// fmtDate + fmtRange aus priceradar/helpers — ebenfalls App-weit nützlich
+export { fmtDate, fmtRange, dateOffset } from '$lib/components/priceradar/helpers.js';
