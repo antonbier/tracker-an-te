@@ -11,7 +11,10 @@ import httpx
 
 from auth_jwt import get_current_user, get_optional_user
 from discovery import discovery_service
-from database import discovery_pool_mark_shown, discovery_pool_clear
+from crud.discovery import (
+    discovery_pool_mark_shown,
+    discovery_pool_clear,
+)
 from settings_manager import get_user_setting_value
 
 router = APIRouter()
