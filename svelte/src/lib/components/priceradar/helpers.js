@@ -51,13 +51,17 @@ export function chartPts(history, w = 290, h = 65, pad = 5) {
   const pts = history.map((e, i) => {
     const x = (i / (history.length - 1 || 1)) * w + pad;
     const y = h - ((e.price - minP) / range) * (h - 5);
-    return { x, y, price: e.price };
+    // date: prefer fetched_at, fall back to created_at
+    const raw = e.fetched_at || e.created_at || '';
+    const date = raw.slice(0, 10);
+    return { x, y, price: e.price, date };
   });
   const minPt = pts.reduce((m, p) => p.price < m.price ? p : m, pts[0]);
   const maxPt = pts.reduce((m, p) => p.price > m.price ? p : m, pts[0]);
   return {
     minP, maxP,
     minPt, maxPt,
+    pts,   // ← neu: alle Punkte inkl. date für Tooltip
     polyline: pts.map(p => `${p.x},${p.y}`).join(' '),
     area: [
       `${pad},${h}`,
