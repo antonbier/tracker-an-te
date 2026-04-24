@@ -143,11 +143,12 @@
   );
   const bucketOpen    = $derived(($bucketlist ?? []).filter(b => !b.done).length);
 
-  // WS-trips that are archived (end_date < today) — shown in archive tab with TripHub link
+  // WS-trips that are archived (end_date < today) — gefiltert nach selectedYear
   const archivedWsTrips = $derived(
     wsTrips.filter(t => {
       const e = (t.end_date || t.start_date || '').slice(0, 10);
-      return e && today > e;
+      const yr = (t.start_date || t.end_date || '').slice(0, 4);
+      return e && today > e && yr === String(selectedYear);
     })
   );
   const journalSpentYear = $derived(
