@@ -4,6 +4,7 @@
   import { apiUrl, trips, budget, appVersion, currentPage } from '$lib/stores.js';
   import { toast } from '$lib/toast.js';
   import { t } from '$lib/i18n.js';
+  import { today, getTripPhase, daysBetween } from '$lib/utils.js';
 
   import WanderWizzard      from '$lib/components/WanderWizzard.svelte';
   import HeroSection        from '$lib/components/dashboard/HeroSection.svelte';
@@ -133,7 +134,6 @@
   }
 
   // ── Derived trip lists — unified across ws_trips (Wizzard + Dawarich + Manual) ──
-  const today     = new Date().toISOString().slice(0, 10);
   // upcoming: ws_trips mit start_date in der Zukunft (alle Typen)
   const upcoming  = $derived(
     wsTrips
@@ -157,33 +157,19 @@
   );
 
   // ── Hero data: phase-basierte Trip-Ermittlung ────────────────────────────
-  // nextTrip: nächster geplanter ODER aktuell aktiver Trip (planning/booked + active phase)
-  const nextTrip = $derived.by(() => {
-    const t_today = today;
-    return wsTrips
-      .filter(t => {
-        const s = (t.start_date || '').slice(0, 10);
-        const e = (t.end_date   || t.start_date || '').slice(0, 10);
-        // active: läuft gerade
-        if (s <= t_today && t_today <= e) return true;
-        // planning/booked: in der Zukunft
-        if (s > t_today && (t.status === 'planning' || t.status === 'booked')) return true;
-        return false;
-      })
-      .sort((a, b) => (a.start_date || '').localeCompare(b.start_date || ''))[0] ?? null;
-  });
+  // nextTrip: aktiver ODER nächster geplanter Trip
+  const nextTrip = $derived.by(() =>
+    wsTrips
+      .filter(t => ['active', 'planning'].includes(getTripPhase(t)))
+      .sort((a, b) => (a.start_date || '').localeCompare(b.start_date || ''))[0] ?? null
+  );
 
-  // lastTrip: aktuellster archivierter Trip (end_date < today)
-  const lastTrip = $derived.by(() => {
-    return wsTrips
-      .filter(t => {
-        const e = (t.end_date || t.start_date || '').slice(0, 10);
-        return e && e < today;
-      })
+  // lastTrip: aktuellster archivierter Trip
+  const lastTrip = $derived(
+    wsTrips.filter(t => getTripPhase(t) === 'archived')
       .sort((a, b) => (b.end_date || b.start_date || '').localeCompare(a.end_date || a.start_date || ''))[0]
-      ?? recentDawarich[0]
-      ?? null;
-  });
+    ?? recentDawarich[0] ?? null
+  );
 
   // Days until next trip (positive) or since last trip (negative/nostalgia)
   const heroDays = $derived.by(() => {
