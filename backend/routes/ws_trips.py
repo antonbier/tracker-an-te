@@ -588,16 +588,28 @@ async def get_trip_gallery(trip_id: int, user=Depends(get_current_user)):
 
             items = resp.json().get("assets", {}).get("items", [])
 
+            # Thumbnails direkt als base64 laden — kein separater Proxy-Endpoint nötig
+            import base64 as _b64
             photos = []
             for item in items[:12]:
                 asset_id = item.get("id")
                 if not asset_id:
                     continue
-                # Thumbnail-URL via unseren eigenen Proxy (trägt den API-Key)
-                thumbnail_url = f"/api/ws-trips/{trip_id}/gallery/thumbnail/{asset_id}"
+                # Thumbnail inline als data-URI laden
+                thumb_data = None
+                try:
+                    t_resp = await client.get(
+                        f"{immich_url}/api/assets/{asset_id}/thumbnail?size=preview",
+                        headers={"x-api-key": immich_key},
+                    )
+                    if t_resp.status_code == 200:
+                        ct = t_resp.headers.get("content-type", "image/jpeg")
+                        thumb_data = f"data:{ct};base64,{_b64.b64encode(t_resp.content).decode()}"
+                except Exception:
+                    pass
                 photos.append({
                     "asset_id":      asset_id,
-                    "thumbnail_url": thumbnail_url,
+                    "thumbnail_url": thumb_data or "",
                     "taken_at":      (item.get("fileCreatedAt") or "")[:10],
                     "city":          item.get("exifInfo", {}).get("city") or "",
                     "country":       item.get("exifInfo", {}).get("country") or "",
