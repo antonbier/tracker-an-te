@@ -12,7 +12,10 @@ from pydantic import BaseModel, Field
 from typing import Optional
 import requests, logging
 
-from database import get_provider_configs, save_provider_config
+from crud.settings import (
+    get_provider_configs,
+    save_provider_config,
+)
 from settings_manager import (
     save_settings_bulk, get_settings_all, get_setting_value,
     save_user_settings_bulk, get_user_settings_all, get_user_setting_value,
