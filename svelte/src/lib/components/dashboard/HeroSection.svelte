@@ -1,6 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { t } from '$lib/i18n.js';
+  import { today, getTripPhase } from '$lib/utils.js';
   import { currentPage, apiUrl, activeWsTripId } from '$lib/stores.js';
   import { api } from '$lib/api.js';
   import HeroPastTrip from './HeroPastTrip.svelte';
@@ -36,7 +37,6 @@
     if (!$apiUrl) return;
     try {
       const trips = await api('/api/ws-trips');
-      const today = new Date().toISOString().slice(0, 10);
       // BUG 1 Fix: Trips mit end_date in der Vergangenheit sind archived —
       // auch wenn ihr status noch 'planning'/'booked' ist (nicht manuell umgestellt).
       const planning = (trips || []).filter(t => {
