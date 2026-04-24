@@ -4,6 +4,25 @@ Alle nennenswerten Änderungen am Projekt. Format basiert auf [Keep a Changelog]
 
 ---
 
+### Refactoring — Massives Architektur-Refactoring: database.py Aufspaltung
+
+**Problem**: `backend/database.py` hatte 1720 Zeilen mit vollständig unabhängigen Bereichen (Tracker-CRUD, Trip-CRUD, Settings, Discovery) in einer einzigen Datei — de facto ein Monolith.
+
+**Neue Architektur** — 6 neue Dateien in `backend/core/` und `backend/crud/`:
+
+| Datei | Inhalt | Zeilen (ca.) |
+|-------|--------|-------------|
+| `core/database.py` | `DB_PATH`, `GUEST_USER_ID`, `get_connection()`, `db()`, `_user_filter()` | ~55 |
+| `core/db_init.py` | `init_db()` (CREATE TABLE + alle Migrations) | ~360 |
+| `crud/settings.py` | Global/User-Settings, Scheduler-Settings, Notification-Settings, Provider-Configs | ~200 |
+| `crud/trackers.py` | Alle 4 Tracker-Typen (Ryanair/GF/Homair/Booking), Generics, Snapshots, History, Booking-State | ~550 |
+| `crud/trips.py` | `ws_trips`, `trip_todos`, `detected_trips`, `user_data` | ~300 |
+| `crud/discovery.py` | `discovery_pool_*` Funktionen + Konstanten | ~130 |
+
+**`backend/database.py`** ist jetzt ein schlanker **Compatibility Shim** der alles re-exportiert — alle bestehenden `from database import X` Statements in routes und Services funktionieren weiter ohne Änderung.
+
+**Direkte Imports aktualisiert** in 12 Dateien: `main.py`, `discovery.py`, `scheduler.py`, `settings_manager.py`, `notifications.py`, `routes/trackers.py`, `routes/trips.py`, `routes/ws_trips.py`, `routes/settings.py`, `routes/discovery.py`, `routes/dawarich.py`, `routes/accommodations.py` — alle zeigen jetzt direkt auf `core.*` oder `crud.*`.
+
 ### Refactoring — Punkt 5: routes/search.py Aufspaltung
 
 **Problem**: `routes/search.py` war ein 902-Zeilen Monolith mit drei vollständig unabhängigen Search-Providern (Ryanair, Google Flights, SerpAPI Hotels, SerpAPI Camping) in einer einzigen Datei.
