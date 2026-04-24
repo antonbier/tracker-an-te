@@ -124,7 +124,8 @@ def _safe_float_coord(value: str | float | None, label: str) -> float | None:
     if isinstance(value, (int, float)):
         return float(value) if not math.isnan(float(value)) else None
     # String: try normalize first (handles DMS), then direct float
-    from settings_manager import normalize_coordinate
+    from crud.trips import save_detected_trip, list_detected_trips, unignore_detected_trips
+from settings_manager import normalize_coordinate
     normalized = normalize_coordinate(str(value))
     if normalized:
         try:
@@ -142,8 +143,7 @@ def _safe_float_coord(value: str | float | None, label: str) -> float | None:
 def sync_trips(base_url: str, token: str, home_lat: float, home_lon: float,
                start_date: Optional[str] = None, end_date: Optional[str] = None,
                user_id: int = 1, force_full: bool = False) -> dict:
-    from database import save_detected_trip, list_detected_trips, unignore_detected_trips
-
+    
     if force_full:
         n = unignore_detected_trips(user_id=user_id)
         logger.info(f"[Dawarich] Full sync: {n} ignorierte Trips reaktiviert")
