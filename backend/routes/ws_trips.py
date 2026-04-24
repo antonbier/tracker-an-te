@@ -505,7 +505,7 @@ def remove_trip(trip_id: int, mode: str = "trip_only", user=Depends(get_current_
         from core.database import db as _db
 from crud.trips import delete_detected_trip
         # Herausfinden ob Dawarich oder Manuell
-        with _db() as conn:
+with db() as conn:
             det_row = conn.execute(
                 "SELECT source FROM detected_trips WHERE id=?", (detected_id,)
             ).fetchone()
