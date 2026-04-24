@@ -125,7 +125,6 @@ def _safe_float_coord(value: str | float | None, label: str) -> float | None:
     if isinstance(value, (int, float)):
         return float(value) if not math.isnan(float(value)) else None
     # String: try normalize first (handles DMS), then direct float
-from settings_manager import normalize_coordinate
     normalized = normalize_coordinate(str(value))
     if normalized:
         try:
