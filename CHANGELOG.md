@@ -4,6 +4,29 @@ Alle nennenswerten Änderungen am Projekt. Format basiert auf [Keep a Changelog]
 
 ---
 
+### Refactoring — Punkt 1: $lib/utils.js (Shared Utilities)
+
+- **Neu: `$lib/utils.js`** — zentrale Utility-Datei für app-weite, zustandslose Hilfsfunktionen:
+  - `today` — heutiges Datum als `YYYY-MM-DD`, einmal beim Modul-Load berechnet (war in **10 Komponenten** inline dupliziert)
+  - `getTripPhase(trip)` — kanonische 3-Phasen-Logik (`planning / active / archived`) aus start_date + end_date (war in **8 Komponenten** leicht abweichend dupliziert)
+  - `daysBetween(targetIso, fromIso?)` — Tage zwischen zwei Daten, positiv = Zukunft
+  - `fmtCurrency(amount)` — Euro-Formatierung
+  - `getTodayStr()` — frisches Datum für laufzeitkritische Aufrufe
+  - Re-Exports: `destinationGradient`, `strHash`, `wmoIcon` aus `triphub/helpers.js`; `fmtDate`, `fmtRange`, `dateOffset` aus `priceradar/helpers.js`
+
+- **Migriert auf `$lib/utils.js`** (alle mit `import { ... } from '$lib/utils.js'`):
+  - `TripCard.svelte` — `today` + inline phase-Block (4 Zeilen) → `getTripPhase(trip)` (1 Zeile)
+  - `TripHub.svelte` — `today` + inline phase-Block + inline `daysUntilStart`-Arithmetik → `getTripPhase` + `daysBetween`
+  - `Dashboard.svelte` — `today` + verbose nextTrip/lastTrip derived → kompakter mit `getTripPhase`
+  - `MyTrips.svelte` — `today` inline entfernt
+  - `PriceRadar.svelte` — `today` inline in `loadWsTrips()` entfernt
+  - `HeroSection.svelte` — `today` inline in derived-Blöcken entfernt
+  - `HeroNextTrip.svelte` — `today` + `daysUntil()` + inline phase → utils
+  - `HeroPastTrip.svelte` — `today` + inline `daysSince`-Arithmetik → `daysBetween`
+  - `ChecklistWidget.svelte` — `today` für due-date Vergleiche
+  - `WeatherWidget.svelte` — `today` im Cache-Key
+  - `BucketListTab.svelte` — `fmtDate` aus utils statt priceradar/helpers
+
 ## [1.0.0-beta.1] — 2026-04-20
 
 ### Fixed — Bug 1 ([object Object]) + Bug 2 (Scheduler Notifications)
