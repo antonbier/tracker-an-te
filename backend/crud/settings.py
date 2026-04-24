@@ -128,18 +128,6 @@ def update_scheduler_last_run(user_id: int) -> None:
 
 
 
-def update_scheduler_last_run(user_id: int) -> None:
-    with db() as conn:
-        conn.execute(
-            """INSERT INTO user_scheduler_settings (user_id, update_interval_hours,
-               notify_price_drop, notify_daily_summary, last_run_at, updated_at)
-               VALUES (?,24,1,0,datetime('now'),datetime('now'))
-               ON CONFLICT(user_id) DO UPDATE SET last_run_at=datetime('now')""",
-            (user_id,)
-        )
-
-# ── User Notification Settings ────────────────────────────────────────────────
-
 def get_user_notification_settings(user_id: int, fernet) -> dict:
     """Return decrypted notification settings for a user. Missing fields -> empty string."""
     with db() as conn:
