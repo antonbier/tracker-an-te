@@ -1,6 +1,6 @@
 # WanderSuite — Architekturdokumentation für KI-Assistenten
 
-> Letzte Aktualisierung: Phase 3 / Release-Kandidat (Beta Branch)
+> Letzte Aktualisierung: Block 6 Refactoring (Punkt 1–3) — `$lib/utils.js`, `database.py` Generics, `MyTrips.svelte` Decomposition
 
 ## Projekt-Übersicht
 
@@ -247,6 +247,65 @@ print("OK", file=sys.stderr)
 # SHA immer frisch holen vor Commit
 # Bei mehreren Commits: SHA aus vorherigem Response für nächsten verwenden
 ```
+
+
+---
+
+## Architektur-Entscheidungen & Refactoring-Log
+
+### Shared Utilities (`$lib/utils.js`) — eingeführt Block 6 Refactoring
+
+Alle zustandslosen Hilfsfunktionen die app-weit gebraucht werden leben in `svelte/src/lib/utils.js`.
+**Niemals** inline in Komponenten neu definieren — immer aus utils importieren.
+
+| Export | Typ | Zweck |
+|--------|-----|-------|
+| `today` | `const string` | Heutiges Datum YYYY-MM-DD (einmal berechnet) |
+| `getTodayStr()` | Funktion | Frisches Datum für Laufzeit-kritische Aufrufe |
+| `getTripPhase(trip)` | Funktion | Kanonische 3-Phasen-Logik → `'planning'\|'active'\|'archived'` |
+| `daysBetween(target, from?)` | Funktion | Tage zwischen Daten, positiv = Zukunft |
+| `fmtCurrency(amount)` | Funktion | Euro-Formatierung z.B. `"1.234,56 €"` |
+| `fmtDate` | Re-Export | Aus `priceradar/helpers.js` — benutze immer diesen Pfad |
+| `fmtRange` | Re-Export | Datums-Range formatiert |
+| `destinationGradient` | Re-Export | Aus `triphub/helpers.js` — benutze immer diesen Pfad |
+| `wmoIcon` | Re-Export | WMO Wetter-Code → Emoji |
+
+**Regel**: Komponenten außerhalb von `/triphub/` dürfen nicht direkt aus `$lib/components/triphub/helpers.js` importieren — stattdessen `$lib/utils.js`.
+
+---
+
+### Backend CRUD-Generics (`database.py`) — eingeführt Block 6 Refactoring
+
+Für alle 4 Tracker-Typen (ryanair/flight, google_flight, homair/camping, booking/hotel) gibt es generische Unterfunktionen mit `_`-Präfix:
+
+```python
+_list_trackers(table, active_only, user_id)
+_get_tracker(table, tracker_id, user_id)
+_delete_tracker(table, tracker_id, user_id)
+_toggle_tracker(table, tracker_id, active, user_id)
+_get_latest_snapshot(snap_table, tracker_id)   # status='ok' mit Fallback
+_snapshot_table(tracker_type) → str            # Typ → Snapshot-Tabelle
+_tracker_table(tracker_type) → str             # Typ → Tracker-Tabelle
+```
+
+Die öffentlichen Funktionen (z.B. `list_gf_trackers`, `delete_homair_tracker`) sind 1-Zeilen-Wrapper die an die Generics delegieren. **Nie** die WHERE-Builder-Pattern duplizieren — neuen Tracker-Typ immer über die Generics implementieren.
+
+---
+
+### MyTrips.svelte Komponentenstruktur — eingeführt Block 6 Refactoring
+
+`MyTrips.svelte` (Seiten-Container) delegiert an Sub-Komponenten:
+
+| Komponente | Datei | Inhalt |
+|------------|-------|--------|
+| `AddTripModal` | `mytrips/AddTripModal.svelte` | Modal zum Eintragen manueller Reisen inkl. Geocoding |
+| `ArchiveSyncBar` | `mytrips/ArchiveSyncBar.svelte` | Dawarich-Sync + ActualBudget-Sync Buttons im Archiv-Tab |
+| `TripCard` | `mytrips/TripCard.svelte` | Einzelne Reisekarte (planned/archive Modus) |
+| `BucketListTab` | `mytrips/BucketListTab.svelte` | Wunschliste-Tab |
+| `JournalTimeline` | `mytrips/JournalTimeline.svelte` | Chronik-Ansicht der erkannten Reisen |
+| `OverviewTab` | `mytrips/OverviewTab.svelte` | Statistik-Übersicht mit Donut + Karte |
+
+**Regel**: Neue MyTrips-Features als Sub-Komponente unter `mytrips/` anlegen — nie direkt in `MyTrips.svelte` hineinschreiben wenn es eine eigenständige Logikeinheit ist.
 
 ---
 
