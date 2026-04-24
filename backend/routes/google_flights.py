@@ -8,7 +8,7 @@ from typing import Optional
 import logging
 from datetime import datetime
 
-from database import (
+from crud.trackers import (
     create_gf_tracker, list_gf_trackers, get_gf_tracker,
     delete_gf_tracker, save_gf_snapshot, get_gf_history,
     get_latest_gf_snapshot,
