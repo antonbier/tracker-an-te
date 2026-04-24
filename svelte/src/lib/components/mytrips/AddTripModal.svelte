@@ -53,7 +53,7 @@
       }) });
       reset();
       open = false;
-      toast('Reise eingetragen ✓', 'success');
+      toast($t('addTripSuccess') || 'Reise eingetragen ✓', 'success');
       onadded?.();
     } catch (e) { toast(e.message, 'error'); }
     mAdding = false;
