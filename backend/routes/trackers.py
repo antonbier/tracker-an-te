@@ -11,10 +11,15 @@ from pydantic import BaseModel, field_validator, model_validator
 from typing import Optional
 import re, traceback, logging
 
-from database import (
-    create_tracker, list_trackers, get_tracker,
-    delete_tracker, toggle_tracker, get_latest_snapshot,
-    set_tracker_threshold, link_tracker_to_trip,
+from crud.trackers import (
+    create_tracker,
+    list_trackers,
+    get_tracker,
+    delete_tracker,
+    toggle_tracker,
+    get_latest_snapshot,
+    set_tracker_threshold,
+    link_tracker_to_trip,
 )
 from scheduler import run_single_tracker
 from auth_jwt import get_current_user
@@ -263,7 +268,7 @@ def update_tracker(tracker_id: int, data: TrackerUpdate, user: dict = Depends(ge
 
     # DB-Update für alle verbleibenden Felder
     if updates:
-        from database import db as _db
+        from core.database import db as _db
         set_clauses = ", ".join(f"{k}=?" for k in updates)
         vals = list(updates.values()) + [tracker_id]
         with _db() as conn:
