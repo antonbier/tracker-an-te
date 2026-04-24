@@ -4,6 +4,22 @@ Alle nennenswerten Änderungen am Projekt. Format basiert auf [Keep a Changelog]
 
 ---
 
+### Refactoring — Punkt 4: TripHub.svelte Edit-Modal Decomposition
+
+- **Neu: `TripEditModal.svelte`** (`triphub/`) — Modal zum Bearbeiten von Titel + Zielort eines Trips ist jetzt eine eigenständige Komponente. Enthält die komplette Geocoding-Autocomplete-Logik (Debounce, Dropdown, Koordinaten-Validierung). Props: `bind:open`, `trip`, `onsaved(fields)`.
+- **`TripHub.svelte`** von **734 → 567 Zeilen (−167 / −23%)**: Entfernt wurden ~80 Zeilen State+Logik (10 `$state`-Variablen, 4 Funktionen) und ~90 Zeilen Modal-HTML.
+- Soft-Update-Pattern beibehalten: `onsaved` patcht `trip` lokal ohne Reload.
+
+### Refactoring — Punkt 6: localStorage Credential-Reads eliminiert
+
+**Problem**: `ArchiveSyncBar.svelte` und `Journal.svelte` lasen Dawarich-URL, Dawarich-Token, Home-Lat/Lon aus `localStorage` und schickten sie an `POST /api/dawarich/sync`. Das war der alte, unsichere Weg aus der Frühphase des Projekts.
+
+**Fix**: Das Backend (`routes/dawarich.py`) liest Credentials bereits vollständig aus `user_settings` (Fernet-verschlüsselt in SQLite): `data.dawarich_url or get_user_setting_value(uid, "dawarich_url") or ...`. Das Frontend schickt nur noch `{ force_full: bool }` — keine Credentials mehr.
+
+- `ArchiveSyncBar.svelte`: `browser`-Import + 4 `localStorage.getItem('s-...')` Reads entfernt. Sync-Body reduziert auf `{ force_full }`.
+- `Journal.svelte`: Gleiche Bereinigung. `browser`-Import entfernt.
+- **Sicherheitsgewinn**: Credentials verlassen den Backend-Speicher nicht mehr und erscheinen nicht mehr im Browser-Netzwerk-Tab bei Sync-Requests.
+
 ### Refactoring — Punkt 3: MyTrips.svelte Decomposition
 
 - **Neu: `AddTripModal.svelte`** (`mytrips/`) — Das Modal zum manuellen Einträgen einer Reise (inkl. Geocoding-Logik, Formular-State, Validierung) ist jetzt eine eigenständige Komponente. `MyTrips.svelte` bindet es per `<AddTripModal bind:open={addModalOpen} onadded={loadJournal} />` ein.
