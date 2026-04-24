@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 import logging, json
 
-from database import save_user_data, get_user_data
+from crud.settings import save_user_data, get_user_data
 from auth_jwt import get_current_user
 
 router = APIRouter()
