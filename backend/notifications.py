@@ -128,7 +128,7 @@ def _get_providers(user_id: int) -> list:
     """Load and instantiate all configured providers for this user."""
     providers = []
     try:
-        from database import get_user_notification_settings
+        from crud.settings import get_user_notification_settings
         from settings_manager import _get_fernet
         fernet = _get_fernet()
         creds  = get_user_notification_settings(user_id, fernet)
