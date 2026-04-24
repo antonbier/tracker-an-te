@@ -5,6 +5,8 @@
   let {
     journalYear,
     upcomingTrips,
+    bucketOpen = 0,
+    allTripsTotal = 0,
     journalSpentYear,
     tripsSpentYear,
     totalSpentYear,
@@ -28,15 +30,15 @@
     class="{card} text-center hover:border-orange-200 hover:shadow-md transition-all group cursor-pointer"
     style="background:var(--ws-surface);border-color:var(--ws-border)">
     <div class="text-2xl mb-1">✅</div>
-    <div class="text-xs font-medium mb-0.5 uppercase tracking-wide" style="color:var(--ws-muted)">Vergangen</div>
+    <div class="text-xs font-medium mb-0.5 uppercase tracking-wide" style="color:var(--ws-muted)">{$t('tabArchive')}</div>
     <div class="text-xl font-bold group-hover:text-orange-600 transition-colors" style="font-family:var(--ws-serif);color:var(--ws-text)">{journalYear.length}</div>
-    <div class="text-[10px] mt-1" style="color:var(--ws-muted)">→ Chronik</div>
+    <div class="text-[10px] mt-1" style="color:var(--ws-muted)">→ {$t('tabJournal'
   </button>
   <button onclick={() => onswitchtab('trips')}
     class="{card} text-center hover:border-orange-200 hover:shadow-md transition-all group cursor-pointer"
     style="background:var(--ws-surface);border-color:var(--ws-border)">
     <div class="text-2xl mb-1">✈️</div>
-    <div class="text-xs font-medium mb-0.5 uppercase tracking-wide" style="color:var(--ws-muted)">Geplant</div>
+    <div class="text-xs font-medium mb-0.5 uppercase tracking-wide" style="color:var(--ws-muted)">{$t('tabPlanned')}</div>
     <div class="text-xl font-bold group-hover:text-orange-600 transition-colors" style="font-family:var(--ws-serif);color:var(--ws-text)">{upcomingTrips.length}</div>
     <div class="text-[10px] mt-1" style="color:var(--ws-muted)">→ Geplante Reisen</div>
   </button>
@@ -44,8 +46,8 @@
     class="{card} text-center hover:border-orange-200 hover:shadow-md transition-all group cursor-pointer"
     style="background:var(--ws-surface);border-color:var(--ws-border)">
     <div class="text-2xl mb-1">🌟</div>
-    <div class="text-xs font-medium mb-0.5 uppercase tracking-wide" style="color:var(--ws-muted)">Wunschziele</div>
-    <div class="text-xl font-bold group-hover:text-orange-600 transition-colors" style="font-family:var(--ws-serif);color:var(--ws-text)">{upcomingTrips.length}</div>
+    <div class="text-xs font-medium mb-0.5 uppercase tracking-wide" style="color:var(--ws-muted)">{$t('mytripsBucketlist')}</div>
+    <div class="text-xl font-bold group-hover:text-orange-600 transition-colors" style="font-family:var(--ws-serif);color:var(--ws-text)">{bucketOpen}</div>
     <div class="text-[10px] mt-1" style="color:var(--ws-muted)">→ Bucket List</div>
   </button>
   <div class="{card} text-center" style="background:var(--ws-surface);border-color:var(--ws-border)">
@@ -54,7 +56,7 @@
     <div class="text-xl font-bold text-orange-600" style="font-family:var(--ws-serif)">{totalSpentYear.toFixed(2)} €</div>
     {#if yearBudget > 0}
       <div class="text-[10px] mt-1" style="color:{overBudget ? '#f87171' : 'var(--ws-muted)'}">
-        {overBudget ? '⚠️ überschritten' : remainingYear.toFixed(0) + ' € frei'}
+        {overBudget ? '⚠️ ' + ($t('overviewOverBudget') || 'überschritten') : remainingYear.toFixed(0) + ' € frei'}
       </div>
     {/if}
   </div>
@@ -122,7 +124,7 @@
 {#if upcomingTrips.length > 0}
   <div class={card} style="background:var(--ws-surface);border-color:var(--ws-border)">
     <h2 class="text-sm font-semibold mb-3" style="color:var(--ws-text)">
-      ✈️ Nächste Abenteuer <span class="ml-1 text-xs font-normal" style="color:var(--ws-muted)">({upcomingTrips.length})</span>
+      ✈️ {$t('tabPlanned')} <span class="ml-1 text-xs font-normal" style="color:var(--ws-muted)">({upcomingTrips.length})</span>
     </h2>
     <div class="space-y-2">
       {#each upcomingTrips.slice(0,4) as tr}
