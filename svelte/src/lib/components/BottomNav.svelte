@@ -3,7 +3,7 @@
   import { logout } from '$lib/stores.js';
   import { t } from '$lib/i18n.js';
 
-  let { onSettings } = $props();
+  let { onSettings, activeTripsCount = 0 } = $props();
 
   const nav = [
     { id: 'home',       icon: '🏠', labelKey: 'navHomeShort' },
