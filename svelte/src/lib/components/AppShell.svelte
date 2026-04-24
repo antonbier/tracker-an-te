@@ -20,6 +20,22 @@
   function toggleDark() {
     theme.set($isDark ? '' : 'dark');
   }
+
+  // ── OnTour-Badge: aktive Reisen zählen ─────────────────────────────────────
+  import { getTripPhase } from '$lib/utils.js';
+  import { api } from '$lib/api.js';
+  import { apiUrl, jwtToken } from '$lib/stores.js';
+
+  let _wsTrips = $state([]);
+  const activeTripsCount = $derived(
+    _wsTrips.filter(t => getTripPhase(t) === 'active').length
+  );
+
+  $effect(() => {
+    if ($apiUrl && $jwtToken) {
+      api('/api/ws-trips').then(r => { _wsTrips = r || []; }).catch(() => {});
+    }
+  });
 </script>
 
 <div class="flex h-screen overflow-hidden" style="background:var(--ws-bg);color:var(--ws-text)">
@@ -34,7 +50,7 @@
     <main class="flex-1 overflow-y-auto p-4 md:p-6">
       {@render children()}
     </main>
-    <BottomNav onSettings={() => _settingsOpen = true} />
+    <BottomNav onSettings={() => _settingsOpen = true} {activeTripsCount} />
   </div>
 </div>
 
