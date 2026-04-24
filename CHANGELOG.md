@@ -4,6 +4,20 @@ Alle nennenswerten Änderungen am Projekt. Format basiert auf [Keep a Changelog]
 
 ---
 
+### Fixed — Option B: OverviewTab Stats-Bugs + i18n-Lücken
+
+**OverviewTab Bugs:**
+- **Copy-Paste-Bug** (`OverviewTab.svelte`): Kachel 3 „Wunschziele" zeigte `upcomingTrips.length` (= geplante Reisen) statt `bucketOpen` (= offene Bucket-List-Einträge). Fix: `bucketOpen` als Prop ergänzt und korrekt verdrahtet.
+- **Stats zählen jetzt korrekt** (`MyTrips.svelte`): `allTripsTotal` und `allTripsYear` berücksichtigen jetzt sowohl `wsTrips` (WanderWizzard) als auch `journalYear` (Dawarich-erkannte Trips). Duplikate werden über `source_detected_id` herausgefiltert — ein Trip der als Dawarich-Trip erkannt und dann in WanderWizzard übernommen wurde, wird nur einmal gezählt.
+- **Tab-Labels i18n** (`OverviewTab.svelte`): „Vergangen" / „Geplant" / „Wunschziele" jetzt via `$t()`.
+
+**i18n — 34 neue Keys** (de + en) für neu erstellte Komponenten die bisher hardcoded waren:
+- `PersonalityModal` (16 Keys): Titel, Untertitel, Labels, Placeholder, Checkbox-Texte, Buttons
+- `ArchiveSyncBar` (2 Keys): `title`-Attribute der Sync-Buttons
+- `TripEditModal` (8 Keys): alle Felder-Labels, Placeholder, Hints, Buttons
+- `AddTripModal` (2 Keys): Toast-Meldungen
+- `OverviewTab` (2 Keys): Budget-Status-Strings
+
 ### Refactoring — Punkt A: database.py Shim entfernt (sauberer Abschluss)
 
 - **`backend/database.py` endgültig gelöscht** — der Compatibility-Shim existiert nicht mehr.
