@@ -12,6 +12,7 @@ import time
 from datetime import datetime, date, timezone
 from collections import defaultdict
 from typing import Optional
+from crud.trips import save_detected_trip, list_detected_trips, unignore_detected_trips
 
 logger = logging.getLogger(__name__)
 
@@ -124,7 +125,6 @@ def _safe_float_coord(value: str | float | None, label: str) -> float | None:
     if isinstance(value, (int, float)):
         return float(value) if not math.isnan(float(value)) else None
     # String: try normalize first (handles DMS), then direct float
-    from crud.trips import save_detected_trip, list_detected_trips, unignore_detected_trips
 from settings_manager import normalize_coordinate
     normalized = normalize_coordinate(str(value))
     if normalized:
