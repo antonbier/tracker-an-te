@@ -6,6 +6,8 @@ Discovery pool CRUD: upsert, rotate, mark shown, image updates.
 import json
 import logging
 from core.database import db
+DISCOVERY_POOL_MAX = 200
+DISCOVERY_POOL_REFILL_THRESHOLD = 10
 
 logger = logging.getLogger(__name__)
 
