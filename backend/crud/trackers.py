@@ -583,9 +583,6 @@ def link_tracker_to_trip(tracker_id: int, tracker_type: str, trip_id: int | None
         )
     return r.rowcount > 0
 
-
-def get_trackers_for_trip(trip_id: int) -> dict:
-
 # ── Cross-type trip linking ───────────────────────────────────────────────────
 
 def get_trackers_for_trip(trip_id: int) -> dict:
