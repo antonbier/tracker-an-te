@@ -10,6 +10,7 @@ import logging
 import random
 import time
 
+from core.database import db
 from crud.settings import (
     get_user_scheduler_settings,
     update_scheduler_last_run,
@@ -309,8 +310,7 @@ def run_all_trackers(user_id: int | None = None):
     else:
         # Scheduled run: update last_run_at for ALL users with active trackers
         try:
-            from core.database import db as _db
-            with _db() as conn:
+            with db() as conn:
                 user_ids = conn.execute(
                     "SELECT DISTINCT user_id FROM trackers WHERE active=1 "
                     "UNION SELECT DISTINCT user_id FROM gf_trackers WHERE active=1 "
