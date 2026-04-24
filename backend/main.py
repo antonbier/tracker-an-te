@@ -11,7 +11,8 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from contextlib import asynccontextmanager
 
 import asyncio
-from database import init_db, discovery_pool_count
+from core.db_init import init_db
+from crud.discovery import discovery_pool_count
 from auth_db import init_auth_tables
 from scheduler import run_all_trackers, run_cleanup_job
 from routes import (
