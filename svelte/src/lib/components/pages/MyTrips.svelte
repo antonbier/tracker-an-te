@@ -118,9 +118,20 @@
   // Backend dedupliziert bereits via GROUP BY — direkter Alias
   const archiveTripsDeduped = $derived(journalYear);
 
-  // Stats für Overview-Tab (als $derived statt {@const} im Template)
-  const allTripsTotal = $derived(wsTrips.length);
-  const allTripsYear  = $derived(wsTrips.filter(t => (t.start_date||'').slice(0,4) === String(selectedYear)).length);
+  // Stats für Overview-Tab — kombiniert wsTrips + journalYear (Dawarich)
+  // wsTrips: WanderWizzard-Trips | journalYear: Dawarich-erkannte Trips des Jahres
+  const allTripsTotal = $derived(
+    wsTrips.length +
+    (journalYear ?? []).filter(j =>
+      !wsTrips.some(w => w.source_detected_id === j.id)
+    ).length
+  );
+  const allTripsYear  = $derived(
+    wsTrips.filter(t => (t.start_date||'').slice(0,4) === String(selectedYear)).length +
+    (journalYear ?? []).filter(j =>
+      !wsTrips.some(w => w.source_detected_id === j.id)
+    ).length
+  );
   const bucketOpen    = $derived(($bucketlist ?? []).filter(b => !b.done).length);
 
   // WS-trips that are archived (end_date < today) — shown in archive tab with TripHub link
