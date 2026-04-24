@@ -10,13 +10,21 @@ import logging
 import random
 import time
 
-from database import (
-    list_trackers, save_price_snapshot as save_snapshot,
-    list_gf_trackers, save_gf_snapshot,
-    list_homair_trackers, save_homair_snapshot,
-    list_booking_trackers, save_booking_snapshot,
-    get_user_scheduler_settings, update_scheduler_last_run,
-    cleanup_old_price_history, cleanup_old_snapshots,
+from crud.settings import (
+    get_user_scheduler_settings,
+    update_scheduler_last_run,
+)
+from crud.trackers import (
+    list_trackers,
+    save_price_snapshot as save_snapshot,
+    list_gf_trackers,
+    save_gf_snapshot,
+    list_homair_trackers,
+    save_homair_snapshot,
+    list_booking_trackers,
+    save_booking_snapshot,
+    cleanup_old_price_history,
+    cleanup_old_snapshots,
 )
 from scraper import fetch_flights
 from settings_manager import get_setting_value
@@ -95,7 +103,7 @@ def run_gf_trackers(user_id: int | None = None):
                     f"{tracker['origin']}→{tracker['destination']} {tracker['outbound_date']}")
         try:
             # BUG 2 FIX: prev_price vor Scrape aus DB
-            from database import get_latest_gf_snapshot as _gf_snap
+            from crud.trackers import get_latest_gf_snapshot as _gf_snap
             prev_gf = _gf_snap(tid)
             prev_gf_price = float(prev_gf["total_price"]) if prev_gf and prev_gf.get("total_price") else None
 
@@ -301,7 +309,7 @@ def run_all_trackers(user_id: int | None = None):
     else:
         # Scheduled run: update last_run_at for ALL users with active trackers
         try:
-            from database import db as _db
+            from core.database import db as _db
             with _db() as conn:
                 user_ids = conn.execute(
                     "SELECT DISTINCT user_id FROM trackers WHERE active=1 "
@@ -325,7 +333,7 @@ def run_single_tracker(tracker_id: int):
     Nur bei status=ok wird ein Snapshot gespeichert —
     Fehler überschreiben niemals die bestehende Preishistorie.
     """
-    from database import get_tracker
+    from crud.trackers import get_tracker
     tracker = get_tracker(tracker_id)
     if not tracker:
         raise ValueError(f"Tracker #{tracker_id} nicht gefunden")
