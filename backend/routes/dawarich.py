@@ -9,7 +9,11 @@ from typing import Optional
 import logging, math
 
 from dawarich import sync_trips, fetch_points, normalize_point
-from database import list_detected_trips, delete_detected_trip, save_detected_trip
+from crud.trips import (
+    list_detected_trips,
+    delete_detected_trip,
+    save_detected_trip,
+)
 from settings_manager import get_user_setting_value, get_setting_value
 from countries import get_visited_country_codes
 from auth_jwt import get_current_user
