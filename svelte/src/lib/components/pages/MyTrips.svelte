@@ -7,12 +7,14 @@
   import { t } from '$lib/i18n.js';
   import { today, getTripPhase } from '$lib/utils.js';
 
-  import ScratchMap    from '$lib/components/ScratchMap.svelte';
-  import BucketListTab from '$lib/components/mytrips/BucketListTab.svelte';
-  import JournalTimeline from '$lib/components/mytrips/JournalTimeline.svelte';
+  import ScratchMap       from '$lib/components/ScratchMap.svelte';
+  import BucketListTab    from '$lib/components/mytrips/BucketListTab.svelte';
+  import JournalTimeline  from '$lib/components/mytrips/JournalTimeline.svelte';
   import JournalSyncDawarich from '$lib/components/mytrips/JournalSyncDawarich.svelte';
   import JournalSyncActual   from '$lib/components/mytrips/JournalSyncActual.svelte';
-  import TripCard from '$lib/components/mytrips/TripCard.svelte';
+  import TripCard         from '$lib/components/mytrips/TripCard.svelte';
+  import AddTripModal     from '$lib/components/mytrips/AddTripModal.svelte';
+  import ArchiveSyncBar   from '$lib/components/mytrips/ArchiveSyncBar.svelte';
 
   // ── Tabs ───────────────────────────────────────────────────────────────────
   // Restore tab if returning from TripHub
@@ -157,47 +159,6 @@
 
   // ── Add trip modal ─────────────────────────────────────────────────────────
   let addModalOpen = $state(false);
-  let mName    = $state('');
-  let mStart   = $state(new Date().toISOString().slice(0, 10));
-  let mEnd     = $state('');
-  let mCost    = $state('');
-  let mAdding  = $state(false);
-  let mLat     = $state(null);
-  let mLon     = $state(null);
-  let mGeoLoad = $state(false);
-  let mGeoHint = $state('');
-
-  // Geocoding beim Verlassen des Namensfelds
-  async function geocodeManualTrip() {
-    const q = mName.trim();
-    if (!q || !$apiUrl) return;
-    mGeoLoad = true; mGeoHint = '';
-    try {
-      const res = await api(`/api/settings/geocode?q=${encodeURIComponent(q)}`);
-      if (res?.lat && res?.lon) {
-        mLat = res.lat; mLon = res.lon;
-        mGeoHint = `📍 ${res.display_name || q}`;
-      }
-    } catch { /* silent */ }
-    mGeoLoad = false;
-  }
-
-  async function addManualTrip() {
-    if (!mName || !mStart) { toast('Name + Startdatum pflicht', 'error'); return; }
-    mAdding = true;
-    try {
-      await api('/api/trips', { method: 'POST', body: JSON.stringify({
-        name: mName, start_date: mStart, end_date: mEnd || mStart,
-        cost: mCost ? parseFloat(mCost) : null,
-        lat: mLat, lon: mLon,
-      }) });
-      mName = ''; mEnd = ''; mCost = ''; mLat = null; mLon = null; mGeoHint = '';
-      addModalOpen = false;
-      toast('Reise eingetragen ✓', 'success');
-      await loadJournal();
-    } catch (e) { toast(e.message, 'error'); }
-    mAdding = false;
-  }
 
   // ── On-the-fly TripHub: detected_trips → ws_trips Container ───────────────
   // Öffnet (oder erstellt) einen ws_trips Container für Dawarich/manuelle Trips
@@ -238,94 +199,9 @@
     } catch (e) { toast('Hub konnte nicht erstellt werden: ' + e.message, 'error'); }
   }
 
-  // ── Dawarich Sync ──────────────────────────────────────────────────────────
-  let syncing   = $state(false);
-  let syncInfo  = $state('');
-  let forceFull = $state(false);
+  // ── Dawarich + ActualBudget Sync → ArchiveSyncBar.svelte ──────────────────
 
-  async function syncJournal() {
-    if (!$apiUrl) { toast('Backend-URL fehlt', 'warning'); return; }
-    const url   = browser ? localStorage.getItem('s-dawarichUrl')   || '' : '';
-    const token = browser ? localStorage.getItem('s-dawarichToken') || '' : '';
-    const lat   = parseFloat(browser ? localStorage.getItem('s-homeLat') || '0' : '0');
-    const lon   = parseFloat(browser ? localStorage.getItem('s-homeLon') || '0' : '0');
-    syncing = true; syncInfo = '';
-    try {
-      const body = (url && token)
-        ? JSON.stringify({ dawarich_url: url, dawarich_token: token, home_lat: lat || null, home_lon: lon || null, force_full: forceFull })
-        : JSON.stringify({ force_full: forceFull });
-      const r = await api('/api/dawarich/sync', { method: 'POST', body });
-      syncInfo = `${r.points_loaded} Punkte · ${r.trips_detected} erkannt`;
-      toast(`${r.trips_detected} Reisen erkannt ✓`, 'success');
-      await loadJournal();
-    } catch (e) { toast('Sync-Fehler: ' + e.message, 'error'); }
-    syncing = false;
-  }
 
-  // ── ActualBudget Sync ──────────────────────────────────────────────────────
-  let actualSyncing   = $state(false);
-  let actualResult    = $state(null);
-  let actualFiles     = $state([]);
-  let actualFilesLoad = $state(false);
-  let autoCostRunning = $state(false);
-  let autoCostResult  = $state(null);
-
-  async function listActualFiles() {
-    const url   = browser ? localStorage.getItem('s-actualUrl')      || '' : '';
-    const token = browser ? localStorage.getItem('s-actualPassword') || '' : '';
-    if (!url || !token) { toast('ActualBudget URL + Passwort fehlen → Einstellungen', 'warning'); return; }
-    actualFilesLoad = true;
-    try { const r = await api('/api/budget/actual/list-files', { method: 'POST', body: JSON.stringify({ actual_url: url, actual_token: token }) }); actualFiles = r.files || []; } catch (e) { toast(e.message, 'error'); }
-    actualFilesLoad = false;
-  }
-
-  // Synct alle ws_trips des gewählten Jahres über POST /api/ws-trips/{id}/sync-budget.
-  // Das Backend liest actual_url, actual_token, actual_file aus den User-Settings (DB) —
-  // kein localStorage-Zugriff nötig.
-  async function syncActual() {
-    if (!$apiUrl) { toast('Backend-URL fehlt', 'warning'); return; }
-    // Alle archivierten WS-Trips des aktuell gewählten Jahres
-    const yearTrips = archivedWsTrips.filter(
-      t => (t.start_date || '').slice(0, 4) === String(selectedYear)
-    );
-    // Fallback: alle archivierten WS-Trips wenn kein Jahr-Filter greift
-    const targets = yearTrips.length > 0 ? yearTrips : archivedWsTrips;
-    if (targets.length === 0) {
-      toast('Keine WanderWizzard-Reisen zum Syncen gefunden', 'warning');
-      return;
-    }
-    actualSyncing = true;
-    let synced = 0; let failed = 0;
-    for (const trip of targets) {
-      try {
-        await api(`/api/ws-trips/${trip.id}/sync-budget`, { method: 'POST' });
-        synced++;
-      } catch (e) {
-        // 400 = keine Credentials → einmal warnen und abbrechen
-        if (e?.message?.includes('nicht konfiguriert') || e?.status === 400 || String(e).includes('400')) {
-          toast('ActualBudget Zugangsdaten fehlen — bitte in Einstellungen → Bridges hinterlegen', 'warning');
-          actualSyncing = false;
-          return;
-        }
-        failed++;
-      }
-    }
-    actualResult = { synced, failed };
-    if (synced > 0) toast(`${synced} Reise${synced > 1 ? 'n' : ''} mit ActualBudget synchronisiert ✓`, 'success');
-    if (failed > 0) toast(`${failed} Sync${failed > 1 ? 's' : ''} fehlgeschlagen`, 'warning');
-    actualSyncing = false;
-  }
-
-  async function runAutoCost() {
-    const url      = browser ? localStorage.getItem('s-actualUrl')        || '' : '';
-    const password = browser ? localStorage.getItem('s-actualPassword')   || '' : '';
-    const file     = browser ? localStorage.getItem('s-actualFile')       || '' : '';
-    const cats     = browser ? localStorage.getItem('s-travelCategories') || '' : '';
-    if (!url || !password) { toast('URL + Passwort fehlen', 'warning'); return; }
-    autoCostRunning = true;
-    try { const r = await api('/api/trips/auto-cost', { method: 'POST', body: JSON.stringify({ actual_url: url, actual_token: password, actual_file: file || null, categories: cats || null }) }); autoCostResult = r; toast(`${r.trips_updated} Reisen verknüpft ✓`, 'success'); await loadJournal(); } catch (e) { toast(e.message, 'error'); }
-    autoCostRunning = false;
-  }
 
   // ── Overview derived ───────────────────────────────────────────────────────
   // totalSpentYear: detected_trips (journalYear) + ws_trips des Jahres
@@ -374,41 +250,7 @@
 </script>
 
 <!-- ── Add Trip Modal ────────────────────────────────────────────────────── -->
-{#if addModalOpen}
-  <div class="fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,.45);backdrop-filter:blur(4px)" role="dialog">
-    <div class="w-full max-w-sm mx-4 rounded-2xl shadow-2xl border p-6 space-y-4" style="background:var(--ws-surface);border-color:var(--ws-border)">
-      <h3 class="font-bold text-base" style="color:var(--ws-text)">{$t('addTripTitle')}</h3>
-      <div class="relative">
-        <input bind:value={mName} placeholder={$t('addTripDest')} class={inp}
-          style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"
-          onblur={geocodeManualTrip} />
-        {#if mGeoLoad}
-          <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs" style="color:var(--ws-muted)">⏳</span>
-        {/if}
-      </div>
-      {#if mGeoHint}
-        <p class="text-[10px] px-1" style="color:var(--ws-muted)">{mGeoHint}</p>
-      {/if}
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="text-xs mb-1 block" style="color:var(--ws-muted)">{$t('addTripStart')}</label>
-          <input type="date" bind:value={mStart} class={inp} style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
-        </div>
-        <div>
-          <label class="text-xs mb-1 block" style="color:var(--ws-muted)">{$t('addTripEnd')}</label>
-          <input type="date" bind:value={mEnd} class={inp} style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
-        </div>
-      </div>
-      <input type="number" bind:value={mCost} placeholder={$t('addTripCost')} class={inp} style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
-      <div class="flex gap-3">
-        <button onclick={() => addModalOpen = false} class="flex-1 py-2.5 rounded-xl border text-sm font-semibold hover:opacity-70" style="border-color:var(--ws-border);color:var(--ws-muted)">{$t('addTripCancel')}</button>
-        <button onclick={addManualTrip} disabled={mAdding} class="flex-1 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-40" style="background:var(--ws-accent);color:#fff5ec">
-          {mAdding ? '⏳' : $t('addTripSave')}
-        </button>
-      </div>
-    </div>
-  </div>
-{/if}
+<AddTripModal bind:open={addModalOpen} onadded={loadJournal} />
 
 <div class="w-full space-y-4">
 
@@ -647,28 +489,11 @@
           </div>
         {/if}
 
-        <!-- Dawarich sync + force-full checkbox -->
-        <div class="flex items-center gap-1.5">
-          <button onclick={syncJournal} disabled={syncing}
-            class="flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all hover:opacity-80 disabled:opacity-40"
-            style="background:var(--ws-surface);border:1px solid var(--ws-border);color:var(--ws-muted)">
-            {syncing ? '⏳' : $t('archiveDawarichSync')}
-          </button>
-          <label class="flex items-center gap-1 text-xs cursor-pointer" style="color:var(--ws-muted)"
-            title="Gelöschte Reisen erneut laden (setzt ignored-Flag zurück)">
-            <input type="checkbox" bind:checked={forceFull}
-              class="rounded" style="accent-color:var(--ws-accent)" />
-            🔄
-          </label>
-        </div>
-
-        <!-- ActualBudget — synct alle ws_trips des Jahres via Backend-Credentials -->
-        <button onclick={syncActual} disabled={actualSyncing}
-          class="flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all hover:opacity-80 disabled:opacity-40"
-          style="background:var(--ws-surface);border:1px solid var(--ws-border);color:var(--ws-muted)"
-          title="Synct alle Archiv-Reisen mit ActualBudget (Credentials aus Einstellungen)">
-          {actualSyncing ? '⏳ Synce…' : $t('archiveActualSync')}
-        </button>
+        <ArchiveSyncBar
+          {selectedYear}
+          archivedTrips={archivedWsTrips}
+          onsynced={loadJournal}
+        />
 
         <!-- Spacer -->
         <div class="flex-1"></div>
