@@ -9,6 +9,7 @@
   const prefillParams = writable(null);
   import { toast } from '$lib/toast.js';
   import { t } from '$lib/i18n.js';
+  import { today } from '$lib/utils.js';
 
   import CategoryTabs       from '$lib/components/priceradar/CategoryTabs.svelte';
   import FlightSearchForm   from '$lib/components/priceradar/FlightSearchForm.svelte';
@@ -41,7 +42,6 @@
     try {
       const trips = await api('/api/ws-trips');
       // Only upcoming/active trips
-      const today = new Date().toISOString().slice(0, 10);
       wsTrips = (trips || []).filter(t =>
         t.status !== 'completed' &&
         (!t.start_date || t.start_date >= today)
