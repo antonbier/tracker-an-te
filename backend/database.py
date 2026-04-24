@@ -516,50 +516,19 @@ def create_tracker(data: dict, user_id: int = 1) -> int:
 
 
 def list_trackers(active_only: bool = False, user_id: int | None = None) -> list[dict]:
-    with db() as conn:
-        where_parts = []
-        params = []
-        if user_id:
-            where_parts.append("user_id=?")
-            params.append(user_id)
-        if active_only:
-            where_parts.append("active=1")
-        where = ("WHERE " + " AND ".join(where_parts)) if where_parts else ""
-        rows = conn.execute(f"SELECT * FROM trackers {where} ORDER BY created_at DESC", params).fetchall()
-    return [dict(r) for r in rows]
+    return _list_trackers("trackers", active_only=active_only, user_id=user_id)
 
 
 def get_tracker(tracker_id: int, user_id: int | None = None) -> dict | None:
-    with db() as conn:
-        if user_id:
-            row = conn.execute(
-                "SELECT * FROM trackers WHERE id=? AND user_id=?", (tracker_id, user_id)
-            ).fetchone()
-        else:
-            row = conn.execute("SELECT * FROM trackers WHERE id=?", (tracker_id,)).fetchone()
-    return dict(row) if row else None
+    return _get_tracker("trackers", tracker_id, user_id=user_id)
 
 
 def delete_tracker(tracker_id: int, user_id: int | None = None) -> bool:
-    with db() as conn:
-        if user_id:
-            return conn.execute(
-                "DELETE FROM trackers WHERE id=? AND user_id=?", (tracker_id, user_id)
-            ).rowcount > 0
-        return conn.execute("DELETE FROM trackers WHERE id=?", (tracker_id,)).rowcount > 0
+    return _delete_tracker("trackers", tracker_id, user_id=user_id)
 
 
 def toggle_tracker(tracker_id: int, active: bool, user_id: int | None = None) -> bool:
-    with db() as conn:
-        if user_id:
-            return conn.execute(
-                "UPDATE trackers SET active=? WHERE id=? AND user_id=?",
-                (1 if active else 0, tracker_id, user_id)
-            ).rowcount > 0
-        return conn.execute(
-            "UPDATE trackers SET active=? WHERE id=?",
-            (1 if active else 0, tracker_id)
-        ).rowcount > 0
+    return _toggle_tracker("trackers", tracker_id, active, user_id=user_id)
 
 
 def set_tracker_threshold(tracker_id: int, price: float | None, user_id: int | None = None) -> bool:
@@ -749,50 +718,19 @@ def create_gf_tracker(data: dict, user_id: int = 1) -> int:
 
 
 def list_gf_trackers(active_only: bool = False, user_id: int | None = None) -> list[dict]:
-    with db() as conn:
-        where_parts = []
-        params = []
-        if user_id:
-            where_parts.append("user_id=?")
-            params.append(user_id)
-        if active_only:
-            where_parts.append("active=1")
-        where = ("WHERE " + " AND ".join(where_parts)) if where_parts else ""
-        rows = conn.execute(f"SELECT * FROM gf_trackers {where} ORDER BY created_at DESC", params).fetchall()
-    return [dict(r) for r in rows]
+    return _list_trackers("gf_trackers", active_only=active_only, user_id=user_id)
 
 
 def get_gf_tracker(tracker_id: int, user_id: int | None = None) -> dict | None:
-    with db() as conn:
-        if user_id:
-            row = conn.execute(
-                "SELECT * FROM gf_trackers WHERE id=? AND user_id=?", (tracker_id, user_id)
-            ).fetchone()
-        else:
-            row = conn.execute("SELECT * FROM gf_trackers WHERE id=?", (tracker_id,)).fetchone()
-    return dict(row) if row else None
+    return _get_tracker("gf_trackers", tracker_id, user_id=user_id)
 
 
 def delete_gf_tracker(tracker_id: int, user_id: int | None = None) -> bool:
-    with db() as conn:
-        if user_id:
-            return conn.execute(
-                "DELETE FROM gf_trackers WHERE id=? AND user_id=?", (tracker_id, user_id)
-            ).rowcount > 0
-        return conn.execute("DELETE FROM gf_trackers WHERE id=?", (tracker_id,)).rowcount > 0
+    return _delete_tracker("gf_trackers", tracker_id, user_id=user_id)
 
 
 def toggle_gf_tracker(tracker_id: int, active: bool, user_id: int | None = None) -> bool:
-    with db() as conn:
-        if user_id:
-            return conn.execute(
-                "UPDATE gf_trackers SET active=? WHERE id=? AND user_id=?",
-                (1 if active else 0, tracker_id, user_id)
-            ).rowcount > 0
-        return conn.execute(
-            "UPDATE gf_trackers SET active=? WHERE id=?",
-            (1 if active else 0, tracker_id)
-        ).rowcount > 0
+    return _toggle_tracker("gf_trackers", tracker_id, active, user_id=user_id)
 
 
 def save_gf_snapshot(tracker_id: int, snap: dict) -> int:
@@ -834,17 +772,7 @@ def save_gf_snapshot(tracker_id: int, snap: dict) -> int:
 
 def get_latest_gf_snapshot(tracker_id: int) -> dict | None:
     """Neuester fehlerfreier GF-Snapshot (status='ok'). Fallback auf neuesten Eintrag."""
-    with db() as conn:
-        row = conn.execute(
-            "SELECT * FROM gf_snapshots WHERE tracker_id=? AND status='ok' ORDER BY fetched_at DESC LIMIT 1",
-            (tracker_id,)
-        ).fetchone()
-        if not row:
-            row = conn.execute(
-                "SELECT * FROM gf_snapshots WHERE tracker_id=? ORDER BY fetched_at DESC LIMIT 1",
-                (tracker_id,)
-            ).fetchone()
-    return dict(row) if row else None
+    return _get_latest_snapshot("gf_snapshots", tracker_id)
 
 def get_gf_history(tracker_id: int, limit: int = 90) -> list[dict]:
     """Compatibility alias: return GF snapshots from gf_snapshots table."""
@@ -875,50 +803,19 @@ def create_homair_tracker(data: dict, user_id: int = 1) -> int:
 
 
 def list_homair_trackers(active_only: bool = False, user_id: int | None = None) -> list[dict]:
-    with db() as conn:
-        where_parts = []
-        params = []
-        if user_id:
-            where_parts.append("user_id=?")
-            params.append(user_id)
-        if active_only:
-            where_parts.append("active=1")
-        where = ("WHERE " + " AND ".join(where_parts)) if where_parts else ""
-        rows = conn.execute(f"SELECT * FROM homair_trackers {where} ORDER BY created_at DESC", params).fetchall()
-    return [dict(r) for r in rows]
+    return _list_trackers("homair_trackers", active_only=active_only, user_id=user_id)
 
 
 def get_homair_tracker(tracker_id: int, user_id: int | None = None) -> dict | None:
-    with db() as conn:
-        if user_id:
-            row = conn.execute(
-                "SELECT * FROM homair_trackers WHERE id=? AND user_id=?", (tracker_id, user_id)
-            ).fetchone()
-        else:
-            row = conn.execute("SELECT * FROM homair_trackers WHERE id=?", (tracker_id,)).fetchone()
-    return dict(row) if row else None
+    return _get_tracker("homair_trackers", tracker_id, user_id=user_id)
 
 
 def delete_homair_tracker(tracker_id: int, user_id: int | None = None) -> bool:
-    with db() as conn:
-        if user_id:
-            return conn.execute(
-                "DELETE FROM homair_trackers WHERE id=? AND user_id=?", (tracker_id, user_id)
-            ).rowcount > 0
-        return conn.execute("DELETE FROM homair_trackers WHERE id=?", (tracker_id,)).rowcount > 0
+    return _delete_tracker("homair_trackers", tracker_id, user_id=user_id)
 
 
 def toggle_homair_tracker(tracker_id: int, active: bool, user_id: int | None = None) -> bool:
-    with db() as conn:
-        if user_id:
-            return conn.execute(
-                "UPDATE homair_trackers SET active=? WHERE id=? AND user_id=?",
-                (1 if active else 0, tracker_id, user_id)
-            ).rowcount > 0
-        return conn.execute(
-            "UPDATE homair_trackers SET active=? WHERE id=?",
-            (1 if active else 0, tracker_id)
-        ).rowcount > 0
+    return _toggle_tracker("homair_trackers", tracker_id, active, user_id=user_id)
 
 
 def save_homair_snapshot(tracker_id: int, snap: dict) -> int:
@@ -948,17 +845,7 @@ def save_homair_snapshot(tracker_id: int, snap: dict) -> int:
 
 def get_latest_homair_snapshot(tracker_id: int) -> dict | None:
     """Neuester fehlerfreier Homair-Snapshot (status='ok'). Fallback auf neuesten Eintrag."""
-    with db() as conn:
-        row = conn.execute(
-            "SELECT * FROM homair_snapshots WHERE tracker_id=? AND status='ok' ORDER BY fetched_at DESC LIMIT 1",
-            (tracker_id,)
-        ).fetchone()
-        if not row:
-            row = conn.execute(
-                "SELECT * FROM homair_snapshots WHERE tracker_id=? ORDER BY fetched_at DESC LIMIT 1",
-                (tracker_id,)
-            ).fetchone()
-    return dict(row) if row else None
+    return _get_latest_snapshot("homair_snapshots", tracker_id)
 
 
 # ── Booking / Hotel Tracker CRUD ──────────────────────────────────────────────
@@ -980,50 +867,19 @@ def create_booking_tracker(data: dict, user_id: int = 1) -> int:
 
 
 def list_booking_trackers(active_only: bool = False, user_id: int | None = None) -> list[dict]:
-    with db() as conn:
-        where_parts = []
-        params = []
-        if user_id:
-            where_parts.append("user_id=?")
-            params.append(user_id)
-        if active_only:
-            where_parts.append("active=1")
-        where = ("WHERE " + " AND ".join(where_parts)) if where_parts else ""
-        rows = conn.execute(f"SELECT * FROM booking_trackers {where} ORDER BY created_at DESC", params).fetchall()
-    return [dict(r) for r in rows]
+    return _list_trackers("booking_trackers", active_only=active_only, user_id=user_id)
 
 
 def get_booking_tracker(tracker_id: int, user_id: int | None = None) -> dict | None:
-    with db() as conn:
-        if user_id:
-            row = conn.execute(
-                "SELECT * FROM booking_trackers WHERE id=? AND user_id=?", (tracker_id, user_id)
-            ).fetchone()
-        else:
-            row = conn.execute("SELECT * FROM booking_trackers WHERE id=?", (tracker_id,)).fetchone()
-    return dict(row) if row else None
+    return _get_tracker("booking_trackers", tracker_id, user_id=user_id)
 
 
 def delete_booking_tracker(tracker_id: int, user_id: int | None = None) -> bool:
-    with db() as conn:
-        if user_id:
-            return conn.execute(
-                "DELETE FROM booking_trackers WHERE id=? AND user_id=?", (tracker_id, user_id)
-            ).rowcount > 0
-        return conn.execute("DELETE FROM booking_trackers WHERE id=?", (tracker_id,)).rowcount > 0
+    return _delete_tracker("booking_trackers", tracker_id, user_id=user_id)
 
 
 def toggle_booking_tracker(tracker_id: int, active: bool, user_id: int | None = None) -> bool:
-    with db() as conn:
-        if user_id:
-            return conn.execute(
-                "UPDATE booking_trackers SET active=? WHERE id=? AND user_id=?",
-                (1 if active else 0, tracker_id, user_id)
-            ).rowcount > 0
-        return conn.execute(
-            "UPDATE booking_trackers SET active=? WHERE id=?",
-            (1 if active else 0, tracker_id)
-        ).rowcount > 0
+    return _toggle_tracker("booking_trackers", tracker_id, active, user_id=user_id)
 
 
 def save_booking_snapshot(tracker_id: int, snap: dict) -> int:
@@ -1055,17 +911,7 @@ def save_booking_snapshot(tracker_id: int, snap: dict) -> int:
 
 def get_latest_booking_snapshot(tracker_id: int) -> dict | None:
     """Neuester fehlerfreier Booking-Snapshot (status='ok'). Fallback auf neuesten Eintrag."""
-    with db() as conn:
-        row = conn.execute(
-            "SELECT * FROM booking_snapshots WHERE tracker_id=? AND status='ok' ORDER BY fetched_at DESC LIMIT 1",
-            (tracker_id,)
-        ).fetchone()
-        if not row:
-            row = conn.execute(
-                "SELECT * FROM booking_snapshots WHERE tracker_id=? ORDER BY fetched_at DESC LIMIT 1",
-                (tracker_id,)
-            ).fetchone()
-    return dict(row) if row else None
+    return _get_latest_snapshot("booking_snapshots", tracker_id)
 
 
 # ── User Scheduler Settings ───────────────────────────────────────────────────
@@ -1683,6 +1529,98 @@ def _tracker_table(tracker_type: str) -> str | None:
     }.get(tracker_type)
 
 
+def _snapshot_table(tracker_type: str) -> str | None:
+    """Maps tracker_type → snapshot table name."""
+    return {
+        "flight":        "price_snapshots",
+        "google_flight": "gf_snapshots",
+        "camping":       "homair_snapshots",
+        "hotel":         "booking_snapshots",
+    }.get(tracker_type)
+
+
+# ── Generische CRUD-Operationen (gelten für alle 4 Tracker-Typen) ─────────
+# Alle type-spezifischen Wrapper-Funktionen delegieren hierher.
+
+def _list_trackers(table: str, active_only: bool = False,
+                   user_id: int | None = None) -> list[dict]:
+    """Generisches list für jeden Tracker-Tabellennamen."""
+    with db() as conn:
+        parts, params = [], []
+        if user_id:
+            parts.append("user_id=?"); params.append(user_id)
+        if active_only:
+            parts.append("active=1")
+        where = ("WHERE " + " AND ".join(parts)) if parts else ""
+        rows = conn.execute(
+            f"SELECT * FROM {table} {where} ORDER BY created_at DESC", params
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def _get_tracker(table: str, tracker_id: int,
+                 user_id: int | None = None) -> dict | None:
+    """Generisches get für jeden Tracker-Tabellennamen."""
+    with db() as conn:
+        if user_id:
+            row = conn.execute(
+                f"SELECT * FROM {table} WHERE id=? AND user_id=?",
+                (tracker_id, user_id)
+            ).fetchone()
+        else:
+            row = conn.execute(
+                f"SELECT * FROM {table} WHERE id=?", (tracker_id,)
+            ).fetchone()
+    return dict(row) if row else None
+
+
+def _delete_tracker(table: str, tracker_id: int,
+                    user_id: int | None = None) -> bool:
+    """Generisches delete für jeden Tracker-Tabellennamen."""
+    with db() as conn:
+        if user_id:
+            return conn.execute(
+                f"DELETE FROM {table} WHERE id=? AND user_id=?",
+                (tracker_id, user_id)
+            ).rowcount > 0
+        return conn.execute(
+            f"DELETE FROM {table} WHERE id=?", (tracker_id,)
+        ).rowcount > 0
+
+
+def _toggle_tracker(table: str, tracker_id: int, active: bool,
+                    user_id: int | None = None) -> bool:
+    """Generisches toggle (active/inactive) für jeden Tracker-Tabellennamen."""
+    val = 1 if active else 0
+    with db() as conn:
+        if user_id:
+            return conn.execute(
+                f"UPDATE {table} SET active=? WHERE id=? AND user_id=?",
+                (val, tracker_id, user_id)
+            ).rowcount > 0
+        return conn.execute(
+            f"UPDATE {table} SET active=? WHERE id=?",
+            (val, tracker_id)
+        ).rowcount > 0
+
+
+def _get_latest_snapshot(snap_table: str, tracker_id: int) -> dict | None:
+    """Generisch: neuester status='ok' Snapshot, Fallback auf neuesten Eintrag."""
+    with db() as conn:
+        row = conn.execute(
+            f"SELECT * FROM {snap_table} WHERE tracker_id=? AND status='ok'"
+            " ORDER BY fetched_at DESC LIMIT 1",
+            (tracker_id,)
+        ).fetchone()
+        if not row:
+            row = conn.execute(
+                f"SELECT * FROM {snap_table} WHERE tracker_id=?"
+                " ORDER BY fetched_at DESC LIMIT 1",
+                (tracker_id,)
+            ).fetchone()
+    return dict(row) if row else None
+
+
 def mark_tracker_booked(
     tracker_id: int,
     tracker_type: str,
@@ -1777,4 +1715,5 @@ def get_trackers_for_trip(trip_id: int) -> dict:
                 result[key] = d
 
     return result
+
 
