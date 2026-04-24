@@ -19,7 +19,7 @@ Logging-Format:
 
 import logging
 import requests as _requests
-from crud.settings import get_setting_value
+from crud.settings import get_setting
 
 logger = logging.getLogger(__name__)
 TIMEOUT = 8
