@@ -23,7 +23,7 @@ from typing import Optional
 from pydantic import BaseModel
 
 from settings_manager import get_setting_value
-from crud.trips import get_provider_configs
+from crud.settings import get_provider_configs
 
 logger = logging.getLogger(__name__)
 
