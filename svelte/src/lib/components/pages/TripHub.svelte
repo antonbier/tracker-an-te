@@ -15,7 +15,8 @@
   import ChecklistWidget from '$lib/components/triphub/ChecklistWidget.svelte';
   import SlotWidget      from '$lib/components/triphub/SlotWidget.svelte';
   import { destinationGradient } from '$lib/components/triphub/helpers.js';
-  import TripEditModal from '$lib/components/triphub/TripEditModal.svelte';
+  import TripEditModal    from '$lib/components/triphub/TripEditModal.svelte';
+  import ImmichGallery   from '$lib/components/triphub/ImmichGallery.svelte';
   import { fmtDate, today, getTripPhase, daysBetween } from '$lib/utils.js';
 
   // ── State ───────────────────────────────────────────────────────────────
@@ -533,12 +534,8 @@
       {/if}
 
       {#if phase === 'archived'}
-        <div class="md:col-span-2 rounded-2xl border-2 border-dashed p-6 flex flex-col items-center gap-2 text-center"
-          style="border-color:color-mix(in srgb,var(--ws-muted) 40%,var(--ws-border));background:color-mix(in srgb,var(--ws-muted) 4%,var(--ws-surface))">
-          <span class="text-4xl">🖼️</span>
-          <span class="text-sm font-semibold" style="color:var(--ws-text)">{$t('placeholderGallery') || 'Foto-Galerie (Immich)'}</span>
-          <span class="text-xs" style="color:var(--ws-muted)">{$t('placeholderGalleryHint') || 'Verknüpfe deine Immich-Instanz für automatische Reisefotos'}</span>
-          <span class="text-[10px] px-3 py-0.5 rounded-full font-bold mt-1" style="background:rgba(100,100,100,.12);color:var(--ws-muted)">Coming Soon</span>
+        <div class="md:col-span-2">
+          <ImmichGallery {trip} />
         </div>
       {/if}
     </div>
