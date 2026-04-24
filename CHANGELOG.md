@@ -4,6 +4,24 @@ Alle nennenswerten Änderungen am Projekt. Format basiert auf [Keep a Changelog]
 
 ---
 
+### Refactoring — Punkt 5: routes/search.py Aufspaltung
+
+**Problem**: `routes/search.py` war ein 902-Zeilen Monolith mit drei vollständig unabhängigen Search-Providern (Ryanair, Google Flights, SerpAPI Hotels, SerpAPI Camping) in einer einzigen Datei.
+
+**Lösung**: Aufteilung in 5 Dateien unter `backend/routes/`:
+
+| Datei | Inhalt | Zeilen |
+|-------|--------|--------|
+| `search_shared.py` | Shared Types (`FlightSearchParams`, `HotelSearchParams`, `CampingSearchParams`), Konstanten (`TIMEOUT`, `HEADERS_*`, `SERPAPI_BASE`), Helpers (`_aggregate`, `_calc_nights`, `_extract_price`) | ~130 |
+| `search_flights.py` | Ryanair-Helpers (`_ryanair_deeplink`, `_parse_ryanair_time`, `_fmt_ryanair_flight_num`) + `_search_ryanair()` + `_search_google_flights()` | ~350 |
+| `search_hotels.py` | `_search_hotels_serpapi()` | ~90 |
+| `search_camping.py` | `_search_camping_serpapi()` | ~110 |
+| `search.py` | Schlanker FastAPI-Router — importiert + delegiert nur noch | 131 |
+
+- `search.py`: **902 → 131 Zeilen (−85%)**
+- Alle Imports zwischen den Modulen über relative Imports (`.search_shared`, `.search_flights` etc.)
+- Vollständig rückwärtskompatibel — keine Änderungen in `main.py` oder anderen Routern nötig
+
 ### Refactoring — Punkt 4: TripHub.svelte Edit-Modal Decomposition
 
 - **Neu: `TripEditModal.svelte`** (`triphub/`) — Modal zum Bearbeiten von Titel + Zielort eines Trips ist jetzt eine eigenständige Komponente. Enthält die komplette Geocoding-Autocomplete-Logik (Debounce, Dropdown, Koordinaten-Validierung). Props: `bind:open`, `trip`, `onsaved(fields)`.
