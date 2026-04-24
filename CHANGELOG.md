@@ -4,6 +4,16 @@ Alle nennenswerten Änderungen am Projekt. Format basiert auf [Keep a Changelog]
 
 ---
 
+### Refactoring — Punkt 3: MyTrips.svelte Decomposition
+
+- **Neu: `AddTripModal.svelte`** (`mytrips/`) — Das Modal zum manuellen Einträgen einer Reise (inkl. Geocoding-Logik, Formular-State, Validierung) ist jetzt eine eigenständige Komponente. `MyTrips.svelte` bindet es per `<AddTripModal bind:open={addModalOpen} onadded={loadJournal} />` ein.
+
+- **Neu: `ArchiveSyncBar.svelte`** (`mytrips/`) — Dawarich-Sync (inkl. force-full Checkbox) und ActualBudget-Sync Buttons sind aus dem Archiv-Tab-Inline-Template ausgelagert. Props: `selectedYear`, `archivedTrips`, `onsynced`. Der Sync-State (`syncing`, `actualSyncing`, `forceFull`) lebt jetzt lokal in der Komponente statt in MyTrips.
+
+- **`MyTrips.svelte`** von **766 → 590 Zeilen** (−176 Zeilen / −23%): Entfernt wurden ~80 Zeilen Dawarich/ActualBudget-Logic, ~45 Zeilen Add-Modal-State+Logik, ~55 Zeilen Add-Modal-HTML.
+
+- **`claude.md` aktualisiert**: Neue Sektion „Architektur-Entscheidungen & Refactoring-Log" dokumentiert `$lib/utils.js` Exports, `database.py` Generic-Layer und `MyTrips.svelte` Komponentenstruktur als verbindliche Architektur-Regeln für zukünftige Entwicklung.
+
 ### Refactoring — Punkt 2: database.py CRUD-Generifizierung
 
 - **Neu: 6 generische Unterfunktionen** ersetzen 20 copy-paste CRUD-Implementierungen:
