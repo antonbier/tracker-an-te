@@ -4,6 +4,25 @@ Alle nennenswerten Änderungen am Projekt. Format basiert auf [Keep a Changelog]
 
 ---
 
+### Refactoring — Punkt A: database.py Shim entfernt (sauberer Abschluss)
+
+- **`backend/database.py` endgültig gelöscht** — der Compatibility-Shim existiert nicht mehr.
+- **`backend/cli.py`** als letzte verbleibende Datei mit `from database import init_db` auf `from core.db_init import init_db` umgestellt.
+- **Vollständiger Scan** aller 35 Backend-Python-Dateien bestätigt: kein einziger `from database import` oder `import database` Statement mehr im gesamten Backend.
+- Die neue Architektur ist jetzt **verbindlich und abgeschlossen**:
+
+```
+backend/
+├── core/
+│   ├── database.py    — DB_PATH, GUEST_USER_ID, get_connection(), db()
+│   └── db_init.py     — init_db() + Migrations
+└── crud/
+    ├── settings.py    — Settings, Scheduler, Notifications, Provider-Configs
+    ├── trackers.py    — Alle 4 Tracker-Typen, Generics, Snapshots, Booking-State
+    ├── trips.py       — ws_trips, todos, detected_trips, user_data
+    └── discovery.py   — discovery_pool_*
+```
+
 ### Refactoring — Massives Architektur-Refactoring: database.py Aufspaltung
 
 **Problem**: `backend/database.py` hatte 1720 Zeilen mit vollständig unabhängigen Bereichen (Tracker-CRUD, Trip-CRUD, Settings, Discovery) in einer einzigen Datei — de facto ein Monolith.
