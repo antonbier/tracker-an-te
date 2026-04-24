@@ -4,6 +4,24 @@ Alle nennenswerten Änderungen am Projekt. Format basiert auf [Keep a Changelog]
 
 ---
 
+### Refactoring — Punkt 2: database.py CRUD-Generifizierung
+
+- **Neu: 6 generische Unterfunktionen** ersetzen 20 copy-paste CRUD-Implementierungen:
+  - `_list_trackers(table, active_only, user_id)` — generisches SELECT mit WHERE-Builder
+  - `_get_tracker(table, tracker_id, user_id)` — generisches SELECT by id
+  - `_delete_tracker(table, tracker_id, user_id)` — generisches DELETE
+  - `_toggle_tracker(table, tracker_id, active, user_id)` — generisches active=0/1 UPDATE
+  - `_get_latest_snapshot(snap_table, tracker_id)` — generisches status='ok' Snapshot mit Fallback
+  - `_snapshot_table(tracker_type)` — Mapping tracker_type → Snapshot-Tabelle
+
+- **20 Funktionen → schlanke 1-Zeilen-Wrapper** (vollständig rückwärtskompatibel, alle Importe in Routes unverändert):
+  - Ryanair: `list_trackers`, `get_tracker`, `delete_tracker`, `toggle_tracker`, `get_latest_snapshot`
+  - Google Flights: `list_gf_trackers`, `get_gf_tracker`, `delete_gf_tracker`, `toggle_gf_tracker`, `get_latest_gf_snapshot`
+  - Homair: `list_homair_trackers`, `get_homair_tracker`, `delete_homair_tracker`, `toggle_homair_tracker`, `get_latest_homair_snapshot`
+  - Booking: `list_booking_trackers`, `get_booking_tracker`, `delete_booking_tracker`, `toggle_booking_tracker`, `get_latest_booking_snapshot`
+
+- **Ergebnis**: `database.py` von **1781 → 1719 Zeilen** (−62), aber wichtiger: Bugfixes (z.B. status='ok' Fallback-Logik) müssen nur noch **an einer Stelle** geändert werden.
+
 ### Refactoring — Punkt 1: $lib/utils.js (Shared Utilities)
 
 - **Neu: `$lib/utils.js`** — zentrale Utility-Datei für app-weite, zustandslose Hilfsfunktionen:
