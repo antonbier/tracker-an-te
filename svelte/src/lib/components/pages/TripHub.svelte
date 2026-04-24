@@ -15,8 +15,7 @@
   import ChecklistWidget from '$lib/components/triphub/ChecklistWidget.svelte';
   import SlotWidget      from '$lib/components/triphub/SlotWidget.svelte';
   import { destinationGradient } from '$lib/components/triphub/helpers.js';
-  import { fmtDate } from '$lib/components/priceradar/helpers.js';
-  import { today, getTripPhase, daysBetween } from '$lib/utils.js';
+  import { fmtDate, today, getTripPhase, daysBetween } from '$lib/utils.js';
 
   // ── State ───────────────────────────────────────────────────────────────
   let trip            = $state(null);
