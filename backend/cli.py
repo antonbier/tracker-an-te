@@ -17,7 +17,7 @@ import os
 # Ensure backend modules are importable
 sys.path.insert(0, os.path.dirname(__file__))
 
-from database import init_db
+from core.db_init import init_db
 from auth_db import init_auth_tables, update_password, get_user_by_email, \
                     create_user, list_users, count_users
 
