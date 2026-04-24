@@ -10,11 +10,19 @@ from typing import Optional
 import logging
 from datetime import datetime
 
-from database import (
-    create_homair_tracker, list_homair_trackers, get_homair_tracker,
-    delete_homair_tracker, save_homair_snapshot, get_latest_homair_snapshot,
-    create_booking_tracker, list_booking_trackers, get_booking_tracker,
-    delete_booking_tracker, save_booking_snapshot, get_latest_booking_snapshot,
+from crud.trackers import (
+    create_homair_tracker,
+    list_homair_trackers,
+    get_homair_tracker,
+    delete_homair_tracker,
+    save_homair_snapshot,
+    get_latest_homair_snapshot,
+    create_booking_tracker,
+    list_booking_trackers,
+    get_booking_tracker,
+    delete_booking_tracker,
+    save_booking_snapshot,
+    get_latest_booking_snapshot,
     link_tracker_to_trip,
 )
 from homair_scraper import fetch_homair as scrape_homair
