@@ -11,7 +11,8 @@
   import { api }    from '$lib/api.js';
   import { fmtDate } from '$lib/utils.js';
   import { t }      from '$lib/i18n.js';
-  import { apiUrl } from '$lib/stores.js';
+  import { apiUrl, jwtToken } from '$lib/stores.js';
+  import { get } from 'svelte/store';
 
   let { trip } = $props();
 
@@ -21,6 +22,8 @@
   let error       = $state(null);
   let deepLink    = $state('');
   let immichBase  = $state('');
+  let dateFrom    = $state('');
+  let dateTo      = $state('');
   let lightbox    = $state(null); // Foto im Fullscreen
 
   $effect(() => {
@@ -34,6 +37,8 @@
       photos     = res.photos || [];
       deepLink   = res.deep_link || '';
       immichBase = res.immich_url || '';
+      dateFrom   = res.date_from  || '';
+      dateTo     = res.date_to    || '';
       // Thumbnails als authentifizierte Blobs laden
       loadBlobs(photos);
     } catch (e) {
@@ -43,16 +48,28 @@
   }
 
   async function loadBlobs(photoList) {
-    // Sequenziell mit kleinem Delay um Backend nicht zu überlasten
+    // Nutzt apiUrl + jwtToken aus stores — gleiche Logik wie api.js
+    const base  = (() => {
+      const stored = (get(apiUrl) || '').replace(/\/$/, '');
+      if (!stored) return '';
+      try {
+        const u = new URL(stored);
+        if (u.hostname === window.location.hostname && u.port === window.location.port) return '';
+        return stored;
+      } catch { return stored.startsWith('/') ? stored : ''; }
+    })();
+    const token = get(jwtToken);
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+
     for (const photo of photoList) {
       try {
-        const blob = await fetch(photo.thumbnail_url, {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('jwtToken') || ''}` }
-        }).then(r => r.ok ? r.blob() : null);
-        if (blob) {
+        const url  = `${base}${photo.thumbnail_url}`;
+        const resp = await fetch(url, { headers });
+        if (resp.ok) {
+          const blob = await resp.blob();
           blobUrls = { ...blobUrls, [photo.asset_id]: URL.createObjectURL(blob) };
         }
-      } catch { /* einzelnes Bild skip */ }
+      } catch { /* einzelnes Bild überspringen */ }
     }
   }
 
