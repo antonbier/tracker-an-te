@@ -3,7 +3,6 @@
    * TripHub.svelte — modular container.
    * All logic delegated to dedicated widget components.
    */
-  import { onMount } from 'svelte';
   import { t } from '$lib/i18n.js';
   import { api } from '$lib/api.js';
   import { toast } from '$lib/toast.js';
@@ -84,13 +83,21 @@
   // ── Load ─────────────────────────────────────────────────────────────────
   // $effect statt onMount: reagiert auf activeWsTripId-Änderungen
   // (wenn User von MyTrips auf einen anderen Trip navigiert ohne Page-Reload)
+  // $effect auf activeWsTripId — untrack() verhindert reaktive Loop durch loading
   $effect(() => {
     const id = $activeWsTripId;
-    if (!id) { loading = false; return; }
-    loading = true;
-    trip = null; todos = []; slots = {}; budgetBreakdown = {};
-    Promise.all([loadTrip(id), loadSlots(id), loadBudget(id)])
-      .finally(() => { loading = false; });
+    // Svelte 5: Mutations außerhalb des reaktiven Lesepfads via setTimeout
+    setTimeout(async () => {
+      if (!id) { loading = false; return; }
+      loading = true;
+      trip = null; todos = []; slots = {}; budgetBreakdown = {};
+      heroImgUrl = null; heroImgError = false;
+      try {
+        await Promise.all([loadTrip(id), loadSlots(id), loadBudget(id)]);
+      } finally {
+        loading = false;
+      }
+    }, 0);
   });
 
   async function loadTrip(id) {
