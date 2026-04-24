@@ -6,7 +6,7 @@
    */
   import { onMount } from 'svelte';
   import { apiUrl } from '$lib/stores.js';
-  import { get } from 'svelte/store';
+  import { api } from '$lib/api.js';
   import { wmoIcon } from './helpers.js';
 
   let { destination = '', phase = 'planning', daysUntilStart = 999 } = $props();
