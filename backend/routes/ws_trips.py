@@ -62,7 +62,7 @@ from crud.trips import (
     delete_trip_todo,
 )
 from auth_jwt import get_current_user
-from settings_manager import get_setting_value
+from settings_manager import get_setting_value, get_user_setting_value
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -560,8 +560,7 @@ async def get_trip_gallery(trip_id: int, user=Depends(get_current_user)):
                   get_setting_value("immich_api_key") or "")
 
     if not immich_url or not immich_key:
-        raise HTTPException(422, {"error": "immich_not_configured",
-                                  "message": "Immich URL und API-Key fehlen in Einstellungen → Mein Bereich"})
+        raise HTTPException(422, "Immich URL und API-Key fehlen in Einstellungen → Mein Bereich → Bridges")
 
     date_from = (trip.get("start_date") or "")[:10]
     date_to   = (trip.get("end_date")   or trip.get("start_date") or "")[:10]
