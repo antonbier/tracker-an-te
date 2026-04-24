@@ -7,8 +7,7 @@
   import { t }        from '$lib/i18n.js';
   import { apiUrl }   from '$lib/stores.js';
   import { api }      from '$lib/api.js';
-  import { fmtDate }  from '$lib/components/priceradar/helpers.js';
-  import { today, getTripPhase, daysBetween } from '$lib/utils.js';
+  import { fmtDate, today, getTripPhase, daysBetween } from '$lib/utils.js';
   import { onMount }  from 'svelte';
 
   let { trip, ongoToHub } = $props();
