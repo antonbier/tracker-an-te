@@ -11,6 +11,7 @@ from pydantic import BaseModel, field_validator, model_validator
 from typing import Optional
 import re, traceback, logging
 
+from core.database import db
 from crud.trackers import (
     create_tracker,
     list_trackers,
@@ -268,10 +269,9 @@ def update_tracker(tracker_id: int, data: TrackerUpdate, user: dict = Depends(ge
 
     # DB-Update für alle verbleibenden Felder
     if updates:
-        from core.database import db as _db
         set_clauses = ", ".join(f"{k}=?" for k in updates)
         vals = list(updates.values()) + [tracker_id]
-        with _db() as conn:
+        with db() as conn:
             conn.execute(
                 f"UPDATE trackers SET {set_clauses} WHERE id=?", vals
             )
