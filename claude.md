@@ -1,6 +1,6 @@
 # WanderSuite — Architekturdokumentation für KI-Assistenten
 
-> Letzte Aktualisierung: Block 6 Refactoring (Punkt 1–4, 6) — `$lib/utils.js`, DB-Generics, MyTrips + TripHub Decomposition, localStorage-Credentials eliminiert
+> Letzte Aktualisierung: Block 6 Refactoring (Punkt 1–6) — `$lib/utils.js`, DB-Generics, MyTrips + TripHub Decomposition, localStorage-Credentials eliminiert, search.py aufgeteilt
 
 ## Projekt-Übersicht
 
@@ -320,6 +320,20 @@ Die öffentlichen Funktionen (z.B. `list_gf_trackers`, `delete_homair_tracker`) 
 | `SlotWidget` | `triphub/SlotWidget.svelte` | Flug/Hotel/Camping Buchungs-Slots |
 
 **Regel**: Neue TripHub-Features als Widget unter `triphub/` anlegen. Jedes Widget erhält `trip` und `phase` als Props.
+
+### Backend Search-Architektur — eingeführt Block 6 Refactoring
+
+`POST /api/search/*` ist in 5 Module aufgeteilt:
+
+| Datei | Verantwortung |
+|-------|---------------|
+| `routes/search.py` | FastAPI-Router — nur Endpoint-Definitionen, delegiert alles |
+| `routes/search_shared.py` | Models, Konstanten, `_aggregate`, `_calc_nights`, `_extract_price` |
+| `routes/search_flights.py` | Ryanair + Google Flights Provider-Logik |
+| `routes/search_hotels.py` | SerpAPI Hotels Provider-Logik |
+| `routes/search_camping.py` | SerpAPI Camping/Homair Provider-Logik |
+
+**Regel**: Neuen Search-Provider immer in eine neue `search_<name>.py` Datei — nie in `search.py` selbst. `search.py` bleibt ein schlanker Router.
 
 ---
 
