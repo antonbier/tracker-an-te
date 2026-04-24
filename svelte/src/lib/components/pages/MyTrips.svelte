@@ -115,8 +115,17 @@
     journalTrips.filter(t => (t.start_date || '').slice(0, 4) === String(selectedYear))
   );
 
-  // Backend dedupliziert bereits via GROUP BY — direkter Alias
-  const archiveTripsDeduped = $derived(journalYear);
+  // Archiv-Tab: WanderWizzard-Trips + Dawarich/Manual Trips (keine Duplikate)
+  // archivedWsTrips = ws_trips deren end_date vergangen ist
+  // journalYear = detected_trips des Jahres die NICHT bereits als ws_trip linked sind
+  const archiveTripsDeduped = $derived.by(() => {
+    const linkedIds = new Set(archivedWsTrips.map(w => w.source_detected_id).filter(Boolean));
+    const detectedOnly = journalYear.filter(j => !linkedIds.has(j.id));
+    // WS-Trips zuerst (mit source-Marker für openOrCreateHub), dann reine detected
+    const wsMapped = archivedWsTrips.map(w => ({ ...w, _isWsTrip: true }));
+    return [...wsMapped, ...detectedOnly]
+      .sort((a, b) => (b.end_date || b.start_date || '').localeCompare(a.end_date || a.start_date || ''));
+  });
 
   // Stats für Overview-Tab — kombiniert wsTrips + journalYear (Dawarich)
   // wsTrips: WanderWizzard-Trips | journalYear: Dawarich-erkannte Trips des Jahres
@@ -531,9 +540,7 @@
       </div>
 
       <!-- Sync result info -->
-      {#if syncInfo}
-        <div class="text-xs px-1" style="color:var(--ws-muted)">📡 {syncInfo}</div>
-      {/if}
+
 
       <!-- Archive Trip Cards grid -->
       {#if journalLoad}
