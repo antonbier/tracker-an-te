@@ -14,7 +14,7 @@ with a descriptive status so the frontend can show "Setup fehlt".
 from fastapi import APIRouter
 import logging
 
-from database import list_detected_trips
+from crud.trips import list_detected_trips
 from settings_manager import get_setting_value, get_user_setting_value
 
 router = APIRouter()
