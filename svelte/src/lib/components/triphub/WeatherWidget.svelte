@@ -17,7 +17,7 @@
 
   const shouldShow = $derived(phase === 'active' || daysUntilStart <= 7);
 
-  const CACHE_KEY = `ws-weather:${(destination || '').toLowerCase().trim()}:${new Date().toISOString().slice(0, 10)}`;
+  const CACHE_KEY = `ws-weather:${(destination || '').toLowerCase().trim()}:${today}`;
 
   onMount(() => {
     if ((phase === 'active' || daysUntilStart <= 7) && destination.trim()) {
