@@ -16,6 +16,7 @@
   import SlotWidget      from '$lib/components/triphub/SlotWidget.svelte';
   import { destinationGradient } from '$lib/components/triphub/helpers.js';
   import { fmtDate } from '$lib/components/priceradar/helpers.js';
+  import { today, getTripPhase, daysBetween } from '$lib/utils.js';
 
   // ── State ───────────────────────────────────────────────────────────────
   let trip            = $state(null);
@@ -183,8 +184,6 @@
   }
 
   // ── Phase Lifecycle ──────────────────────────────────────────────────────
-  const today = new Date().toISOString().slice(0, 10);
-
   const daysUntilStart = $derived.by(() => {
     if (!trip?.start_date) return 999;
     const startMs = new Date(trip.start_date + 'T00:00:00').getTime();
@@ -192,15 +191,7 @@
     return Math.ceil((startMs - nowMs) / 86400000);
   });
 
-  const phase = $derived.by(() => {
-    if (!trip) return 'planning';
-    const t_start = (trip.start_date || '').slice(0, 10);
-    const t_end   = (trip.end_date   || trip.start_date || '').slice(0, 10);
-    if (!t_end)        return 'planning';
-    if (today > t_end)    return 'archived';
-    if (today >= t_start) return 'active';
-    return 'planning';
-  });
+  const phase = $derived(getTripPhase(trip));
 
   const isArchived  = $derived(phase === 'archived');
 
