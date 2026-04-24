@@ -11,9 +11,13 @@ import re
 import base64
 import hashlib
 from cryptography.fernet import Fernet
-from database import (
-    save_setting, get_setting, get_all_settings,
-    save_user_setting, get_user_setting, get_all_user_settings,
+from crud.settings import (
+    save_setting,
+    get_setting,
+    get_all_settings,
+    save_user_setting,
+    get_user_setting,
+    get_all_user_settings,
 )
 
 GLOBAL_KEYS = [
