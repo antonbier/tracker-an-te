@@ -6,19 +6,15 @@
    *   - Dawarich-Sync (syncJournal) inkl. force-full Checkbox
    *   - ActualBudget-Sync (syncActual) — liest Credentials aus Backend-Settings
    *
-   * HINWEIS: Dawarich- und ActualBudget-Credentials werden direkt vom Backend
-   * gelesen (gespeichert per Fernet in user_settings). Das Frontend übergibt
-   * sie NICHT mehr per localStorage — das war der alte, unsichere Weg.
-   * Ausnahme: syncActual liest noch legacy localStorage für Fallback.
-   * TODO: vollständig auf Backend-Credentials umstellen sobald
-   *       POST /api/dawarich/sync ohne Body korrekt aus DB liest.
+   * Dawarich- und ActualBudget-Credentials werden vom Backend aus
+   * user_settings (Fernet-verschlüsselt in DB) gelesen.
+   * Das Frontend übergibt KEINE Credentials — kein localStorage-Zugriff.
    *
    * Props:
    *   selectedYear   — für actuals Jahr-Filter
    *   archivedTrips  — ws_trips die syncbar sind
    *   onsynced       — callback nach erfolgreichem Sync (reload journal)
    */
-  import { browser } from '$app/environment';
   import { api }     from '$lib/api.js';
   import { apiUrl }  from '$lib/stores.js';
   import { toast }   from '$lib/toast.js';
@@ -32,19 +28,14 @@
 
   async function syncJournal() {
     if (!$apiUrl) { toast('Backend-URL fehlt', 'warning'); return; }
-    // Legacy: falls Credentials noch im localStorage stehen, mitschicken
-    const url   = browser ? localStorage.getItem('s-dawarichUrl')   || '' : '';
-    const token = browser ? localStorage.getItem('s-dawarichToken') || '' : '';
-    const lat   = parseFloat(browser ? localStorage.getItem('s-homeLat') || '0' : '0');
-    const lon   = parseFloat(browser ? localStorage.getItem('s-homeLon') || '0' : '0');
+    // Credentials werden vom Backend aus user_settings (DB) gelesen —
+    // kein localStorage-Zugriff nötig.
     syncing = true;
     try {
-      const body = (url && token)
-        ? JSON.stringify({ dawarich_url: url, dawarich_token: token,
-                           home_lat: lat || null, home_lon: lon || null,
-                           force_full: forceFull })
-        : JSON.stringify({ force_full: forceFull });
-      const r = await api('/api/dawarich/sync', { method: 'POST', body });
+      const r = await api('/api/dawarich/sync', {
+        method: 'POST',
+        body: JSON.stringify({ force_full: forceFull }),
+      });
       toast(`${r.trips_detected} Reisen erkannt ✓`, 'success');
       onsynced?.();
     } catch (e) { toast('Sync-Fehler: ' + e.message, 'error'); }
