@@ -13,11 +13,14 @@ from typing import Optional
 import json, logging
 from datetime import datetime, date
 
-from database import (
-    save_detected_trip, list_detected_trips,
-    delete_detected_trip, update_detected_trip_cost,
+from crud.trips import (
+    save_detected_trip,
+    list_detected_trips,
+    delete_detected_trip,
+    update_detected_trip_cost,
     update_trip_auto_cost,
-    save_user_data, get_user_data,
+    save_user_data,
+    get_user_data,
 )
 from auth_jwt import get_current_user
 
