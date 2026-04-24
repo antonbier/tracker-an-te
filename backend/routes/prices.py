@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from database import (
+from core.database import (
     get_tracker,
     get_price_history as get_snapshots,
     get_price_history as _get_ph,
