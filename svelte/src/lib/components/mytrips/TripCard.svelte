@@ -8,6 +8,7 @@
   import { t } from '$lib/i18n.js';
   import { destinationGradient } from '$lib/components/triphub/helpers.js';
   import { fmtDate } from '$lib/components/priceradar/helpers.js';
+  import { today, getTripPhase } from '$lib/utils.js';
 
   let {
     trip,
@@ -18,16 +19,7 @@
   const isFlight = $derived(trip.travel_mode === 'flight');
 
   // 3-Phasen-Logik direkt aus Datum
-  const today = new Date().toISOString().slice(0, 10);
-
-  const phase = $derived.by(() => {
-    const t_start = (trip.start_date || '').slice(0, 10);
-    const t_end   = (trip.end_date   || trip.start_date || '').slice(0, 10);
-    if (!t_end) return 'planning';
-    if (today > t_end)    return 'archived';
-    if (today >= t_start) return 'active';
-    return 'planning';
-  });
+  const phase = $derived(getTripPhase(trip));
 
   // Hero gradient
   const heroGradient = $derived.by(() => {
