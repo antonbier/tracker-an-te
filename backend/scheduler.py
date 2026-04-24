@@ -142,13 +142,15 @@ def run_homair_trackers(user_id: int | None = None):
         tid = tracker["id"]
         logger.info(f"  [{i+1}/{len(trackers)}] Homair #{tid}: {tracker.get('region')}")
         try:
+            prev_snap = get_latest_homair_snapshot(tid)
+            prev_price = float(prev_snap["total_price"]) if prev_snap and prev_snap.get("total_price") else None
             snap = fetch_homair(tracker, api_key=api_key)
             status = snap.get("status", "error")
             if status == "ok":
                 # Nur bei Erfolg speichern
                 save_homair_snapshot(tid, snap)
                 _log_provider("homair", "ok", tid, "source=serpapi", snap.get("total_price"))
-                _check_and_notify_generic(tracker, snap)
+                _check_and_notify_generic(tracker, snap, prev_price=prev_price)
             else:
                 _log_provider("homair", status, tid, snap.get("error_message", ""))
         except Exception as e:
@@ -176,13 +178,15 @@ def run_booking_trackers(user_id: int | None = None):
         tid = tracker["id"]
         logger.info(f"  [{i+1}/{len(trackers)}] Booking #{tid}: {tracker.get('destination')}")
         try:
+            prev_snap = get_latest_booking_snapshot(tid)
+            prev_price = float(prev_snap["total_price"]) if prev_snap and prev_snap.get("total_price") else None
             snap = fetch_booking(tracker, api_key=api_key)
             status = snap.get("status", "error")
             if status == "ok":
                 # Nur bei Erfolg speichern
                 save_booking_snapshot(tid, snap)
                 _log_provider("booking", "ok", tid, "source=serpapi", snap.get("total_price"))
-                _check_and_notify_generic(tracker, snap)
+                _check_and_notify_generic(tracker, snap, prev_price=prev_price)
             else:
                 _log_provider("booking", status, tid, snap.get("error_message", ""))
         except Exception as e:
@@ -362,4 +366,5 @@ def run_cleanup_job():
         logger.info(f"  Cleanup: price_history={ph} geloescht | snapshots={sum(snaps.values())} geloescht (>60d)")
     except Exception as e:
         logger.error(f"  ❌ Cleanup fehlgeschlagen: {e}", exc_info=True)
+
 
