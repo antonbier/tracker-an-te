@@ -1,82 +1,41 @@
 <script>
   /**
    * ImmichGallery.svelte — Foto-Collage aus Immich für einen archivierten Trip.
-   *
-   * Lädt bis zu 12 Fotos aus dem Reisezeitraum via GET /api/ws-trips/{id}/gallery.
-   * Zeigt eine masonry-ähnliche Collage + "In Immich öffnen"-Button.
-   *
-   * Props:
-   *   trip  — ws_trip Objekt (braucht id, start_date, end_date, destination)
+   * Thumbnails kommen als base64 data-URI direkt im API-Response — kein Auth-Problem.
    */
   import { api }    from '$lib/api.js';
   import { fmtDate } from '$lib/utils.js';
   import { t }      from '$lib/i18n.js';
-  import { apiUrl, jwtToken } from '$lib/stores.js';
-  import { get } from 'svelte/store';
+  import { apiUrl } from '$lib/stores.js';
 
   let { trip } = $props();
 
-  let photos      = $state([]);
-  let blobUrls    = $state({});  // asset_id → object URL (blob, JWT-authenticated)
-  let loading     = $state(true);
-  let error       = $state(null);
-  let deepLink    = $state('');
-  let immichBase  = $state('');
-  let dateFrom    = $state('');
-  let dateTo      = $state('');
-  let lightbox    = $state(null); // Foto im Fullscreen
+  let photos    = $state([]);
+  let loading   = $state(true);
+  let error     = $state(null);
+  let deepLink  = $state('');
+  let immichBase = $state('');
+  let lightbox  = $state(null);
 
   $effect(() => {
     if (trip?.id && $apiUrl) loadGallery();
   });
 
   async function loadGallery() {
-    loading = true; error = null; blobUrls = {};
+    loading = true; error = null; photos = [];
     try {
       const res = await api(`/api/ws-trips/${trip.id}/gallery`);
-      photos     = res.photos || [];
-      deepLink   = res.deep_link || '';
+      photos    = res.photos   || [];
+      deepLink  = res.deep_link || '';
       immichBase = res.immich_url || '';
-      dateFrom   = res.date_from  || '';
-      dateTo     = res.date_to    || '';
-      // Thumbnails als authentifizierte Blobs laden
-      loadBlobs(photos);
     } catch (e) {
       error = e?.message || 'Immich nicht erreichbar';
     }
     loading = false;
   }
 
-  async function loadBlobs(photoList) {
-    // Nutzt apiUrl + jwtToken aus stores — gleiche Logik wie api.js
-    const base  = (() => {
-      const stored = (get(apiUrl) || '').replace(/\/$/, '');
-      if (!stored) return '';
-      try {
-        const u = new URL(stored);
-        if (u.hostname === window.location.hostname && u.port === window.location.port) return '';
-        return stored;
-      } catch { return stored.startsWith('/') ? stored : ''; }
-    })();
-    const token = get(jwtToken);
-    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-
-    for (const photo of photoList) {
-      try {
-        const url  = `${base}${photo.thumbnail_url}`;
-        const resp = await fetch(url, { headers });
-        if (resp.ok) {
-          const blob = await resp.blob();
-          blobUrls = { ...blobUrls, [photo.asset_id]: URL.createObjectURL(blob) };
-        }
-      } catch { /* einzelnes Bild überspringen */ }
-    }
-  }
-
   function openLightbox(photo) { lightbox = photo; }
-  function closeLightbox() { lightbox = null; }
-
-  // Keyboard ESC closes lightbox
+  function closeLightbox()     { lightbox = null;  }
   function onKeydown(e) { if (e.key === 'Escape') closeLightbox(); }
 </script>
 
@@ -94,7 +53,7 @@
         </h3>
         {#if trip.start_date && trip.end_date}
           <p class="text-[10px]" style="color:var(--ws-muted)">
-            {fmtDate(trip.start_date)} – {fmtDate(trip.end_date)}
+            {trip.start_date} – {trip.end_date}
             {#if photos.length > 0}· {photos.length} {$t('galleryPhotos') || 'Fotos'}{/if}
           </p>
         {/if}
@@ -160,7 +119,7 @@
             style="background:var(--ws-surface2)"
             title={photo.taken_at || ''}>
             <img
-              src={blobUrls[photo.asset_id] || ''}
+              src={photo.thumbnail_url || ''}
               alt={photo.city || photo.taken_at || 'Foto'}
               class="absolute inset-0 w-full h-full object-cover"
               loading="lazy"
@@ -197,7 +156,7 @@
     onclick={closeLightbox}>
     <div class="relative max-w-3xl w-full mx-4" onclick={(e) => e.stopPropagation()}>
       <img
-        src={blobUrls[lightbox.asset_id] || ''}
+        src={lightbox.thumbnail_url || ''}
         alt={lightbox.city || lightbox.taken_at}
         class="w-full rounded-2xl shadow-2xl object-contain max-h-[80vh]"
       />
