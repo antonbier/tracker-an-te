@@ -10,7 +10,7 @@
   import { t }       from '$lib/i18n.js';
   import { apiUrl }  from '$lib/stores.js';
   import { api }     from '$lib/api.js';
-  import { fmtDate } from '$lib/components/priceradar/helpers.js';
+  import { fmtDate } from '$lib/utils.js';
   import { today, daysBetween } from '$lib/utils.js';
   import { onMount } from 'svelte';
 
