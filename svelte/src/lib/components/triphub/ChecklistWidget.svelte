@@ -5,6 +5,7 @@
    * Regen button available in ALL phases.
    */
   import { t } from '$lib/i18n.js';
+  import { today } from '$lib/utils.js';
   import { api } from '$lib/api.js';
   import { toast } from '$lib/toast.js';
 
@@ -24,7 +25,6 @@
   let duePicker  = $state(null);   // todo.id whose picker is open
 
   const isArchived = $derived(phase === 'archived');
-  const today      = new Date().toISOString().slice(0, 10);
   const donePct    = $derived(
     todos.length ? Math.round(todos.filter(t => t.is_done).length / todos.length * 100) : 0
   );
