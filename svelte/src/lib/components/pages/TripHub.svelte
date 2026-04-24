@@ -82,11 +82,15 @@
   }
 
   // ── Load ─────────────────────────────────────────────────────────────────
-  onMount(async () => {
+  // $effect statt onMount: reagiert auf activeWsTripId-Änderungen
+  // (wenn User von MyTrips auf einen anderen Trip navigiert ohne Page-Reload)
+  $effect(() => {
     const id = $activeWsTripId;
     if (!id) { loading = false; return; }
-    await Promise.all([loadTrip(id), loadSlots(id), loadBudget(id)]);
-    loading = false;
+    loading = true;
+    trip = null; todos = []; slots = {}; budgetBreakdown = {};
+    Promise.all([loadTrip(id), loadSlots(id), loadBudget(id)])
+      .finally(() => { loading = false; });
   });
 
   async function loadTrip(id) {
