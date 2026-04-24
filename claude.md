@@ -1,6 +1,6 @@
 # WanderSuite — Architekturdokumentation für KI-Assistenten
 
-> Letzte Aktualisierung: Block 6 Refactoring (komplett) — `$lib/utils.js`, `database.py` → `core/` + `crud/` Architektur, MyTrips + TripHub Decomposition, Search-Module, localStorage-Credentials eliminiert
+> Letzte Aktualisierung: Refactoring vollständig abgeschlossen — `database.py` gelöscht, `core/` + `crud/` Architektur ist die einzige Datenbankschicht
 
 ## Projekt-Übersicht
 
