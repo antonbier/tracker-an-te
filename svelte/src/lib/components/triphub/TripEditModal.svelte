@@ -9,6 +9,7 @@
    *   onsaved — callback(updatedFields) nach erfolgreichem Save
    */
   import { api }   from '$lib/api.js';
+  import { t }     from '$lib/i18n.js';
   import { toast } from '$lib/toast.js';
 
   let { open = $bindable(false), trip, onsaved } = $props();
@@ -98,7 +99,7 @@
     <!-- Header -->
     <div class="px-5 py-4 border-b flex items-center justify-between"
       style="border-color:var(--ws-border)">
-      <h3 class="font-bold text-sm" style="color:var(--ws-text)">✏️ Reise bearbeiten</h3>
+      <h3 class="font-bold text-sm" style="color:var(--ws-text)">{$t('tripEditTitle')}</h3>
       <button onclick={close} class="text-lg leading-none hover:opacity-60"
         style="color:var(--ws-muted)">✕</button>
     </div>
@@ -108,25 +109,25 @@
       <!-- Titel (kosmetisch) -->
       <div class="space-y-1.5">
         <label class="text-xs font-semibold" style="color:var(--ws-muted)">
-          🏷️ Titel (kosmetisch, optional)
+          {$t('tripEditTitleLabel')}
         </label>
         <input type="text" bind:value={editTitle}
-          placeholder='z.B. "Roadtrip 2025" oder leer lassen'
+          placeholder={$t('tripEditTitlePh')||'z.B. "Roadtrip 2025"'}
           autocapitalize="words"
           class={inpCls} style={inpStyle} />
         <p class="text-[10px]" style="color:var(--ws-muted)">
-          Rein kosmetisch — steuert keine Wetter- oder Kartendaten.
+          {$t('tripEditTitleHint')}
         </p>
       </div>
 
       <!-- Ort / Geocode -->
       <div class="space-y-1.5">
         <label class="text-xs font-semibold" style="color:var(--ws-muted)">
-          📍 Ort / Hauptziel <span style="color:#ef4444">*</span>
+          {$t('tripEditDestLabel')} <span style="color:#ef4444">*</span>
         </label>
         <div class="relative">
           <input type="text" value={geoQuery} oninput={onGeoInput}
-            placeholder="Stadt oder Region suchen…"
+            placeholder={$t('tripEditDestPh')||'Stadt oder Region suchen…'}
             class={inpCls}
             style="background:var(--ws-surface2);border-color:{editLat ? 'var(--ws-green)' : 'var(--ws-border)'};color:var(--ws-text)" />
           {#if geoLoading}
@@ -152,7 +153,7 @@
           {/if}
         </div>
         <p class="text-[10px]" style="color:var(--ws-muted)">
-          Steuert Wetter, Karten & Bildsuche — bitte aus der Liste wählen.
+          {$t('tripEditDestHint')}
         </p>
         {#if editLat && editLon}
           <p class="text-[10px] font-mono" style="color:var(--ws-green)">
@@ -167,12 +168,12 @@
     <div class="px-5 pb-5 flex gap-3">
       <button onclick={close}
         class="flex-1 py-2.5 rounded-xl border text-sm font-semibold hover:opacity-70"
-        style="border-color:var(--ws-border);color:var(--ws-muted)">Abbrechen</button>
+        style="border-color:var(--ws-border);color:var(--ws-muted)">{$t('tripEditCancel')}</button>
       <button onclick={save}
         disabled={!editDest.trim() || editSaving}
         class="flex-1 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-40"
         style="background:var(--ws-accent);color:#fff5ec">
-        {editSaving ? '⏳ Speichern…' : '💾 Speichern'}
+        {editSaving ? $t('tripEditSaving')||'⏳ Speichern…' : $t('tripEditSave')||'💾 Speichern'}
       </button>
     </div>
 
