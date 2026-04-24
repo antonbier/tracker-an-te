@@ -499,13 +499,12 @@ def remove_trip(trip_id: int, mode: str = "trip_only", user=Depends(get_current_
 
     if detected_id:
         # Typ A/B: Hat verknüpften detected_trip
-from crud.trips import delete_detected_trip
         # Herausfinden ob Dawarich oder Manuell
-with db() as conn:
+        with db() as conn:
             det_row = conn.execute(
                 "SELECT source FROM detected_trips WHERE id=?", (detected_id,)
             ).fetchone()
-if det_row and det_row["source"] == "dawarich":
+        if det_row and det_row["source"] == "dawarich":
             # Typ A: Soft-Delete — ignored=1
             delete_detected_trip(detected_id, user_id=uid, hard=False)
             delete_ws_trip(trip_id, uid)
