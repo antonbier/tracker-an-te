@@ -10,7 +10,7 @@ import logging
 
 from notifications import send_telegram, send_gotify
 from auth_jwt import get_current_user
-from database import get_user_notification_settings, save_user_notification_settings
+from crud.settings import get_user_notification_settings, save_user_notification_settings
 from settings_manager import _get_fernet
 
 router = APIRouter()
