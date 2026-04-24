@@ -11,6 +11,7 @@
   import { apiUrl }  from '$lib/stores.js';
   import { api }     from '$lib/api.js';
   import { fmtDate } from '$lib/components/priceradar/helpers.js';
+  import { today, daysBetween } from '$lib/utils.js';
   import { onMount } from 'svelte';
 
   let { archivedTrips = [], ongoToHub } = $props();
@@ -33,7 +34,6 @@
   }
 
   // ── Zeit-Berechnung ──────────────────────────────────────────────
-  const today = new Date().toISOString().slice(0, 10);
 
   const daysAgo = $derived.by(() => {
     // Block 8 Fix: end_date für vergangene Reisen nutzen (nicht start_date).
