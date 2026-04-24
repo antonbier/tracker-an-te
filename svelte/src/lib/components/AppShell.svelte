@@ -1,10 +1,12 @@
 <script>
-  import { currentPage, isDark, theme, settingsOpen, wizardOpen } from '$lib/stores.js';
-  import Header from './Header.svelte';
-  import Sidebar from './Sidebar.svelte';
-  import BottomNav from './BottomNav.svelte';
-  import FieldGuide from './FieldGuide.svelte';
-  import Settings from './Settings.svelte';
+  import { currentPage, isDark, theme, settingsOpen, wizardOpen, apiUrl, jwtToken } from '$lib/stores.js';
+  import { getTripPhase } from '$lib/utils.js';
+  import { api }          from '$lib/api.js';
+  import Header      from './Header.svelte';
+  import Sidebar     from './Sidebar.svelte';
+  import BottomNav   from './BottomNav.svelte';
+  import FieldGuide  from './FieldGuide.svelte';
+  import Settings    from './Settings.svelte';
   import SetupWizard from './SetupWizard.svelte';
 
   let { children } = $props();
@@ -21,11 +23,7 @@
     theme.set($isDark ? '' : 'dark');
   }
 
-  // ── OnTour-Badge: aktive Reisen zählen ─────────────────────────────────────
-  import { getTripPhase } from '$lib/utils.js';
-  import { api } from '$lib/api.js';
-  import { apiUrl, jwtToken } from '$lib/stores.js';
-
+  // ── OnTour-Badge: aktive Reisen zählen ───────────────────────────────────
   let _wsTrips = $state([]);
   const activeTripsCount = $derived(
     _wsTrips.filter(t => getTripPhase(t) === 'active').length
