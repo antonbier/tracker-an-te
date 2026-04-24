@@ -1,6 +1,6 @@
 # WanderSuite — Architekturdokumentation für KI-Assistenten
 
-> Letzte Aktualisierung: Block 6 Refactoring (Punkt 1–3) — `$lib/utils.js`, `database.py` Generics, `MyTrips.svelte` Decomposition
+> Letzte Aktualisierung: Block 6 Refactoring (Punkt 1–4, 6) — `$lib/utils.js`, DB-Generics, MyTrips + TripHub Decomposition, localStorage-Credentials eliminiert
 
 ## Projekt-Übersicht
 
@@ -306,6 +306,35 @@ Die öffentlichen Funktionen (z.B. `list_gf_trackers`, `delete_homair_tracker`) 
 | `OverviewTab` | `mytrips/OverviewTab.svelte` | Statistik-Übersicht mit Donut + Karte |
 
 **Regel**: Neue MyTrips-Features als Sub-Komponente unter `mytrips/` anlegen — nie direkt in `MyTrips.svelte` hineinschreiben wenn es eine eigenständige Logikeinheit ist.
+
+### TripHub.svelte Komponentenstruktur — eingeführt Block 6 Refactoring
+
+`TripHub.svelte` (Seiten-Container) delegiert an Sub-Komponenten:
+
+| Komponente | Datei | Inhalt |
+|------------|-------|--------|
+| `TripEditModal` | `triphub/TripEditModal.svelte` | Edit-Modal für Titel + Zielort mit Geocoding-Autocomplete |
+| `WeatherWidget` | `triphub/WeatherWidget.svelte` | Wetter-Vorschau (7-Tage) |
+| `BudgetWidget` | `triphub/BudgetWidget.svelte` | Budget-Übersicht + Buchungs-Tracking |
+| `ChecklistWidget` | `triphub/ChecklistWidget.svelte` | KI-Checkliste mit due-dates |
+| `SlotWidget` | `triphub/SlotWidget.svelte` | Flug/Hotel/Camping Buchungs-Slots |
+
+**Regel**: Neue TripHub-Features als Widget unter `triphub/` anlegen. Jedes Widget erhält `trip` und `phase` als Props.
+
+---
+
+### Credentials-Handling — Security-Regel
+
+**Niemals** Credentials (Dawarich-Token, ActualBudget-Passwort, API-Keys) aus dem Frontend an das Backend schicken.
+
+Das Backend liest alle Credentials aus `user_settings` (Fernet-verschlüsselt in SQLite):
+```python
+# Korrekt:
+url = data.dawarich_url or get_user_setting_value(uid, "dawarich_url") or ""
+# Das Frontend schickt nur noch Aktions-Parameter (force_full, year etc.)
+```
+
+`localStorage.getItem('s-...')` für Backend-Credentials ist **verboten**. Credentials gehören in die Settings-DB, nicht in den Browser.
 
 ---
 
