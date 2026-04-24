@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from auth_jwt import get_current_user
-from database import (
+from crud.settings import (
     get_user_scheduler_settings,
     save_user_scheduler_settings,
     update_scheduler_last_run,
