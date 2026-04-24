@@ -43,13 +43,22 @@ def _sanitize(value: str | None, max_len: int = 500) -> str | None:
     v = v[:max_len]
     return v or None
 
-from database import (
-    create_ws_trip, list_ws_trips, get_ws_trip,
-    update_ws_trip_status, delete_ws_trip,
-    create_trip_todos, list_trip_todos,
-    toggle_trip_todo, delete_trip_todo,
-    get_trackers_for_trip, mark_tracker_booked, unmark_tracker_booked,
+from crud.trackers import (
+    get_trackers_for_trip,
+    mark_tracker_booked,
+    unmark_tracker_booked,
     link_tracker_to_trip,
+)
+from crud.trips import (
+    create_ws_trip,
+    list_ws_trips,
+    get_ws_trip,
+    update_ws_trip_status,
+    delete_ws_trip,
+    create_trip_todos,
+    list_trip_todos,
+    toggle_trip_todo,
+    delete_trip_todo,
 )
 from auth_jwt import get_current_user
 from settings_manager import get_setting_value
@@ -359,7 +368,7 @@ async def create_trip(data: WsTripCreate, user=Depends(get_current_user)):
     # Store link in ws_trips row for future hub lookups
     if detected_id:
         try:
-            from database import db as _db
+            from core.database import db as _db
             with _db() as conn:
                 conn.execute(
                     "ALTER TABLE ws_trips ADD COLUMN source_detected_id INTEGER DEFAULT NULL"
@@ -367,7 +376,7 @@ async def create_trip(data: WsTripCreate, user=Depends(get_current_user)):
         except Exception:
             pass  # column already exists
         try:
-            from database import db as _db
+            from core.database import db as _db
             with _db() as conn:
                 conn.execute(
                     "UPDATE ws_trips SET source_detected_id=? WHERE id=?",
@@ -452,7 +461,7 @@ def update_trip(trip_id: int, data: WsTripUpdate, user=Depends(get_current_user)
     if new_start and new_end and new_end < new_start:
         raise HTTPException(422, f"end_date ({new_end}) darf nicht vor start_date ({new_start}) liegen")
 
-    from database import db as _db
+    from core.database import db as _db
     set_clauses = ", ".join(f"{k}=?" for k in updates)
     values = list(updates.values()) + [trip_id, _uid(user)]
     with _db() as conn:
@@ -493,7 +502,8 @@ def remove_trip(trip_id: int, mode: str = "trip_only", user=Depends(get_current_
 
     if detected_id:
         # Typ A/B: Hat verknüpften detected_trip
-        from database import db as _db, delete_detected_trip
+        from core.database import db as _db
+from crud.trips import delete_detected_trip
         # Herausfinden ob Dawarich oder Manuell
         with _db() as conn:
             det_row = conn.execute(
@@ -514,7 +524,7 @@ def remove_trip(trip_id: int, mode: str = "trip_only", user=Depends(get_current_
 
     # Typ C: Reiner WanderWizzard-Trip — kein detected_trip
     if mode == "all":
-        from database import db as _db
+        from core.database import db as _db
         try:
             with _db() as conn:
                 for tbl in ("trackers", "gf_trackers", "homair_trackers", "booking_trackers"):
@@ -549,7 +559,7 @@ def set_trip_image(trip_id: int, data: TripImagePayload, user=Depends(get_curren
     trip = get_ws_trip(trip_id, uid)
     if not trip:
         raise HTTPException(404, "Trip nicht gefunden")
-    from database import db as _db
+    from core.database import db as _db
     with _db() as conn:
         conn.execute(
             """UPDATE ws_trips
@@ -627,7 +637,7 @@ def sync_actual_budget(trip_id: int, user=Depends(get_current_user)):
 
     total_synced = round(sum(c["amount"] for c in compact), 2)
 
-    from database import db as _db
+    from core.database import db as _db
     from datetime import datetime
     now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
     with _db() as conn:
@@ -664,7 +674,7 @@ def add_todo(trip_id: int, data: TodoCreate, user=Depends(get_current_user)):
 
     create_trip_todos(trip_id, [{"task": data.task, "category": data.category, "due_date": data.due_date}])
 
-    from database import db as _db
+    from core.database import db as _db
     with _db() as conn:
         row = conn.execute(
             "SELECT id, task, category, is_done, due_date, sort_order, created_at "
@@ -690,7 +700,7 @@ def add_todo(trip_id: int, data: TodoCreate, user=Depends(get_current_user)):
 def set_todo_due(trip_id: int, todo_id: int, data: TodoUpdate, user=Depends(get_current_user)):
     if not get_ws_trip(trip_id, _uid(user)):
         raise HTTPException(404, "Trip nicht gefunden")
-    from database import db as _db
+    from core.database import db as _db
     with _db() as conn:
         r = conn.execute(
             "UPDATE trip_todos SET due_date=? WHERE id=? AND trip_id=?",
@@ -722,7 +732,7 @@ def update_todo(trip_id: int, todo_id: int, data: TodoUpdate, user=Depends(get_c
         updates["task"] = _sanitize(task, max_len=500) or task
     if not updates:
         return {"ok": True, "message": "Keine Änderungen"}
-    from database import db as _db
+    from core.database import db as _db
     set_clause = ", ".join(f"{k}=?" for k in updates)
     vals = list(updates.values()) + [todo_id, trip_id]
     with _db() as conn:
@@ -763,7 +773,7 @@ async def regenerate_todos(trip_id: int, user=Depends(get_current_user)):
     trip = get_ws_trip(trip_id, _uid(user))
     if not trip:
         raise HTTPException(404, "Trip nicht gefunden")
-    from database import db as _db
+    from core.database import db as _db
     with _db() as conn:
         conn.execute("DELETE FROM trip_todos WHERE trip_id=?", (trip_id,))
     todos = await _generate_todos(trip)
@@ -867,7 +877,7 @@ def set_manual_expenses(trip_id: int, data: ManualExpensesPayload, user=Depends(
     if not get_ws_trip(trip_id, _uid(user)):
         raise HTTPException(404, "Trip nicht gefunden")
     val = max(0.0, float(data.manual_expenses))
-    from database import db as _db
+    from core.database import db as _db
     with _db() as conn:
         conn.execute(
             "UPDATE ws_trips SET manual_expenses=?, updated_at=datetime('now') WHERE id=? AND user_id=?",
