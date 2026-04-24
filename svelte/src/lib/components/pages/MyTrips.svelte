@@ -5,6 +5,7 @@
   import { toast } from '$lib/toast.js';
   import { browser } from '$app/environment';
   import { t } from '$lib/i18n.js';
+  import { today, getTripPhase } from '$lib/utils.js';
 
   import ScratchMap    from '$lib/components/ScratchMap.svelte';
   import BucketListTab from '$lib/components/mytrips/BucketListTab.svelte';
@@ -41,7 +42,6 @@
   // ── Jahr ───────────────────────────────────────────────────────────────────
   const currentYear = new Date().getFullYear();
   let selectedYear  = $state(currentYear);
-  const today       = new Date().toISOString().slice(0, 10);
   // Changes whenever tab or year changes — forces ScratchMap redraw
   const mapRefreshKey = $derived(`${activeTab}-${selectedYear}`);
 
