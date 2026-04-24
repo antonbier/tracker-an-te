@@ -255,10 +255,69 @@
   });
 
   // ── Bucket list ────────────────────────────────────────────────────────────
-  // Bucket state is managed inside BucketListTab.svelte
-  // addBucketItem is now inline in the BucketListTab onadd callback
   function toggleBucket(i) { bucketlist.update(l => l.map((x, idx) => idx === i ? { ...x, done: !x.done } : x)); }
   function removeBucket(i) { bucketlist.update(l => l.filter((_, idx) => idx !== i)); }
+
+  // ── Bulk-Delete ─────────────────────────────────────────────────────────────
+  let selectedIds   = $state(new Set());   // Set<number> — ws_trip IDs
+  let bulkConfirm   = $state(null);        // null | { trips, trackerCount, mode }
+  let bulkDeleting  = $state(false);
+
+  function toggleSelect(id) {
+    const s = new Set(selectedIds);
+    s.has(id) ? s.delete(id) : s.add(id);
+    selectedIds = s;
+  }
+
+  function selectAll(trips) {
+    selectedIds = new Set(trips.map(t => t.id));
+  }
+
+  function deselectAll() {
+    selectedIds = new Set();
+  }
+
+  // Wechsel Tab / viewMode → Auswahl zurücksetzen
+  $effect(() => { activeTab; viewMode; selectedIds = new Set(); });
+
+  async function openBulkConfirm() {
+    // Prüfe für jede ausgewählte ws_trip ob Tracker vorhanden sind
+    let trackerCount = 0;
+    const tripsToDelete = wsTrips.filter(t => selectedIds.has(t.id));
+    for (const trip of tripsToDelete) {
+      try {
+        const slots = await api(`/api/ws-trips/${trip.id}/trackers`);
+        const hasTracker = Object.values(slots || {}).some(v => v !== null && v !== undefined);
+        if (hasTracker) trackerCount++;
+      } catch { /* ignore */ }
+    }
+    bulkConfirm = { trips: tripsToDelete, trackerCount };
+  }
+
+  async function executeBulkDelete(mode) {
+    // mode: 'all' (Trips + Tracker) | 'trip_only' (nur Trips)
+    if (!bulkConfirm) return;
+    bulkDeleting = true;
+    const { trips } = bulkConfirm;
+    let deleted = 0; let failed = 0;
+
+    for (const trip of trips) {
+      try {
+        await api(`/api/ws-trips/${trip.id}?mode=${mode}`, { method: 'DELETE' });
+        deleted++;
+      } catch { failed++; }
+    }
+
+    bulkConfirm  = null;
+    bulkDeleting = false;
+    selectedIds  = new Set();
+
+    if (deleted > 0) toast(`${deleted} Reise${deleted > 1 ? 'n' : ''} gelöscht ✓`, 'success');
+    if (failed  > 0) toast(`${failed} konnten nicht gelöscht werden`, 'warning');
+
+    await loadWsTrips();
+    await loadJournal();
+  }
 
   // ── Load on mount ──────────────────────────────────────────────────────────
   $effect(() => {
@@ -272,6 +331,76 @@
 
 <!-- ── Add Trip Modal ────────────────────────────────────────────────────── -->
 <AddTripModal bind:open={addModalOpen} onadded={loadJournal} />
+
+
+<!-- ── Bulk-Delete Confirmation Dialog ──────────────────────────────────── -->
+{#if bulkConfirm}
+  <div class="fixed inset-0 z-[60] flex items-center justify-center"
+    style="background:rgba(0,0,0,.5);backdrop-filter:blur(4px)"
+    role="dialog" aria-modal="true">
+    <div class="w-full max-w-sm mx-4 rounded-2xl border shadow-2xl p-6 space-y-4"
+      style="background:var(--ws-surface);border-color:var(--ws-border)">
+
+      <h3 class="font-bold text-base" style="color:var(--ws-text)">
+        🗑 {bulkConfirm.trips.length} Reise{bulkConfirm.trips.length > 1 ? 'n' : ''} löschen?
+      </h3>
+
+      {#if bulkConfirm.trackerCount > 0}
+        <div class="rounded-xl p-3 text-xs space-y-1"
+          style="background:rgba(220,38,38,.08);border:1px solid rgba(220,38,38,.2)">
+          <p class="font-semibold" style="color:#dc2626">
+            ⚠️ {bulkConfirm.trackerCount} Reise{bulkConfirm.trackerCount > 1 ? 'n haben' : ' hat'} verknüpfte Preisbeobachtungen
+          </p>
+          <p style="color:var(--ws-muted)">Wähle ob die Tracker ebenfalls gelöscht werden sollen.</p>
+        </div>
+      {:else}
+        <p class="text-sm" style="color:var(--ws-muted)">Diese Aktion kann nicht rückgängig gemacht werden.</p>
+      {/if}
+
+      <!-- Trip-Liste -->
+      <div class="max-h-40 overflow-y-auto space-y-1">
+        {#each bulkConfirm.trips as t}
+          <div class="text-xs px-3 py-1.5 rounded-lg flex items-center gap-2"
+            style="background:var(--ws-surface2);color:var(--ws-text)">
+            <span>{t.travel_mode === 'car' ? '🚗' : '✈️'}</span>
+            <span class="truncate font-medium">{t.title || t.destination || 'Reise'}</span>
+            {#if t.start_date}
+              <span class="ml-auto font-mono shrink-0" style="color:var(--ws-muted)">{t.start_date}</span>
+            {/if}
+          </div>
+        {/each}
+      </div>
+
+      <!-- Buttons -->
+      <div class="flex flex-col gap-2">
+        {#if bulkConfirm.trackerCount > 0}
+          <button onclick={() => executeBulkDelete('all')} disabled={bulkDeleting}
+            class="w-full py-2.5 rounded-xl text-sm font-semibold disabled:opacity-40"
+            style="background:#dc2626;color:white">
+            {bulkDeleting ? '⏳ Löschen…' : '🗑 Trips + Tracker löschen'}
+          </button>
+          <button onclick={() => executeBulkDelete('trip_only')} disabled={bulkDeleting}
+            class="w-full py-2.5 rounded-xl border text-sm font-semibold disabled:opacity-40"
+            style="border-color:#dc2626;color:#dc2626">
+            {bulkDeleting ? '⏳' : 'Nur Trips löschen (Tracker behalten)'}
+          </button>
+        {:else}
+          <button onclick={() => executeBulkDelete('trip_only')} disabled={bulkDeleting}
+            class="w-full py-2.5 rounded-xl text-sm font-semibold disabled:opacity-40"
+            style="background:#dc2626;color:white">
+            {bulkDeleting ? '⏳ Löschen…' : '🗑 Löschen bestätigen'}
+          </button>
+        {/if}
+        <button onclick={() => bulkConfirm = null} disabled={bulkDeleting}
+          class="w-full py-2.5 rounded-xl border text-sm font-semibold hover:opacity-70"
+          style="border-color:var(--ws-border);color:var(--ws-muted)">
+          Abbrechen
+        </button>
+      </div>
+
+    </div>
+  </div>
+{/if}
 
 <div class="w-full space-y-4">
 
@@ -378,6 +507,36 @@
       </div>
     </div>
 
+
+  <!-- ── Bulk-Select Bar (Listenansicht) ──────────────────────────────────── -->
+  {#snippet selectBar(trips)}
+    {#if viewMode === 'list' && trips.length > 0}
+      <div class="flex items-center gap-2 px-1">
+        <!-- Select All / Deselect All -->
+        <button
+          onclick={() => trips.every(t => selectedIds.has(t.id)) ? deselectAll() : selectAll(trips)}
+          class="text-xs px-3 py-1.5 rounded-lg border font-medium transition-all hover:opacity-80"
+          style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-muted)">
+          {trips.every(t => selectedIds.has(t.id)) ? '☑ Alle abwählen' : '☐ Alle auswählen'}
+        </button>
+
+        <!-- Anzahl -->
+        {#if selectedIds.size > 0}
+          <span class="text-xs font-medium" style="color:var(--ws-muted)">
+            {selectedIds.size} ausgewählt
+          </span>
+          <!-- Löschen Button -->
+          <button
+            onclick={openBulkConfirm}
+            class="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold transition-all hover:opacity-80"
+            style="background:rgba(220,38,38,.1);border:1px solid rgba(220,38,38,.3);color:#dc2626">
+            🗑 {selectedIds.size > 1 ? selectedIds.size + ' Trips löschen' : 'Trip löschen'}
+          </button>
+        {/if}
+      </div>
+    {/if}
+  {/snippet}
+
   <!-- ══ PLANNED TRIPS ══════════════════════════════════════════════════════ -->
   {:else if activeTab === 'planned'}
     <div class="space-y-4">
@@ -396,26 +555,36 @@
           </button>
         </div>
       {:else if viewMode === 'list'}
+        {@render selectBar(plannedWsTrips)}
         <div class="rounded-2xl border overflow-hidden" style="border-color:var(--ws-border)">
           {#each plannedWsTrips as trip, i}
-            <div class="flex items-center gap-4 px-5 py-3 transition-all hover:opacity-90 cursor-pointer {i > 0 ? 'border-t' : ''}"
-              style="background:var(--ws-surface);border-color:var(--ws-border)"
-              role="button" tabindex="0"
-              onclick={() => goToTripHub(trip.id)}
-              onkeydown={(e) => e.key === 'Enter' && goToTripHub(trip.id)}>
-              <span class="text-2xl shrink-0">{trip.travel_mode === 'car' ? '🚗' : '✈️'}</span>
-              <div class="flex-1 min-w-0">
-                <div class="font-semibold text-sm truncate" style="font-family:var(--ws-serif);color:var(--ws-text)">{trip.title || trip.destination || 'Reise'}</div>
-                {#if trip.destination}<div class="text-xs" style="color:var(--ws-muted)">📍 {trip.destination}</div>{/if}
+            <div class="flex items-center gap-3 px-4 py-3 transition-all {i > 0 ? 'border-t' : ''} {selectedIds.has(trip.id) ? 'ring-1 ring-inset' : ''}"
+              style="background:{selectedIds.has(trip.id) ? 'color-mix(in srgb,var(--ws-accent) 6%,var(--ws-surface))' : 'var(--ws-surface)'};border-color:var(--ws-border);{selectedIds.has(trip.id) ? '--tw-ring-color:var(--ws-accent)' : ''}">
+              <!-- Checkbox -->
+              <button onclick={(e) => { e.stopPropagation(); toggleSelect(trip.id); }}
+                class="shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-all"
+                style="border-color:{selectedIds.has(trip.id) ? 'var(--ws-accent)' : 'var(--ws-border)'};background:{selectedIds.has(trip.id) ? 'var(--ws-accent)' : 'transparent'}">
+                {#if selectedIds.has(trip.id)}<span class="text-[10px] text-white font-bold">✓</span>{/if}
+              </button>
+              <!-- Row content — klickbar für Navigation -->
+              <div class="flex flex-1 items-center gap-4 cursor-pointer hover:opacity-80 min-w-0"
+                role="button" tabindex="0"
+                onclick={() => goToTripHub(trip.id)}
+                onkeydown={(e) => e.key === 'Enter' && goToTripHub(trip.id)}>
+                <span class="text-2xl shrink-0">{trip.travel_mode === 'car' ? '🚗' : '✈️'}</span>
+                <div class="flex-1 min-w-0">
+                  <div class="font-semibold text-sm truncate" style="font-family:var(--ws-serif);color:var(--ws-text)">{trip.title || trip.destination || 'Reise'}</div>
+                  {#if trip.destination}<div class="text-xs" style="color:var(--ws-muted)">📍 {trip.destination}</div>{/if}
+                </div>
+                {#if trip.start_date}
+                  <div class="text-xs font-mono shrink-0" style="color:var(--ws-muted)">{trip.start_date}{trip.end_date && trip.end_date !== trip.start_date ? ' → ' + trip.end_date : ''}</div>
+                {/if}
+                <span class="text-xs px-2 py-0.5 rounded-full font-semibold shrink-0"
+                  style="background:color-mix(in srgb,var(--ws-accent) 12%,var(--ws-surface));color:var(--ws-accent)">
+                  {trip.status === 'booked' ? $t('tripHubStatusBooked') : $t('tripHubStatusPlanning')}
+                </span>
+                <span style="color:var(--ws-muted)">›</span>
               </div>
-              {#if trip.start_date}
-                <div class="text-xs font-mono shrink-0" style="color:var(--ws-muted)">{trip.start_date}{trip.end_date && trip.end_date !== trip.start_date ? ' → ' + trip.end_date : ''}</div>
-              {/if}
-              <span class="text-xs px-2 py-0.5 rounded-full font-semibold shrink-0"
-                style="background:color-mix(in srgb,var(--ws-accent) 12%,var(--ws-surface));color:var(--ws-accent)">
-                {trip.status === 'booked' ? $t('tripHubStatusBooked') : $t('tripHubStatusPlanning')}
-              </span>
-              <span style="color:var(--ws-muted)">›</span>
             </div>
           {/each}
         </div>
@@ -446,27 +615,35 @@
           <p class="text-xs" style="color:var(--ws-muted)">{$t('onTourEmptyHint') || 'Reisen die heute stattfinden erscheinen hier'}</p>
         </div>
       {:else if viewMode === 'list'}
+        {@render selectBar(onTourTrips)}
         <div class="rounded-2xl border overflow-hidden" style="border-color:var(--ws-border)">
           {#each onTourTrips as trip, i}
-            <div class="flex items-center gap-4 px-5 py-3 transition-all hover:opacity-90 cursor-pointer {i > 0 ? 'border-t' : ''}"
-              style="background:var(--ws-surface);border-color:var(--ws-border)"
-              role="button" tabindex="0"
-              onclick={() => goToTripHub(trip.id)}
-              onkeydown={(e) => e.key === 'Enter' && goToTripHub(trip.id)}>
-              <span class="text-2xl shrink-0">{trip.travel_mode === 'car' ? '🚗' : '✈️'}</span>
-              <div class="flex-1 min-w-0">
-                <div class="font-semibold text-sm truncate" style="font-family:var(--ws-serif);color:var(--ws-text)">{trip.title || trip.destination || 'Reise'}</div>
-                {#if trip.destination}<div class="text-xs" style="color:var(--ws-muted)">📍 {trip.destination}</div>{/if}
+            <div class="flex items-center gap-3 px-4 py-3 transition-all {i > 0 ? 'border-t' : ''} {selectedIds.has(trip.id) ? 'ring-1 ring-inset' : ''}"
+              style="background:{selectedIds.has(trip.id) ? 'color-mix(in srgb,var(--ws-accent) 6%,var(--ws-surface))' : 'var(--ws-surface)'};border-color:var(--ws-border)">
+              <button onclick={(e) => { e.stopPropagation(); toggleSelect(trip.id); }}
+                class="shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-all"
+                style="border-color:{selectedIds.has(trip.id) ? 'var(--ws-accent)' : 'var(--ws-border)'};background:{selectedIds.has(trip.id) ? 'var(--ws-accent)' : 'transparent'}">
+                {#if selectedIds.has(trip.id)}<span class="text-[10px] text-white font-bold">✓</span>{/if}
+              </button>
+              <div class="flex flex-1 items-center gap-4 cursor-pointer hover:opacity-80 min-w-0"
+                role="button" tabindex="0"
+                onclick={() => goToTripHub(trip.id)}
+                onkeydown={(e) => e.key === 'Enter' && goToTripHub(trip.id)}>
+                <span class="text-2xl shrink-0">{trip.travel_mode === 'car' ? '🚗' : '✈️'}</span>
+                <div class="flex-1 min-w-0">
+                  <div class="font-semibold text-sm truncate" style="font-family:var(--ws-serif);color:var(--ws-text)">{trip.title || trip.destination || 'Reise'}</div>
+                  {#if trip.destination}<div class="text-xs" style="color:var(--ws-muted)">📍 {trip.destination}</div>{/if}
+                </div>
+                {#if trip.start_date}
+                  <div class="text-xs font-mono shrink-0" style="color:var(--ws-muted)">{trip.start_date}{trip.end_date && trip.end_date !== trip.start_date ? ' → ' + trip.end_date : ''}</div>
+                {/if}
+                <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-semibold shrink-0"
+                  style="background:rgba(45,106,79,.15);color:var(--ws-green,#2d6a4f)">
+                  <span class="w-1.5 h-1.5 rounded-full animate-pulse" style="background:var(--ws-green,#2d6a4f)"></span>
+                  ON TOUR
+                </span>
+                <span style="color:var(--ws-muted)">›</span>
               </div>
-              {#if trip.start_date}
-                <div class="text-xs font-mono shrink-0" style="color:var(--ws-muted)">{trip.start_date}{trip.end_date && trip.end_date !== trip.start_date ? ' → ' + trip.end_date : ''}</div>
-              {/if}
-              <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-semibold shrink-0"
-                style="background:rgba(45,106,79,.15);color:var(--ws-green,#2d6a4f)">
-                <span class="w-1.5 h-1.5 rounded-full animate-pulse" style="background:var(--ws-green,#2d6a4f)"></span>
-                ON TOUR
-              </span>
-              <span style="color:var(--ws-muted)">›</span>
             </div>
           {/each}
         </div>
@@ -554,27 +731,41 @@
           <p class="text-sm" style="color:var(--ws-muted)">{$t('archiveEmpty')}</p>
         </div>
       {:else if viewMode === 'list'}
-        <!-- List: detected_trips dedupliziert nach id -->
+        <!-- List: nur WS-Trips sind selektierbar/löschbar; detected_only-Trips nicht -->
+        {@render selectBar(archivedWsTrips)}
         <div class="rounded-2xl border overflow-hidden" style="border-color:var(--ws-border)">
           {#each archiveTripsDeduped as trip, i}
             {@const srcIcon = trip.source === 'dawarich' ? '📡' : trip.source === 'manual' ? '✍️' : '🪄'}
             {@const label = trip.title || trip.destination || trip.location_name || trip.name || 'Reise'}
-            <div class="flex items-center gap-4 px-5 py-3 transition-all hover:opacity-90 cursor-pointer {i > 0 ? 'border-t' : ''}"
-              style="background:var(--ws-surface);border-color:var(--ws-border)"
-              role="button" tabindex="0"
-              onclick={() => openOrCreateHub(trip)}
-              onkeydown={(e) => e.key === 'Enter' && openOrCreateHub(trip)}>
-              <span class="text-lg shrink-0">{srcIcon}</span>
-              <div class="flex-1 min-w-0">
-                <div class="font-semibold text-sm truncate capitalize" style="font-family:var(--ws-serif);color:var(--ws-text)">{label}</div>
-                {#if trip.start_date}
-                  <div class="text-xs font-mono" style="color:var(--ws-muted)">{trip.start_date}{trip.end_date && trip.end_date !== trip.start_date ? ' → ' + trip.end_date : ''}</div>
-                {/if}
-              </div>
-              {#if (trip.cost ?? trip.auto_cost ?? trip.budget)}
-                <div class="text-sm font-mono font-bold shrink-0" style="color:var(--ws-text)">{parseFloat(trip.cost ?? trip.auto_cost ?? trip.budget ?? 0).toFixed(0)} €</div>
+            {@const isWs = !!trip._isWsTrip}
+            <div class="flex items-center gap-3 px-4 py-3 transition-all {i > 0 ? 'border-t' : ''} {isWs && selectedIds.has(trip.id) ? 'ring-1 ring-inset' : ''}"
+              style="background:{isWs && selectedIds.has(trip.id) ? 'color-mix(in srgb,var(--ws-accent) 6%,var(--ws-surface))' : 'var(--ws-surface)'};border-color:var(--ws-border)">
+              <!-- Checkbox nur für ws_trips -->
+              {#if isWs}
+                <button onclick={(e) => { e.stopPropagation(); toggleSelect(trip.id); }}
+                  class="shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-all"
+                  style="border-color:{selectedIds.has(trip.id) ? 'var(--ws-accent)' : 'var(--ws-border)'};background:{selectedIds.has(trip.id) ? 'var(--ws-accent)' : 'transparent'}">
+                  {#if selectedIds.has(trip.id)}<span class="text-[10px] text-white font-bold">✓</span>{/if}
+                </button>
+              {:else}
+                <div class="shrink-0 w-5"></div>
               {/if}
-              <span style="color:var(--ws-muted)">›</span>
+              <div class="flex flex-1 items-center gap-4 cursor-pointer hover:opacity-80 min-w-0"
+                role="button" tabindex="0"
+                onclick={() => openOrCreateHub(trip)}
+                onkeydown={(e) => e.key === 'Enter' && openOrCreateHub(trip)}>
+                <span class="text-lg shrink-0">{srcIcon}</span>
+                <div class="flex-1 min-w-0">
+                  <div class="font-semibold text-sm truncate capitalize" style="font-family:var(--ws-serif);color:var(--ws-text)">{label}</div>
+                  {#if trip.start_date}
+                    <div class="text-xs font-mono" style="color:var(--ws-muted)">{trip.start_date}{trip.end_date && trip.end_date !== trip.start_date ? ' → ' + trip.end_date : ''}</div>
+                  {/if}
+                </div>
+                {#if (trip.cost ?? trip.auto_cost ?? trip.budget)}
+                  <div class="text-sm font-mono font-bold shrink-0" style="color:var(--ws-text)">{parseFloat(trip.cost ?? trip.auto_cost ?? trip.budget ?? 0).toFixed(0)} €</div>
+                {/if}
+                <span style="color:var(--ws-muted)">›</span>
+              </div>
             </div>
           {/each}
         </div>
