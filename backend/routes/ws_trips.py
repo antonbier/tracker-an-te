@@ -49,6 +49,7 @@ from crud.trackers import (
     unmark_tracker_booked,
     link_tracker_to_trip,
 )
+from core.database import db
 from crud.trips import (
     create_ws_trip,
     list_ws_trips,
@@ -368,16 +369,14 @@ async def create_trip(data: WsTripCreate, user=Depends(get_current_user)):
     # Store link in ws_trips row for future hub lookups
     if detected_id:
         try:
-            from core.database import db as _db
-            with _db() as conn:
+            with db() as conn:
                 conn.execute(
                     "ALTER TABLE ws_trips ADD COLUMN source_detected_id INTEGER DEFAULT NULL"
                 )
         except Exception:
             pass  # column already exists
         try:
-            from core.database import db as _db
-            with _db() as conn:
+            with db() as conn:
                 conn.execute(
                     "UPDATE ws_trips SET source_detected_id=? WHERE id=?",
                     (detected_id, trip_id)
@@ -460,11 +459,9 @@ def update_trip(trip_id: int, data: WsTripUpdate, user=Depends(get_current_user)
     new_end   = updates.get("end_date",   trip.get("end_date"))
     if new_start and new_end and new_end < new_start:
         raise HTTPException(422, f"end_date ({new_end}) darf nicht vor start_date ({new_start}) liegen")
-
-    from core.database import db as _db
     set_clauses = ", ".join(f"{k}=?" for k in updates)
     values = list(updates.values()) + [trip_id, _uid(user)]
-    with _db() as conn:
+    with db() as conn:
         conn.execute(
             f"UPDATE ws_trips SET {set_clauses}, updated_at=datetime('now') WHERE id=? AND user_id=?",
             values,
@@ -502,7 +499,6 @@ def remove_trip(trip_id: int, mode: str = "trip_only", user=Depends(get_current_
 
     if detected_id:
         # Typ A/B: Hat verknüpften detected_trip
-        from core.database import db as _db
 from crud.trips import delete_detected_trip
         # Herausfinden ob Dawarich oder Manuell
 with db() as conn:
@@ -524,9 +520,8 @@ if det_row and det_row["source"] == "dawarich":
 
     # Typ C: Reiner WanderWizzard-Trip — kein detected_trip
     if mode == "all":
-        from core.database import db as _db
         try:
-            with _db() as conn:
+            with db() as conn:
                 for tbl in ("trackers", "gf_trackers", "homair_trackers", "booking_trackers"):
                     try:
                         conn.execute(f"DELETE FROM {tbl} WHERE trip_id=?", (trip_id,))
@@ -559,8 +554,7 @@ def set_trip_image(trip_id: int, data: TripImagePayload, user=Depends(get_curren
     trip = get_ws_trip(trip_id, uid)
     if not trip:
         raise HTTPException(404, "Trip nicht gefunden")
-    from core.database import db as _db
-    with _db() as conn:
+    with db() as conn:
         conn.execute(
             """UPDATE ws_trips
                SET image_url=?, image_author=?, image_author_url=?,
@@ -636,11 +630,9 @@ def sync_actual_budget(trip_id: int, user=Depends(get_current_user)):
     compact.sort(key=lambda x: x["date"], reverse=True)
 
     total_synced = round(sum(c["amount"] for c in compact), 2)
-
-    from core.database import db as _db
     from datetime import datetime
     now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
-    with _db() as conn:
+    with db() as conn:
         conn.execute(
             """UPDATE ws_trips
                SET synced_expenses=?, synced_transactions_json=?, synced_at=?,
@@ -673,9 +665,7 @@ def add_todo(trip_id: int, data: TodoCreate, user=Depends(get_current_user)):
         raise HTTPException(404, "Trip nicht gefunden")
 
     create_trip_todos(trip_id, [{"task": data.task, "category": data.category, "due_date": data.due_date}])
-
-    from core.database import db as _db
-    with _db() as conn:
+    with db() as conn:
         row = conn.execute(
             "SELECT id, task, category, is_done, due_date, sort_order, created_at "
             "FROM trip_todos WHERE trip_id=? ORDER BY id DESC LIMIT 1",
@@ -700,8 +690,7 @@ def add_todo(trip_id: int, data: TodoCreate, user=Depends(get_current_user)):
 def set_todo_due(trip_id: int, todo_id: int, data: TodoUpdate, user=Depends(get_current_user)):
     if not get_ws_trip(trip_id, _uid(user)):
         raise HTTPException(404, "Trip nicht gefunden")
-    from core.database import db as _db
-    with _db() as conn:
+    with db() as conn:
         r = conn.execute(
             "UPDATE trip_todos SET due_date=? WHERE id=? AND trip_id=?",
             (data.due_date, todo_id, trip_id)
@@ -732,10 +721,9 @@ def update_todo(trip_id: int, todo_id: int, data: TodoUpdate, user=Depends(get_c
         updates["task"] = _sanitize(task, max_len=500) or task
     if not updates:
         return {"ok": True, "message": "Keine Änderungen"}
-    from core.database import db as _db
     set_clause = ", ".join(f"{k}=?" for k in updates)
     vals = list(updates.values()) + [todo_id, trip_id]
-    with _db() as conn:
+    with db() as conn:
         r = conn.execute(
             f"UPDATE trip_todos SET {set_clause} WHERE id=? AND trip_id=?", vals
         )
@@ -773,8 +761,7 @@ async def regenerate_todos(trip_id: int, user=Depends(get_current_user)):
     trip = get_ws_trip(trip_id, _uid(user))
     if not trip:
         raise HTTPException(404, "Trip nicht gefunden")
-    from core.database import db as _db
-    with _db() as conn:
+    with db() as conn:
         conn.execute("DELETE FROM trip_todos WHERE trip_id=?", (trip_id,))
     todos = await _generate_todos(trip)
     n = create_trip_todos(trip_id, todos)
@@ -877,8 +864,7 @@ def set_manual_expenses(trip_id: int, data: ManualExpensesPayload, user=Depends(
     if not get_ws_trip(trip_id, _uid(user)):
         raise HTTPException(404, "Trip nicht gefunden")
     val = max(0.0, float(data.manual_expenses))
-    from core.database import db as _db
-    with _db() as conn:
+    with db() as conn:
         conn.execute(
             "UPDATE ws_trips SET manual_expenses=?, updated_at=datetime('now') WHERE id=? AND user_id=?",
             (val, trip_id, _uid(user))
