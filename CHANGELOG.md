@@ -4,6 +4,37 @@ Alle nennenswerten Änderungen am Projekt. Format basiert auf [Keep a Changelog]
 
 ---
 
+### Added + Fixed — Lücken-Sprint
+
+**Feat: Immich Foto-Galerie im TripHub** (`ImmichGallery.svelte`, `routes/ws_trips.py`):
+- Archivierte Trips zeigen jetzt eine echte Foto-Collage statt „Coming Soon"
+- `GET /api/ws-trips/{id}/gallery` — lädt bis zu 12 Fotos aus Immich gefiltert nach `takenAfter`/`takenBefore` des Reisezeitraums
+- `GET /api/ws-trips/{id}/gallery/thumbnail/{asset_id}` — Backend-Proxy für Thumbnails (API-Key bleibt serverseitig)
+- Erste Kachel doppelt groß (Hero-Kachel), restliche im 3–4-spaltigem Grid
+- Hover zeigt Stadtnamen aus EXIF; Klick öffnet Lightbox mit Einzelbild + „In Immich →"-Link
+- „In Immich öffnen"-Button mit Deep-Link in Immich-Timeline gefiltert auf den Reisezeitraum
+- Sinnvolle Leerzustände: Immich nicht verbunden, keine Fotos im Zeitraum gefunden
+- 8 neue i18n-Keys in allen 4 Sprachen (de/en/it/es)
+
+**Feat: Preisverlauf SVG Hover-Tooltip** (`TrackerCard.svelte`, `helpers.js`):
+- `chartPts()` gibt jetzt `pts` mit `date` pro Datenpunkt zurück
+- SVG `onmousemove` findet den nächsten Punkt via Distanz-Berechnung
+- Tooltip zeigt Preis (`12,34 €`) + Datum (`12. Apr`) direkt über dem Cursor
+- Vertikale gestrichelte Linie + Kreis-Marker folgen der Maus
+- Tooltip bleibt im SVG-Bereich (clamp bei 72%)
+
+**Feat: BottomNav OnTour-Badge** (`BottomNav.svelte`, `AppShell.svelte`):
+- Grüner pulsierender Dot auf 🎒 wenn eine Reise heute aktiv ist
+- `AppShell` lädt `ws-trips` beim Start und berechnet `activeTripsCount` via `getTripPhase()`
+- `activeTripsCount` als Prop an `BottomNav` weitergereicht
+
+**Fix: Scheduler Homair/Booking Preissturz-Notifications** (`scheduler.py`):
+- `run_homair_trackers` und `run_booking_trackers` holen jetzt `prev_price` aus der DB **vor** dem Scrape
+- `_check_and_notify_generic()` erhält damit `prev_price` → Preissturz-Alerts funktionieren für alle 4 Tracker-Typen
+
+**Fix i18n: JournalTimeline** (`JournalTimeline.svelte`):
+- `placeholder="Kosten €"` → `$t('mytripsStatsSpent')`
+
 ### Fixed — Option B: OverviewTab Stats-Bugs + i18n-Lücken
 
 **OverviewTab Bugs:**
