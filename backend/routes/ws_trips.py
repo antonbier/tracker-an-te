@@ -538,6 +538,122 @@ def remove_trip(trip_id: int, mode: str = "trip_only", user=Depends(get_current_
 
 
 
+
+# ── Immich Foto-Galerie ───────────────────────────────────────────────────────
+
+@router.get("/{trip_id}/gallery")
+async def get_trip_gallery(trip_id: int, user=Depends(get_current_user)):
+    """
+    Lädt bis zu 12 Immich-Fotos für den Reisezeitraum.
+    Gibt thumbnail_urls (via Backend-Proxy), asset_ids und Immich-Deep-Link zurück.
+    Benötigt immich_url + immich_api_key in user_settings.
+    """
+    import httpx
+    uid = _uid(user)
+    trip = get_ws_trip(trip_id, uid)
+    if not trip:
+        raise HTTPException(404, "Trip nicht gefunden")
+
+    immich_url = (get_user_setting_value(uid, "immich_url") or
+                  get_setting_value("immich_url") or "").rstrip("/")
+    immich_key = (get_user_setting_value(uid, "immich_api_key") or
+                  get_setting_value("immich_api_key") or "")
+
+    if not immich_url or not immich_key:
+        raise HTTPException(422, {"error": "immich_not_configured",
+                                  "message": "Immich URL und API-Key fehlen in Einstellungen → Mein Bereich"})
+
+    date_from = (trip.get("start_date") or "")[:10]
+    date_to   = (trip.get("end_date")   or trip.get("start_date") or "")[:10]
+
+    # Suchanfrage: nach Zeitraum + optionalem Destination-Keyword
+    destination = trip.get("destination") or trip.get("title") or ""
+    body: dict = {"size": 12, "type": "IMAGE", "withExif": True}
+    if date_from:
+        body["takenAfter"]  = date_from + "T00:00:00.000Z"
+    if date_to:
+        body["takenBefore"] = date_to   + "T23:59:59.999Z"
+    # Wenn Destination gesetzt, als optionales Keyword (Immich ignoriert es wenn kein Album-Match)
+    if destination:
+        body["query"] = destination
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0, trust_env=False, follow_redirects=True) as client:
+            resp = await client.post(
+                f"{immich_url}/api/search/metadata",
+                headers={"x-api-key": immich_key, "Content-Type": "application/json"},
+                json=body,
+            )
+            if resp.status_code != 200:
+                raise HTTPException(502, f"Immich antwortet mit {resp.status_code}")
+
+            items = resp.json().get("assets", {}).get("items", [])
+
+            photos = []
+            for item in items[:12]:
+                asset_id = item.get("id")
+                if not asset_id:
+                    continue
+                # Thumbnail-URL via unseren eigenen Proxy (trägt den API-Key)
+                thumbnail_url = f"/api/ws-trips/{trip_id}/gallery/thumbnail/{asset_id}"
+                photos.append({
+                    "asset_id":      asset_id,
+                    "thumbnail_url": thumbnail_url,
+                    "taken_at":      (item.get("fileCreatedAt") or "")[:10],
+                    "city":          item.get("exifInfo", {}).get("city") or "",
+                    "country":       item.get("exifInfo", {}).get("country") or "",
+                })
+
+            # Immich Deep-Link: öffnet Timeline gefiltert auf den Reisezeitraum
+            deep_link_params = ""
+            if date_from and date_to:
+                deep_link_params = f"?from={date_from}&to={date_to}"
+            immich_deep_link = f"{immich_url}/photos{deep_link_params}"
+
+            return {
+                "photos":       photos,
+                "count":        len(photos),
+                "immich_url":   immich_url,
+                "deep_link":    immich_deep_link,
+                "date_from":    date_from,
+                "date_to":      date_to,
+            }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.warning(f"[Gallery] Immich error: {e}")
+        raise HTTPException(502, f"Immich nicht erreichbar: {e}")
+
+
+@router.get("/{trip_id}/gallery/thumbnail/{asset_id}")
+async def proxy_thumbnail(trip_id: int, asset_id: str, user=Depends(get_current_user)):
+    """Backend-Proxy für Immich-Thumbnails — sendet API-Key serverseitig."""
+    import httpx
+    from fastapi.responses import Response
+    uid = _uid(user)
+    immich_url = (get_user_setting_value(uid, "immich_url") or
+                  get_setting_value("immich_url") or "").rstrip("/")
+    immich_key = (get_user_setting_value(uid, "immich_api_key") or
+                  get_setting_value("immich_api_key") or "")
+    if not immich_url or not immich_key:
+        raise HTTPException(422, "Immich nicht konfiguriert")
+    try:
+        async with httpx.AsyncClient(timeout=10.0, trust_env=False, follow_redirects=True) as client:
+            resp = await client.get(
+                f"{immich_url}/api/assets/{asset_id}/thumbnail?size=preview",
+                headers={"x-api-key": immich_key},
+            )
+            if resp.status_code != 200:
+                raise HTTPException(resp.status_code, "Thumbnail nicht gefunden")
+            ct = resp.headers.get("content-type", "image/jpeg")
+            return Response(content=resp.content, media_type=ct,
+                            headers={"Cache-Control": "public, max-age=3600"})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(502, str(e))
+
 # ── Trip Hero-Bild ────────────────────────────────────────────────────────────
 
 class TripImagePayload(BaseModel):
