@@ -81,7 +81,7 @@
               <input type="number"
                 value={costDraft}
                 oninput={(e) => oneditcost(trip.id, e.target.value)}
-                placeholder="Kosten €"
+                placeholder={$t('mytripsStatsSpent') || 'Kosten €'}
                 class="flex-1 min-w-0 text-xs rounded-lg px-2.5 py-1.5 outline-none"
                 style="background:var(--ws-surface2);border:1px solid var(--ws-border);color:var(--ws-text)"
                 onkeydown={(e) => e.key==='Enter' && onsavecost(trip)} />
