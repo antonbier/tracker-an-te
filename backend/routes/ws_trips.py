@@ -606,7 +606,7 @@ async def get_trip_gallery(trip_id: int, user=Depends(get_current_user)):
             # Immich Deep-Link: öffnet Timeline gefiltert auf den Reisezeitraum
             deep_link_params = ""
             if date_from and date_to:
-                deep_link_params = f"?from={date_from}&to={date_to}"
+                    deep_link_params = f"?dateAfter={date_from}&dateBefore={date_to}"
             immich_deep_link = f"{immich_url}/photos{deep_link_params}"
 
             return {
