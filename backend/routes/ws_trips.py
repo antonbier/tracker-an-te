@@ -509,7 +509,7 @@ with db() as conn:
             det_row = conn.execute(
                 "SELECT source FROM detected_trips WHERE id=?", (detected_id,)
             ).fetchone()
-        if det_row and det_row["source"] == "dawarich":
+if det_row and det_row["source"] == "dawarich":
             # Typ A: Soft-Delete — ignored=1
             delete_detected_trip(detected_id, user_id=uid, hard=False)
             delete_ws_trip(trip_id, uid)
