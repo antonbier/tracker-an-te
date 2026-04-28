@@ -154,12 +154,8 @@
   $effect(() => {
     if (open) {
       urlInput      = $apiUrl;
-      dawarichUrl   = ls('s-dawarichUrl');
-      dawarichToken = ls('s-dawarichToken');
-      actualUrl     = ls('s-actualUrl');
-      actualToken   = ls('s-actualPassword');
-      actualFile    = ls('s-actualFile');
-      travelCats    = ls('s-travelCategories');
+      // Credentials werden aus Backend-DB geladen (loadUserSettings)
+      // kein localStorage-Fallback für Secrets
       loadUserSettings();
       if ($apiUrl) {
         (async () => {
@@ -180,16 +176,11 @@
           } catch {}
         })();
       } else {
-        serpApiKey    = ls('s-serpApiKey');
-        geminiKey     = ls('s-geminiKey');
-        openaiKey     = ls('s-openaiKey');
-        telegramToken = ls('s-telegramToken');
-        telegramChat  = ls('s-telegramChat');
-        gotifyUrl     = ls('s-gotifyUrl');
-        gotifyToken   = ls('s-gotifyToken');
-        homeLat       = ls('s-homeLat');
-        homeLon       = ls('s-homeLon');
-        homeName      = ls('s-homeName');
+        // Credentials nur aus Backend-DB — kein localStorage-Fallback
+        // Wenn keine API-URL: leere Felder, User muss URL zuerst setzen
+        homeLat  = ls('s-homeLat');  // UI-Präferenz, kein Secret
+        homeLon  = ls('s-homeLon');
+        homeName = ls('s-homeName');
       }
       loadProviders();
     }
@@ -204,19 +195,8 @@
   async function save() {
     if (!browser) return;
     apiUrl.set(urlInput.trim().replace(/\/$/, ''));
-    localStorage.setItem('s-dawarichUrl',      dawarichUrl);
-    localStorage.setItem('s-dawarichToken',    dawarichToken);
-    localStorage.setItem('s-actualUrl',        actualUrl);
-    localStorage.setItem('s-actualPassword',   actualToken);
-    localStorage.setItem('s-actualFile',       actualFile);
-    localStorage.setItem('s-travelCategories', travelCats);
-    localStorage.setItem('s-serpApiKey',       serpApiKey);
-    localStorage.setItem('s-geminiKey',        geminiKey);
-    localStorage.setItem('s-openaiKey',        openaiKey);
-    localStorage.setItem('s-telegramToken',    telegramToken);
-    localStorage.setItem('s-telegramChat',     telegramChat);
-    localStorage.setItem('s-gotifyUrl',        gotifyUrl);
-    localStorage.setItem('s-gotifyToken',      gotifyToken);
+    // Credentials werden ausschließlich an Backend-API gespeichert (Fernet-verschlüsselt).
+    // Kein localStorage für Secrets — nur UI-Präferenzen bleiben im Browser.
     localStorage.setItem('ws-date-format',     appDateFormat || 'DD.MM.YYYY');
     localStorage.setItem('ws-timezone',        appTimezone   || 'Europe/Rome');
     if (homeLat)   localStorage.setItem('s-homeLat',   homeLat);
