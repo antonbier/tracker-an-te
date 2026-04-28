@@ -102,9 +102,7 @@
       homeLon    = localStorage.getItem('s-homeLon')   || '';
       homeName   = localStorage.getItem('s-homeName')  || '';
       homeSearch = homeName;
-      dawarichUrl = localStorage.getItem('s-dawarichUrl') || '';
-      actualUrl   = localStorage.getItem('s-actualUrl')   || '';
-      actualFile  = localStorage.getItem('s-actualFile')  || '';
+      // Credentials aus Backend-DB laden (nicht localStorage)
     }
     if ($apiUrl) {
       try {
@@ -213,12 +211,8 @@
         if (actualToken && actualToken !== '••••••••') p.actual_token = actualToken;
         if (actualFile)  p.actual_file       = actualFile;
         if (travelCats)  p.travel_categories = travelCats;
-        if (browser) {
-          if (dawarichUrl) localStorage.setItem('s-dawarichUrl', dawarichUrl);
-          if (actualUrl)   localStorage.setItem('s-actualUrl',   actualUrl);
-          if (actualFile)  localStorage.setItem('s-actualFile',  actualFile);
-          if (travelCats)  localStorage.setItem('s-travelCategories', travelCats);
-        }
+        // Credentials werden nur via API gespeichert (Fernet-verschlüsselt in DB)
+        // kein localStorage-Write für Secrets
         if ($apiUrl && Object.keys(p).length) await api('/api/settings/wizard/step', { method: 'POST', body: JSON.stringify(p) });
 
       } else if (step === 3) {
