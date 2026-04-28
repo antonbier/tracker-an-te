@@ -46,9 +46,41 @@ ALL_KEYS = GLOBAL_KEYS + USER_KEYS
 _MASKED = {k for k in ALL_KEYS if k.endswith("_key") or k.endswith("_token")}
 
 
+_APP_SECRET_DEFAULT = "wandersuite-default-secret-change-in-production"
+_APP_SECRET = os.environ.get("APP_SECRET", _APP_SECRET_DEFAULT)
+
+# Hard-Stop: Bekannter Default-Secret gefährdet alle verschlüsselten Credentials
+# (Dawarich-Token, ActualBudget-Passwort, API-Keys — alle via Fernet geschützt).
+# AUTH_ENABLED prüfen: im reinen Dev-Modus (AUTH_ENABLED=false) ist das noch okay.
+_auth_enabled = os.environ.get("AUTH_ENABLED", "false").lower() == "true"
+if _auth_enabled and _APP_SECRET == _APP_SECRET_DEFAULT:
+    import sys as _sys
+    import logging as _log
+    _log.getLogger(__name__).critical(
+        "\n"
+        "╔══════════════════════════════════════════════════════════════╗\n"
+        "║  SICHERHEITSFEHLER: APP_SECRET ist der Default-Dev-Wert!   ║\n"
+        "║                                                              ║\n"
+        "║  Alle Fernet-verschlüsselten Credentials (API-Keys,         ║\n"
+        "║  Dawarich-Token, ActualBudget-Passwort) sind ungeschützt.   ║\n"
+        "║                                                              ║\n"
+        "║  Lösung: Setze in deiner .env-Datei:                        ║\n"
+        "║    APP_SECRET=$(openssl rand -hex 32)                        ║\n"
+        "║                                                              ║\n"
+        "║  (AUTH_ENABLED=false überspringt diese Prüfung)             ║\n"
+        "╚══════════════════════════════════════════════════════════════╝"
+    )
+    _sys.exit(1)
+elif not _auth_enabled and _APP_SECRET == _APP_SECRET_DEFAULT:
+    import logging as _log
+    _log.getLogger(__name__).warning(
+        "⚠️  APP_SECRET ist der Default-Dev-Wert. "
+        "Setze APP_SECRET=<echtes-secret> für Produktion (AUTH_ENABLED=true)."
+    )
+
+
 def _get_fernet() -> Fernet:
-    secret = os.environ.get("APP_SECRET", "wandersuite-default-secret-change-in-production")
-    key_bytes = hashlib.sha256(secret.encode()).digest()
+    key_bytes = hashlib.sha256(_APP_SECRET.encode()).digest()
     return Fernet(base64.urlsafe_b64encode(key_bytes))
 
 
