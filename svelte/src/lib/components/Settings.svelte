@@ -111,11 +111,11 @@
     if (!$apiUrl) return;
     try {
       const us = await api('/api/settings/user');
-      myDawarichUrl   = us.dawarich_url        || ls('s-dawarichUrl');
+      myDawarichUrl   = us.dawarich_url        || '';
       myDawarichToken = us.dawarich_token       ? '••••••••' : '';
-      myActualUrl     = us.actual_url           || ls('s-actualUrl');
+      myActualUrl     = us.actual_url           || '';
       myActualToken   = us.actual_token         ? '••••••••' : '';
-      myActualFile    = us.actual_file          || ls('s-actualFile');
+      myActualFile    = us.actual_file          || '';
       myHomeLat       = us.home_lat             || ls('s-homeLat');
       myHomeLon       = us.home_lon             || ls('s-homeLon');
       myTravelCats    = us.travel_categories    || ls('s-travelCategories');
@@ -259,12 +259,8 @@
       payload.travel_mode     = travelMode     || 'flight';
       payload.max_travel_time = maxTravelTime  || 'any';
       payload.history_mode    = historyMode    || 'blacklist';
-      if (myDawarichUrl)  localStorage.setItem('s-dawarichUrl',      myDawarichUrl);
-      if (myHomeLat)      localStorage.setItem('s-homeLat',          myHomeLat);
-      if (myHomeLon)      localStorage.setItem('s-homeLon',          myHomeLon);
-      if (myActualFile)   localStorage.setItem('s-actualFile',       myActualFile);
-      if (myTravelCats)   localStorage.setItem('s-travelCategories', myTravelCats);
-      if (myDateFormat)   localStorage.setItem('ws-date-format',     myDateFormat);
+      // Keine localStorage-Writes für Credentials — nur Backend-DB (Fernet)
+      // UI-Präferenzen (date-format, timezone) werden vom Backend zurückgelesen
       await api('/api/settings/user', { method: 'POST', body: JSON.stringify(payload) });
       const apiKeyPayload = {};
       if (serpApiKey && serpApiKey !== '••••••••') apiKeyPayload.serpapi_key = serpApiKey;
@@ -291,7 +287,7 @@
       if (gfKey && gfKey !== '••••••••') {
         serpApiKey = gfKey;
         await api('/api/settings', { method: 'POST', body: JSON.stringify({ serpapi_key: gfKey }) });
-        localStorage.setItem('s-serpApiKey', gfKey);
+        // s-serpApiKey nicht in localStorage — Key liegt in Backend-DB
       }
       toast($t('toastSaved'), 'success');
       await loadProviders();
