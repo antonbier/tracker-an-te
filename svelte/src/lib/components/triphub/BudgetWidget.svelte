@@ -62,11 +62,9 @@
     syncing = false;
   }
 
-  // ActualBudget URL für ↗-Link aus localStorage
-  const actualUrl = $derived.by(() => {
-    if (!browser) return '';
-    return localStorage.getItem('s-actualUrl') || '';
-  });
+  // ActualBudget URL — aus Backend-Settings geladen (nicht localStorage)
+  // Link wird nur angezeigt wenn URL bekannt; Backend liefert sie via budgetBreakdown
+  const actualUrl = $derived(budgetBreakdown?.actual_url || '');
 
   // ── Derived Werte ─────────────────────────────────────────────────────────
   const total        = $derived(parseFloat(budgetBreakdown?.total_budget   ?? 0));
