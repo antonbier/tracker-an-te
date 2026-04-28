@@ -16,6 +16,14 @@ COPY backend/ .
 # DB_PATH defaults to /app/data/tracker.db (set via environment variable)
 RUN mkdir -p /app/data
 
+# ── Security: non-root user ───────────────────────────────────────────────────
+# Run as unprivileged user — reduces attack surface if container is compromised.
+# UID/GID 1000 is conventional for app users; data volume must be writable.
+RUN groupadd -r wandersuite && useradd -r -g wandersuite -u 1000 wandersuite \
+    && chown -R wandersuite:wandersuite /app
+
+USER wandersuite
+
 EXPOSE 8000
 
 # uvicorn runs on all interfaces, port 8000 (mapped to BACKEND_PORT on host)
