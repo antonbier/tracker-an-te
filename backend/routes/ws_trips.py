@@ -303,7 +303,8 @@ Regeln:
 ]"""
 
     try:
-        import httpx
+        import base64
+import httpx
         async with httpx.AsyncClient(timeout=20.0) as client:
             resp = await client.post(
                 "https://api.openai.com/v1/chat/completions",
@@ -521,8 +522,11 @@ def remove_trip(trip_id: int, mode: str = "trip_only", user=Depends(get_current_
     if mode == "all":
         try:
             with db() as conn:
-                for tbl in ("trackers", "gf_trackers", "homair_trackers", "booking_trackers"):
+                # Whitelist: nur bekannte Tracker-Tabellen erlaubt (kein f-String mit variablem Input)
+        _TRACKER_TABLES = ("trackers", "gf_trackers", "homair_trackers", "booking_trackers")
+        for tbl in _TRACKER_TABLES:
                     try:
+                        # Tabellennamen aus Whitelist — kein SQL-Injection-Risiko
                         conn.execute(f"DELETE FROM {tbl} WHERE trip_id=?", (trip_id,))
                     except Exception as e:
                         logger.warning(f"[WsTrips] Delete {tbl}: {e}")
@@ -548,7 +552,8 @@ async def get_trip_gallery(trip_id: int, user=Depends(get_current_user)):
     Gibt thumbnail_urls (via Backend-Proxy), asset_ids und Immich-Deep-Link zurück.
     Benötigt immich_url + immich_api_key in user_settings.
     """
-    import httpx
+    import base64
+import httpx
     uid = _uid(user)
     trip = get_ws_trip(trip_id, uid)
     if not trip:
@@ -589,7 +594,6 @@ async def get_trip_gallery(trip_id: int, user=Depends(get_current_user)):
             items = resp.json().get("assets", {}).get("items", [])
 
             # Thumbnails direkt als base64 laden — kein separater Proxy-Endpoint nötig
-            import base64 as _b64
             photos = []
             for item in items[:12]:
                 asset_id = item.get("id")
@@ -604,7 +608,7 @@ async def get_trip_gallery(trip_id: int, user=Depends(get_current_user)):
                     )
                     if t_resp.status_code == 200:
                         ct = t_resp.headers.get("content-type", "image/jpeg")
-                        thumb_data = f"data:{ct};base64,{_b64.b64encode(t_resp.content).decode()}"
+                        thumb_data = f"data:{ct};base64,{base64.b64encode(t_resp.content).decode()}"
                 except Exception:
                     pass
                 photos.append({
@@ -640,7 +644,8 @@ async def get_trip_gallery(trip_id: int, user=Depends(get_current_user)):
 @router.get("/{trip_id}/gallery/thumbnail/{asset_id}")
 async def proxy_thumbnail(trip_id: int, asset_id: str, user=Depends(get_current_user)):
     """Backend-Proxy für Immich-Thumbnails — sendet API-Key serverseitig."""
-    import httpx
+    import base64
+import httpx
     from fastapi.responses import Response
     uid = _uid(user)
     immich_url = (get_user_setting_value(uid, "immich_url") or
