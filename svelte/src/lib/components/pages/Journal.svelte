@@ -3,7 +3,6 @@
   import { api } from '$lib/api.js';
   import { apiUrl } from '$lib/stores.js';
   import { toast } from '$lib/toast.js';
-  import { browser } from '$app/environment';
 
   let trips   = $state([]);
   let loading = $state(true);
@@ -23,21 +22,9 @@
     if (!$apiUrl) { toast('Backend-URL fehlt','warning'); return; }
     syncing = true; syncInfo = '';
     try {
-      // Backend liest Dawarich-Credentials aus der verschlüsselten DB.
-      // Wir übergeben zusätzlich localStorage-Werte als Fallback falls
-      // die Settings noch nicht im Backend gespeichert wurden.
-      const url   = browser ? localStorage.getItem('s-dawarichUrl')   || '' : '';
-      const token = browser ? localStorage.getItem('s-dawarichToken') || '' : '';
-      const lat   = parseFloat(browser ? localStorage.getItem('s-homeLat') || '0' : '0');
-      const lon   = parseFloat(browser ? localStorage.getItem('s-homeLon') || '0' : '0');
-
-      // POST ohne Body → Backend nutzt gespeicherte Settings
-      // Mit Body → überschreibt temporär (Fallback wenn noch nicht gespeichert)
-      const body = (url && token)
-        ? JSON.stringify({ dawarich_url: url, dawarich_token: token, home_lat: lat || null, home_lon: lon || null })
-        : '{}';
-
-      const r = await api('/api/dawarich/sync', { method: 'POST', body });
+      // Backend liest Dawarich-Credentials aus der verschlüsselten DB (user_settings).
+      // Kein localStorage-Zugriff — Credentials gehören nicht in den Browser-Storage.
+      const r = await api('/api/dawarich/sync', { method: 'POST', body: '{}' });
 
       if (r.trips_detected === 0 && r.points_loaded === 0) {
         syncInfo = 'Keine GPS-Punkte gefunden — Dawarich URL/Token prüfen';
