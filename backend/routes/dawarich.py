@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from typing import Optional
 import logging, math
 
-from dawarich import sync_trips, fetch_points, normalize_point
+from dawarich import sync_trips
 from crud.trips import (
     list_detected_trips,
     delete_detected_trip,
