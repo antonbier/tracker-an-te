@@ -23,8 +23,34 @@ JWT_SECRET      = os.getenv("JWT_SECRET", "wandersuite-dev-secret-not-for-produc
 JWT_ALGO        = "HS256"
 JWT_EXPIRY_DAYS = 30
 
-if AUTH_ENABLED and JWT_SECRET == "wandersuite-dev-secret-not-for-production":
-    logger.warning("⚠️  JWT_SECRET is the default dev value. Set a real secret in .env!")
+_DEV_SECRET = "wandersuite-dev-secret-not-for-production"
+
+if AUTH_ENABLED and JWT_SECRET == _DEV_SECRET:
+    # Hard-Stop: In Produktion (AUTH_ENABLED=true) darf kein Default-Secret laufen.
+    # Mit dem bekannten Dev-Secret können JWTs trivial gefälscht werden.
+    # Der Admin muss JWT_SECRET=<starkes-zufalls-secret> in .env setzen.
+    import sys as _sys
+    logger.critical(
+        "\n"
+        "╔══════════════════════════════════════════════════════════════╗\n"
+        "║  SICHERHEITSFEHLER: JWT_SECRET ist der Default-Dev-Wert!   ║\n"
+        "║                                                              ║\n"
+        "║  WanderSuite startet NICHT mit diesem Secret in Produktion. ║\n"
+        "║                                                              ║\n"
+        "║  Lösung: Setze in deiner .env-Datei:                        ║\n"
+        "║    JWT_SECRET=$(openssl rand -hex 32)                        ║\n"
+        "║                                                              ║\n"
+        "║  (AUTH_ENABLED=false überspringt diese Prüfung)             ║\n"
+        "╚══════════════════════════════════════════════════════════════╝"
+    )
+    _sys.exit(1)
+
+elif not AUTH_ENABLED and JWT_SECRET == _DEV_SECRET:
+    # Dev-Modus ohne Auth: Warning reicht — kein echter Schutz nötig
+    logger.warning(
+        "⚠️  JWT_SECRET ist der Default-Dev-Wert. "
+        "Setze AUTH_ENABLED=true + JWT_SECRET=<echtes-secret> für Produktion."
+    )
 
 _bearer = HTTPBearer(auto_error=False)
 
