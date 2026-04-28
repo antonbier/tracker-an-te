@@ -9,9 +9,10 @@
 
   let { destination = '', phase = 'planning', daysUntilStart = 999 } = $props();
 
-  let days    = $state([]);
-  let loading = $state(false);
-  let errMsg  = $state('');
+  let days     = $state([]);
+  let loading  = $state(false);
+  let errMsg   = $state('');
+  let _cacheKey = $state(''); // Modul-Level für Template-Zugriff im Refresh-Button
 
   const shouldShow = $derived(phase === 'active' || daysUntilStart <= 7);
 
@@ -104,7 +105,7 @@
             {#if errMsg}<span class="text-[10px]" style="color:var(--ws-muted)">{errMsg}</span>{/if}
           </div>
         </div>
-        <button onclick={() => { errMsg=''; days=[]; try{sessionStorage.removeItem(CACHE_KEY);}catch{} fetchForecast(); }}
+        <button onclick={() => { errMsg=''; days=[]; try{sessionStorage.removeItem(_cacheKey);}catch{} fetchForecast(); }}
           class="text-xs px-2 py-1 rounded-lg border hover:opacity-70 shrink-0"
           style="border-color:var(--ws-border);color:var(--ws-muted)">↺</button>
       </div>
