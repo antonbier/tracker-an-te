@@ -91,13 +91,17 @@ class PasswordChangePayload(BaseModel):
 
 
 @router_auth.post("/auth/setup")
-def setup(data: SetupPayload):
+def setup(data: SetupPayload, request: Request):
     """
     Create the first admin user. Only allowed when users table is empty.
     Returns JWT so the UI can log the admin in immediately after setup.
+    Rate-limited: max 5 Versuche / 60s pro IP (Enumeration-Schutz).
     """
     if not AUTH_ENABLED:
         raise HTTPException(400, "AUTH_ENABLED=false — Setup nicht nötig.")
+    # Rate-Limit: verhindert Enumeration ob Setup bereits durchgeführt wurde
+    client_ip = request.client.host if request.client else "unknown"
+    _check_rate_limit(client_ip)
     if count_users() > 0:
         raise HTTPException(409, "Setup bereits abgeschlossen. Bitte einloggen.")
     if len(data.password) < 8:
