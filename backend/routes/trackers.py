@@ -13,6 +13,7 @@ import re, traceback, logging
 
 from core.database import db
 from crud.trackers import (
+    get_latest_snapshots_bulk,
     create_tracker,
     list_trackers,
     get_tracker,
@@ -107,11 +108,12 @@ def _uid(user: dict) -> int | None:
 @router.get("")
 def get_all_trackers(user: dict = Depends(get_current_user)):
     trackers = list_trackers(active_only=False, user_id=_uid(user))
+    # Bulk-Query statt N+1: alle Snapshots in einem DB-Roundtrip laden
+    ids = [t["id"] for t in trackers]
+    snapshots = get_latest_snapshots_bulk("price_snapshots", ids)
     for t in trackers:
-        snap = get_latest_snapshot(t["id"])
+        snap = snapshots.get(t["id"])
         t["latest_snapshot"] = snap
-        # Block 8 + BUG-1-Fix: current_price als expliziter Float auf Root-Level.
-        # float()-Cast verhindert [object Object] wenn SQLite einen Decimal o.ä. liefert.
         raw_price = snap.get("total_price") if snap else None
         t["current_price"] = float(raw_price) if raw_price is not None else None
     return trackers
