@@ -6,7 +6,7 @@ Preisverlauf für Charts, CSV-Export, Wish-Price und History-Endpunkt.
 import csv
 import io
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, Depends, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -22,9 +22,11 @@ router = APIRouter()
 
 
 @router.get("/{tracker_id}")
-def get_price_history(tracker_id: int, limit: int = 90):
+def get_price_history(tracker_id: int, limit: int = 90,
+                      user: dict = Depends(get_current_user)):
     """Preisverlauf für einen Ryanair-Tracker (Chart.js-kompatibel)."""
-    t = get_tracker(tracker_id)
+    uid = user.get("id") or user.get("user_id")
+    t = get_tracker(tracker_id, user_id=uid)
     if not t:
         raise HTTPException(404, f"Tracker #{tracker_id} nicht gefunden")
 
@@ -53,9 +55,11 @@ def get_price_history(tracker_id: int, limit: int = 90):
 
 
 @router.get("/{tracker_id}/export.csv")
-def export_price_history_csv(tracker_id: int, limit: int = 365):
+def export_price_history_csv(tracker_id: int, limit: int = 365,
+                              user: dict = Depends(get_current_user)):
     """Export full price history as CSV download."""
-    t = get_tracker(tracker_id)
+    uid = user.get("id") or user.get("user_id")
+    t = get_tracker(tracker_id, user_id=uid)
     if not t:
         raise HTTPException(404, f"Tracker #{tracker_id} nicht gefunden")
 
