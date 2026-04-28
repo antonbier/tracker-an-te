@@ -12,7 +12,7 @@ services:
       - DB_PATH=/app/data/tracker.db
       - WANDERSUITE_CHANNEL=beta
       - AUTH_ENABLED=${AUTH_ENABLED:-false}
-      - JWT_SECRET=${JWT_SECRET:-wandersuite-dev-secret}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET muss in .env gesetzt sein}
       - WEBAUTHN_RP_ID=${WEBAUTHN_RP_ID:-localhost}
       - WEBAUTHN_RP_NAME=${WEBAUTHN_RP_NAME:-WanderSuite}
       - WEBAUTHN_ORIGIN=${WEBAUTHN_ORIGIN:-http://localhost:8767}
