@@ -8,17 +8,16 @@
   let provider   = $state('gemini');
   let results    = $state([]);
   let loading    = $state(false);
-  let geminiKey  = $state(typeof localStorage !== 'undefined' ? localStorage.getItem('s-geminiKey') || '' : '');
-  let openaiKey  = $state(typeof localStorage !== 'undefined' ? localStorage.getItem('s-openaiKey') || '' : '');
 
   async function generate() {
     if (!query.trim()) { toast('Bitte beschreibe was du suchst', 'warning'); return; }
-    const key = provider === 'openai' ? openaiKey : geminiKey;
     loading = true; results = [];
     try {
+      // API-Key wird vom Backend aus user_settings (Fernet-verschlüsselt) gelesen.
+      // Das Frontend übergibt keine Credentials.
       const data = await api('/api/discover', {
         method: 'POST',
-        body: JSON.stringify({ query, provider, api_key: key || undefined, lang: 'de' }),
+        body: JSON.stringify({ query, provider, lang: 'de' }),
       });
       if (data.error) throw new Error(data.error);
       results = data.recommendations || [];
