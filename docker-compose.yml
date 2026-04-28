@@ -12,6 +12,7 @@ services:
       - DB_PATH=/app/data/tracker.db
       - WANDERSUITE_CHANNEL=beta
       - AUTH_ENABLED=${AUTH_ENABLED:-false}
+      - APP_SECRET=${APP_SECRET:?APP_SECRET muss in .env gesetzt sein}
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET muss in .env gesetzt sein}
       - CORS_ORIGINS=${CORS_ORIGINS:-*}
       - WEBAUTHN_RP_ID=${WEBAUTHN_RP_ID:-localhost}
