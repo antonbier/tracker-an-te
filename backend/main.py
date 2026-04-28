@@ -118,9 +118,19 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="WanderSuite API", version=APP_VERSION, lifespan=lifespan)
 
+# CORS: Bei self-hosted hinter Nginx/Reverse-Proxy ist ["*"] akzeptabel
+# da der Proxy den Zugang kontrolliert. CORS_ORIGINS kann als Env-Var
+# auf spezifische Origins eingeschränkt werden (komma-getrennt).
+_cors_origins_raw = os.getenv("CORS_ORIGINS", "*")
+_cors_origins = (
+    ["*"]
+    if _cors_origins_raw.strip() == "*"
+    else [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
+)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
