@@ -8,18 +8,16 @@ Wizard:         POST /api/settings/wizard/step (partial save, safe merge)
 """
 
 from fastapi import APIRouter, HTTPException, Depends, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from typing import Optional
 import requests, logging
 
 from crud.settings import (
     get_provider_configs,
-    save_provider_config,
-)
+    save_provider_config)
 from settings_manager import (
     save_settings_bulk, get_settings_all, get_setting_value,
-    save_user_settings_bulk, get_user_settings_all, get_user_setting_value,
-    GLOBAL_KEYS, USER_KEYS,
+    save_user_settings_bulk, get_user_settings_all, get_user_setting_value
 )
 from auth_jwt import get_current_user, require_admin, get_optional_user
 
@@ -200,8 +198,7 @@ def wizard_save_step(data: WizardStepPayload, user: dict = Depends(get_current_u
 @router.get("/geocode")
 def geocode_place(
     q: str = Query(..., description="Ortsname für Geocoding"),
-    user: dict = Depends(get_optional_user),
-):
+    user: dict = Depends(get_optional_user)):
     """Backend proxy for Nominatim geocoding — avoids browser CORS restrictions."""
     if not q or len(q.strip()) < 2:
         raise HTTPException(400, "Query zu kurz")
@@ -213,8 +210,7 @@ def geocode_place(
                 "User-Agent": "WanderSuite/1.0 (self-hosted travel tracker; contact=admin)",
                 "Accept-Language": "de",
             },
-            timeout=10,
-        )
+            timeout=10)
         resp.raise_for_status()
         results = resp.json()
         if not results:
@@ -330,8 +326,7 @@ def update_providers(data: ProviderConfigsPayload, user: dict = Depends(get_curr
             name=item.name,
             enabled=item.enabled,
             api_key=item.api_key,
-            test_mode=item.test_mode,
-        )
+            test_mode=item.test_mode)
     logger.info(f"[SETTINGS] providers updated by user={user.get('id')} | {[p.name for p in data.providers]}")
     return {"message": "Provider-Einstellungen gespeichert", "updated": len(data.providers)}
 
@@ -344,8 +339,7 @@ def get_serpapi_quota():
     try:
         resp = requests.get(
             "https://serpapi.com/account",
-            params={"api_key": api_key}, timeout=10,
-        )
+            params={"api_key": api_key}, timeout=10)
         if resp.status_code == 401:
             return {"error": "Ungültiger SerpAPI Key"}
         resp.raise_for_status()
