@@ -104,7 +104,6 @@ def run_gf_trackers(user_id: int | None = None):
                     f"{tracker['origin']}→{tracker['destination']} {tracker['outbound_date']}")
         try:
             # BUG 2 FIX: prev_price vor Scrape aus DB
-            from crud.trackers import get_latest_gf_snapshot as _gf_snap
             prev_gf = _gf_snap(tid)
             prev_gf_price = float(prev_gf["total_price"]) if prev_gf and prev_gf.get("total_price") else None
 
@@ -249,7 +248,6 @@ def _check_and_notify(tracker: dict, snap: dict, prev_price: float | None):
     Delegiert Evaluation an _evaluate_price_drop() + _evaluate_threshold(),
     kümmert sich selbst nur um das Senden der Notifications.
     """
-    from notifications import notify_price_drop, notify_threshold_reached
 
     new_price = snap.get("total_price")
     if not new_price:
@@ -284,7 +282,6 @@ def _check_and_notify_generic(tracker: dict, snap: dict, prev_price: float | Non
         diff = round(prev_price - new_price, 2)
         logger.info(f"  📉 PREISSTURZ #{tracker.get('id')}: {prev_price:.2f}→{new_price:.2f} (-{diff:.2f}€)")
         try:
-            from notifications import notify_price_drop
             notify_price_drop(tracker, old_price=prev_price, new_price=new_price)
         except Exception as ne:
             logger.warning(f"  ⚠️ Preissturz-Notification fehlgeschlagen: {ne}")
@@ -298,7 +295,6 @@ def _check_and_notify_generic(tracker: dict, snap: dict, prev_price: float | Non
         if not already_below:
             logger.info(f"  🎯 ZIEL ERREICHT #{tracker.get('id')}: {new_price:.2f}€ ≤ {wish_price:.2f}€")
             try:
-                from notifications import notify_threshold_reached
                 notify_threshold_reached(tracker, price=new_price, threshold=wish_price)
             except Exception as ne:
                 logger.warning(f"  ⚠️ Wish-price alert fehlgeschlagen: {ne}")
@@ -357,7 +353,6 @@ def run_single_tracker(tracker_id: int):
     Nur bei status=ok wird ein Snapshot gespeichert —
     Fehler überschreiben niemals die bestehende Preishistorie.
     """
-    from crud.trackers import get_tracker
     tracker = get_tracker(tracker_id)
     if not tracker:
         raise ValueError(f"Tracker #{tracker_id} nicht gefunden")
