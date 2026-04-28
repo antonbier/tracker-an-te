@@ -18,6 +18,7 @@ API-BUG 1 Klarstellung:
   (nicht über PATCH /{trip_id}/todos/{todo_id} — dieser Endpoint existiert nicht).
 """
 
+import base64
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, model_validator, field_validator, constr
 from typing import Optional
@@ -303,8 +304,6 @@ Regeln:
 ]"""
 
     try:
-        import base64
-import httpx
         async with httpx.AsyncClient(timeout=20.0) as client:
             resp = await client.post(
                 "https://api.openai.com/v1/chat/completions",
@@ -522,11 +521,10 @@ def remove_trip(trip_id: int, mode: str = "trip_only", user=Depends(get_current_
     if mode == "all":
         try:
             with db() as conn:
-                # Whitelist: nur bekannte Tracker-Tabellen erlaubt (kein f-String mit variablem Input)
-        _TRACKER_TABLES = ("trackers", "gf_trackers", "homair_trackers", "booking_trackers")
-        for tbl in _TRACKER_TABLES:
+                # Whitelist: nur bekannte Tracker-Tabellen — kein SQL-Injection-Risiko
+                _TRACKER_TABLES = ("trackers", "gf_trackers", "homair_trackers", "booking_trackers")
+                for tbl in _TRACKER_TABLES:
                     try:
-                        # Tabellennamen aus Whitelist — kein SQL-Injection-Risiko
                         conn.execute(f"DELETE FROM {tbl} WHERE trip_id=?", (trip_id,))
                     except Exception as e:
                         logger.warning(f"[WsTrips] Delete {tbl}: {e}")
@@ -553,7 +551,6 @@ async def get_trip_gallery(trip_id: int, user=Depends(get_current_user)):
     Benötigt immich_url + immich_api_key in user_settings.
     """
     import base64
-import httpx
     uid = _uid(user)
     trip = get_ws_trip(trip_id, uid)
     if not trip:
@@ -645,7 +642,6 @@ import httpx
 async def proxy_thumbnail(trip_id: int, asset_id: str, user=Depends(get_current_user)):
     """Backend-Proxy für Immich-Thumbnails — sendet API-Key serverseitig."""
     import base64
-import httpx
     from fastapi.responses import Response
     uid = _uid(user)
     immich_url = (get_user_setting_value(uid, "immich_url") or
