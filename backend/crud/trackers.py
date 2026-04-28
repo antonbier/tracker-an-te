@@ -213,6 +213,62 @@ def save_price_snapshot(tracker_id: int, snap: dict) -> int:
     return snap_id
 
 
+
+def get_latest_snapshots_bulk(
+    snap_table: str,
+    tracker_ids: list[int],
+) -> dict[int, dict]:
+    """
+    Lädt den neuesten status='ok' Snapshot für ALLE tracker_ids in einem Query.
+    Fallback auf neuesten Eintrag wenn kein status='ok' Snapshot existiert.
+    Gibt dict {tracker_id → snapshot_dict} zurück.
+    Löst das N+1-Query-Problem bei get_all_trackers.
+    """
+    if not tracker_ids:
+        return {}
+
+    placeholders = ",".join("?" * len(tracker_ids))
+
+    with db() as conn:
+        # Neueste status='ok' Snapshots für alle IDs in einem Query
+        rows_ok = conn.execute(
+            f"""SELECT * FROM {snap_table}
+                WHERE tracker_id IN ({placeholders})
+                  AND status='ok'
+                  AND fetched_at = (
+                      SELECT MAX(s2.fetched_at) FROM {snap_table} s2
+                      WHERE s2.tracker_id = {snap_table}.tracker_id
+                        AND s2.status='ok'
+                  )""",
+            tracker_ids,
+        ).fetchall()
+
+        # Für IDs ohne ok-Snapshot: neuester Eintrag egal welchen Status
+        ids_with_ok = {r["tracker_id"] for r in rows_ok}
+        ids_without = [i for i in tracker_ids if i not in ids_with_ok]
+
+        rows_fallback = []
+        if ids_without:
+            fb_placeholders = ",".join("?" * len(ids_without))
+            rows_fallback = conn.execute(
+                f"""SELECT * FROM {snap_table}
+                    WHERE tracker_id IN ({fb_placeholders})
+                      AND fetched_at = (
+                          SELECT MAX(s2.fetched_at) FROM {snap_table} s2
+                          WHERE s2.tracker_id = {snap_table}.tracker_id
+                      )""",
+                ids_without,
+            ).fetchall()
+
+    result: dict[int, dict] = {}
+    for row in rows_ok:
+        result[row["tracker_id"]] = dict(row)
+    for row in rows_fallback:
+        if row["tracker_id"] not in result:
+            result[row["tracker_id"]] = dict(row)
+    return result
+
+
 def get_latest_snapshot(tracker_id: int) -> dict | None:
     """Neuester fehlerfreier Snapshot (status='ok'). Fallback auf neuesten Eintrag."""    
     with db() as conn:
