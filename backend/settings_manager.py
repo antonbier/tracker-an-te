@@ -49,34 +49,34 @@ _MASKED = {k for k in ALL_KEYS if k.endswith("_key") or k.endswith("_token")}
 _APP_SECRET_DEFAULT = "wandersuite-default-secret-change-in-production"
 _APP_SECRET = os.environ.get("APP_SECRET", _APP_SECRET_DEFAULT)
 
-# Hard-Stop: Bekannter Default-Secret gefährdet alle verschlüsselten Credentials
-# (Dawarich-Token, ActualBudget-Passwort, API-Keys — alle via Fernet geschützt).
-# AUTH_ENABLED prüfen: im reinen Dev-Modus (AUTH_ENABLED=false) ist das noch okay.
-_auth_enabled = os.environ.get("AUTH_ENABLED", "false").lower() == "true"
-if _auth_enabled and _APP_SECRET == _APP_SECRET_DEFAULT:
-    import sys as _sys
-    import logging as _log
-    _log.getLogger(__name__).critical(
-        "\n"
-        "╔══════════════════════════════════════════════════════════════╗\n"
-        "║  SICHERHEITSFEHLER: APP_SECRET ist der Default-Dev-Wert!   ║\n"
-        "║                                                              ║\n"
-        "║  Alle Fernet-verschlüsselten Credentials (API-Keys,         ║\n"
-        "║  Dawarich-Token, ActualBudget-Passwort) sind ungeschützt.   ║\n"
-        "║                                                              ║\n"
-        "║  Lösung: Setze in deiner .env-Datei:                        ║\n"
-        "║    APP_SECRET=$(openssl rand -hex 32)                        ║\n"
-        "║                                                              ║\n"
-        "║  (AUTH_ENABLED=false überspringt diese Prüfung)             ║\n"
-        "╚══════════════════════════════════════════════════════════════╝"
-    )
-    _sys.exit(1)
-elif not _auth_enabled and _APP_SECRET == _APP_SECRET_DEFAULT:
+# Warnung beim Import — kein sys.exit() auf Modul-Level (würde FastAPI killen)
+if _APP_SECRET == _APP_SECRET_DEFAULT:
     import logging as _log
     _log.getLogger(__name__).warning(
-        "⚠️  APP_SECRET ist der Default-Dev-Wert. "
-        "Setze APP_SECRET=<echtes-secret> für Produktion (AUTH_ENABLED=true)."
+        "⚠️  APP_SECRET ist der Default-Dev-Wert — Credentials sind nur schwach geschützt. "
+        "Setze APP_SECRET=$(openssl rand -hex 32) in .env für Produktion."
     )
+
+
+def verify_app_secret() -> None:
+    """
+    Prüft ob APP_SECRET sicher gesetzt ist.
+    Soll von main.py beim Startup aufgerufen werden — NICHT auf Modul-Level.
+    Nur ein kritisches Log — kein sys.exit(), damit der Admin die Logs lesen kann.
+    """
+    auth_enabled = os.environ.get("AUTH_ENABLED", "false").lower() == "true"
+    if auth_enabled and _APP_SECRET == _APP_SECRET_DEFAULT:
+        import logging as _log
+        _log.getLogger(__name__).critical(
+            "\n"
+            "╔══════════════════════════════════════════════════════════════╗\n"
+            "║  SICHERHEITSWARNUNG: APP_SECRET ist der Default-Dev-Wert!  ║\n"
+            "║  Alle verschlüsselten Credentials sind unzureichend         ║\n"
+            "║  geschützt. Setze in .env:                                   ║\n"
+            "║    APP_SECRET=$(openssl rand -hex 32)                        ║\n"
+            "╚══════════════════════════════════════════════════════════════╝"
+        )
+        # Kein sys.exit() — App läuft weiter damit Admin Logs lesen kann
 
 
 def _get_fernet() -> Fernet:
