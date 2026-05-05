@@ -54,6 +54,7 @@ logger.info(f"WanderSuite {APP_VERSION} ({CHANNEL}) starting — DB: {DB_PATH}, 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    verify_app_secret()
     init_auth_tables()
     logger.info(f"DB ready — {APP_VERSION}")
 
