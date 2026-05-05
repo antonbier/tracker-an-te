@@ -1,7 +1,10 @@
 FROM python:3.12-slim
 
-# System dependencies (curl for healthcheck)
-RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+# System dependencies:
+#   curl  — healthcheck
+#   gosu  — sauberer User-Wechsel im Entrypoint (root → wandersuite)
+#           ohne gosu müsste der Container komplett als root laufen
+RUN apt-get update && apt-get install -y --no-install-recommends curl gosu     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -12,19 +15,20 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY backend/ .
 
-# Persistent data directory — mounted from host via docker-compose volume
-# DB_PATH defaults to /app/data/tracker.db (set via environment variable)
+# Persistent data directory — wird vom Host via Volume gemountet
 RUN mkdir -p /app/data
 
-# ── Security: non-root user ───────────────────────────────────────────────────
-# Run as unprivileged user — reduces attack surface if container is compromised.
-# UID/GID 1000 is conventional for app users; data volume must be writable.
-RUN groupadd -r wandersuite && useradd -r -g wandersuite -u 1000 wandersuite \
-    && chown -R wandersuite:wandersuite /app
+# Entrypoint-Script: läuft als root, setzt Permissions auf /app/data,
+# wechselt dann via gosu zu 'wandersuite' → kein readonly-DB-Problem
+COPY docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-USER wandersuite
+# ── Security: non-root user ───────────────────────────────────────────────────
+# wandersuite (UID 1000) ist der Laufzeit-User nach dem Entrypoint-Wechsel.
+# Der Container startet als root (für chown), wechselt dann zu wandersuite.
+RUN groupadd -r wandersuite && useradd -r -g wandersuite -u 1000 wandersuite     && chown -R wandersuite:wandersuite /app
 
 EXPOSE 8000
 
-# uvicorn runs on all interfaces, port 8000 (mapped to BACKEND_PORT on host)
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--log-level", "info"]
+# Entrypoint: setzt Permissions, wechselt zu wandersuite, startet uvicorn
+ENTRYPOINT ["/entrypoint.sh"]
