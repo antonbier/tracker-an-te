@@ -269,6 +269,28 @@
       if (Object.keys(apiKeyPayload).length > 0) {
         await api('/api/settings', { method: 'POST', body: JSON.stringify(apiKeyPayload) });
       }
+      // Provider-Konfiguration mitspecial speichern (enabled/disabled + Keys)
+      if (providers.length > 0) {
+        const providerPayload = providers.map(p => ({
+          name: p.name, enabled: p.enabled,
+          api_key: (providerKeys[p.name] && providerKeys[p.name] !== '••••••••')
+                   ? providerKeys[p.name] : null,
+          test_mode: p.test_mode,
+        }));
+        await api('/api/settings/providers', {
+          method: 'PUT',
+          body: JSON.stringify({ providers: providerPayload }),
+        });
+        // SerpAPI Key auch in global settings speichern (wird vom Scheduler genutzt)
+        const gfKey = providerKeys['google_flights'];
+        if (gfKey && gfKey !== '••••••••') {
+          await api('/api/settings', {
+            method: 'POST',
+            body: JSON.stringify({ serpapi_key: gfKey }),
+          });
+        }
+        await loadProviders();
+      }
       toast($t('toastSaved'), 'success');
     } catch (e) { toast('Fehler: ' + e.message, 'error'); }
     mySettingsSaving = false;
