@@ -221,7 +221,8 @@ def _seed_provider_configs(conn) -> None:
     conn.commit()
 
 def save_provider_config(name: str, enabled: bool, api_key: str | None = None, test_mode: bool = False) -> None:
-    """Upsert a single provider config."""
+    """Upsert a single provider config. Empty/masked api_key → keep existing."""    # Normalize: leer oder Platzhalter → None (bestehender Key bleibt erhalten)
+    clean_key = api_key if (api_key and api_key.strip() and api_key != "••••••••") else None
     with db() as conn:
         existing = conn.execute(
             "SELECT name FROM provider_configs WHERE name=?", (name,)
@@ -231,14 +232,13 @@ def save_provider_config(name: str, enabled: bool, api_key: str | None = None, t
                 """UPDATE provider_configs
                    SET enabled=?, api_key=COALESCE(?, api_key), test_mode=?, updated_at=datetime('now')
                    WHERE name=?""",
-                (1 if enabled else 0, api_key if api_key and api_key != "••••••••" else None,
-                 1 if test_mode else 0, name),
+                (1 if enabled else 0, clean_key, 1 if test_mode else 0, name),
             )
         else:
             conn.execute(
                 """INSERT INTO provider_configs (name, enabled, api_key, test_mode, updated_at)
                    VALUES (?, ?, ?, ?, datetime('now'))""",
-                (name, 1 if enabled else 0, api_key, 1 if test_mode else 0),
+                (name, 1 if enabled else 0, clean_key, 1 if test_mode else 0),
             )
 
 def get_provider_configs() -> list[dict]:
