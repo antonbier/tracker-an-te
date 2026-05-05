@@ -105,11 +105,5 @@
     {/each}
   {/if}
 
-  {#if providers.length > 0}
-    <button onclick={onsave} disabled={providersSaving}
-      class="w-full py-2 rounded-xl text-xs font-semibold border transition-opacity hover:opacity-80 disabled:opacity-50"
-      style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)">
-      {providersSaving ? '⏳ Speichern…' : '💾 Suchmaschinen speichern'}
-    </button>
-  {/if}
+  <!-- Speichern läuft über den übergeordneten Speichern-Button in MyspaceTab -->
 </div>
