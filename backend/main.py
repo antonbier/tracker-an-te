@@ -12,7 +12,6 @@ from contextlib import asynccontextmanager
 
 import asyncio
 from core.db_init import init_db
-from settings_manager import verify_app_secret
 from crud.discovery import discovery_pool_count
 from auth_db import init_auth_tables
 from scheduler import run_all_trackers, run_cleanup_job
@@ -55,7 +54,11 @@ logger.info(f"WanderSuite {APP_VERSION} ({CHANNEL}) starting — DB: {DB_PATH}, 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
-    verify_app_secret()
+    # APP_SECRET Sicherheits-Check
+    _app_secret = os.environ.get('APP_SECRET', 'wandersuite-default-secret-change-in-production')
+    if _app_secret == 'wandersuite-default-secret-change-in-production':
+        logger.warning('⚠️  APP_SECRET ist der Default-Dev-Wert — Credentials sind unzureichend geschützt. '
+                       'Setze APP_SECRET=$(openssl rand -hex 32) in .env')
     init_auth_tables()
     logger.info(f"DB ready — {APP_VERSION}")
 
