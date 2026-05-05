@@ -9,7 +9,8 @@ from core.database import db
 # ── Global Settings ───────────────────────────────────────────────────────────
 
 def save_setting(key: str, value: str, fernet) -> None:
-    enc = fernet.encrypt(value.encode())
+    # Fernet returns bytes — decode to str for SQLite TEXT column
+    enc = fernet.encrypt(value.encode()).decode()
     with db() as conn:
         conn.execute(
             "INSERT INTO settings (key, value_enc, updated_at) VALUES (?,?,datetime('now'))"
@@ -23,7 +24,11 @@ def get_setting(key: str, fernet) -> str | None:
     if not row:
         return None
     try:
-        return fernet.decrypt(row[0]).decode()
+        # Handle both bytes and str stored values
+        val = row[0]
+        if isinstance(val, str):
+            val = val.encode()
+        return fernet.decrypt(val).decode()
     except Exception:
         return None
 
@@ -33,6 +38,8 @@ def get_all_settings(fernet) -> dict:
     result = {}
     for key, enc in rows:
         try:
+            if isinstance(enc, str):
+                enc = enc.encode()
             result[key] = fernet.decrypt(enc).decode()
         except Exception:
             result[key] = None
@@ -42,7 +49,8 @@ def get_all_settings(fernet) -> dict:
 # ── Per-user settings ─────────────────────────────────────────────────────────
 
 def save_user_setting(user_id: int, key: str, value: str, fernet) -> None:
-    enc = fernet.encrypt(value.encode())
+    # Fernet returns bytes — decode to str for SQLite TEXT column
+    enc = fernet.encrypt(value.encode()).decode()
     with db() as conn:
         conn.execute(
             "INSERT INTO user_settings (user_id, key, value_enc, updated_at) VALUES (?,?,?,datetime('now'))"
@@ -58,7 +66,10 @@ def get_user_setting(user_id: int, key: str, fernet) -> str | None:
     if not row:
         return None
     try:
-        return fernet.decrypt(row[0]).decode()
+        val = row[0]
+        if isinstance(val, str):
+            val = val.encode()
+        return fernet.decrypt(val).decode()
     except Exception:
         return None
 
@@ -70,6 +81,8 @@ def get_all_user_settings(user_id: int, fernet) -> dict:
     result = {}
     for key, enc in rows:
         try:
+            if isinstance(enc, str):
+                enc = enc.encode()
             result[key] = fernet.decrypt(enc).decode()
         except Exception:
             result[key] = None
