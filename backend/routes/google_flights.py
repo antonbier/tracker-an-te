@@ -66,6 +66,8 @@ def list_trackers(user: dict = Depends(get_current_user)):
 def create_tracker(data: GFTrackerCreate, user: dict = Depends(get_current_user)):
     uid = user.get("id", 1) or 1
     tid = create_gf_tracker(data.model_dump(), user_id=uid)
+    if data.trip_id:
+        link_tracker_to_trip(tid, "google_flight", data.trip_id, user_id=uid)
     # Save initial snapshot from search result if price was provided
     if data.initial_price is not None:
         save_gf_snapshot(tid, {

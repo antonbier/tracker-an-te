@@ -56,6 +56,7 @@ class HomairCreate(BaseModel):
     covered_terrace:    bool = False
     campsite_name:      Optional[str] = None
     initial_price:      Optional[float] = None
+    trip_id:            Optional[int] = None
 
 
 @router.get("/homair")
@@ -71,7 +72,10 @@ def list_homair(user: dict = Depends(get_current_user)):
 
 @router.post("/homair", status_code=201)
 def create_homair(data: HomairCreate, user: dict = Depends(get_current_user)):
-    tid = create_homair_tracker(data.model_dump(), user_id=_uid_w(user))
+    uid = _uid_w(user)
+    tid = create_homair_tracker(data.model_dump(), user_id=uid)
+    if data.trip_id:
+        link_tracker_to_trip(tid, "camping", data.trip_id, user_id=uid)
     if data.initial_price is not None:
         save_homair_snapshot(tid, {
             "total_price": data.initial_price,
@@ -132,6 +136,7 @@ class BookingCreate(BaseModel):
     source:        str = "booking"
     hotel_name:    Optional[str] = None
     initial_price: Optional[float] = None
+    trip_id:       Optional[int] = None
 
 
 @router.get("/booking")
@@ -147,7 +152,10 @@ def list_booking(user: dict = Depends(get_current_user)):
 
 @router.post("/booking", status_code=201)
 def create_booking(data: BookingCreate, user: dict = Depends(get_current_user)):
-    tid = create_booking_tracker(data.model_dump(), user_id=_uid_w(user))
+    uid = _uid_w(user)
+    tid = create_booking_tracker(data.model_dump(), user_id=uid)
+    if data.trip_id:
+        link_tracker_to_trip(tid, "hotel", data.trip_id, user_id=uid)
     if data.initial_price is not None:
         save_booking_snapshot(tid, {
             "total_price": data.initial_price,

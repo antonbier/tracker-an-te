@@ -317,6 +317,24 @@ def init_db():
             ("gf_trackers",      "booking_url TEXT DEFAULT NULL"),
             ("homair_trackers",  "booking_url TEXT DEFAULT NULL"),
             ("booking_trackers", "booking_url TEXT DEFAULT NULL"),
+            # CRITICAL FIX (Code-Review-Sprint): trip_id/is_booked/booked_price fehlten
+            # in ALLEN 4 Tracker-Tabellen komplett — crud/trackers.py (mark_tracker_booked,
+            # unmark_tracker_booked, link_tracker_to_trip, get_trackers_for_trip) nutzt diese
+            # Spalten seit jeher, jeder Aufruf warf "no such column" (silent 500 bzw. vom
+            # Try/Except verschluckt). TripHub-Tracker-Buchen/Verknüpfen war dadurch komplett
+            # kaputt. CLAUDE.md dokumentierte das Schema bereits so, die Migration fehlte nur.
+            ("trackers",         "trip_id INTEGER DEFAULT NULL"),
+            ("gf_trackers",      "trip_id INTEGER DEFAULT NULL"),
+            ("homair_trackers",  "trip_id INTEGER DEFAULT NULL"),
+            ("booking_trackers", "trip_id INTEGER DEFAULT NULL"),
+            ("trackers",         "is_booked INTEGER NOT NULL DEFAULT 0"),
+            ("gf_trackers",      "is_booked INTEGER NOT NULL DEFAULT 0"),
+            ("homair_trackers",  "is_booked INTEGER NOT NULL DEFAULT 0"),
+            ("booking_trackers", "is_booked INTEGER NOT NULL DEFAULT 0"),
+            ("trackers",         "booked_price REAL DEFAULT NULL"),
+            ("gf_trackers",      "booked_price REAL DEFAULT NULL"),
+            ("homair_trackers",  "booked_price REAL DEFAULT NULL"),
+            ("booking_trackers", "booked_price REAL DEFAULT NULL"),
             # user_settings: Immich integration (per-user)
             ("user_settings",    "immich_url TEXT DEFAULT NULL"),
             ("user_settings",    "immich_api_key TEXT DEFAULT NULL"),
