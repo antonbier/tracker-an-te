@@ -1,7 +1,7 @@
 """
 WanderSuite — Google Gemini Integration
 AI travel recommendations for the Discover module.
-Uses Gemini 2.0 Flash API (free at aistudio.google.com).
+Uses Gemini 2.5 Flash API (free at aistudio.google.com).
 Returns structured JSON with 5 destination recommendations.
 """
 
@@ -12,7 +12,7 @@ import json
 logger = logging.getLogger(__name__)
 
 GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
-GEMINI_MODEL    = "gemini-2.0-flash"
+GEMINI_MODEL    = "gemini-2.5-flash"
 
 
 def generate_travel_recommendations(
