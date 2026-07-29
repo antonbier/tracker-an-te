@@ -143,6 +143,10 @@
     const _pt = plannedTrips.length;
     const _yr = selectedYear;
     const _rk = refreshKey;   // ändert sich bei Tab-Wechsel → erzwingt Redraw
+    // $bucketlist wird erst innerhalb von initMap() (im setTimeout) gelesen —
+    // das liegt außerhalb der synchronen Effect-Tracking-Phase, daher hier
+    // explizit lesen, sonst redrawt die Karte nie bei Bucket-List-Änderungen.
+    const _bl = JSON.stringify(($bucketlist ?? []).map(b => `${b.id ?? b.item}-${b.done}-${b.lat}-${b.lng ?? b.lon}`));
     const _el = mapEl;
     if (!_el) return;
 

@@ -13,6 +13,7 @@
   let loading  = $state(false);
   let errMsg   = $state('');
   let _cacheKey = $state(''); // Modul-Level für Template-Zugriff im Refresh-Button
+  let lastFetchedKey = null;  // welcher cacheKey steckt aktuell in `days` — BUG-Fix: siehe fetchForecast
 
   const shouldShow = $derived(phase === 'active' || daysUntilStart <= 7);
 
@@ -32,7 +33,12 @@
   });
 
   async function fetchForecast(dest, cacheKey) {
-    if (loading || days.length > 0) return;
+    // BUG-Fix: "days.length > 0" allein blockierte jeden erneuten Fetch nach dem
+    // ersten Erfolg — auch wenn destination sich zwischenzeitlich geändert hat
+    // (TripHub-Instanz für einen anderen Trip wiederverwendet). Statt "haben wir
+    // überhaupt Daten" muss geprüft werden "haben wir Daten für DIESEN cacheKey".
+    if (loading || (days.length > 0 && lastFetchedKey === cacheKey)) return;
+    lastFetchedKey = cacheKey;
     loading = true; errMsg = '';
     try {
       const data = await api(`/api/settings/geocode-weather?q=${encodeURIComponent(dest)}`);
