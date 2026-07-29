@@ -473,12 +473,12 @@ wsTrips.filter(t => {
 
 | # | Komponente | Problem | Priorität |
 |---|-----------|---------|----------|
-| 1 | HeroPastTrip | Immich-Bild erscheint nicht wenn Immich nicht konfiguriert (kein Fallback-Hinweis) | niedrig |
+| ~~1~~ | ~~HeroPastTrip~~ | ~~Immich-Bild erscheint nicht wenn Immich nicht konfiguriert~~ — **behoben**: dezenter "📷 Kein Foto verfügbar"-Hinweis via `heroNoImageHint`, sobald der Ladeversuch abgeschlossen ist | erledigt |
 | 2 | WanderWizzard | Auto-Reise-Modus (KI-Vorschläge) noch nicht vollständig implementiert | mittel |
 | 3 | PriceRadar | Mietwagen-Tab zeigt nur "Coming Soon" | niedrig |
 | 4 | Zoraxy | HSTS-Header muss manuell gesetzt werden | mittel |
-| 5 | HeroNextTrip | Wenn kein Unsplash-Key → kein Bild, kein Hinweis | niedrig |
-| 6 | `user_settings.immich_geo_sync` | Setting speicherbar/togglebar, aber kein Code-Pfad nutzt es — unvollständiges Feature | niedrig |
+| ~~5~~ | ~~HeroNextTrip~~ | ~~Wenn kein Unsplash-Key → kein Bild, kein Hinweis~~ — **behoben**: gleicher Hinweis wie HeroPastTrip | erledigt |
+| ~~6~~ | ~~`user_settings.immich_geo_sync`~~ | ~~Setting speicherbar/togglebar, aber kein Code-Pfad nutzt es~~ — **entschärft**: Toggle in SetupWizard + MyspaceConnections jetzt sichtbar deaktiviert mit "demnächst verfügbar"-Hinweis statt einen funktionslosen Schalter vorzugaukeln. Die eigentliche Geo-Sync-Funktionalität (Immich-GPS-Daten → Trip-Erkennung) ist weiterhin nicht implementiert — das ist ein neues Feature, kein Bugfix | Feature offen |
 | 7 | Kiwi/Tequila-Anbindung (`kiwi_provider.py`) | Kiwi vergibt keine neuen Tequila-API-Keys mehr (invite-only). Bestehende Keys funktionieren vermutlich weiter, für Neuinstallationen praktisch tot | mittel |
 | 8 | Dawarich-Anbindung (`dawarich.py`) | `/api/v1/points` ist laut Dawarich-Doku als "wird bald deprecated" markiert (→ `/api/v1/owntracks/points`). Noch nicht akut, aber beobachten | niedrig |
 | 9 | Ryanair-Scraper (`scraper.py`, Scheduler) | Grundsätzlich fragil (Anti-Bot-Fingerprinting). `client-version`-Header wird seit dem Code-Review-Sprint best-effort aus der Startseite extrahiert, `409` wird erkannt — trotzdem können Scrapes bei Ryanair-Frontend-Deploys weiterhin sporadisch fehlschlagen | mittel |

@@ -137,21 +137,17 @@
     class="w-full px-3 py-2 rounded-xl border text-sm"
     style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
 
-  <!-- Geo-Sync Toggle -->
-  <label class="flex items-center gap-3 cursor-pointer px-3 py-2.5 rounded-xl border"
-    style="background:var(--ws-surface2);border-color:var(--ws-border)">
-    <button
-      role="switch"
-      aria-checked={myImmichGeoSync}
-      onclick={() => myImmichGeoSync = !myImmichGeoSync}
-      class="relative w-9 h-5 rounded-full transition-colors shrink-0"
-      style="background:{myImmichGeoSync ? 'var(--ws-accent)' : 'var(--ws-border)'}">
-      <span class="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all"
-        style="left:{myImmichGeoSync ? '20px' : '2px'}"></span>
-    </button>
+  <!-- Geo-Sync Toggle — noch nicht implementiert (kein Code-Pfad nutzt diesen Wert),
+       daher deaktiviert statt einen funktionslosen Schalter vorzugaukeln. -->
+  <div class="flex items-center gap-3 px-3 py-2.5 rounded-xl border opacity-50"
+    style="background:var(--ws-surface2);border-color:var(--ws-border)"
+    title="Noch nicht implementiert">
+    <span class="relative w-9 h-5 rounded-full shrink-0" style="background:var(--ws-border)">
+      <span class="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white"></span>
+    </span>
     <div>
       <div class="text-sm font-medium" style="color:var(--ws-text)">📍 Geo-Sync aktivieren</div>
-      <div class="text-xs" style="color:var(--ws-muted)">Foto-Standorte für Reisevorschläge verwenden</div>
+      <div class="text-xs" style="color:var(--ws-muted)">Foto-Standorte für Reisevorschläge verwenden — demnächst verfügbar</div>
     </div>
-  </label>
+  </div>
 </div>

@@ -467,9 +467,11 @@
           <div class="text-xs rounded-xl px-3 py-2.5 border" style="background:rgba(var(--ws-accent-rgb,211,95,57),.06);border-color:var(--ws-border);color:var(--ws-muted)">💡 {$t('integrationsImmichHint')}</div>
           <input bind:value={immichUrl} placeholder="https://immich.example.com" class={inputCls} style={inputStyle}/>
           <input bind:value={immichKey} type="password" placeholder="API Key" class={inputCls} style={inputStyle}/>
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" bind:checked={immichGeoSync} class="w-4 h-4 rounded accent-[var(--ws-accent)]"/>
-            <span class="text-xs" style="color:var(--ws-muted)">{$t('integrationsImmichGeoSync')}</span>
+          <!-- Noch nicht implementiert (kein Code-Pfad nutzt diesen Wert) — deaktiviert
+               statt einen funktionslosen Schalter vorzugaukeln. -->
+          <label class="flex items-center gap-2 opacity-50" title="Noch nicht implementiert">
+            <input type="checkbox" checked={immichGeoSync} disabled class="w-4 h-4 rounded accent-[var(--ws-accent)]"/>
+            <span class="text-xs" style="color:var(--ws-muted)">{$t('integrationsImmichGeoSync')} — {$t('radarComingSoon')}</span>
           </label>
         </div>
         <hr style="border-color:var(--ws-border)"/>
