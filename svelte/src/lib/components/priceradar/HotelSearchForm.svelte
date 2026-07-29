@@ -3,7 +3,7 @@
   import { DESTINATIONS, inputCls, inputStyle, labelCls } from './constants.js';
   import { dateOffset } from './helpers.js';
 
-  const { searching, onsearch } = $props();
+  const { searching, onsearch, prefillParams = null } = $props();
 
   let htCity     = $state('');
   let htIn       = $state(dateOffset(30));
@@ -12,6 +12,16 @@
   let htChildren = $state(0);
   let htRooms    = $state(1);
   let acState    = $state({});
+
+  // Auto-fill when prefillParams changes (from TripHub deep-link)
+  $effect(() => {
+    const p = prefillParams ? $prefillParams : null;
+    if (!p) return;
+    if (p.destination) { htCity = p.destination; }
+    if (p.dateFrom)    { htIn   = p.dateFrom; }
+    if (p.dateTo)      { htOut  = p.dateTo; }
+    if (p.adults)      { htAdults = parseInt(p.adults) || 1; }
+  });
 
   function acFilter(key, value) {
     if (!value || value.length < 1) { acState = { ...acState, [key]: { open: false, items: [] } }; return; }

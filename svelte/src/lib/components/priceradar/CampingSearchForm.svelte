@@ -3,13 +3,23 @@
   import { DESTINATIONS, inputCls, inputStyle, labelCls } from './constants.js';
   import { dateOffset } from './helpers.js';
 
-  const { searching, onsearch } = $props();
+  const { searching, onsearch, prefillParams = null } = $props();
 
   let cpRegion     = $state('');
   let cpIn         = $state(dateOffset(30));
   let cpOut        = $state(dateOffset(37));
   let cpAdults     = $state(2);
   let cpChildren   = $state(0);
+
+  // Auto-fill when prefillParams changes (from TripHub deep-link)
+  $effect(() => {
+    const p = prefillParams ? $prefillParams : null;
+    if (!p) return;
+    if (p.destination) { cpRegion = p.destination; }
+    if (p.dateFrom)    { cpIn     = p.dateFrom; }
+    if (p.dateTo)      { cpOut    = p.dateTo; }
+    if (p.adults)      { cpAdults = parseInt(p.adults) || 1; }
+  });
   let cpAccomType  = $state('mobilheim');
   let cpAccomOptions = $state([
     { value: 'mobilheim',         label: 'Mobilheim (Standard)' },
