@@ -7,10 +7,12 @@
     telegramChat  = $bindable(),
     gotifyUrl     = $bindable(),
     gotifyToken   = $bindable(),
+    webhookUrl    = $bindable(),
   } = $props();
 
   let telegramTesting = $state(false);
   let gotifyTesting   = $state(false);
+  let webhookTesting  = $state(false);
 
   async function testTelegram() {
     telegramTesting = true;
@@ -30,6 +32,16 @@
       else toast('❌ ' + (res?.message || 'Fehler — URL und App-Token prüfen'), 'error');
     } catch (e) { toast('❌ ' + (e.message || 'Verbindungsfehler'), 'error'); }
     gotifyTesting = false;
+  }
+
+  async function testWebhook() {
+    webhookTesting = true;
+    try {
+      const res = await api('/api/notifications/test-webhook', { method: 'POST' });
+      if (res?.success) toast('✅ Webhook-Testnachricht gesendet!', 'success');
+      else toast('❌ ' + (res?.message || 'Fehler — URL prüfen'), 'error');
+    } catch (e) { toast('❌ ' + (e.message || 'Verbindungsfehler'), 'error'); }
+    webhookTesting = false;
   }
 </script>
 
@@ -77,6 +89,27 @@
     class="w-full px-3 py-2 rounded-xl border text-sm"
     style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
   <input bind:value={gotifyToken} type="password" placeholder="App Token (aus Gotify Apps)"
+    class="w-full px-3 py-2 rounded-xl border text-sm"
+    style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
+</div>
+
+<hr style="border-color:var(--ws-border)"/>
+
+<div class="space-y-2">
+  <div class="flex items-center justify-between">
+    <div class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">Webhook</div>
+    <button
+      onclick={testWebhook}
+      disabled={webhookTesting || !webhookUrl}
+      class="text-xs px-3 py-1 rounded-lg font-semibold transition-opacity disabled:opacity-40 hover:opacity-80"
+      style="background:rgba(147,51,234,.12);color:#9333ea;border:1px solid rgba(147,51,234,.2)">
+      {webhookTesting ? '⏳ Sende…' : '🚀 Testnachricht'}
+    </button>
+  </div>
+  <div class="text-xs rounded-lg px-3 py-2" style="background:rgba(var(--ws-accent-rgb,211,95,57),.08);color:var(--ws-muted)">
+    💡 Beliebige URL, die JSON-POSTs entgegennimmt (z.B. n8n, Home Assistant, ntfy, eigenes Skript). Payload: <code>&#123;title, message, user_id&#125;</code>.
+  </div>
+  <input bind:value={webhookUrl} type="password" placeholder="https://n8n.example.com/webhook/..."
     class="w-full px-3 py-2 rounded-xl border text-sm"
     style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
 </div>

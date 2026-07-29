@@ -304,7 +304,8 @@ CREATE TABLE user_notification_settings (
     telegram_bot_token TEXT,   -- Fernet-verschlüsselt
     telegram_chat_id TEXT,     -- Fernet-verschlüsselt
     gotify_url TEXT,           -- Fernet-verschlüsselt
-    gotify_app_token TEXT      -- Fernet-verschlüsselt
+    gotify_app_token TEXT,     -- Fernet-verschlüsselt
+    webhook_url TEXT           -- Fernet-verschlüsselt — beliebiger JSON-POST-Endpoint (n8n, Home Assistant, ntfy, ...)
 );
 
 -- Bucket List
@@ -358,7 +359,16 @@ from cryptography.fernet import Fernet
 def encrypt(value): return Fernet(APP_SECRET).encrypt(value.encode()).decode()
 def decrypt(value): return Fernet(APP_SECRET).decrypt(value.encode()).decode()
 ```
-Verschlüsselt: Telegram Bot Token/Chat ID, Gotify URL/Token.
+Verschlüsselt: Telegram Bot Token/Chat ID, Gotify URL/Token, Webhook-URL.
+
+**Wichtig — Pro-User vs. Global**: `notify_user()`/`notify_price_drop()`/`notify_threshold_reached()`
+(genutzt vom Scheduler für Preisalarme) lesen Credentials **ausschließlich** aus der Pro-User-Tabelle
+`user_notification_settings` (`crud/settings.py: get_user_notification_settings`), NIE aus den globalen
+Admin-Settings (`/api/settings`). Das Notifications-Tab im Frontend (`Settings.svelte`) speicherte
+Telegram/Gotify lange fälschlich in die globalen Settings — dadurch feuerten Preisalarme nie, obwohl
+das UI "gespeichert" meldete. Fix: `loadNotificationSettings()`/`saveNotificationSettings()` in
+`Settings.svelte` nutzen jetzt `/api/notifications/settings` (GET/PUT). Neue Notification-Kanäle
+**immer** an diese Pro-User-Route + `crud/settings.py`-Funktionen anschließen, nie an `/api/settings`.
 Frontend erhält immer `"••••••••"` (nie Klartext).
 
 ### Tracker-Ownership (IDOR-Vermeidung)

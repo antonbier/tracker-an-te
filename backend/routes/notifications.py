@@ -22,6 +22,7 @@ class UserNotificationConfig(BaseModel):
     telegram_chat_id:   Optional[str] = None
     gotify_url:         Optional[str] = None
     gotify_app_token:   Optional[str] = None
+    webhook_url:        Optional[str] = None
 
 
 @router.get("/settings")
@@ -33,14 +34,17 @@ def get_notification_settings(user: dict = Depends(get_current_user)):
     uid    = user.get("id", 1) or 1
     fernet = _get_fernet()
     creds  = get_user_notification_settings(uid, fernet)
-    # Mask secrets -- frontend only needs to know if set or not
+    # Mask secrets -- "••••••••" matches the masking convention used app-wide
+    # (BasicTab/MyspaceTab etc.), so the frontend can reuse the same "unchanged" check.
     def _mask(v):
-        return "configured" if v else ""
+        return "••••••••" if v else ""
     return {
         "telegram_bot_token": _mask(creds.get("telegram_bot_token")),
         "telegram_chat_id":   creds.get("telegram_chat_id") or "",   # chat_id not secret
         "gotify_url":         creds.get("gotify_url") or "",          # URL not secret
         "gotify_app_token":   _mask(creds.get("gotify_app_token")),
+        # webhook_url often embeds the whole auth secret (Discord/Slack/ntfy) -> mask like a token
+        "webhook_url":        _mask(creds.get("webhook_url")),
     }
 
 
@@ -67,6 +71,8 @@ def save_notification_settings(
             if config.gotify_url         is not None else existing.get("gotify_url",          ""),
         "gotify_app_token":   config.gotify_app_token
             if config.gotify_app_token   is not None else existing.get("gotify_app_token",    ""),
+        "webhook_url":        config.webhook_url
+            if config.webhook_url        is not None else existing.get("webhook_url",         ""),
     }
     save_user_notification_settings(uid, merged, fernet)
     return {"success": True, "message": "Einstellungen gespeichert"}
@@ -126,3 +132,26 @@ def test_gotify(user: dict = Depends(get_current_user)):
     if ok:
         return {"success": True,  "message": "Gotify-Testnachricht gesendet"}
     return      {"success": False, "message": "Fehler -- URL und App-Token pruefen"}
+
+
+@router.post("/test-webhook")
+def test_webhook(user: dict = Depends(get_current_user)):
+    """Send a test payload to the logged-in user's configured webhook URL."""
+    uid    = user.get("id", 1) or 1
+    fernet = _get_fernet()
+    creds  = get_user_notification_settings(uid, fernet)
+    url    = creds.get("webhook_url") or ""
+    if not url:
+        return {"success": False, "message": "Keine Webhook-URL konfiguriert"}
+    import requests as _req
+    try:
+        resp = _req.post(
+            url,
+            json={"title": "WanderSuite Test", "message": "Webhook-Benachrichtigungen sind aktiv!", "user_id": uid},
+            timeout=8,
+        )
+        if resp.ok:
+            return {"success": True, "message": "Webhook-Testnachricht gesendet"}
+        return {"success": False, "message": f"Fehler -- HTTP {resp.status_code}"}
+    except Exception as e:
+        return {"success": False, "message": f"Fehler -- {e}"}

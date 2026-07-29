@@ -145,12 +145,12 @@ def get_user_notification_settings(user_id: int, fernet) -> dict:
     """Return decrypted notification settings for a user. Missing fields -> empty string."""
     with db() as conn:
         row = conn.execute(
-            "SELECT telegram_bot_token, telegram_chat_id, gotify_url, gotify_app_token "
+            "SELECT telegram_bot_token, telegram_chat_id, gotify_url, gotify_app_token, webhook_url "
             "FROM user_notification_settings WHERE user_id=?",
             (user_id,)
         ).fetchone()
     if not row:
-        return {"telegram_bot_token": "", "telegram_chat_id": "", "gotify_url": "", "gotify_app_token": ""}
+        return {"telegram_bot_token": "", "telegram_chat_id": "", "gotify_url": "", "gotify_app_token": "", "webhook_url": ""}
     def _dec(v):
         if not v:
             return ""
@@ -163,6 +163,7 @@ def get_user_notification_settings(user_id: int, fernet) -> dict:
         "telegram_chat_id":   _dec(row["telegram_chat_id"]),
         "gotify_url":         _dec(row["gotify_url"]),
         "gotify_app_token":   _dec(row["gotify_app_token"]),
+        "webhook_url":        _dec(row["webhook_url"]),
     }
 
 
@@ -175,13 +176,14 @@ def save_user_notification_settings(user_id: int, settings: dict, fernet) -> Non
     with db() as conn:
         conn.execute("""
             INSERT INTO user_notification_settings
-                (user_id, telegram_bot_token, telegram_chat_id, gotify_url, gotify_app_token, updated_at)
-            VALUES (?,?,?,?,?,datetime('now'))
+                (user_id, telegram_bot_token, telegram_chat_id, gotify_url, gotify_app_token, webhook_url, updated_at)
+            VALUES (?,?,?,?,?,?,datetime('now'))
             ON CONFLICT(user_id) DO UPDATE SET
                 telegram_bot_token = excluded.telegram_bot_token,
                 telegram_chat_id   = excluded.telegram_chat_id,
                 gotify_url         = excluded.gotify_url,
                 gotify_app_token   = excluded.gotify_app_token,
+                webhook_url        = excluded.webhook_url,
                 updated_at         = excluded.updated_at
         """, (
             user_id,
@@ -189,6 +191,7 @@ def save_user_notification_settings(user_id: int, settings: dict, fernet) -> Non
             _enc(settings.get("telegram_chat_id",   "")),
             _enc(settings.get("gotify_url",          "")),
             _enc(settings.get("gotify_app_token",    "")),
+            _enc(settings.get("webhook_url",         "")),
         ))
 
 

@@ -375,6 +375,8 @@ def init_db():
             # DEFAULT NULL ist → keine Datenverlust, Wetter/Maps weiterhin funktional
             ("ws_trips",         "lat REAL DEFAULT NULL"),
             ("ws_trips",         "lon REAL DEFAULT NULL"),
+            # Outgoing webhook notifications (Fernet-verschlüsselt, analog Telegram/Gotify)
+            ("user_notification_settings", "webhook_url TEXT DEFAULT NULL"),
         ]
         for table, col_def in migrations:
             col_name = col_def.split()[0]

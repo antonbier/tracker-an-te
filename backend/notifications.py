@@ -125,6 +125,28 @@ class _GotifyProvider:
             return False
 
 
+class _WebhookProvider:
+    def __init__(self, url: str):
+        self.url = url
+
+    def send(self, user_id: int, title: str, message: str) -> bool:
+        try:
+            resp = _requests.post(
+                self.url,
+                json={"title": title, "message": message, "user_id": user_id},
+                timeout=TIMEOUT,
+            )
+            ok = resp.ok
+            if ok:
+                logger.info(f"[Webhook] user={user_id} status=ok")
+            else:
+                logger.warning(f"[Webhook] user={user_id} status=error | code={resp.status_code}")
+            return ok
+        except Exception as e:
+            logger.warning(f"[Webhook] user={user_id} status=error | reason={e}")
+            return False
+
+
 def _get_providers(user_id: int) -> list:
     """Load and instantiate all configured providers for this user."""
     providers = []
@@ -138,11 +160,14 @@ def _get_providers(user_id: int) -> list:
         tg_chat    = creds.get("telegram_chat_id",   "")
         gf_url     = creds.get("gotify_url",          "")
         gf_token   = creds.get("gotify_app_token",    "")
+        wh_url     = creds.get("webhook_url",         "")
 
         if tg_token and tg_chat:
             providers.append(_TelegramProvider(tg_token, tg_chat))
         if gf_url and gf_token:
             providers.append(_GotifyProvider(gf_url, gf_token))
+        if wh_url:
+            providers.append(_WebhookProvider(wh_url))
     except Exception as e:
         logger.error(f"[notify] Failed to load providers for user={user_id}: {e}")
     return providers

@@ -61,11 +61,12 @@
   let actualFile    = $state('');
   let travelCats    = $state('');
 
-  // ── Notifications tab state ───────────────────────────────────────────────
+  // ── Notifications tab state (pro-User, /api/notifications/settings) ──────
   let telegramToken = $state('');
   let telegramChat  = $state('');
   let gotifyUrl     = $state('');
   let gotifyToken   = $state('');
+  let webhookUrl    = $state('');
 
   // ── API keys ──────────────────────────────────────────────────────────────
   let serpApiKey = $state('');
@@ -140,6 +141,36 @@
     } catch {}
   }
 
+  // BUG FIX: Telegram/Gotify/Webhook wurden früher aus den globalen Admin-Settings
+  // (/api/settings) geladen/gespeichert, aber notify_user() im Scheduler liest
+  // Credentials ausschließlich aus der Pro-User-Tabelle (/api/notifications/settings) —
+  // Preisalarme feuerten dadurch nie, egal was im UI eingetragen war.
+  async function loadNotificationSettings() {
+    if (!$apiUrl) return;
+    try {
+      const ns = await api('/api/notifications/settings');
+      telegramToken = ns.telegram_bot_token ? '••••••••' : '';
+      telegramChat  = ns.telegram_chat_id   || '';
+      gotifyUrl     = ns.gotify_url         || '';
+      gotifyToken   = ns.gotify_app_token   ? '••••••••' : '';
+      webhookUrl    = ns.webhook_url        ? '••••••••' : '';
+    } catch {}
+  }
+
+  async function saveNotificationSettings() {
+    if (!$apiUrl) return;
+    await api('/api/notifications/settings', {
+      method: 'PUT',
+      body: JSON.stringify({
+        telegram_bot_token: (telegramToken && telegramToken !== '••••••••') ? telegramToken : null,
+        telegram_chat_id:   telegramChat || null,
+        gotify_url:         gotifyUrl    || null,
+        gotify_app_token:   (gotifyToken && gotifyToken !== '••••••••') ? gotifyToken : null,
+        webhook_url:        (webhookUrl  && webhookUrl  !== '••••••••') ? webhookUrl  : null,
+      }),
+    });
+  }
+
   async function loadProviders() {
     if (!$apiUrl) return;
     providersLoading = true;
@@ -157,6 +188,7 @@
       // Credentials werden aus Backend-DB geladen (loadUserSettings)
       // kein localStorage-Fallback für Secrets
       loadUserSettings();
+      loadNotificationSettings();
       if ($apiUrl) {
         (async () => {
           try {
@@ -164,10 +196,6 @@
             serpApiKey    = gs.serpapi_key          ? '••••••••' : '';
             geminiKey     = gs.gemini_key           ? '••••••••' : '';
             openaiKey     = gs.openai_key           ? '••••••••' : '';
-            telegramToken = gs.telegram_bot_token   ? '••••••••' : '';
-            telegramChat  = gs.telegram_chat_id     || '';
-            gotifyUrl     = gs.gotify_url           || '';
-            gotifyToken   = gs.gotify_token         ? '••••••••' : '';
             appTimezone   = gs.timezone             || 'Europe/Rome';
             appDateFormat = gs.date_format          || 'DD.MM.YYYY';
             homeLat       = gs.home_lat             || ls('s-homeLat');
@@ -210,10 +238,6 @@
             serpapi_key:        (serpApiKey    && serpApiKey    !== '••••••••') ? serpApiKey    : null,
             gemini_key:         (geminiKey     && geminiKey     !== '••••••••') ? geminiKey     : null,
             openai_key:         (openaiKey     && openaiKey     !== '••••••••') ? openaiKey     : null,
-            telegram_bot_token: (telegramToken && telegramToken !== '••••••••') ? telegramToken : null,
-            telegram_chat_id:   telegramChat  || null,
-            gotify_url:         gotifyUrl     || null,
-            gotify_token:       (gotifyToken   && gotifyToken   !== '••••••••') ? gotifyToken   : null,
             timezone:           appTimezone   || null,
             date_format:        appDateFormat || null,
             home_lat:           homeLat       || null,
@@ -221,6 +245,7 @@
             home_name:          homeName      || null,
           }),
         });
+        await saveNotificationSettings();
       } catch {}
     }
     toast($t('toastSaved'), 'success');
@@ -374,6 +399,7 @@
           bind:telegramChat
           bind:gotifyUrl
           bind:gotifyToken
+          bind:webhookUrl
         />
 
       {:else if activeTab === 'myspace'}
