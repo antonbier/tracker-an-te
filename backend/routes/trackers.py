@@ -99,6 +99,12 @@ class TrackerCreate(BaseModel):
                 )
         return self
 
+    @model_validator(mode="after")
+    def validate_origin_ne_destination(self) -> "TrackerCreate":
+        if self.origin == self.destination:
+            raise ValueError("origin und destination dürfen nicht identisch sein")
+        return self
+
 
 def _uid(user: dict) -> int | None:
     uid = user.get("id", 0)

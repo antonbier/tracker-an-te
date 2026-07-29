@@ -82,7 +82,9 @@ def _uid(user: dict) -> int:
 
 class WsTripCreate(BaseModel):
     # BUG 7: max_length Validierung auf alle String-Felder
-    title:              str
+    # title ist rein kosmetisch und darf NULL sein (siehe WsTripUpdate) —
+    # destination ist das Pflichtfeld für Geo-Features (Wetter/Maps/Bildsuche).
+    title:              Optional[str] = None
     destination:        Optional[str] = ""
     start_date:         Optional[str] = None
     end_date:           Optional[str] = None
@@ -105,15 +107,15 @@ class WsTripCreate(BaseModel):
 
     @field_validator("title")
     @classmethod
-    def validate_title(cls, v: str) -> str:
+    def validate_title(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
         # BUG 7: Längen-Limit
         if len(v) > 200:
             raise ValueError("title darf maximal 200 Zeichen haben")
-        # BUG 6: HTML-Sanitizing
-        clean = _sanitize(v, max_len=200)
-        if not clean:
-            raise ValueError("title darf nicht leer oder nur HTML sein")
-        return clean
+        # BUG 6: HTML-Sanitizing — leer/nur-HTML wird zu None statt Fehler,
+        # da title optional ist (destination bleibt das Pflichtfeld).
+        return _sanitize(v, max_len=200)
 
     @field_validator("destination", "wish_text", mode="before")
     @classmethod

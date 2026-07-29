@@ -117,8 +117,8 @@ def test_list_detected_trips_empty(client):
 
 
 def test_dashboard(client):
-    """GET /api/dashboard antwortet mit 200."""
-    r = client.get("/api/dashboard")
+    """GET /api/dashboard/stats antwortet mit 200."""
+    r = client.get("/api/dashboard/stats")
     assert r.status_code == 200
 
 
