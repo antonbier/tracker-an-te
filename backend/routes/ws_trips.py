@@ -18,13 +18,11 @@ API-BUG 1 Klarstellung:
   (nicht über PATCH /{trip_id}/todos/{todo_id} — dieser Endpoint existiert nicht).
 """
 
-import base64
-import httpx
 from datetime import date
 from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel, model_validator, field_validator, constr
+from pydantic import BaseModel, model_validator, field_validator
 from typing import Optional
-import logging, json, os, re, html
+import logging, json, re, html
 
 
 # ── Minimal HTML-Sanitizer (kein externen Deps) ───────────────────────────────
@@ -50,7 +48,6 @@ from crud.trackers import (
     get_trackers_for_trip,
     mark_tracker_booked,
     unmark_tracker_booked,
-    link_tracker_to_trip,
 )
 from core.database import db
 from crud.trips import (
@@ -67,6 +64,13 @@ from crud.trips import (
 )
 from auth_jwt import get_current_user
 from settings_manager import get_setting_value, get_user_setting_value
+import immich_client
+from ws_trips_service import (
+    generate_todos,
+    fetch_trip_gallery,
+    compute_budget_breakdown,
+    compute_actual_budget_sync,
+)
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -262,98 +266,7 @@ class TodoUpdate(BaseModel):
     task:     Optional[str] = None
 
 
-# ── KI To-Do Generierung ──────────────────────────────────────────────────────
-
-async def _generate_todos(trip: dict) -> list[dict]:
-    openai_key = get_setting_value("openai_key") or os.getenv("OPENAI_API_KEY", "")
-    if not openai_key:
-        logger.info("[WsTrips] Kein OpenAI Key — nutze Fallback-Todos")
-        return _fallback_todos(trip)
-
-    travel_mode = trip.get("travel_mode", "flight")
-    destination = trip.get("destination") or trip.get("flex_month") or "unbekannt"
-    dates = ""
-    if trip.get("start_date"):
-        dates = f" vom {trip['start_date']}"
-        if trip.get("end_date"):
-            dates += f" bis {trip['end_date']}"
-    budget_str = f", Budget ca. {trip['budget']} €" if trip.get("budget") else ""
-    vibes_str  = ", ".join(trip.get("vibes") or [])
-    path       = trip.get("path", "known")
-
-    if path == "inspire":
-        dest_desc = f"KI-empfohlenes Ziel (Vibe: {vibes_str or 'offen'})"
-        if trip.get("wish_text"):
-            dest_desc += f", Wunsch: {trip['wish_text']}"
-    else:
-        dest_desc = destination
-
-    mode_label = "Flugreise" if travel_mode == "flight" else "Autoreise"
-    home_str   = f" ab {trip['home_airport']}" if travel_mode == "flight" and trip.get("home_airport") else ""
-
-    prompt = f"""Du bist ein erfahrener Reise-Assistent. Erstelle 10 bis 15 konkrete, spezifische To-Dos für folgende Reise.
-
-Ziel: {dest_desc}
-Reiseart: {mode_label}{home_str}
-Zeitraum: {dates or 'flexibel'}{budget_str}
-Mitreisende: {trip.get('adults', 2)} Erw.{', ' + str(trip.get('children')) + ' Kind.' if trip.get('children') else ''}
-
-Regeln:
-- KEINE generischen To-Dos — was für diese Reise spezifisch ist
-- Mische Kategorien: booking, documents, packing, general
-- Antworte NUR mit JSON-Array, kein Text, kein Markdown:
-
-[
-  {{"task": "...", "category": "booking"}},
-  ...
-]"""
-
-    try:
-        async with httpx.AsyncClient(timeout=20.0) as client:
-            resp = await client.post(
-                "https://api.openai.com/v1/chat/completions",
-                headers={"Authorization": f"Bearer {openai_key}", "Content-Type": "application/json"},
-                json={
-                    "model": "gpt-4o-mini",
-                    "max_tokens": 800,
-                    "temperature": 0.7,
-                    "messages": [{"role": "user", "content": prompt}],
-                }
-            )
-        resp.raise_for_status()
-        content = resp.json()["choices"][0]["message"]["content"].strip()
-        if content.startswith("```"):
-            content = content.split("```")[1]
-            if content.startswith("json"):
-                content = content[4:]
-        todos = json.loads(content.strip())
-        if isinstance(todos, list) and todos:
-            logger.info(f"[WsTrips] KI-Todos generiert: {len(todos)} Einträge")
-            return [{"task": t.get("task",""), "category": t.get("category","general")} for t in todos[:15]]
-    except Exception as e:
-        logger.warning(f"[WsTrips] KI-Todo-Generierung fehlgeschlagen: {e}")
-
-    return _fallback_todos(trip)
-
-
-def _fallback_todos(trip: dict) -> list[dict]:
-    mode = trip.get("travel_mode", "flight")
-    dest = trip.get("destination") or "Reiseziel"
-    if mode == "flight":
-        return [
-            {"task": f"Flug nach {dest} buchen", "category": "booking"},
-            {"task": "Reisedokumente prüfen (Reisepass/Ausweis)", "category": "documents"},
-            {"task": "Unterkunft buchen", "category": "booking"},
-            {"task": "Reisekrankenversicherung abschließen", "category": "documents"},
-            {"task": "Koffer packen", "category": "packing"},
-        ]
-    return [
-        {"task": "Route & Stopps planen", "category": "general"},
-        {"task": "Fahrzeug & Tankstand prüfen", "category": "general"},
-        {"task": "Unterkunft entlang der Route buchen", "category": "booking"},
-        {"task": "Pannenhilfe / ADAC prüfen", "category": "documents"},
-        {"task": "Koffer & Dachbox packen", "category": "packing"},
-    ]
+# KI-Todo-Generierung (inkl. Fallback) lebt jetzt in ws_trips_service.py
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -397,7 +310,7 @@ async def create_trip(data: WsTripCreate, user=Depends(get_current_user)):
         todos = []
     else:
         trip_data["id"] = trip_id
-        todos = await _generate_todos(trip_data)
+        todos = await generate_todos(trip_data)
         create_trip_todos(trip_id, todos)
 
     warnings = []
@@ -555,7 +468,6 @@ async def get_trip_gallery(trip_id: int, user=Depends(get_current_user)):
     Gibt thumbnail_urls (via Backend-Proxy), asset_ids und Immich-Deep-Link zurück.
     Benötigt immich_url + immich_api_key in user_settings.
     """
-    import base64
     uid = _uid(user)
     trip = get_ws_trip(trip_id, uid)
     if not trip:
@@ -569,75 +481,8 @@ async def get_trip_gallery(trip_id: int, user=Depends(get_current_user)):
     if not immich_url or not immich_key:
         raise HTTPException(422, "Immich URL und API-Key fehlen in Einstellungen → Mein Bereich → Bridges")
 
-    date_from = (trip.get("start_date") or "")[:10]
-    date_to   = (trip.get("end_date")   or trip.get("start_date") or "")[:10]
-
-    # Suchanfrage: nach Zeitraum + optionalem Destination-Keyword
-    destination = trip.get("destination") or trip.get("title") or ""
-    body: dict = {"size": 12, "type": "IMAGE", "withExif": True}
-    if date_from:
-        body["takenAfter"]  = date_from + "T00:00:00.000Z"
-    if date_to:
-        body["takenBefore"] = date_to   + "T23:59:59.999Z"
-    # Wenn Destination gesetzt, als optionales Keyword (Immich ignoriert es wenn kein Album-Match)
-    if destination:
-        body["query"] = destination
-
     try:
-        async with httpx.AsyncClient(timeout=15.0, trust_env=False, follow_redirects=True) as client:
-            resp = await client.post(
-                f"{immich_url}/api/search/metadata",
-                headers={"x-api-key": immich_key, "Content-Type": "application/json"},
-                json=body,
-            )
-            if resp.status_code != 200:
-                raise HTTPException(502, f"Immich antwortet mit {resp.status_code}")
-
-            items = resp.json().get("assets", {}).get("items", [])
-
-            # Thumbnails direkt als base64 laden — kein separater Proxy-Endpoint nötig
-            photos = []
-            for item in items[:12]:
-                asset_id = item.get("id")
-                if not asset_id:
-                    continue
-                # Thumbnail inline als data-URI laden
-                thumb_data = None
-                try:
-                    t_resp = await client.get(
-                        f"{immich_url}/api/assets/{asset_id}/thumbnail?size=preview",
-                        headers={"x-api-key": immich_key},
-                    )
-                    if t_resp.status_code == 200:
-                        ct = t_resp.headers.get("content-type", "image/jpeg")
-                        thumb_data = f"data:{ct};base64,{base64.b64encode(t_resp.content).decode()}"
-                except Exception:
-                    pass
-                photos.append({
-                    "asset_id":      asset_id,
-                    "thumbnail_url": thumb_data or "",
-                    "taken_at":      (item.get("fileCreatedAt") or "")[:10],
-                    "city":          item.get("exifInfo", {}).get("city") or "",
-                    "country":       item.get("exifInfo", {}).get("country") or "",
-                })
-
-            # Immich Deep-Link: öffnet Timeline gefiltert auf den Reisezeitraum
-            deep_link_params = ""
-            if date_from and date_to:
-                deep_link_params = f"?dateAfter={date_from}&dateBefore={date_to}"
-            immich_deep_link = f"{immich_url}/photos{deep_link_params}"
-
-            return {
-                "photos":       photos,
-                "count":        len(photos),
-                "immich_url":   immich_url,
-                "deep_link":    immich_deep_link,
-                "date_from":    date_from,
-                "date_to":      date_to,
-            }
-
-    except HTTPException:
-        raise
+        return await fetch_trip_gallery(immich_url, immich_key, trip)
     except Exception as e:
         logger.warning(f"[Gallery] Immich error: {e}")
         raise HTTPException(502, f"Immich nicht erreichbar: {e}")
@@ -646,7 +491,6 @@ async def get_trip_gallery(trip_id: int, user=Depends(get_current_user)):
 @router.get("/{trip_id}/gallery/thumbnail/{asset_id}")
 async def proxy_thumbnail(trip_id: int, asset_id: str, user=Depends(get_current_user)):
     """Backend-Proxy für Immich-Thumbnails — sendet API-Key serverseitig."""
-    import base64
     from fastapi.responses import Response
     uid = _uid(user)
     immich_url = (get_user_setting_value(uid, "immich_url") or
@@ -656,16 +500,12 @@ async def proxy_thumbnail(trip_id: int, asset_id: str, user=Depends(get_current_
     if not immich_url or not immich_key:
         raise HTTPException(422, "Immich nicht konfiguriert")
     try:
-        async with httpx.AsyncClient(timeout=10.0, trust_env=False, follow_redirects=True) as client:
-            resp = await client.get(
-                f"{immich_url}/api/assets/{asset_id}/thumbnail?size=preview",
-                headers={"x-api-key": immich_key},
-            )
-            if resp.status_code != 200:
-                raise HTTPException(resp.status_code, "Thumbnail nicht gefunden")
-            ct = resp.headers.get("content-type", "image/jpeg")
-            return Response(content=resp.content, media_type=ct,
-                            headers={"Cache-Control": "public, max-age=3600"})
+        resp = await immich_client.fetch_thumbnail(immich_url, immich_key, asset_id, timeout=10.0)
+        if resp.status_code != 200:
+            raise HTTPException(resp.status_code, "Thumbnail nicht gefunden")
+        ct = resp.headers.get("content-type", "image/jpeg")
+        return Response(content=resp.content, media_type=ct,
+                        headers={"Cache-Control": "public, max-age=3600"})
     except HTTPException:
         raise
     except Exception as e:
@@ -728,40 +568,15 @@ def sync_actual_budget(trip_id: int, user=Depends(get_current_user)):
     cats = [c.strip() for c in travel_cats.split(",") if c.strip()] if travel_cats else []
 
     try:
-        from actual_budget import get_travel_expenses
-        result = get_travel_expenses(
-            base_url=actual_url,
-            password=actual_token,
-            budget_file=actual_file or "",
-            category_names=cats,
-            year=None,  # Wir filtern manuell nach Datum
-        )
+        result = compute_actual_budget_sync(start_date, end_date, actual_url, actual_token, actual_file, cats)
     except Exception as e:
         raise HTTPException(502, f"ActualBudget Verbindung fehlgeschlagen: {e}")
 
     if "error" in result:
         raise HTTPException(502, result["error"])
 
-    # Filter transactions to trip date range
-    all_txs = result.get("transactions", [])
-    trip_txs = [
-        tx for tx in all_txs
-        if start_date <= (tx.get("date") or "") <= end_date
-    ]
-
-    # Compact transaction list: date, payee/notes, amount
-    compact = [
-        {
-            "date":   tx.get("date", ""),
-            "name":   (tx.get("payee") or tx.get("notes") or "").strip()[:60],
-            "amount": round(abs(tx.get("amount", 0)), 2),
-        }
-        for tx in trip_txs
-        if tx.get("amount", 0) != 0
-    ]
-    compact.sort(key=lambda x: x["date"], reverse=True)
-
-    total_synced = round(sum(c["amount"] for c in compact), 2)
+    compact = result["transactions"]
+    total_synced = result["total"]
     from datetime import datetime
     now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
     with db() as conn:
@@ -895,7 +710,7 @@ async def regenerate_todos(trip_id: int, user=Depends(get_current_user)):
         raise HTTPException(404, "Trip nicht gefunden")
     with db() as conn:
         conn.execute("DELETE FROM trip_todos WHERE trip_id=?", (trip_id,))
-    todos = await _generate_todos(trip)
+    todos = await generate_todos(trip)
     n = create_trip_todos(trip_id, todos)
     return {"message": f"{n} To-Dos generiert ✓", "todos": todos}
 
@@ -945,46 +760,7 @@ def get_trip_budget(trip_id: int, user=Depends(get_current_user)):
     except Exception:
         trackers = {}
 
-    booked_flight = 0.0
-    booked_hotel  = 0.0
-    try:
-        ft = trackers.get("flight")
-        if ft and ft.get("is_booked") and ft.get("booked_price"):
-            booked_flight = float(ft["booked_price"])
-        ht = trackers.get("hotel") or trackers.get("camping")
-        if ht and ht.get("is_booked") and ht.get("booked_price"):
-            booked_hotel = float(ht["booked_price"])
-    except Exception:
-        pass
-
-    total           = float(trip.get("budget") or 0)
-    manual_expenses = float(trip.get("manual_expenses") or 0)
-    synced_expenses = float(trip.get("synced_expenses") or 0)
-
-    # synced_transactions: parse stored JSON list
-    synced_tx_raw = trip.get("synced_transactions_json") or "[]"
-    try:
-        synced_transactions = json.loads(synced_tx_raw)
-    except Exception:
-        synced_transactions = []
-
-    total_spent = booked_flight + booked_hotel + manual_expenses + synced_expenses
-    remaining   = total - total_spent  # kann negativ sein
-    on_site_net = max(0.0, total - booked_flight - booked_hotel - manual_expenses - synced_expenses)
-
-    return {
-        "total_budget":         total,
-        "booked_flight":        booked_flight,
-        "booked_hotel":         booked_hotel,
-        "manual_expenses":      manual_expenses,
-        "synced_expenses":      synced_expenses,
-        "synced_transactions":  synced_transactions,
-        "synced_at":            trip.get("synced_at"),
-        "on_site_budget":       on_site_net,
-        "remaining":            remaining,
-        "total_spent":          total_spent,
-        "has_budget":           total > 0,
-    }
+    return compute_budget_breakdown(trip, trackers)
 
 
 class ManualExpensesPayload(BaseModel):
