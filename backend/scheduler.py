@@ -26,9 +26,15 @@ from crud.trackers import (
     save_booking_snapshot,
     cleanup_old_price_history,
     cleanup_old_snapshots,
+    get_latest_snapshot,
+    get_latest_gf_snapshot,
+    get_latest_homair_snapshot,
+    get_latest_booking_snapshot,
+    get_tracker,
 )
 from scraper import fetch_flights
 from settings_manager import get_setting_value
+from notifications import notify_price_drop, notify_threshold_reached
 
 logger = logging.getLogger(__name__)
 
@@ -104,7 +110,7 @@ def run_gf_trackers(user_id: int | None = None):
                     f"{tracker['origin']}→{tracker['destination']} {tracker['outbound_date']}")
         try:
             # BUG 2 FIX: prev_price vor Scrape aus DB
-            prev_gf = _gf_snap(tid)
+            prev_gf = get_latest_gf_snapshot(tid)
             prev_gf_price = float(prev_gf["total_price"]) if prev_gf and prev_gf.get("total_price") else None
 
             snap = fetch_google_flights(tracker, api_key=api_key)

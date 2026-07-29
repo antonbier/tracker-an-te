@@ -19,6 +19,8 @@ API-BUG 1 Klarstellung:
 """
 
 import base64
+import httpx
+from datetime import date
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, model_validator, field_validator, constr
 from typing import Optional
@@ -61,6 +63,7 @@ from crud.trips import (
     list_trip_todos,
     toggle_trip_todo,
     delete_trip_todo,
+    delete_detected_trip,
 )
 from auth_jwt import get_current_user
 from settings_manager import get_setting_value, get_user_setting_value
@@ -913,7 +916,7 @@ class BookPayload(BaseModel):
 def book_tracker(trip_id: int, tracker_id: int, data: BookPayload, user=Depends(get_current_user)):
     if not get_ws_trip(trip_id, _uid(user)):
         raise HTTPException(404, "Trip nicht gefunden")
-    if not mark_tracker_booked(tracker_id, data.tracker_type, data.booked_price, trip_id=trip_id):
+    if not mark_tracker_booked(tracker_id, data.tracker_type, data.booked_price, trip_id=trip_id, user_id=_uid(user)):
         raise HTTPException(404, "Tracker nicht gefunden")
     return {"message": "Als gebucht markiert ✓", "booked_price": data.booked_price}
 
@@ -922,7 +925,7 @@ def book_tracker(trip_id: int, tracker_id: int, data: BookPayload, user=Depends(
 def unbook_tracker(trip_id: int, tracker_id: int, tracker_type: str, user=Depends(get_current_user)):
     if not get_ws_trip(trip_id, _uid(user)):
         raise HTTPException(404, "Trip nicht gefunden")
-    if not unmark_tracker_booked(tracker_id, tracker_type):
+    if not unmark_tracker_booked(tracker_id, tracker_type, user_id=_uid(user)):
         raise HTTPException(404, "Tracker nicht gefunden")
     return {"message": "Buchung zurückgesetzt ✓"}
 
