@@ -137,5 +137,7 @@ class GfTripLinkPayload(BaseModel):
 
 @router.patch("/{tracker_id}/link-trip")
 def link_gf_trip(tracker_id: int, data: GfTripLinkPayload, user: dict = Depends(get_current_user)):
-    ok = link_tracker_to_trip(tracker_id, "google_flight", data.trip_id)
+    if not get_gf_tracker(tracker_id, user_id=_uid(user)):
+        raise HTTPException(404, "Tracker nicht gefunden")
+    ok = link_tracker_to_trip(tracker_id, "google_flight", data.trip_id, user_id=_uid(user))
     return {"ok": ok, "trip_id": data.trip_id}

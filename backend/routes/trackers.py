@@ -126,7 +126,7 @@ def add_tracker(data: TrackerCreate, user: dict = Depends(get_current_user)):
     uid = user.get("id", 1) or 1
     tracker_id = create_tracker(payload, user_id=uid)
     if data.trip_id:
-        link_tracker_to_trip(tracker_id, "flight", data.trip_id)
+        link_tracker_to_trip(tracker_id, "flight", data.trip_id, user_id=uid)
     return {"id": tracker_id, "message": "Tracker angelegt"}
 
 
@@ -308,5 +308,5 @@ def link_trip(tracker_id: int, data: TripLinkPayload, user: dict = Depends(get_c
     t = get_tracker(tracker_id, user_id=_uid(user))
     if not t:
         raise HTTPException(404, f"Tracker #{tracker_id} nicht gefunden")
-    ok = link_tracker_to_trip(tracker_id, "flight", data.trip_id)
+    ok = link_tracker_to_trip(tracker_id, "flight", data.trip_id, user_id=_uid(user))
     return {"ok": ok, "trip_id": data.trip_id}

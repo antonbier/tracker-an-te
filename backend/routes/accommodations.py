@@ -206,7 +206,7 @@ def link_homair_trip(tracker_id: int, data: AccomTripLinkPayload, user: dict = D
     t = get_homair_tracker(tracker_id, user_id=uid)
     if not t:
         raise HTTPException(404, "Tracker nicht gefunden")
-    ok = link_tracker_to_trip(tracker_id, "camping", data.trip_id)
+    ok = link_tracker_to_trip(tracker_id, "camping", data.trip_id, user_id=uid)
     return {"ok": ok, "trip_id": data.trip_id}
 
 @router.patch("/booking/{tracker_id}/link-trip")
@@ -215,5 +215,5 @@ def link_booking_trip(tracker_id: int, data: AccomTripLinkPayload, user: dict = 
     t = get_booking_tracker(tracker_id, user_id=uid)
     if not t:
         raise HTTPException(404, "Tracker nicht gefunden")
-    ok = link_tracker_to_trip(tracker_id, "hotel", data.trip_id)
+    ok = link_tracker_to_trip(tracker_id, "hotel", data.trip_id, user_id=uid)
     return {"ok": ok, "trip_id": data.trip_id}

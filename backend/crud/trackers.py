@@ -596,16 +596,23 @@ def mark_tracker_booked(
     tracker_type: str,
     booked_price: float,
     trip_id: int | None = None,
+    user_id: int | None = None,
 ) -> bool:
     """Mark a tracker as booked with a confirmed price."""
     tbl = _tracker_table(tracker_type)
     if not tbl:
         return False
     with db() as conn:
-        r = conn.execute(
-            f"UPDATE {tbl} SET is_booked=1, booked_price=? WHERE id=?",
-            (round(booked_price, 2), tracker_id)
-        )
+        if user_id is not None:
+            r = conn.execute(
+                f"UPDATE {tbl} SET is_booked=1, booked_price=? WHERE id=? AND user_id=?",
+                (round(booked_price, 2), tracker_id, user_id)
+            )
+        else:
+            r = conn.execute(
+                f"UPDATE {tbl} SET is_booked=1, booked_price=? WHERE id=?",
+                (round(booked_price, 2), tracker_id)
+            )
         if trip_id and r.rowcount:
             conn.execute(
                 f"UPDATE {tbl} SET trip_id=? WHERE id=?",
@@ -614,29 +621,41 @@ def mark_tracker_booked(
     return r.rowcount > 0
 
 
-def unmark_tracker_booked(tracker_id: int, tracker_type: str) -> bool:
+def unmark_tracker_booked(tracker_id: int, tracker_type: str, user_id: int | None = None) -> bool:
     """Reset booking state on a tracker."""
     tbl = _tracker_table(tracker_type)
     if not tbl:
         return False
     with db() as conn:
-        r = conn.execute(
-            f"UPDATE {tbl} SET is_booked=0, booked_price=NULL WHERE id=?",
-            (tracker_id,)
-        )
+        if user_id is not None:
+            r = conn.execute(
+                f"UPDATE {tbl} SET is_booked=0, booked_price=NULL WHERE id=? AND user_id=?",
+                (tracker_id, user_id)
+            )
+        else:
+            r = conn.execute(
+                f"UPDATE {tbl} SET is_booked=0, booked_price=NULL WHERE id=?",
+                (tracker_id,)
+            )
     return r.rowcount > 0
 
 
-def link_tracker_to_trip(tracker_id: int, tracker_type: str, trip_id: int | None) -> bool:
+def link_tracker_to_trip(tracker_id: int, tracker_type: str, trip_id: int | None, user_id: int | None = None) -> bool:
     """Associate/disassociate a tracker with a ws_trip."""
     tbl = _tracker_table(tracker_type)
     if not tbl:
         return False
     with db() as conn:
-        r = conn.execute(
-            f"UPDATE {tbl} SET trip_id=? WHERE id=?",
-            (trip_id, tracker_id)
-        )
+        if user_id is not None:
+            r = conn.execute(
+                f"UPDATE {tbl} SET trip_id=? WHERE id=? AND user_id=?",
+                (trip_id, tracker_id, user_id)
+            )
+        else:
+            r = conn.execute(
+                f"UPDATE {tbl} SET trip_id=? WHERE id=?",
+                (trip_id, tracker_id)
+            )
     return r.rowcount > 0
 
 # ── Cross-type trip linking ───────────────────────────────────────────────────
