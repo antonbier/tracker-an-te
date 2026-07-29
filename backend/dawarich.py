@@ -13,6 +13,7 @@ from datetime import datetime, date, timezone
 from collections import defaultdict
 from typing import Optional
 from crud.trips import save_detected_trip, list_detected_trips, unignore_detected_trips
+from settings_manager import normalize_coordinate
 
 logger = logging.getLogger(__name__)
 

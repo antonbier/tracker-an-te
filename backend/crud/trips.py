@@ -6,6 +6,7 @@ user_data (budget, bucket list).
 
 import json
 import logging
+from datetime import datetime
 from core.database import db
 
 logger = logging.getLogger(__name__)
