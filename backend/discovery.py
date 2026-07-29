@@ -52,6 +52,8 @@ _AI_DESTINATIONS: list[str] = _load_ai_destinations()
 
 import httpx
 
+import immich_client
+import llm_client
 from discovery_models import TravelPersonality, TravelDefaults
 from discovery_fallbacks import get_fallback_url
 from settings_manager import get_user_setting_value, get_setting_value
@@ -219,15 +221,12 @@ class DiscoveryService:
         )
 
         llm_provider = get_setting_value("llm_provider") or "openai"
-        raw_list = []
-        if llm_provider == "gemini":
-            raw_list = await self._gemini_call(system, user_msg)
-            if not raw_list:
-                raw_list = await self._openai_call(system, user_msg)
-        else:
-            raw_list = await self._openai_call(system, user_msg)
-            if not raw_list:
-                raw_list = await self._gemini_call(system, user_msg)
+        raw_list = await llm_client.suggest(
+            user_msg, system_prompt=system,
+            openai_key=get_setting_value("openai_key"),
+            gemini_key=get_setting_value("gemini_key"),
+            prefer=llm_provider, timeout=TIMEOUT,
+        )
 
         detail_raw = raw_list[0] if raw_list and isinstance(raw_list[0], dict) else {}
 
@@ -367,96 +366,14 @@ Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
             "Kein Markdown, keine Einleitung, kein Kommentar."
         )
         user_prompt = self._build_prompt(personality, visited, count)
-
         llm_provider = get_setting_value("llm_provider") or "openai"
-        if llm_provider == "gemini":
-            result = await self._gemini_call(system_prompt, user_prompt)
-            if not result:
-                result = await self._openai_call(system_prompt, user_prompt)
-        else:
-            result = await self._openai_call(system_prompt, user_prompt)
-            if not result:
-                result = await self._gemini_call(system_prompt, user_prompt)
-        return result
 
-    async def _openai_call(self, system_prompt: str, user_prompt: str) -> list[dict]:
-        api_key = get_setting_value("openai_key")
-        if not api_key:
-            logger.warning("[Discovery] OpenAI key not configured")
-            return []
-        try:
-            async with httpx.AsyncClient(timeout=TIMEOUT, trust_env=False) as client:
-                resp = await client.post(
-                    "https://api.openai.com/v1/chat/completions",
-                    headers={"Authorization": f"Bearer {api_key}"},
-                    json={
-                        "model": "gpt-4o-mini",
-                        "messages": [
-                            {"role": "system", "content": system_prompt},
-                            {"role": "user",   "content": user_prompt},
-                        ],
-                        "max_tokens": 800,
-                        "temperature": 0.7,
-                    },
-                )
-                if resp.status_code == 429:
-                    logger.warning("[Discovery] OpenAI rate limit (429)")
-                    raise RuntimeError("api_rate_limit:openai")
-                resp.raise_for_status()
-                text = resp.json()["choices"][0]["message"]["content"]
-                return self._parse_json_array(text)
-        except RuntimeError:
-            raise
-        except httpx.HTTPStatusError as e:
-            logger.warning(f"[Discovery] OpenAI HTTP {e.response.status_code}: {e.response.text}")
-            return []
-        except Exception as e:
-            logger.warning(f"[Discovery] OpenAI call failed: {e}")
-            return []
-
-    async def _gemini_call(self, system_prompt: str, user_prompt: str) -> list[dict]:
-        api_key = get_setting_value("gemini_key")
-        if not api_key:
-            logger.warning("[Discovery] Gemini key not configured")
-            return []
-        try:
-            async with httpx.AsyncClient(timeout=TIMEOUT, trust_env=False) as client:
-                resp = await client.post(
-                    f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}",
-                    json={
-                        "contents": [{
-                            "parts": [{"text": f"{system_prompt}\n\n{user_prompt}"}]
-                        }],
-                        "generationConfig": {"maxOutputTokens": 800, "temperature": 0.7},
-                    },
-                )
-                resp.raise_for_status()
-                text = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
-                return self._parse_json_array(text)
-        except Exception as e:
-            logger.warning(f"[Discovery] Gemini call failed: {e}")
-            return []
-
-    def _parse_json_array(self, text: str) -> list[dict]:
-        try:
-            cleaned = text.strip()
-            if cleaned.startswith("```"):
-                cleaned = cleaned.split("\n", 1)[-1]
-                if "```" in cleaned:
-                    cleaned = cleaned.rsplit("```", 1)[0]
-            if cleaned.startswith("json\n"):
-                cleaned = cleaned[5:]
-            result = json.loads(cleaned)
-            if isinstance(result, list):
-                return result
-            if isinstance(result, dict):
-                for v in result.values():
-                    if isinstance(v, list) and v and isinstance(v[0], dict) and "destination" in v[0]:
-                        return v
-                return [result]
-        except Exception as e:
-            logger.warning(f"[Discovery] JSON parse failed: {e} | text={text[:200]}")
-        return []
+        return await llm_client.suggest(
+            user_prompt, system_prompt=system_prompt,
+            openai_key=get_setting_value("openai_key"),
+            gemini_key=get_setting_value("gemini_key"),
+            prefer=llm_provider, timeout=TIMEOUT,
+        )
 
     # ── Bild-Pipeline ─────────────────────────────────────────────────────────
 
@@ -476,26 +393,18 @@ Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
             immich_url = defaults.immich_url
             immich_key = defaults.immich_api_key
             try:
-                # Baue Immich-Suchbody mit optionalem Datums-Filter
-                immich_body: dict = {"query": destination, "size": 1, "type": "IMAGE", "withExif": False}
-                if date_from:
-                    immich_body["takenAfter"] = date_from + "T00:00:00.000Z"
-                if date_to:
-                    immich_body["takenBefore"] = date_to + "T23:59:59.999Z"
-                async with httpx.AsyncClient(timeout=TIMEOUT, trust_env=False, follow_redirects=True) as client:
-                    resp = await client.post(
-                        f"{immich_url}/api/search/metadata",
-                        headers={"x-api-key": immich_key, "Content-Type": "application/json"},
-                        json=immich_body,
-                    )
-                    if resp.status_code == 200:
-                        items = resp.json().get("assets", {}).get("items", [])
-                        if items:
-                            asset_id = items[0].get("id")
-                            if asset_id:
-                                raw_url = f"{immich_url}/api/assets/{asset_id}/thumbnail?size=preview"
-                                logger.info(f"[Discovery] Immich hit: {asset_id}")
-                                return self._make_proxy_url(raw_url), "immich", None, None
+                items = await immich_client.search_metadata(
+                    immich_url, immich_key, query=destination, size=1, with_exif=False,
+                    taken_after=date_from + "T00:00:00.000Z" if date_from else None,
+                    taken_before=date_to + "T23:59:59.999Z" if date_to else None,
+                    timeout=TIMEOUT,
+                )
+                if items:
+                    asset_id = items[0].get("id")
+                    if asset_id:
+                        raw_url = f"{immich_url}/api/assets/{asset_id}/thumbnail?size=preview"
+                        logger.info(f"[Discovery] Immich hit: {asset_id}")
+                        return self._make_proxy_url(raw_url), "immich", None, None
             except Exception as e:
                 logger.warning(f"[Discovery/Immich] search/metadata failed: {e}")
 
