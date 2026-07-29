@@ -5,6 +5,7 @@ Gepäck: Fallback-Preise (dynamische API in v0.2).
 Sitzplatz: Pauschale aus Tracker-Konfiguration.
 """
 
+import re
 import requests
 import random
 import time
@@ -12,6 +13,12 @@ import logging
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
+
+# Ryanair rotiert diesen Wert mit jedem Frontend-Deploy — wird pro Session
+# best-effort aus der Startseite extrahiert (siehe _extract_client_version()).
+# Ohne Treffer wird der Header schlicht weggelassen statt eines veralteten
+# Fallback-Werts, der ohnehin sofort stale wäre.
+_CLIENT_VERSION_RE = re.compile(r'"client-?[Vv]ersion"\s*:\s*"([^"]+)"')
 
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -60,9 +67,15 @@ def fetch_flights(tracker: dict) -> dict:
 
     logger.info(f"Fetching: {origin}→{destination} {out_date} | adults={adults} | seat={seat_cost}€")
 
-    # Cookie-Prefetch (Anti-Bot)
+    # Cookie-Prefetch (Anti-Bot) + best-effort client-version Extraktion.
+    # Ryanair verlangt seit einiger Zeit einen zur aktuellen Frontend-Version
+    # passenden "client-version"-Header, sonst antwortet die Booking-API mit 409.
     try:
-        session.get("https://www.ryanair.com/de/de", timeout=10)
+        prefetch = session.get("https://www.ryanair.com/de/de", timeout=10)
+        m = _CLIENT_VERSION_RE.search(prefetch.text)
+        if m:
+            session.headers["client-version"] = m.group(1)
+            logger.info(f"client-version erkannt: {m.group(1)}")
         time.sleep(random.uniform(1.5, 3.0))
     except Exception:
         pass
@@ -92,6 +105,12 @@ def fetch_flights(tracker: dict) -> dict:
 
     if resp.status_code == 403:
         return _error_snap("Ryanair blockiert (403)", "blocked")
+
+    if resp.status_code == 409:
+        return _error_snap(
+            "Ryanair lehnt Anfrage ab (409) — vermutlich client-version/Anti-Bot-Fingerprint veraltet",
+            "blocked",
+        )
 
     if not resp.ok:
         return _error_snap(f"API Fehler {resp.status_code}: {resp.text[:200]}")

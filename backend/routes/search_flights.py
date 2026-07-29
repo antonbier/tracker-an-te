@@ -12,7 +12,7 @@ import httpx
 
 from .search_shared import (
     FlightSearchParams,
-    HEADERS_RYANAIR, HEADERS_SERPAPI, TIMEOUT,
+    HEADERS_RYANAIR, HEADERS_SERPAPI, SERPAPI_BASE, TIMEOUT,
 )
 
 logger = logging.getLogger(__name__)
@@ -65,32 +65,6 @@ def _fmt_ryanair_flight_num(raw: str) -> str | None:
     if " " in raw: return raw
     m = _re.match(r"^([A-Z]{1,3})([0-9].*)$", raw)
     return f"{m.group(1)} {m.group(2)}" if m else raw
-
-TIMEOUT = 18.0  # seconds per provider
-
-# ── Realistic browser headers per provider ─────────────────────────────────
-
-HEADERS_RYANAIR = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                  "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    "Accept": "application/json, text/plain, */*",
-    "Accept-Language": "de-DE,de;q=0.9,en-US;q=0.8",
-    "Origin": "https://www.ryanair.com",
-    "Referer": "https://www.ryanair.com/de/de/buchen/fluge-finden",
-    "Sec-Fetch-Dest": "empty",
-    "Sec-Fetch-Mode": "cors",
-    "Sec-Fetch-Site": "same-site",
-}
-
-HEADERS_SERPAPI = {
-    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
-                  "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    "Accept": "application/json",
-    "Accept-Language": "de-DE,de;q=0.9,en;q=0.8",
-}
-
-SERPAPI_BASE = "https://serpapi.com/search"
-
 
 async def _search_ryanair(params: FlightSearchParams) -> list[dict]:
     """

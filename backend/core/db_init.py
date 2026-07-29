@@ -363,8 +363,9 @@ def init_db():
             try:
                 conn.execute(f"ALTER TABLE {table} ADD COLUMN {col_def}")
                 conn.commit()
-            except Exception:
-                pass  # Column already exists
+            except Exception as e:
+                if "duplicate column name" not in str(e).lower():
+                    logger.warning(f"[Migration] {table}.{col_name} fehlgeschlagen: {e}")
 
 
 

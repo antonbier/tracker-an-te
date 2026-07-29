@@ -499,24 +499,6 @@ Antworte NUR als JSON-Array (kein Markdown, keine Erklärung) mit Feldern:
             except Exception as e:
                 logger.warning(f"[Discovery/Immich] search/metadata failed: {e}")
 
-            # Fallback: GET /api/assets
-            try:
-                async with httpx.AsyncClient(timeout=TIMEOUT, trust_env=False, follow_redirects=True) as client:
-                    resp = await client.get(
-                        f"{immich_url}/api/assets",
-                        params={"q": destination, "size": 1, "type": "IMAGE"},
-                        headers={"x-api-key": immich_key},
-                    )
-                    if resp.status_code == 200:
-                        items = resp.json()
-                        if isinstance(items, list) and items:
-                            asset_id = items[0].get("id")
-                            if asset_id:
-                                raw_url = f"{immich_url}/api/assets/{asset_id}/thumbnail?size=preview"
-                                return self._make_proxy_url(raw_url), "immich", None, None
-            except Exception as e:
-                logger.warning(f"[Discovery/Immich] GET /assets failed: {e}")
-
         # ── b) Unsplash ────────────────────────────────────────────────────────
         if defaults.unsplash_key:
             try:
