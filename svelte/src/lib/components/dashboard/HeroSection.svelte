@@ -77,9 +77,9 @@
   const hasNoTrips   = $derived(!hasNextTrip && !hasLastTrip);
 
   const heroTitle = $derived.by(() => {
-    if (hasNextTrip)  return nextTrip.name || 'Dein nächstes Abenteuer';
+    if (hasNextTrip)  return nextTrip.name || $t('heroNextAdventure');
     if (hasLastTrip) {
-      const name = lastTrip.location_name || lastTrip.name || 'dein letzter Trip';
+      const name = lastTrip.location_name || lastTrip.name || $t('heroLastTripTitle');
       return name;
     }
     if (nextWsTrip)   return nextWsTrip.destination || nextWsTrip.title || $t('heroNextAdventure');
@@ -88,17 +88,22 @@
 
   const heroSubtitle = $derived.by(() => {
     if (hasNextTrip && heroDays !== null) {
-      if (heroDays === 0) return '🎒 Heute geht\'s los!';
-      if (heroDays === 1) return '✈️ Morgen startet das Abenteuer!';
-      return `✈️ Noch ${heroDays} Tage bis zum Abflug`;
+      if (heroDays === 0) return '🎒 ' + ($t('heroTodayStart') || "Heute geht's los!");
+      if (heroDays === 1) return '✈️ ' + ($t('heroTomorrow') || 'Morgen startet das Abenteuer!');
+      return '✈️ ' + ($t('heroInDays') || 'Noch {n} Tage bis zum Abflug').replace('{n}', heroDays);
     }
     if (hasLastTrip && heroDays !== null) {
       const days = Math.abs(heroDays);
-      if (days === 0) return '📍 Gerade erst zurück';
-      if (days < 7)   return `📍 Vor ${days} Tagen zurückgekehrt`;
-      if (days < 30)  return `📍 Vor ${Math.floor(days/7)} Woche${Math.floor(days/7)>1?'n':''} zurückgekehrt`;
-      const months = Math.floor(days/30);
-      return `📍 Vor ${months} Monat${months>1?'en':''} zurückgekehrt`;
+      if (days === 0) return '📍 ' + ($t('heroPastToday') || 'Gerade zurückgekehrt');
+      if (days < 7)   return '📍 ' + ($t('heroPastDays') || 'Vor {n} Tagen').replace('{n}', String(days));
+      if (days < 30) {
+        const w = Math.floor(days / 7);
+        return '📍 ' + ($t('heroPastWeeks') || 'Vor {n} Woche{s}')
+          .replace('{n}', String(w)).replace('{s}', w > 1 ? 'n' : '');
+      }
+      const m = Math.floor(days / 30);
+      return '📍 ' + ($t('heroPastMonths') || 'Schon {n} Monat{s} her')
+        .replace('{n}', String(m)).replace('{s}', m > 1 ? 'e' : '');
     }
     if (nextWsTrip && nextWsTrip.start_date) {
       const ms   = new Date(nextWsTrip.start_date + 'T00:00:00').getTime() - new Date().setHours(0,0,0,0);

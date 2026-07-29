@@ -5,6 +5,7 @@
   import { toast } from '$lib/toast.js';
   import { t } from '$lib/i18n.js';
   import { today, getTripPhase, daysBetween } from '$lib/utils.js';
+  import { fetchBudgetByYear, saveBudgetForYear } from '$lib/budget.js';
 
   import WanderWizzard      from '$lib/components/WanderWizzard.svelte';
   import HeroSection        from '$lib/components/dashboard/HeroSection.svelte';
@@ -95,21 +96,21 @@
 
   async function loadBudget() {
     if (!$apiUrl) return;
-    try { budgetByYear = (await api('/api/trips/budget')) || {}; } catch {}
+    try { budgetByYear = await fetchBudgetByYear(); } catch {}
     budgetInput = budgetByYear[String(currentYear)] != null
       ? String(budgetByYear[String(currentYear)]) : '';
   }
 
   async function saveBudget() {
-    if (!$apiUrl) { toast('Backend-URL fehlt', 'warning'); return; }
+    if (!$apiUrl) { toast($t('radarNoBackend'), 'warning'); return; }
     const amount = parseFloat(budgetInput);
-    if (isNaN(amount) || amount < 0) { toast('Ungültiger Betrag', 'error'); return; }
+    if (isNaN(amount) || amount < 0) { toast($t('invalidAmount'), 'error'); return; }
     budgetSaving = true;
     try {
-      await api('/api/trips/budget', { method: 'PUT', body: JSON.stringify({ year: currentYear, amount }) });
+      await saveBudgetForYear(currentYear, amount);
       budgetByYear = { ...budgetByYear, [String(currentYear)]: amount };
       budgetEditing = false;
-      toast(`Budget ${currentYear}: ${amount.toFixed(0)} € gespeichert ✓`, 'success');
+      toast($t('toastBudgetSavedDetail').replace('{year}', currentYear).replace('{amount}', amount.toFixed(0)), 'success');
     } catch (e) { toast(e.message, 'error'); }
     budgetSaving = false;
   }

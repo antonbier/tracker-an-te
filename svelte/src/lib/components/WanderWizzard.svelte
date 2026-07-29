@@ -421,7 +421,7 @@
                 class="w-20 h-20 rounded-full flex flex-col items-center justify-center gap-0.5 shadow-xl transition-all hover:scale-110 active:scale-95"
                 style="background:var(--ws-green,#2d6a4f);color:#fff">
                 <span class="text-2xl">💚</span>
-                <span class="text-[9px] font-bold uppercase tracking-wide leading-none">Plan</span>
+                <span class="text-[9px] font-bold uppercase tracking-wide leading-none">{$t('inspireChooseBadge')}</span>
               </button>
 
               <!-- Placeholder for symmetry -->
