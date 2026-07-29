@@ -195,7 +195,10 @@ def sync_trips(base_url: str, token: str, home_lat: float, home_lon: float,
             pts.extend(by_date[d])
         mid = pts[len(pts)//2]
         city, country = _reverse_geocode(mid["lat"], mid["lon"])
-        nights = (date.fromisoformat(g[-1]) - date.fromisoformat(g[0])).days + 1
+        # Kein "+1": konsistent mit routes/trips.py und search_shared._calc_nights,
+        # die Nächte = Tage-Differenz zwischen erstem und letztem Tag berechnen
+        # (nicht die Anzahl der Kalendertage inklusive beider Enden).
+        nights = max(1, (date.fromisoformat(g[-1]) - date.fromisoformat(g[0])).days)
         save_detected_trip({
             "start_date":    g[0],
             "end_date":      g[-1],

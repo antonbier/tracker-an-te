@@ -267,15 +267,24 @@ def assign_actual_costs(data: AutoCostRequest, user=Depends(get_current_user)):
     trips = list_detected_trips(limit=5000, user_id=uid, include_ignored=False)
     details = []
     trips_updated = 0
+    # Verhindert Doppelzählung: falls sich Reisezeiträume überschneiden (z.B.
+    # manuell erfasste Reise überlappt mit einer Dawarich-erkannten), soll eine
+    # Transaktion nur der ersten passenden Reise zugeordnet werden — sonst
+    # taucht dieselbe Ausgabe in total_assigned mehrfach auf.
+    claimed_tx_ids: set[int] = set()
 
     for trip in trips:
         start = trip.get("start_date", "")
         end   = trip.get("end_date",   "") or start
         if not start:
             continue
-        matched = [tx for tx in txs if start <= tx.get("date", "") <= end]
+        matched = [
+            tx for tx in txs
+            if id(tx) not in claimed_tx_ids and start <= tx.get("date", "") <= end
+        ]
         if not matched:
             continue
+        claimed_tx_ids.update(id(tx) for tx in matched)
         total = round(sum(abs(tx.get("amount", 0)) for tx in matched if tx.get("amount", 0) < 0), 2)
         if total == 0:
             total = round(sum(abs(tx.get("amount", 0)) for tx in matched), 2)
