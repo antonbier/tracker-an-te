@@ -23,6 +23,7 @@ from routes import (
     search as search_route,
 )
 from routes import notifications as notifications_route
+from routes import ics as ics_route
 from discovery import discovery_service
 from discovery_fallbacks import router as fallback_router
 from routes.auth import router_status, router_auth, router_admin
@@ -181,6 +182,7 @@ app.include_router(inspiration_route.router,  prefix="/api/inspiration",      ta
 app.include_router(dashboard_route.router,     prefix="/api/dashboard",        tags=["Dashboard"])
 app.include_router(userdata_route.router,      prefix="/api/userdata",         tags=["UserData"])
 app.include_router(notifications_route.router, prefix="/api/notifications",    tags=["Notifications"])
+app.include_router(ics_route.router,           prefix="/api/ics",              tags=["ICS"])
 app.include_router(scheduler_route.router,     prefix="/api/scheduler",        tags=["Scheduler"])
 app.include_router(search_route.router,        prefix="/api/search",           tags=["Search"])
 app.include_router(discovery_route.router,     prefix="/api/discovery",        tags=["Discovery"])

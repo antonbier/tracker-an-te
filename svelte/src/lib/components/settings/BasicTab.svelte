@@ -53,6 +53,31 @@
 
 
 
+  // ── Kalender-Abo (ICS) ─────────────────────────────────────────────────────
+  let icsToken   = $state('');
+  let icsLoading = $state(false);
+  let icsCopied  = $state(false);
+  const icsUrl = $derived(icsToken ? `${$apiUrl}/api/ics/${icsToken}.ics` : '');
+
+  async function loadIcsToken() {
+    if (!$apiUrl || icsToken) return;
+    icsLoading = true;
+    try {
+      const res = await api('/api/ics/token');
+      icsToken = res?.token || '';
+    } catch {}
+    icsLoading = false;
+  }
+
+  async function copyIcsUrl() {
+    if (!icsUrl) return;
+    try {
+      await navigator.clipboard.writeText(icsUrl);
+      icsCopied = true;
+      setTimeout(() => icsCopied = false, 2000);
+    } catch {}
+  }
+
   // ── Live-Vorschau Datumsformat ─────────────────────────────────────────────
   const _previewDate = $derived.by(() => {
     const now  = new Date();
@@ -205,4 +230,28 @@
         style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
     </div>
   </details>
+</div>
+
+<!-- Kalender-Abo -->
+<div>
+  <label class="text-xs font-bold uppercase tracking-wider block mb-2" style="color:var(--ws-muted)">📅 {$t('settingsIcsTitle')}</label>
+  <p class="text-xs mb-2" style="color:var(--ws-muted)">{$t('settingsIcsHint')}</p>
+  {#if !icsToken}
+    <button onclick={loadIcsToken} disabled={icsLoading || !$apiUrl}
+      class="px-4 py-2 rounded-xl text-xs border font-semibold transition-opacity hover:opacity-70 disabled:opacity-40"
+      style="border-color:var(--ws-border);color:var(--ws-accent);background:var(--ws-surface2)">
+      {icsLoading ? '⏳…' : $t('settingsIcsGenerate')}
+    </button>
+  {:else}
+    <div class="flex gap-2">
+      <input readonly value={icsUrl}
+        class="flex-1 px-3 py-2 rounded-xl border text-xs font-mono"
+        style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)"/>
+      <button onclick={copyIcsUrl}
+        class="px-3 py-2 rounded-xl text-xs border font-semibold transition-opacity hover:opacity-70"
+        style="border-color:var(--ws-border);color:var(--ws-accent);background:var(--ws-surface2)">
+        {icsCopied ? '✓' : '📋'}
+      </button>
+    </div>
+  {/if}
 </div>

@@ -210,6 +210,14 @@ svelte/src/
 | GET | `/api/settings/geocode?q=` | Nominatim-Proxy (CORS-safe) |
 | GET | `/api/settings/providers` | Provider-Toggle-Liste |
 
+### Notifications & Kalender
+| Method | Path | Beschreibung |
+|--------|------|-------------|
+| GET/PUT | `/api/notifications/settings` | Pro-User: Telegram, Gotify, Webhook (Fernet-verschlüsselt) — die einzige Quelle, aus der `notify_user()` liest |
+| POST | `/api/notifications/test-telegram\|test-gotify\|test-webhook` | Testnachricht senden |
+| GET | `/api/ics/token` (JWT) | Pro-User Kalender-Abo-Token (erzeugt ihn beim ersten Aufruf) |
+| GET | `/api/ics/{token}.ics` (public) | VCALENDAR-Feed aller `ws_trips` — Token selbst ist die Auth (Google/Apple/Outlook-Abo) |
+
 ### Discovery & Bilder
 | Method | Path | Beschreibung |
 |--------|------|-------------|
@@ -549,6 +557,8 @@ backend/
 │   ├── ws_trips.py               # Pydantic-Modelle + Route-Handler, delegiert an ws_trips_service.py
 │   ├── trackers.py, google_flights.py, accommodations.py
 │   ├── search.py + search_shared.py + search_flights.py + search_hotels.py + search_camping.py
+│   ├── notifications.py          # Pro-User Telegram/Gotify/Webhook + Test-Endpoints
+│   ├── ics.py                    # Kalender-Abo-Token + öffentlicher VCALENDAR-Feed (Token = Auth)
 │   └── settings.py, dashboard.py, discovery.py, dawarich.py, passkey.py, auth.py, ...
 ├── ws_trips_service.py          # KI-Todo-Generierung, Immich-Galerie, Budget-Breakdown, ActualBudget-Sync
 │                                 # (aus routes/ws_trips.py extrahiert — Monolith-Refactor)
