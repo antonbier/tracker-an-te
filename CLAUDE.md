@@ -361,6 +361,13 @@ def decrypt(value): return Fernet(APP_SECRET).decrypt(value.encode()).decode()
 Verschlüsselt: Telegram Bot Token/Chat ID, Gotify URL/Token.
 Frontend erhält immer `"••••••••"` (nie Klartext).
 
+### Tracker-Ownership (IDOR-Vermeidung)
+Alle Funktionen, die einen Tracker anhand seiner ID modifizieren (`mark_tracker_booked`,
+`unmark_tracker_booked`, `link_tracker_to_trip` in `crud/trackers.py`), akzeptieren
+`user_id` und filtern die UPDATE-Query entsprechend. **Jeder neue Tracker-Mutations-
+Endpoint muss `user_id=_uid(user)` durchreichen** — sonst kann ein eingeloggter User
+fremde Tracker über die ID erraten und buchen/entbuchen/verknüpfen (siehe CHANGELOG).
+
 ---
 
 ## 11. Dashboard — Hero-System
@@ -471,6 +478,11 @@ wsTrips.filter(t => {
 | 3 | PriceRadar | Mietwagen-Tab zeigt nur "Coming Soon" | niedrig |
 | 4 | Zoraxy | HSTS-Header muss manuell gesetzt werden | mittel |
 | 5 | HeroNextTrip | Wenn kein Unsplash-Key → kein Bild, kein Hinweis | niedrig |
+| 6 | `user_settings.immich_geo_sync` | Setting speicherbar/togglebar, aber kein Code-Pfad nutzt es — unvollständiges Feature | niedrig |
+| 7 | Kiwi/Tequila-Anbindung (`kiwi_provider.py`) | Kiwi vergibt keine neuen Tequila-API-Keys mehr (invite-only). Bestehende Keys funktionieren vermutlich weiter, für Neuinstallationen praktisch tot | mittel |
+| 8 | Dawarich-Anbindung (`dawarich.py`) | `/api/v1/points` ist laut Dawarich-Doku als "wird bald deprecated" markiert (→ `/api/v1/owntracks/points`). Noch nicht akut, aber beobachten | niedrig |
+| 9 | Ryanair-Scraper (`scraper.py`, Scheduler) | Grundsätzlich fragil (Anti-Bot-Fingerprinting). `client-version`-Header wird seit dem Code-Review-Sprint best-effort aus der Startseite extrahiert, `409` wird erkannt — trotzdem können Scrapes bei Ryanair-Frontend-Deploys weiterhin sporadisch fehlschlagen | mittel |
+| 10 | `svelte/package-lock.json` | Out of sync mit `package.json` (referenziert entfernte PWA-Pakete). Kein akuter Bug — Docker-Build nutzt `npm install`, nicht `npm ci` — aber sollte irgendwann per `npm install` neu generiert werden | niedrig |
 
 ---
 
@@ -507,3 +519,41 @@ Settings.svelte (Orchestrator)
     │   └── MyspaceAI.svelte
     └── AccountTab.svelte
 ```
+
+---
+
+## 17. Backend-Struktur (Python)
+
+```
+backend/
+├── main.py                     # FastAPI-App, Router-Registrierung, Lifespan
+├── core/
+│   ├── database.py             # DB_PATH, GUEST_USER_ID, get_connection(), db()
+│   └── db_init.py               # init_db() + Migrationen (ALTER TABLE, Fehler werden geloggt)
+├── crud/                        # Reine DB-Zugriffsschicht (kein Business-Logic/HTTP)
+│   ├── settings.py              # Settings, Scheduler, Notifications, Provider-Configs
+│   ├── trackers.py              # Alle 4 Tracker-Typen, Snapshots, Booking-State (user_id-Filter!)
+│   ├── trips.py                 # ws_trips, todos, detected_trips, user_data
+│   └── discovery.py             # discovery_pool_*
+├── routes/                      # FastAPI-Router — dünn, delegieren an crud/ + Service-Module
+│   ├── ws_trips.py               # Pydantic-Modelle + Route-Handler, delegiert an ws_trips_service.py
+│   ├── trackers.py, google_flights.py, accommodations.py
+│   ├── search.py + search_shared.py + search_flights.py + search_hotels.py + search_camping.py
+│   └── settings.py, dashboard.py, discovery.py, dawarich.py, passkey.py, auth.py, ...
+├── ws_trips_service.py          # KI-Todo-Generierung, Immich-Galerie, Budget-Breakdown, ActualBudget-Sync
+│                                 # (aus routes/ws_trips.py extrahiert — Monolith-Refactor)
+├── discovery.py                 # DiscoveryService: Pool-Refresh, Personality/Defaults, Bild-Pipeline
+├── llm_client.py                # Geteilter OpenAI/Gemini Call+Parse+Provider-Fallback
+│                                 # (genutzt von discovery.py UND ws_trips_service.py — nie eigene
+│                                 # OpenAI/Gemini-Calls in neuem Code schreiben, immer hier durch)
+├── immich_client.py              # Geteilter Immich Search+Thumbnail-Client (optionaler client-Param
+│                                 # für Connection-Reuse bei mehreren Calls in einer Route)
+├── scraper.py, google_scraper.py, homair_scraper.py, booking_scraper.py   # Provider-Scraper
+├── ryanair_provider.py, google_flights_provider.py, duffel_provider.py, kiwi_provider.py
+├── actual_budget.py, dawarich.py, gemini.py, openai_client.py, notifications.py
+└── scheduler.py                 # APScheduler-Jobs (Preis-Checks, Cleanup)
+```
+
+**Regel**: Neue LLM-Calls (OpenAI/Gemini) immer über `llm_client.call_openai()`/`call_gemini()`/
+`suggest()` — nie eine dritte eigene Implementierung schreiben. Gleiches für Immich:
+immer über `immich_client.search_metadata()`/`fetch_thumbnail()`.

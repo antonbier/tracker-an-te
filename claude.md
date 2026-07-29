@@ -1,6 +1,9 @@
 # WanderSuite — Architekturdokumentation für KI-Assistenten
 
-> Letzte Aktualisierung: Refactoring vollständig abgeschlossen — `database.py` gelöscht, `core/` + `crud/` Architektur ist die einzige Datenbankschicht
+> Letzte Aktualisierung: Code-Review-Sprint abgeschlossen — kritische NameError-Bugs
+> + IDOR-Lücke behoben, `routes/ws_trips.py`/`discovery.py`-Monolithe aufgeteilt
+> (`llm_client.py` + `immich_client.py` + `ws_trips_service.py` neu). Details siehe
+> `CHANGELOG.md` und CLAUDE.md Abschnitt 17.
 
 ## Projekt-Übersicht
 
@@ -337,6 +340,35 @@ Die öffentlichen Funktionen (z.B. `list_gf_trackers`, `delete_homair_tracker`) 
 
 ---
 
+### `routes/ws_trips.py` + `discovery.py` Monolith-Aufteilung — Code-Review-Sprint
+
+Beide Dateien waren de-facto-Monolithe: `routes/ws_trips.py` (999 Zeilen, größte
+Datei im Repo) mischte Routing mit KI-Todo-Generierung (eigener OpenAI-Call),
+Immich-Galerie-Aufbau, Budget-Berechnung und ActualBudget-Sync. `discovery.py`
+(661 Zeilen) hatte eine komplett separate, duplizierte OpenAI/Gemini/Immich-
+Implementierung — inkl. einer dort separat hartkodierten, retireden
+`gemini-2.0-flash`-Modell-ID, die beim ursprünglichen Gemini-Fix (nur `gemini.py`)
+übersehen wurde.
+
+Neue geteilte Module:
+
+| Datei | Verantwortung |
+|-------|---------------|
+| `llm_client.py` | `call_openai()` / `call_gemini()` / `suggest()` (Provider-Fallback) / `parse_json_array()` |
+| `immich_client.py` | `search_metadata()` / `fetch_thumbnail()`, optionaler `client`-Param für Connection-Reuse |
+| `ws_trips_service.py` | `generate_todos()`/`fallback_todos()`, `fetch_trip_gallery()`, `compute_budget_breakdown()`, `compute_actual_budget_sync()` |
+
+Ergebnis: `routes/ws_trips.py` 999 → 780 Zeilen, `discovery.py` 661 → 552 Zeilen.
+`routes/ws_trips.py` bleibt für Pydantic-Modelle, Route-Handler und DB-Writes
+zuständig (bestehendes Muster in dieser Datei) und ruft die Service-Funktionen auf.
+
+**Regel**: Neue OpenAI/Gemini-Calls immer über `llm_client.py`, neue Immich-Calls
+immer über `immich_client.py` — nie eine dritte eigene Implementierung schreiben.
+Business-Logik für `ws_trips`-Endpoints (nicht reines CRUD) gehört nach
+`ws_trips_service.py`, nicht zurück in `routes/ws_trips.py`.
+
+---
+
 ### Credentials-Handling — Security-Regel
 
 **Niemals** Credentials (Dawarich-Token, ActualBudget-Passwort, API-Keys) aus dem Frontend an das Backend schicken.
@@ -349,6 +381,21 @@ url = data.dawarich_url or get_user_setting_value(uid, "dawarich_url") or ""
 ```
 
 `localStorage.getItem('s-...')` für Backend-Credentials ist **verboten**. Credentials gehören in die Settings-DB, nicht in den Browser.
+
+---
+
+### Tracker-Ownership — Security-Regel (Code-Review-Sprint)
+
+`crud/trackers.py`-Funktionen, die einen Tracker per ID mutieren
+(`mark_tracker_booked`, `unmark_tracker_booked`, `link_tracker_to_trip`), filterten
+früher nur nach `tracker_id` — jeder eingeloggte User konnte fremde Tracker über
+erratene IDs buchen/entbuchen/verknüpfen (IDOR). Jetzt akzeptieren alle drei
+optional `user_id` und jede Route reicht `user_id=_uid(user)` durch.
+
+**Regel**: Jede neue Route, die eine bestehende Ressource per ID mutiert, muss
+entweder (a) die Ownership vorher explizit prüfen (`get_*(id, user_id=uid)` →
+404 wenn `None`) oder (b) `user_id` direkt in die UPDATE/DELETE-Query filtern.
+Nie nur auf die ID vertrauen.
 
 ---
 

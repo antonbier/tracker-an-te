@@ -4,6 +4,52 @@ Alle nennenswerten Änderungen am Projekt. Format basiert auf [Keep a Changelog]
 
 ---
 
+### Fixed + Refactor — Code-Review-Sprint
+
+**Fix: Mehrere NameError-Bugs behoben (Production-Breaking)**:
+- `scheduler.py`: fehlende Imports (`get_latest_snapshot`, `get_latest_gf_snapshot` — vorher fälschlich als `_gf_snap` referenziert —, `get_latest_homair_snapshot`, `get_latest_booking_snapshot`, `get_tracker`, `notify_price_drop`, `notify_threshold_reached`). Jeder geplante Preis-Check warf `NameError`, wurde vom Try/Except pro Tracker verschluckt — Preis-Tracking war praktisch komplett tot.
+- `crud/trips.py`: `datetime.utcnow()` ohne `from datetime import datetime` — Trip anlegen, Status-Wechsel und Todo-Erstellung crashten.
+- `routes/ws_trips.py`: `httpx`, `from datetime import date` und `delete_detected_trip` fehlten — KI-Todo-Generierung, Immich-Galerie-Endpoints und das Löschen Dawarich-erkannter Trips crashten.
+- `dawarich.py`: `normalize_coordinate()` aus `settings_manager` ohne Import.
+- `routes/search_camping.py` / `routes/search_hotels.py`: `time.time()` ohne `import time`.
+- Alle Fixes verifiziert per `pyflakes` (0 undefined names im gesamten Backend) + vollständiger Smoke-Test-Lauf.
+
+**Fix (Security): IDOR bei Tracker-Booking/Verknüpfung behoben**:
+- `mark_tracker_booked`, `unmark_tracker_booked`, `link_tracker_to_trip` (`crud/trackers.py`) filterten nur nach `tracker_id`, nicht nach `user_id` — jeder eingeloggte User konnte fremde Tracker durch ID-Raten buchen, entbuchen oder mit einem eigenen Trip verknüpfen.
+- `routes/google_flights.py` `link_gf_trip` prüfte bisher gar keine Ownership vor dem Verknüpfen — jetzt wie bei den anderen Tracker-Typen per `get_gf_tracker(..., user_id=...)` abgesichert.
+- Alle Call-Sites (`routes/trackers.py`, `routes/google_flights.py`, `routes/accommodations.py`, `routes/ws_trips.py`) übergeben jetzt konsequent `user_id`.
+
+**Fix: Retiredes Gemini-Modell ersetzt (2 Stellen)**:
+- `gemini-2.0-flash` (von Google am 1. Juni 2026 retired) → `gemini-2.5-flash` in `gemini.py`.
+- Beim Monolith-Refactor entdeckt: `discovery.py` hatte dieselbe veraltete Modell-ID separat hartkodiert (eigene Gemini-Call-Implementierung) — beim ursprünglichen Fix übersehen, da nicht dedupliziert. Jetzt über `llm_client.py` konsolidiert, kann nicht mehr auseinanderlaufen.
+
+**Fix: 3 fehlschlagende Smoke-Tests behoben (2 echte App-Bugs, 1 Test-Bug)**:
+- `routes/trackers.py`: `TrackerCreate` hatte keine Validierung gegen `origin == destination` — `model_validator` ergänzt (analog zur bestehenden `return_date`-Prüfung).
+- `routes/ws_trips.py`: `WsTripCreate.title` war fälschlich als Pflichtfeld modelliert, obwohl laut `WsTripUpdate`-Doku und DB-Schema `title` NULL sein darf und `destination` das Pflichtfeld ist ("title vs. destination"-Semantik, Block 7). `title` ist jetzt `Optional[str] = None`; leer/nur-HTML normalisiert zu `None` statt Fehler. Betraf nur direkte API-Nutzung, da das Frontend ohnehin immer einen Titel mitschickt.
+- `test_smoke.py`: `test_dashboard` testete den falschen Pfad (`/api/dashboard` statt `/api/dashboard/stats`, dem einzigen Endpoint unter diesem Router-Prefix) — Test korrigiert.
+
+**Fix: Diverse kleinere Robustheits-Fixes**:
+- `scraper.py`: Ryanair verlangt inzwischen einen zur Frontend-Version passenden `client-version`-Header (sonst `409`) — wird jetzt best-effort aus der Startseite extrahiert; `409`-Antworten werden explizit als „blocked" erkannt statt als generischer Fehler.
+- `discovery.py`: toter Immich-Fallback (`GET /api/assets?q=`, existiert bei Immich schon lange nicht mehr) entfernt.
+- `routes/search_flights.py`: `TIMEOUT`/`HEADERS_RYANAIR`/`HEADERS_SERPAPI` wurden aus `search_shared` importiert UND lokal identisch neu deklariert (toter Re-Import) — Duplikate entfernt.
+- `core/db_init.py`: `ALTER TABLE`-Migrationsfehler werden jetzt geloggt statt stillschweigend verschluckt (nur „duplicate column" bleibt stumm).
+- `requirements.txt`: `actualpy` 0.21.0 → 0.22.3 (API-Signaturen unverändert, gegen neue Version getestet).
+
+**Refactor: Monolith-Aufteilung — `routes/ws_trips.py` + `discovery.py`**:
+- Neue geteilte Module: `llm_client.py` (`call_openai()`/`call_gemini()`/`suggest()` mit Provider-Fallback + `parse_json_array()`), `immich_client.py` (`search_metadata()`/`fetch_thumbnail()`, optionaler `client`-Parameter für Connection-Reuse), `ws_trips_service.py` (Todo-Generierung, Immich-Galerie-Aufbau, Budget-Breakdown-Berechnung, ActualBudget-Sync — vorher alles inline in der Route-Datei).
+- `routes/ws_trips.py`: 999 → 780 Zeilen. `discovery.py`: 661 → 552 Zeilen.
+- Verhalten bewusst 1:1 erhalten (z.B. behält die Todo-Generierung ihr Original-Verhalten: kein Gemini-Fallback, nur OpenAI → statische Fallback-Liste). Mit gemockten HTTP-Responses (`respx`) gegen die Original-Logik verifiziert: Todo-Parsing inkl. Markdown-Fences, Immich-Search+Thumbnail-Assembly, ActualBudget-Datumsfilter/Summenbildung.
+
+**Fix: Hardcodierte Frontend-Strings i18n-fähig + Budget-Logik dedupliziert**:
+- `HeroSection.svelte`: `heroTitle`/`heroSubtitle` nutzten für den Dawarich-Trip-Pfad hardcodierte deutsche Strings statt der bereits existierenden i18n-Keys (`heroPastToday`, `heroPastDays`, `heroPastWeeks`, `heroPastMonths`, `heroInDays`, `heroNextAdventure`) — jetzt konsistent mit dem WanderWizzard-Trip-Pfad. Neuer Key `heroLastTripTitle` für den bisher fehlenden „dein letzter Trip"-Fallback.
+- `TripHub.svelte`: Löschen-Modal (Titel, Tracker-Warnung, Buttons) und „Coming Soon"-Badges auf `$t()` umgestellt.
+- `WanderWizzard.svelte`: hardcodiertes „Plan"-Label auf dem Swipe-Choose-Button → `$t('inspireChooseBadge')`.
+- 8 neue i18n-Keys in allen 4 Sprachdateien (de/en/it/es), Key-Parität geprüft (715 Keys je Datei).
+- `Dashboard.svelte` + `MyTrips.svelte`: `loadBudget()`/`saveBudget()` waren 1:1 dupliziert (inkl. hardcodierter Toast-Strings) — gemeinsame Logik nach `lib/budget.js` extrahiert, Toasts auf `$t()` umgestellt.
+- Tote Frontend-Imports entfernt: `browser`/`getTripPhase` (`MyTrips.svelte`), `daysBetween` (`TripHub.svelte`), `wizardOpen` (`SetupWizard.svelte`).
+
+---
+
 ### Added + Fixed — Lücken-Sprint
 
 **Feat: Immich Foto-Galerie im TripHub** (`ImmichGallery.svelte`, `routes/ws_trips.py`):
