@@ -186,6 +186,7 @@
   "heroInDays": "Only {n} days to go",
   "heroLastTripTitle": "your last trip",
   "heroNextAdventure": "Your next adventure",
+  "heroNoImageHint": "📷 No photo available",
   "heroNoTripsHint": "Plan your first trip in My Trips.",
   "heroNoTripsSubtitle": "Your next journey awaits",
   "heroPastDays": "{n} days ago",

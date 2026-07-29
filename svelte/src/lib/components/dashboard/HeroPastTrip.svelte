@@ -68,6 +68,7 @@
   let imgUrl   = $state(null);
   let imgError = $state(false);
   let imgLoading = $state(false);
+  let imgAttempted = $state(false); // true sobald der Ladeversuch abgeschlossen ist (Erfolg oder nicht)
 
   function cacheKey(t) {
     if (!t) return null;
@@ -84,7 +85,7 @@
     const key = cacheKey(trip);
     if (key) {
       const cached = sessionStorage.getItem(key);
-      if (cached) { imgUrl = cached === 'null' ? null : cached; return; }
+      if (cached) { imgUrl = cached === 'null' ? null : cached; imgAttempted = true; return; }
     }
 
     imgLoading = true;
@@ -105,11 +106,12 @@
       if (key) sessionStorage.setItem(key, 'null');
     }
     imgLoading = false;
+    imgAttempted = true;
   }
 
   // Reload wenn trip wechselt
   $effect(() => {
-    if (trip && $apiUrl) { imgUrl = null; imgError = false; loadImage(); }
+    if (trip && $apiUrl) { imgUrl = null; imgError = false; imgAttempted = false; loadImage(); }
   });
 
   // ── Abgeleitete Anzeige-Werte ────────────────────────────────────
@@ -139,6 +141,11 @@
       style="opacity:.35"
       onerror={() => { imgError = true; }} />
     <div class="absolute inset-0" style="background:rgba(0,0,0,.45)"></div>
+  {:else if imgAttempted}
+    <div class="absolute top-2 right-2 text-[10px] px-2 py-0.5 rounded-full"
+      style="background:rgba(0,0,0,.25);color:rgba(255,255,255,.55);backdrop-filter:blur(4px)">
+      {$t('heroNoImageHint')}
+    </div>
   {/if}
 
   <!-- Texture -->

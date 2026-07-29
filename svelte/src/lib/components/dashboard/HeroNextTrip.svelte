@@ -34,6 +34,7 @@
   let imgError      = $state(false);
   let authorName    = $state('');
   let authorUrl     = $state('');
+  let imgAttempted  = $state(false); // true sobald der Ladeversuch abgeschlossen ist (Erfolg oder nicht)
 
   function cacheKey(t) {
     const dest = t?.destination || t?.title || t?.name || '';
@@ -57,12 +58,13 @@
         } catch {
           imgUrl = cached === 'null' ? null : cached;
         }
+        imgAttempted = true;
         return;
       }
     }
 
     const dest = trip.destination || trip.title || trip.name || '';
-    if (!dest) return;
+    if (!dest) { imgAttempted = true; return; }
     try {
       const res = await api(
         `/api/discovery/trip-image?destination=${encodeURIComponent(dest)}`
@@ -78,10 +80,11 @@
       imgUrl = null;
       if (key) sessionStorage.setItem(key, 'null');
     }
+    imgAttempted = true;
   }
 
   onMount(() => { loadUnsplashImage(); });
-  $effect(() => { if (trip && $apiUrl) { imgUrl = null; imgError = false; loadUnsplashImage(); } });
+  $effect(() => { if (trip && $apiUrl) { imgUrl = null; imgError = false; imgAttempted = false; loadUnsplashImage(); } });
 
   // Unsplash UTM links
   const UTM = '?utm_source=wandersuite&utm_medium=referral';
@@ -123,6 +126,11 @@
     <img src={imgUrl} alt="" class="absolute inset-0 w-full h-full object-cover"
       style="opacity:.4" onerror={() => { imgError = true; }} />
     <div class="absolute inset-0" style="background:rgba(0,0,0,.4)"></div>
+  {:else if imgAttempted}
+    <div class="absolute top-2 right-2 text-[10px] px-2 py-0.5 rounded-full"
+      style="background:rgba(0,0,0,.25);color:rgba(255,255,255,.55);backdrop-filter:blur(4px)">
+      {$t('heroNoImageHint')}
+    </div>
   {/if}
 
   <!-- Texture -->
