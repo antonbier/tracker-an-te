@@ -12,7 +12,7 @@
    * Help buttons open FieldGuide with deep-link tab per step.
    */
   import { t } from '$lib/i18n.js';
-  import { apiUrl, wizardOpen } from '$lib/stores.js';
+  import { apiUrl } from '$lib/stores.js';
   import { api, checkApiStatus } from '$lib/api.js';
   import { toast } from '$lib/toast.js';
   import { browser } from '$app/environment';

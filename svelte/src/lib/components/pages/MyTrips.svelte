@@ -3,9 +3,9 @@
   import { get as storeGet } from 'svelte/store';
   import { api } from '$lib/api.js';
   import { toast } from '$lib/toast.js';
-  import { browser } from '$app/environment';
   import { t } from '$lib/i18n.js';
-  import { today, getTripPhase } from '$lib/utils.js';
+  import { today } from '$lib/utils.js';
+  import { fetchBudgetByYear, saveBudgetForYear } from '$lib/budget.js';
 
   import ScratchMap       from '$lib/components/ScratchMap.svelte';
   import BucketListTab    from '$lib/components/mytrips/BucketListTab.svelte';
@@ -61,19 +61,19 @@
 
   async function loadBudget() {
     if (!$apiUrl) return;
-    try { budgetByYear = (await api('/api/trips/budget')) || {}; } catch {}
+    try { budgetByYear = await fetchBudgetByYear(); } catch {}
   }
 
   async function saveBudget() {
-    if (!$apiUrl) { toast('Backend-URL fehlt', 'warning'); return; }
+    if (!$apiUrl) { toast($t('radarNoBackend'), 'warning'); return; }
     const amount = parseFloat(budgetInput);
-    if (isNaN(amount) || amount < 0) { toast('Ungültiger Betrag', 'error'); return; }
+    if (isNaN(amount) || amount < 0) { toast($t('invalidAmount'), 'error'); return; }
     budgetSaving = true;
     try {
-      await api('/api/trips/budget', { method: 'PUT', body: JSON.stringify({ year: selectedYear, amount }) });
+      await saveBudgetForYear(selectedYear, amount);
       budgetByYear = { ...budgetByYear, [String(selectedYear)]: amount };
       budgetEditing = false;
-      toast(`Budget ${selectedYear}: ${amount.toFixed(0)} € gespeichert ✓`, 'success');
+      toast($t('toastBudgetSavedDetail').replace('{year}', selectedYear).replace('{amount}', amount.toFixed(0)), 'success');
     } catch (e) { toast(e.message, 'error'); }
     budgetSaving = false;
   }

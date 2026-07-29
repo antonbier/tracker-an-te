@@ -16,7 +16,7 @@
   import { destinationGradient } from '$lib/components/triphub/helpers.js';
   import TripEditModal    from '$lib/components/triphub/TripEditModal.svelte';
   import ImmichGallery   from '$lib/components/triphub/ImmichGallery.svelte';
-  import { fmtDate, today, getTripPhase, daysBetween } from '$lib/utils.js';
+  import { fmtDate, today, getTripPhase } from '$lib/utils.js';
 
   // ── State ───────────────────────────────────────────────────────────────
   let trip            = $state(null);
@@ -356,11 +356,11 @@
     style="background:rgba(0,0,0,.55);backdrop-filter:blur(4px)" role="dialog" aria-modal="true">
     <div class="w-full max-w-sm mx-4 rounded-2xl border p-6 space-y-4 shadow-2xl"
       style="background:var(--ws-surface);border-color:var(--ws-border)">
-      <h3 class="font-bold text-base" style="color:#ef4444">🗑️ Reise löschen?</h3>
+      <h3 class="font-bold text-base" style="color:#ef4444">{$t('hubDeleteTitle')}</h3>
       {#if deleteLinkedTrackers.length > 0}
         <div class="rounded-xl border p-3 space-y-1.5"
           style="background:color-mix(in srgb,#ef4444 8%,var(--ws-surface));border-color:color-mix(in srgb,#ef4444 25%,var(--ws-border))">
-          <p class="text-xs font-semibold" style="color:#ef4444">⚠️ {deleteLinkedTrackers.length} verknüpfte Tracker:</p>
+          <p class="text-xs font-semibold" style="color:#ef4444">{$t('hubDeleteLinkedTrackers').replace('{n}', deleteLinkedTrackers.length)}</p>
           {#each deleteLinkedTrackers as tr}
             <div class="text-xs px-2 py-1 rounded-lg" style="background:var(--ws-surface2);color:var(--ws-muted)">
               {tr._type === 'flight' ? '✈️' : tr._type === 'google_flight' ? '🔍' : tr._type === 'hotel' ? '🏨' : '🏕️'}
@@ -369,29 +369,29 @@
           {/each}
         </div>
       {:else}
-        <p class="text-sm" style="color:var(--ws-muted)">Keine verknüpften Tracker.</p>
+        <p class="text-sm" style="color:var(--ws-muted)">{$t('hubDeleteNoTrackers')}</p>
       {/if}
       <div class="space-y-2">
         {#if deleteLinkedTrackers.length > 0}
           <button onclick={() => confirmDelete('trip_only')} disabled={deleteLoading}
             class="w-full py-2.5 rounded-xl border text-sm font-semibold hover:opacity-80 disabled:opacity-40"
             style="border-color:var(--ws-border);color:var(--ws-text);background:var(--ws-surface2)">
-            {deleteLoading ? '⏳' : '🔓 Nur Reise löschen (Tracker bleiben)'}
+            {deleteLoading ? '⏳' : $t('hubDeleteTripOnly')}
           </button>
           <button onclick={() => confirmDelete('all')} disabled={deleteLoading}
             class="w-full py-2.5 rounded-xl text-sm font-semibold hover:opacity-80 disabled:opacity-40"
             style="background:#ef4444;color:#fff">
-            {deleteLoading ? '⏳' : '💣 Alles löschen (Reise + Tracker)'}
+            {deleteLoading ? '⏳' : $t('hubDeleteAll')}
           </button>
         {:else}
           <button onclick={() => confirmDelete('trip_only')} disabled={deleteLoading}
             class="w-full py-2.5 rounded-xl text-sm font-semibold hover:opacity-80 disabled:opacity-40"
             style="background:#ef4444;color:#fff">
-            {deleteLoading ? '⏳' : '🗑️ Reise unwiderruflich löschen'}
+            {deleteLoading ? '⏳' : $t('hubDeleteIrrevocable')}
           </button>
         {/if}
         <button onclick={() => deleteModal = false} disabled={deleteLoading}
-          class="w-full py-2 text-sm hover:opacity-70" style="color:var(--ws-muted)">Abbrechen</button>
+          class="w-full py-2 text-sm hover:opacity-70" style="color:var(--ws-muted)">{$t('cancel')}</button>
       </div>
     </div>
   </div>
@@ -534,13 +534,13 @@
           style="border-color:color-mix(in srgb,var(--ws-accent) 30%,var(--ws-border));background:color-mix(in srgb,var(--ws-accent) 4%,var(--ws-surface))">
           <span class="text-3xl">📓</span>
           <span class="text-xs font-semibold" style="color:var(--ws-text)">{$t('placeholderJournal') || 'Reisetagebuch'}</span>
-          <span class="text-[10px] px-2 py-0.5 rounded-full font-bold" style="background:rgba(196,98,45,.12);color:var(--ws-accent)">Coming Soon</span>
+          <span class="text-[10px] px-2 py-0.5 rounded-full font-bold" style="background:rgba(196,98,45,.12);color:var(--ws-accent)">{$t('radarComingSoon')}</span>
         </div>
         <div class="rounded-2xl border-2 border-dashed p-5 flex flex-col items-center gap-2 text-center"
           style="border-color:color-mix(in srgb,var(--ws-accent) 30%,var(--ws-border));background:color-mix(in srgb,var(--ws-accent) 4%,var(--ws-surface))">
           <span class="text-3xl">🗺️</span>
           <span class="text-xs font-semibold" style="color:var(--ws-text)">{$t('placeholderDayTrips') || 'Tagesausflüge'}</span>
-          <span class="text-[10px] px-2 py-0.5 rounded-full font-bold" style="background:rgba(196,98,45,.12);color:var(--ws-accent)">Coming Soon</span>
+          <span class="text-[10px] px-2 py-0.5 rounded-full font-bold" style="background:rgba(196,98,45,.12);color:var(--ws-accent)">{$t('radarComingSoon')}</span>
         </div>
       {/if}
 
