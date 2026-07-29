@@ -2,7 +2,7 @@
   import { t } from '$lib/i18n.js';
   import {
     fmtDate, overnightSuffix, fmtLayoverDur, parseJsonField,
-    chartPts, priceTrend, isTopPrice,
+    chartPts, priceTrend, isTopPrice, priceVsAverage,
     trackerTitle, trackerSubtitle, trackerBadges, providerIcon, providerLabel, trackerBookingUrl,
   } from './helpers.js';
   import { inputStyle } from './constants.js';
@@ -217,6 +217,20 @@
             style="background:rgba(234,179,8,.15);color:#ca8a04;border:1px solid rgba(234,179,8,.3)">
             🏆 Top Preis
           </div>
+        {/if}
+        {#if chartData?.history?.length >= 3}
+          {@const insight = priceVsAverage(chartData.history)}
+          {#if insight?.label === 'great' || insight?.label === 'good'}
+            <div class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold mt-0.5"
+              style="background:rgba(22,163,74,.12);color:var(--ws-green);border:1px solid rgba(22,163,74,.25)">
+              🟢 {Math.abs(insight.pct)}% günstiger als Ø
+            </div>
+          {:else if insight?.label === 'elevated' || insight?.label === 'bad'}
+            <div class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold mt-0.5"
+              style="background:rgba(220,38,38,.1);color:#dc2626;border:1px solid rgba(220,38,38,.25)">
+              🔴 {insight.pct}% teurer als Ø
+            </div>
+          {/if}
         {/if}
       </div>
       {#if s?.fetched_at}

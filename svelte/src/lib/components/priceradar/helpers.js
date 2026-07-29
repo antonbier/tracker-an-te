@@ -88,6 +88,30 @@ export function isTopPrice(history, currentPrice) {
   return currentPrice <= minHist;
 }
 
+/**
+ * Preisprognose-Heuristik: vergleicht den letzten Preis mit dem Durchschnitt der
+ * gesamten Tracking-Historie (keine ML-Vorhersage — dafür ist die Preishistorie mit
+ * 60-180 Tagen Retention zu kurz — sondern "ist der aktuelle Preis für DIESEN Tracker
+ * gerade günstig oder teuer verglichen mit sich selbst über die Zeit").
+ * Braucht mind. 3 Datenpunkte, sonst zu wenig Grundlage für einen Durchschnitt.
+ */
+export function priceVsAverage(history) {
+  const prices = (history || [])
+    .filter(e => (e.status ?? 'ok') === 'ok' && typeof e.price === 'number')
+    .map(e => e.price);
+  if (prices.length < 3) return null;
+  const latest = prices[prices.length - 1];
+  const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
+  if (!avg) return null;
+  const pct = ((latest - avg) / avg) * 100;
+  let label = 'average';
+  if (pct <= -15)      label = 'great';
+  else if (pct <= -5)  label = 'good';
+  else if (pct >= 15)  label = 'bad';
+  else if (pct >= 5)   label = 'elevated';
+  return { pct: Math.round(pct * 10) / 10, avg: Math.round(avg * 100) / 100, label };
+}
+
 // ── Layover helper ────────────────────────────────────────────────────────
 
 /** Formats layover duration in minutes to "Xh Ym" */

@@ -468,6 +468,14 @@ export function fmtDate(iso) {
 ```
 **Überall** verwenden: TripCard, TripHub, BucketList, TrackerCard, Hero-Komponenten.
 
+### Preisprognose (`priceVsAverage()` in helpers.js)
+Reine Heuristik, kein ML — `price_history` hält je nach Scheduler-Config nur 60–180 Tage,
+das reicht für echtes Forecasting nicht aus. Vergleicht stattdessen den letzten Preis mit
+dem Ø aller `status=ok`-Snapshots desselben Trackers (mind. 3 Datenpunkte nötig).
+Badge in `TrackerCard.svelte` neben dem bestehenden 🏆-Top-Preis-Badge:
+🟢 bei ≥5% günstiger als Ø (great ab ≥15%), 🔴 bei ≥5% teurer als Ø (bad ab ≥15%).
+Rein clientseitig berechnet aus den ohnehin schon geladenen Chart-Daten — kein Backend-Call nötig.
+
 ---
 
 ## 14. MyTrips — Struktur
