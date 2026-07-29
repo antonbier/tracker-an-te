@@ -271,6 +271,25 @@ def init_db():
                 updated_at TEXT    DEFAULT (datetime('now')),
                 PRIMARY KEY (user_id, key)
             );
+
+            -- Dokumenten-Vault: Metadaten. Der Dateiinhalt selbst liegt Fernet-verschlüsselt
+            -- auf Disk (/app/data/vault/{user_id}/{filename}) — siehe document_vault.py.
+            -- Metadaten sind bewusst unverschlüsselt (keine Geheimnisse, nur der Inhalt ist es).
+            CREATE TABLE IF NOT EXISTS documents (
+                id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id             INTEGER NOT NULL DEFAULT 1,
+                trip_id             INTEGER DEFAULT NULL REFERENCES ws_trips(id) ON DELETE SET NULL,
+                doc_type            TEXT    NOT NULL DEFAULT 'other',
+                title               TEXT    NOT NULL,
+                filename            TEXT    NOT NULL,
+                orig_filename       TEXT,
+                mime_type           TEXT,
+                size_bytes          INTEGER,
+                expiry_date         TEXT    DEFAULT NULL,
+                notes               TEXT    DEFAULT NULL,
+                expiry_notified_at  TEXT    DEFAULT NULL,
+                created_at          TEXT    NOT NULL DEFAULT (datetime('now'))
+            );
         """)
 
         # ── Seed default provider configs (idempotent) ────────────────────

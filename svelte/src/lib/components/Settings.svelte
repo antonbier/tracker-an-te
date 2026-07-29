@@ -8,6 +8,7 @@
   import BasicTab         from './settings/BasicTab.svelte';
   import IntegrationsTab  from './settings/IntegrationsTab.svelte';
   import NotificationsTab from './settings/NotificationsTab.svelte';
+  import VaultTab         from './settings/VaultTab.svelte';
   import MyspaceTab       from './settings/MyspaceTab.svelte';
   import AccountTab       from './settings/AccountTab.svelte';
   import AdminTab         from './settings/AdminTab.svelte';
@@ -20,9 +21,9 @@
   // ── Tab state ─────────────────────────────────────────────────────────────
   let activeTab = $state('basic');
 
-  const TAB_IDS_NOAUTH = ['basic', 'integrations', 'notifications', 'scheduler'];
-  const TAB_IDS_AUTH   = ['basic', 'notifications', 'myspace', 'account', 'scheduler'];
-  const TAB_IDS_ADMIN  = ['basic', 'notifications', 'myspace', 'account', 'admin', 'scheduler'];
+  const TAB_IDS_NOAUTH = ['basic', 'integrations', 'notifications', 'vault', 'scheduler'];
+  const TAB_IDS_AUTH   = ['basic', 'notifications', 'vault', 'myspace', 'account', 'scheduler'];
+  const TAB_IDS_ADMIN  = ['basic', 'notifications', 'vault', 'myspace', 'account', 'admin', 'scheduler'];
 
   const authEnabled = $derived(!!$appStatus?.auth_enabled);
 
@@ -36,6 +37,7 @@
     basic:         $t('settingsBasic'),
     integrations:  $t('settingsIntegrations'),
     notifications: $t('settingsNotifications'),
+    vault:         $t('settingsVault'),
     myspace:       $t('settingsMyspace'),
     account:       $t('settingsAccount'),
     admin:         $t('settingsAdmin'),
@@ -401,6 +403,9 @@
           bind:gotifyToken
           bind:webhookUrl
         />
+
+      {:else if activeTab === 'vault'}
+        <VaultTab />
 
       {:else if activeTab === 'myspace'}
         <MyspaceTab

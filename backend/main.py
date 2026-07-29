@@ -14,7 +14,7 @@ import asyncio
 from core.db_init import init_db
 from crud.discovery import discovery_pool_count
 from auth_db import init_auth_tables
-from scheduler import run_all_trackers, run_cleanup_job
+from scheduler import run_all_trackers, run_cleanup_job, run_document_expiry_check
 from routes import (
     trackers, prices, google_flights, discover, discovery as discovery_route,
     accommodations, budget, settings as settings_route,
@@ -24,6 +24,7 @@ from routes import (
 )
 from routes import notifications as notifications_route
 from routes import ics as ics_route
+from routes import documents as documents_route
 from discovery import discovery_service
 from discovery_fallbacks import router as fallback_router
 from routes.auth import router_status, router_auth, router_admin
@@ -83,6 +84,15 @@ async def lifespan(app: FastAPI):
         misfire_grace_time=3600,
     )
 
+    # Daily document expiry check at 08:00
+    scheduler.add_job(
+        run_document_expiry_check,
+        trigger="cron", hour=8, minute=0,
+        id="document_expiry_check",
+        replace_existing=True,
+        misfire_grace_time=3600,
+    )
+
     # Sync wrapper für APScheduler
     def _run_image_retry():
         import asyncio as _asyncio
@@ -103,7 +113,7 @@ async def lifespan(app: FastAPI):
     )
 
     scheduler.start()
-    logger.info(f"Scheduler started — price fetch 07:00, cleanup 03:00, img-retry 2h ({TZ})")
+    logger.info(f"Scheduler started — price fetch 07:00, cleanup 03:00, doc-expiry 08:00, img-retry 2h ({TZ})")
 
     # Discovery pool warmup — im Hintergrund, blockiert nicht den Start
     async def _warmup_pool():
@@ -183,6 +193,7 @@ app.include_router(dashboard_route.router,     prefix="/api/dashboard",        t
 app.include_router(userdata_route.router,      prefix="/api/userdata",         tags=["UserData"])
 app.include_router(notifications_route.router, prefix="/api/notifications",    tags=["Notifications"])
 app.include_router(ics_route.router,           prefix="/api/ics",              tags=["ICS"])
+app.include_router(documents_route.router,     prefix="/api/documents",        tags=["Documents"])
 app.include_router(scheduler_route.router,     prefix="/api/scheduler",        tags=["Scheduler"])
 app.include_router(search_route.router,        prefix="/api/search",           tags=["Search"])
 app.include_router(discovery_route.router,     prefix="/api/discovery",        tags=["Discovery"])

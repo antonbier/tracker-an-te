@@ -34,7 +34,8 @@ from crud.trackers import (
 )
 from scraper import fetch_flights
 from settings_manager import get_setting_value
-from notifications import notify_price_drop, notify_threshold_reached
+from notifications import notify_price_drop, notify_threshold_reached, notify_user
+from crud.documents import list_expiring_documents, mark_document_notified
 
 logger = logging.getLogger(__name__)
 
@@ -387,5 +388,24 @@ def run_cleanup_job():
         logger.info(f"  Cleanup: price_history={ph} geloescht | snapshots={sum(snaps.values())} geloescht (>60d)")
     except Exception as e:
         logger.error(f"  ❌ Cleanup fehlgeschlagen: {e}", exc_info=True)
+
+
+# ── Dokumenten-Vault: Ablauf-Erinnerung ───────────────────────────────────────
+
+def run_document_expiry_check():
+    """Warnt einmalig pro Dokument, wenn expiry_date <= 90 Tage entfernt ist (oder
+    schon abgelaufen). expiry_notified_at verhindert tägliches Spammen — wird nur
+    zurückgesetzt, wenn der User das Ablaufdatum aktualisiert (z.B. nach Verlängerung)."""
+    logger.info("Dokumenten-Ablauf-Check startet (<=90 Tage)")
+    try:
+        docs = list_expiring_documents(days_ahead=90)
+        for doc in docs:
+            title = f"Dokument läuft bald ab: {doc['title']}"
+            message = f"{doc['title']} ({doc['doc_type']}) läuft am {doc['expiry_date']} ab."
+            notify_user(doc["user_id"], title, message)
+            mark_document_notified(doc["id"])
+        logger.info(f"  Dokumenten-Ablauf-Check: {len(docs)} Erinnerung(en) gesendet")
+    except Exception as e:
+        logger.error(f"  ❌ Dokumenten-Ablauf-Check fehlgeschlagen: {e}", exc_info=True)
 
 

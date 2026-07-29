@@ -69,6 +69,36 @@ export async function api(path, options = {}) {
   return res.json();
 }
 
+/** POST a FormData body (file upload) — skips the default JSON Content-Type so the
+ *  browser can set the multipart boundary itself. */
+export async function apiUpload(path, formData) {
+  const base  = resolveBase();
+  const token = get(jwtToken);
+  const headers = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(`${base}${path}`, { method: 'POST', headers, body: formData });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => res.statusText);
+    throw new Error(`API ${path} → ${res.status}: ${text}`);
+  }
+  return res.json();
+}
+
+/** Download a file as a Blob (e.g. vault documents) — attaches the JWT header,
+ *  which a plain <a href> download link can't do. */
+export async function apiDownloadBlob(path) {
+  const base  = resolveBase();
+  const token = get(jwtToken);
+  const headers = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(`${base}${path}`, { headers });
+  if (!res.ok) throw new Error(`API ${path} → ${res.status}: ${res.statusText}`);
+  return res.blob();
+}
+
 /** Check backend reachability (used by Onboarding) */
 export async function checkApiStatus(url) {
   try {

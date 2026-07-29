@@ -141,8 +141,9 @@ svelte/src/
 │       │   ├── TrackerGrid.svelte
 │       │   └── helpers.js             # fmtDate(), fmtRange(), chartPts(), ...
 │       └── settings/
-│           ├── BasicTab.svelte         # URL, Timezone, Datumsformat + Live-Preview
-│           ├── NotificationsTab.svelte # Telegram (@userinfobot Tipp) + Gotify
+│           ├── BasicTab.svelte         # URL, Timezone, Datumsformat + Live-Preview, Kalender-Abo
+│           ├── NotificationsTab.svelte # Telegram (@userinfobot Tipp) + Gotify + Webhook
+│           ├── VaultTab.svelte         # Dokumenten-Vault: Upload + Liste + Ablauf-Badges
 │           ├── SchedulerTab.svelte
 │           ├── MyspaceTab.svelte
 │           └── AccountTab.svelte
@@ -217,6 +218,15 @@ svelte/src/
 | POST | `/api/notifications/test-telegram\|test-gotify\|test-webhook` | Testnachricht senden |
 | GET | `/api/ics/token` (JWT) | Pro-User Kalender-Abo-Token (erzeugt ihn beim ersten Aufruf) |
 | GET | `/api/ics/{token}.ics` (public) | VCALENDAR-Feed aller `ws_trips` — Token selbst ist die Auth (Google/Apple/Outlook-Abo) |
+
+### Dokumenten-Vault
+| Method | Path | Beschreibung |
+|--------|------|-------------|
+| POST | `/api/documents` (multipart) | Upload — Dateiinhalt Fernet-verschlüsselt auf Disk, Metadaten in `documents` |
+| GET | `/api/documents?trip_id=` | Liste (optional nach Trip gefiltert) |
+| GET | `/api/documents/{id}/download` | Entschlüsselt + streamt die Original-Datei |
+| PATCH | `/api/documents/{id}` | Metadaten ändern (Titel/Typ/Ablaufdatum/Notizen/Trip) |
+| DELETE | `/api/documents/{id}` | Löscht DB-Zeile + Datei auf Disk |
 
 ### Discovery & Bilder
 | Method | Path | Beschreibung |
@@ -326,6 +336,24 @@ CREATE TABLE ws_bucketlist (
 CREATE TABLE budget_years (
     user_id INTEGER, year INTEGER, amount REAL,
     PRIMARY KEY (user_id, year)
+);
+
+-- Dokumenten-Vault: Metadaten. Dateiinhalt liegt Fernet-verschlüsselt auf Disk
+-- (/app/data/vault/{user_id}/{filename}, siehe document_vault.py) — Metadaten
+-- selbst sind unverschlüsselt (keine Geheimnisse, nur der Inhalt ist es).
+CREATE TABLE documents (
+    id                 INTEGER PRIMARY KEY,
+    user_id            INTEGER NOT NULL DEFAULT 1,
+    trip_id            INTEGER DEFAULT NULL REFERENCES ws_trips(id) ON DELETE SET NULL,
+    doc_type           TEXT NOT NULL DEFAULT 'other',  -- passport|visa|vaccination|insurance|booking|other
+    title              TEXT NOT NULL,
+    filename           TEXT NOT NULL,   -- zufälliger Token, nie der Original-Dateiname (Path-Traversal-Schutz)
+    orig_filename      TEXT,
+    mime_type          TEXT,
+    size_bytes         INTEGER,
+    expiry_date        TEXT DEFAULT NULL,
+    notes              TEXT DEFAULT NULL,
+    expiry_notified_at TEXT DEFAULT NULL  -- Throttle: eine Erinnerung pro Ablaufdatum, reset bei Änderung
 );
 ```
 
@@ -537,6 +565,7 @@ PriceRadar.svelte
 Settings.svelte (Orchestrator)
     ├── BasicTab.svelte        ($derived für Live-Preview, kein {@const} im Template!)
     ├── NotificationsTab.svelte
+    ├── VaultTab.svelte         (→ api.js: apiUpload(), apiDownloadBlob())
     ├── SchedulerTab.svelte
     ├── MyspaceTab.svelte
     │   ├── MyspaceDefaults.svelte
@@ -560,6 +589,7 @@ backend/
 │   ├── settings.py              # Settings, Scheduler, Notifications, Provider-Configs
 │   ├── trackers.py              # Alle 4 Tracker-Typen, Snapshots, Booking-State (user_id-Filter!)
 │   ├── trips.py                 # ws_trips, todos, detected_trips, user_data
+│   ├── documents.py              # documents-Tabelle (Metadaten) — Dateiinhalt via document_vault.py
 │   └── discovery.py             # discovery_pool_*
 ├── routes/                      # FastAPI-Router — dünn, delegieren an crud/ + Service-Module
 │   ├── ws_trips.py               # Pydantic-Modelle + Route-Handler, delegiert an ws_trips_service.py
@@ -567,6 +597,7 @@ backend/
 │   ├── search.py + search_shared.py + search_flights.py + search_hotels.py + search_camping.py
 │   ├── notifications.py          # Pro-User Telegram/Gotify/Webhook + Test-Endpoints
 │   ├── ics.py                    # Kalender-Abo-Token + öffentlicher VCALENDAR-Feed (Token = Auth)
+│   ├── documents.py               # Dokumenten-Vault: Upload/Download/List/Patch/Delete (multipart)
 │   └── settings.py, dashboard.py, discovery.py, dawarich.py, passkey.py, auth.py, ...
 ├── ws_trips_service.py          # KI-Todo-Generierung, Immich-Galerie, Budget-Breakdown, ActualBudget-Sync
 │                                 # (aus routes/ws_trips.py extrahiert — Monolith-Refactor)
@@ -576,6 +607,7 @@ backend/
 │                                 # OpenAI/Gemini-Calls in neuem Code schreiben, immer hier durch)
 ├── immich_client.py              # Geteilter Immich Search+Thumbnail-Client (optionaler client-Param
 │                                 # für Connection-Reuse bei mehreren Calls in einer Route)
+├── document_vault.py             # Dokumenten-Vault: Fernet-Verschlüsselung für Dateien in /app/data/vault/
 ├── scraper.py, google_scraper.py, homair_scraper.py, booking_scraper.py   # Provider-Scraper
 ├── ryanair_provider.py, google_flights_provider.py, duffel_provider.py, kiwi_provider.py
 ├── actual_budget.py, dawarich.py, gemini.py, openai_client.py, notifications.py
