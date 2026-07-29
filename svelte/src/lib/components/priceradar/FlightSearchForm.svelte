@@ -6,10 +6,14 @@
 
   const { searching, onsearch, prefillParams = null } = $props();
 
-  // Auto-fill when prefillParams changes (from TripHub deep-link)
+  // Auto-fill when prefillParams changes (from TripHub deep-link).
+  // prefillParams ist ein Svelte-Store (siehe PriceRadar.svelte) — muss über
+  // $prefillParams gelesen werden, sonst ist p das Store-Objekt selbst statt
+  // seines Werts und die Felder werden nie befüllt (BUG: origin/destination
+  // blieben bei Anreise via TripHub-Deep-Link auf den Defaults BGY/DUB).
   $effect(() => {
-    if (!prefillParams) return;
-    const p = prefillParams;
+    const p = prefillParams ? $prefillParams : null;
+    if (!p) return;
     if (p.destination) { flDest = p.destination; }
     if (p.dateFrom)    { flOut  = p.dateFrom; }
     if (p.dateTo)      { flRet  = p.dateTo; }
