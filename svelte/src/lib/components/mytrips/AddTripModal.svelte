@@ -34,9 +34,10 @@
     mGeoLoad = true; mGeoHint = '';
     try {
       const res = await api(`/api/settings/geocode?q=${encodeURIComponent(q)}`);
-      if (res?.lat && res?.lon) {
-        mLat = res.lat; mLon = res.lon;
-        mGeoHint = `📍 ${res.display_name || q}`;
+      const first = res?.results?.[0];
+      if (first?.lat && first?.lon) {
+        mLat = first.lat; mLon = first.lon;
+        mGeoHint = `📍 ${first.display_name || q}`;
       }
     } catch { /* silent */ }
     mGeoLoad = false;

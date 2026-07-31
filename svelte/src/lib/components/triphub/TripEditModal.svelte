@@ -53,7 +53,7 @@
       geoLoading = true;
       try {
         const res = await api(`/api/settings/geocode?q=${encodeURIComponent(geoQuery)}`);
-        geoResults = res || [];
+        geoResults = res?.results || [];
       } catch { geoResults = []; }
       geoLoading = false;
     }, 350);

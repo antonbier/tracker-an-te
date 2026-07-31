@@ -33,8 +33,9 @@
     try {
       // Use api() helper — sendet automatisch JWT-Token
       const data = await api(`/api/settings/geocode?q=${encodeURIComponent(name)}`);
-      if (Array.isArray(data) && data.length > 0) {
-        const c = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+      const results = data?.results || [];
+      if (results.length > 0) {
+        const c = { lat: parseFloat(results[0].lat), lng: parseFloat(results[0].lon) };
         setCached(name, c);
         return c;
       }

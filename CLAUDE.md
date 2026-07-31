@@ -212,7 +212,7 @@ svelte/src/
 | GET/POST | `/api/settings` | Global (Admin): SerpAPI, Gemini, OpenAI |
 | GET/POST | `/api/settings/user` | Per-User: Dawarich, Immich, ActualBudget, Home |
 | POST | `/api/settings/wizard/step` | Wizard-Save (partial, nie überschreibt) |
-| GET | `/api/settings/geocode?q=` | Nominatim-Proxy (CORS-safe) |
+| GET | `/api/settings/geocode?q=` | Nominatim-Proxy (CORS-safe) — Response ist **`{results: [...]}`**, NIE ein rohes Array. `TripEditModal.svelte`, `AddTripModal.svelte` und `ScratchMap.svelte` behandelten die Response früher fälschlich als Array/`{lat,lon}`-Objekt → Geocode-Suche lieferte serverseitig 200 mit echten Treffern, aber das Dropdown blieb leer (`geoResults.length` war `undefined`). Gefixt — neuer Code immer `res?.results \|\| []` verwenden. |
 | GET | `/api/settings/providers` | Provider-Toggle-Liste |
 
 ### Notifications & Kalender
