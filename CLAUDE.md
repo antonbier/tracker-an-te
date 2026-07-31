@@ -197,6 +197,7 @@ svelte/src/
 ### WS-Trips (WanderWizzard-Reisen)
 | Method | Path | Beschreibung |
 |--------|------|-------------|
+| POST | `/api/ws-trips/smart-parse` | Smart-Zeile: Freitext → {destination, start_date, end_date, budget, adults, children, travel_mode} per LLM, kein DB-Write |
 | GET | `/api/ws-trips` | Alle WS-Trips des Users |
 | POST | `/api/ws-trips` | Trip anlegen |
 | PATCH | `/api/ws-trips/{id}` | Trip updaten |

@@ -12,11 +12,12 @@ import json
 import logging
 import math
 import os
+from datetime import date
 
 import httpx
 
 import immich_client
-from llm_client import call_openai
+from llm_client import call_openai, suggest
 from settings_manager import get_setting_value
 
 logger = logging.getLogger(__name__)
@@ -247,6 +248,65 @@ def compute_co2_estimate(trip: dict, home_lat, home_lon) -> dict | None:
         "roundtrip_km": round(roundtrip_km),
         "co2_kg": round(kg),
         "travel_mode": mode,
+    }
+
+
+# ── Smart-Zeile: Freitext → Formularfelder (WanderWizzard) ────────────────────
+# Nutzt denselben LLM-Call+Parse-Pfad wie discovery.py (llm_client.suggest()) —
+# globale Provider-Settings, kein eigener dritter LLM-Call-Pfad (siehe CLAUDE.md-Regel).
+
+def _build_smart_parse_prompt(text: str) -> str:
+    today = date.today().isoformat()
+    return (
+        f'Heute ist der {today}. Extrahiere aus folgendem Reisewunsch strukturierte Daten. '
+        f'Antworte AUSSCHLIESSLICH mit einem JSON-Array, das genau ein Objekt enthält, mit exakt diesen Feldern:\n'
+        f'[{{"destination": string|null, "start_date": "YYYY-MM-DD"|null, "end_date": "YYYY-MM-DD"|null, '
+        f'"budget": number|null, "adults": number|null, "children": number|null, "travel_mode": "flight"|"car"|null}}]\n\n'
+        f'Regeln:\n'
+        f'- destination: Stadt oder Region als Klartext (z.B. "Lissabon"), null wenn kein konkretes Ziel genannt wird.\n'
+        f'- Wenn nur ein Monat + Aufenthaltsdauer genannt wird (z.B. "5 Tage im September"), wähle ein plausibles '
+        f'Datum in diesem Monat (nächstes Vorkommen ab heute) für start_date und end_date entsprechend der Dauer.\n'
+        f'- budget: Gesamtbudget als Zahl ohne Währungssymbol, null wenn nicht genannt.\n'
+        f'- adults/children: null wenn nicht genannt.\n'
+        f'- travel_mode: "car" nur wenn explizit Auto/Roadtrip erwähnt wird, sonst null.\n\n'
+        f'Reisewunsch: "{text}"'
+    )
+
+
+async def parse_smart_trip_query(text: str) -> dict | None:
+    """Extrahiert Reise-Eckdaten aus einem Freitext-Wunsch. None wenn kein LLM-Key
+    konfiguriert ist oder die Extraktion fehlschlägt — Caller zeigt dann einen
+    Hinweis, das Formular manuell auszufüllen."""
+    llm_provider = get_setting_value("llm_provider") or "openai"
+    openai_key = get_setting_value("openai_key") or ""
+    gemini_key = get_setting_value("gemini_key") or ""
+    if not openai_key and not gemini_key:
+        return None
+
+    prompt = _build_smart_parse_prompt(text)
+    try:
+        result = await suggest(
+            prompt, system_prompt=None,
+            openai_key=openai_key, gemini_key=gemini_key,
+            prefer=llm_provider, timeout=15.0, max_tokens=300, temperature=0.3,
+        )
+    except Exception as e:
+        logger.warning(f"[SmartParse] LLM-Call fehlgeschlagen: {e}")
+        return None
+    if not result:
+        return None
+
+    parsed = result[0] if isinstance(result, list) else result
+    if not isinstance(parsed, dict):
+        return None
+    return {
+        "destination": parsed.get("destination") or None,
+        "start_date": parsed.get("start_date") or None,
+        "end_date": parsed.get("end_date") or None,
+        "budget": parsed.get("budget") or None,
+        "adults": parsed.get("adults") or None,
+        "children": parsed.get("children") or None,
+        "travel_mode": parsed.get("travel_mode") if parsed.get("travel_mode") in ("flight", "car") else None,
     }
 
 

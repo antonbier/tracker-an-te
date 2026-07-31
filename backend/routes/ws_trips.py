@@ -71,6 +71,7 @@ from ws_trips_service import (
     compute_budget_breakdown,
     compute_actual_budget_sync,
     compute_co2_estimate,
+    parse_smart_trip_query,
 )
 
 router = APIRouter()
@@ -271,6 +272,23 @@ class TodoUpdate(BaseModel):
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
+
+class SmartParseRequest(BaseModel):
+    text: str
+
+
+@router.post("/smart-parse")
+async def smart_parse_trip(data: SmartParseRequest, user=Depends(get_current_user)):
+    """Smart-Zeile: extrahiert Ziel/Datum/Budget/Reisende aus einem Freitext-Wunsch
+    fürs WanderWizzard-Formular. Kein DB-Write — reine Vorausfüll-Hilfe."""
+    text = _sanitize(data.text, max_len=500)
+    if not text:
+        raise HTTPException(400, "Text darf nicht leer sein")
+    result = await parse_smart_trip_query(text)
+    if not result:
+        raise HTTPException(422, "Konnte keine Reisedaten erkennen — bitte manuell ausfüllen oder KI-Key in Settings prüfen")
+    return result
+
 
 @router.post("", status_code=201)
 async def create_trip(data: WsTripCreate, user=Depends(get_current_user)):

@@ -60,6 +60,39 @@
   let s1Budget = $state(budget || 0);
   let creating = $state(false);
 
+  // ── Smart-Zeile: Freitext → Formularfelder per LLM ────────────────────────
+  let smartQuery   = $state('');
+  let smartLoading = $state(false);
+  let smartError   = $state('');
+
+  async function runSmartParse() {
+    const text = smartQuery.trim();
+    if (!text) return;
+    smartLoading = true; smartError = '';
+    try {
+      const res = await api('/api/ws-trips/smart-parse', {
+        method: 'POST',
+        body: JSON.stringify({ text }),
+      });
+      path = 'known';
+      if (res.destination) {
+        s1Dest = res.destination;
+        s1DestInput = res.destination;
+        s1AcSuggestions = [];
+      }
+      if (res.start_date) s1DateFrom = res.start_date;
+      if (res.end_date)   s1DateTo   = res.end_date;
+      if (res.budget)     s1Budget   = res.budget;
+      if (res.adults)     s1Adults   = res.adults;
+      if (res.children != null) s1Children = res.children;
+      if (res.travel_mode) travelMode = res.travel_mode;
+      toast($t('wwSmartFilled') || '✨ Formular ausgefüllt — bitte prüfen', 'success');
+    } catch (e) {
+      smartError = e.message || $t('wwSmartError') || 'Konnte nichts erkennen — bitte manuell ausfüllen';
+    }
+    smartLoading = false;
+  }
+
   // ── Sync on open ───────────────────────────────────────────────────────────
   $effect(() => {
     if (open) {
@@ -468,6 +501,27 @@
 
           <!-- ══ STEP 1 ══════════════════════════════════════════════════════ -->
           {#if step === 1}
+
+            <!-- SMART-ZEILE -->
+            <div class="rounded-xl border p-3 space-y-2" style="background:color-mix(in srgb,var(--ws-accent) 6%,var(--ws-surface));border-color:color-mix(in srgb,var(--ws-accent) 25%,var(--ws-border))">
+              <label class={lbl} style="color:var(--ws-muted)">✨ {$t('wwSmartLabel')}</label>
+              <div class="flex gap-2">
+                <input bind:value={smartQuery}
+                  placeholder={$t('wwSmartPlaceholder')}
+                  onkeydown={(e) => e.key === 'Enter' && (e.preventDefault(), runSmartParse())}
+                  class={inp} style={inpS} />
+                <button onclick={runSmartParse} disabled={smartLoading || !smartQuery.trim()} type="button"
+                  class="px-4 py-2 rounded-xl text-sm font-semibold shrink-0 disabled:opacity-40 hover:opacity-90"
+                  style="background:var(--ws-accent);color:#fff">
+                  {smartLoading ? '⏳' : '✨'}
+                </button>
+              </div>
+              {#if smartError}
+                <p class="text-xs" style="color:#dc2626">{smartError}</p>
+              {:else}
+                <p class="text-[10px]" style="color:var(--ws-muted)">{$t('wwSmartHint')}</p>
+              {/if}
+            </div>
 
             <!-- PATH CARDS -->
             <div class="flex gap-3">
