@@ -278,8 +278,10 @@ async def parse_smart_trip_query(text: str) -> dict | None:
     konfiguriert ist oder die Extraktion fehlschlägt — Caller zeigt dann einen
     Hinweis, das Formular manuell auszufüllen."""
     llm_provider = get_setting_value("llm_provider") or "openai"
-    openai_key = get_setting_value("openai_key") or ""
-    gemini_key = get_setting_value("gemini_key") or ""
+    # Fallback auf ENV-Vars analog routes/inspiration.py — manche Deployments setzen
+    # den Key nur per OPENAI_API_KEY/GEMINI_API_KEY statt über die Settings-UI.
+    openai_key = get_setting_value("openai_key") or os.getenv("OPENAI_API_KEY", "")
+    gemini_key = get_setting_value("gemini_key") or os.getenv("GEMINI_API_KEY", "")
     if not openai_key and not gemini_key:
         return None
 
