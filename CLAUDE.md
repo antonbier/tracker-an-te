@@ -116,6 +116,7 @@ svelte/src/
 │       │   ├── TripHub.svelte
 │       │   ├── MyTrips.svelte
 │       │   ├── PriceRadar.svelte
+│       │   ├── Organizer.svelte        # Tab-Container: Vault | Packlisten | Notfall
 │       │   └── Discover.svelte
 │       ├── dashboard/
 │       │   ├── HeroSection.svelte      # Orchestrator: 2-Kachel oder Fallback
@@ -140,10 +141,13 @@ svelte/src/
 │       │   ├── TrackerCard.svelte      # Preisverlauf-Akkordeon, Link-Trip-Dropdown
 │       │   ├── TrackerGrid.svelte
 │       │   └── helpers.js             # fmtDate(), fmtRange(), chartPts(), ...
+│       ├── organizer/
+│       │   ├── VaultTab.svelte         # Dokumenten-Vault: Upload + Liste + Ablauf-Badges
+│       │   ├── PackingTab.svelte       # Packlisten-Vorlagen: Items abhaken + Reset
+│       │   └── EmergencyTab.svelte     # Notfallkontakte + Freitext-Notizen
 │       └── settings/
 │           ├── BasicTab.svelte         # URL, Timezone, Datumsformat + Live-Preview, Kalender-Abo
 │           ├── NotificationsTab.svelte # Telegram (@userinfobot Tipp) + Gotify + Webhook
-│           ├── VaultTab.svelte         # Dokumenten-Vault: Upload + Liste + Ablauf-Badges
 │           ├── SchedulerTab.svelte
 │           ├── MyspaceTab.svelte
 │           └── AccountTab.svelte
@@ -227,6 +231,17 @@ svelte/src/
 | GET | `/api/documents/{id}/download` | Entschlüsselt + streamt die Original-Datei |
 | PATCH | `/api/documents/{id}` | Metadaten ändern (Titel/Typ/Ablaufdatum/Notizen/Trip) |
 | DELETE | `/api/documents/{id}` | Löscht DB-Zeile + Datei auf Disk |
+
+### Packlisten-Vorlagen & Notfall-Infos (Organizer)
+| Method | Path | Beschreibung |
+|--------|------|-------------|
+| GET/POST | `/api/packing-templates` | Liste / Vorlage anlegen |
+| PATCH/DELETE | `/api/packing-templates/{id}` | Umbenennen / Löschen |
+| POST | `/api/packing-templates/{id}/items` | Item hinzufügen |
+| PATCH | `/api/packing-templates/items/{item_id}/toggle` | Abhaken (Ownership-Check per JOIN gegen `packing_templates.user_id`) |
+| DELETE | `/api/packing-templates/items/{item_id}` | Item löschen |
+| POST | `/api/packing-templates/{id}/reset` | Alle Items der Vorlage auf `is_done=0` zurücksetzen |
+| GET/PUT | `/api/emergency` | Notfallkontakte (JSON) + Notizen — Fernet-verschlüsselt im `user_settings`-KV-Store, kein eigenes Tabellenschema |
 
 ### Discovery & Bilder
 | Method | Path | Beschreibung |
@@ -355,6 +370,23 @@ CREATE TABLE documents (
     notes              TEXT DEFAULT NULL,
     expiry_notified_at TEXT DEFAULT NULL  -- Throttle: eine Erinnerung pro Ablaufdatum, reset bei Änderung
 );
+
+-- Packlisten-Vorlagen: wiederverwendbar, trip-unabhängig. is_done ist persistent
+-- (kein Instanzierungsmodell) — /reset setzt vor der nächsten Reise alles zurück.
+CREATE TABLE packing_templates (
+    id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL DEFAULT 1,
+    name TEXT NOT NULL, created_at TEXT NOT NULL
+);
+CREATE TABLE packing_template_items (
+    id INTEGER PRIMARY KEY,
+    template_id INTEGER NOT NULL REFERENCES packing_templates(id) ON DELETE CASCADE,
+    text TEXT NOT NULL, category TEXT NOT NULL DEFAULT 'general',
+    is_done INTEGER NOT NULL DEFAULT 0, sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL
+);
+-- Notfall-Infos: KEIN eigenes Schema — liegen als zwei Fernet-verschlüsselte Keys
+-- ("emergency_contacts" JSON, "emergency_notes") im bestehenden user_settings-KV-Store,
+-- analog ics_token. Siehe routes/emergency.py.
 ```
 
 ---
@@ -523,7 +555,26 @@ wsTrips.filter(t => {
 
 ---
 
-## 15. Bekannte Bugs / Tech Debt
+## 15. Organizer — Struktur
+
+Eigener Top-Level-Menüpunkt (`currentPage = 'organizer'`), Sidebar-Eintrag auf Desktop,
+im "Mehr"-Menü auf Mobile (BottomNav — kein 5. Slot in der knappen Haupt-Leiste).
+Bündelt trip-**unabhängige** Reise-Verwaltung, die weder in Settings (= Konfiguration)
+noch in MyTrips (= komplett auf einzelne Reisen strukturiert) sauber passt.
+
+### Tabs (`pages/Organizer.svelte`)
+| Tab | Komponente | Beschreibung |
+|-----|-----------|-------------|
+| `vault` | `organizer/VaultTab.svelte` | Dokumenten-Vault (aus Settings verschoben — war dort falsch verortet: Vault ist aktiv genutzter Content, keine Konfiguration) |
+| `packing` | `organizer/PackingTab.svelte` | Wiederverwendbare Packlisten-Vorlagen, `is_done` persistent + Reset-Button statt Neuanlage pro Reise |
+| `emergency` | `organizer/EmergencyTab.svelte` | Notfallkontakte + Freitext-Notizen (Blutgruppe/Allergien), Fernet-verschlüsselt über `user_settings`-KV-Store (kein neues Tabellenschema — analog `ics_token`) |
+
+**Ausbaufähig**: Visa/Einreise-Check wurde bewusst zurückgestellt (Datenquelle/Genauigkeit
+noch ungeklärt) — würde als viertes Tab hier andocken, sobald geklärt.
+
+---
+
+## 16. Bekannte Bugs / Tech Debt
 
 | # | Komponente | Problem | Priorität |
 |---|-----------|---------|----------|
@@ -540,7 +591,7 @@ wsTrips.filter(t => {
 
 ---
 
-## 16. Komponenten-Abhängigkeiten (Key Imports)
+## 17. Komponenten-Abhängigkeiten (Key Imports)
 
 ```
 Dashboard.svelte
@@ -577,7 +628,7 @@ Settings.svelte (Orchestrator)
 
 ---
 
-## 17. Backend-Struktur (Python)
+## 18. Backend-Struktur (Python)
 
 ```
 backend/
@@ -590,6 +641,7 @@ backend/
 │   ├── trackers.py              # Alle 4 Tracker-Typen, Snapshots, Booking-State (user_id-Filter!)
 │   ├── trips.py                 # ws_trips, todos, detected_trips, user_data
 │   ├── documents.py              # documents-Tabelle (Metadaten) — Dateiinhalt via document_vault.py
+│   ├── packing.py                # packing_templates + items, Ownership-Check per JOIN
 │   └── discovery.py             # discovery_pool_*
 ├── routes/                      # FastAPI-Router — dünn, delegieren an crud/ + Service-Module
 │   ├── ws_trips.py               # Pydantic-Modelle + Route-Handler, delegiert an ws_trips_service.py
@@ -598,6 +650,8 @@ backend/
 │   ├── notifications.py          # Pro-User Telegram/Gotify/Webhook + Test-Endpoints
 │   ├── ics.py                    # Kalender-Abo-Token + öffentlicher VCALENDAR-Feed (Token = Auth)
 │   ├── documents.py               # Dokumenten-Vault: Upload/Download/List/Patch/Delete (multipart)
+│   ├── packing.py                 # Packlisten-Vorlagen: CRUD + Toggle + Reset
+│   ├── emergency.py               # Notfallkontakte + Notizen (user_settings-KV, kein eigenes Schema)
 │   └── settings.py, dashboard.py, discovery.py, dawarich.py, passkey.py, auth.py, ...
 ├── ws_trips_service.py          # KI-Todo-Generierung, Immich-Galerie, Budget-Breakdown, ActualBudget-Sync
 │                                 # (aus routes/ws_trips.py extrahiert — Monolith-Refactor)

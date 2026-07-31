@@ -8,6 +8,7 @@
     { id: 'priceradar', icon: '🎯', labelKey: 'navRadar' },
     { id: 'planer',     icon: '🪄', labelKey: 'navWizzard' },
     { id: 'mytrips',    icon: '🎒', labelKey: 'navTrips' },
+    { id: 'organizer',  icon: '🗂️', labelKey: 'navOrganizer' },
   ];
 
   function handleLogout() { logout(); window.location.reload(); }

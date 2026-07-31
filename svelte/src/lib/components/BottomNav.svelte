@@ -66,6 +66,13 @@
       </div>
     {/if}
 
+    <button onclick={() => { userMenuOpen = false; currentPage.set('organizer'); }}
+      class="w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-opacity hover:opacity-80"
+      style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)">
+      <span class="text-lg">🗂️</span>
+      <span class="text-sm font-medium">{$t('navOrganizer')}</span>
+    </button>
+
     <button onclick={() => { userMenuOpen = false; onSettings?.(); }}
       class="w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-opacity hover:opacity-80"
       style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)">

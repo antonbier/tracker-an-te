@@ -6,6 +6,7 @@
   import Discover   from '$lib/components/pages/Discover.svelte';
   import TripHub    from '$lib/components/pages/TripHub.svelte';
   import Planer     from '$lib/components/pages/Planer.svelte';
+  import Organizer  from '$lib/components/pages/Organizer.svelte';
 </script>
 
 {#if $currentPage === 'home'}
@@ -20,4 +21,6 @@
   <TripHub />
 {:else if $currentPage === 'planer'}
   <Planer />
+{:else if $currentPage === 'organizer'}
+  <Organizer />
 {/if}

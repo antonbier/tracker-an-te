@@ -290,6 +290,26 @@ def init_db():
                 expiry_notified_at  TEXT    DEFAULT NULL,
                 created_at          TEXT    NOT NULL DEFAULT (datetime('now'))
             );
+
+            -- Packlisten-Vorlagen: wiederverwendbare, trip-unabhängige Packlisten.
+            -- is_done ist persistent (kein Instanzierungsmodell) — Reset-Endpoint setzt
+            -- vor der nächsten Reise wieder alles zurück statt jedes Mal neu zu bauen.
+            CREATE TABLE IF NOT EXISTS packing_templates (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id    INTEGER NOT NULL DEFAULT 1,
+                name       TEXT    NOT NULL,
+                created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+            );
+
+            CREATE TABLE IF NOT EXISTS packing_template_items (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                template_id INTEGER NOT NULL REFERENCES packing_templates(id) ON DELETE CASCADE,
+                text        TEXT    NOT NULL,
+                category    TEXT    NOT NULL DEFAULT 'general',
+                is_done     INTEGER NOT NULL DEFAULT 0,
+                sort_order  INTEGER NOT NULL DEFAULT 0,
+                created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+            );
         """)
 
         # ── Seed default provider configs (idempotent) ────────────────────
