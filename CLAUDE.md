@@ -439,6 +439,18 @@ das UI "gespeichert" meldete. Fix: `loadNotificationSettings()`/`saveNotificatio
 **immer** an diese Pro-User-Route + `crud/settings.py`-Funktionen anschließen, nie an `/api/settings`.
 Frontend erhält immer `"••••••••"` (nie Klartext).
 
+### Guest-User-ID Normalisierung
+`auth_jwt.GUEST_USER` hat `id=0` (AUTH_ENABLED=false). Da `0` in Python falsy ist,
+normalisiert die Codebase das durchgängig auf `1` via `user.get("id", 1) or 1`
+(siehe `_uid()` in `ws_trips.py`, `dawarich.py`, `scheduler.py`, `discovery.py`).
+**Jede neue Route, die `user["id"]` für DB-Zugriffe nutzt, muss dieselbe
+Normalisierung anwenden** — `routes/settings.py` tat das lange nicht (nutzte
+rohes `user["id"]`), wodurch im No-Auth-Modus über die Settings-UI gespeicherte
+Werte (Heimatort, Dawarich, Immich, ActualBudget, ...) unter `user_id=0` landeten,
+während jeder andere Consumer unter `user_id=1` suchte — Settings gingen dadurch
+für alle Features außer das Settings-Modal selbst "verloren". Gefixt inkl.
+einmaliger Migration bestehender `user_id=0`-Zeilen (`core/db_init._migrate_guest_settings()`).
+
 ### Tracker-Ownership (IDOR-Vermeidung)
 Alle Funktionen, die einen Tracker anhand seiner ID modifizieren (`mark_tracker_booked`,
 `unmark_tracker_booked`, `link_tracker_to_trip` in `crud/trackers.py`), akzeptieren
@@ -499,6 +511,14 @@ phase = $derived.by(() => {
 ```
 Gesamtbudget  - booked_flight - booked_hotel - manual_expenses = Vor-Ort-Budget
 ```
+
+### CO2-Schätzung (`ws_trips_service.compute_co2_estimate()`)
+Grobe Heuristik, keine wissenschaftliche Bilanzierung. Haversine-Distanz zwischen
+Heimatort (`resolve_home_location()`) und Ziel-Koordinaten (`trip.lat/lon`, nur
+gefüllt wenn Geocoding lief) — `None` wenn eine der beiden Koordinaten fehlt.
+Hin+Rück (`× 2`). Flug: pro Passagier-km (`adults + children`), Auto: pro
+Fahrzeug-km (nicht mit Personenzahl multipliziert). Teil der Response von
+`GET /api/ws-trips/{id}/budget` (`co2`-Feld), angezeigt in `BudgetWidget.svelte`.
 
 ---
 

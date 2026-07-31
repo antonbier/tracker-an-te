@@ -212,6 +212,8 @@
   "hubBudgetHotel": "Unterkunft (gebucht)",
   "hubBudgetOnSite": "Vor Ort verfügbar",
   "hubBudgetTotal": "Gesamtbudget",
+  "hubCo2": "CO₂ (hin+zurück, geschätzt)",
+  "hubCo2Hint": "Grobe Schätzung, keine wissenschaftliche Bilanzierung",
   "hubDeleteAll": "💣 Alles löschen (Reise + Tracker)",
   "hubDeleteIrrevocable": "🗑️ Reise unwiderruflich löschen",
   "hubDeleteLinkedTrackers": "⚠️ {n} verknüpfte Tracker:",

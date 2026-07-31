@@ -212,6 +212,8 @@
   "hubBudgetHotel": "Accommodation (booked)",
   "hubBudgetOnSite": "Available on-site",
   "hubBudgetTotal": "Total budget",
+  "hubCo2": "CO₂ (round trip, estimated)",
+  "hubCo2Hint": "Rough estimate, not a scientific calculation",
   "hubDeleteAll": "💣 Delete everything (trip + trackers)",
   "hubDeleteIrrevocable": "🗑️ Permanently delete trip",
   "hubDeleteLinkedTrackers": "⚠️ {n} linked trackers:",

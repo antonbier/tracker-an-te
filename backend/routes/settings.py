@@ -25,6 +25,14 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
+def _uid(user: dict) -> int:
+    # Guest-User hat id=0 (siehe auth_jwt.GUEST_USER) — auf 1 normalisieren,
+    # analog zur _uid()-Konvention in allen anderen Routen (ws_trips.py, dawarich.py, ...).
+    # Ohne diese Normalisierung landen Settings unter user_id=0, aber jede lesende
+    # Stelle sucht unter user_id=1 -> im No-Auth-Modus gehen gespeicherte Settings "verloren".
+    return user.get("id", 1) or 1
+
+
 class GlobalSettingsPayload(BaseModel):
     serpapi_key:        Optional[str] = None
     gemini_key:         Optional[str] = None
@@ -140,7 +148,7 @@ def update_global_settings(data: GlobalSettingsPayload, admin: dict = Depends(re
 
 @router.get("/user")
 def get_my_settings(user: dict = Depends(get_current_user)):
-    return get_user_settings_all(user["id"])
+    return get_user_settings_all(_uid(user))
 
 
 @router.post("/user")
@@ -152,7 +160,7 @@ def update_my_settings(data: UserSettingsPayload, user: dict = Depends(get_curre
         if v is None:
             continue
         payload[k] = "true" if v is True else "false" if v is False else str(v)
-    save_user_settings_bulk(user["id"], payload)
+    save_user_settings_bulk(_uid(user), payload)
     logger.info(f"[SETTINGS/USER] updated user={user.get('id')} fields={list(payload.keys())}")
     return {"message": "Gespeichert", "updated": list(payload.keys())}
 
@@ -186,7 +194,7 @@ def wizard_save_step(data: WizardStepPayload, user: dict = Depends(get_current_u
     if global_payload:
         save_settings_bulk(global_payload)
     if user_payload:
-        save_user_settings_bulk(user["id"], user_payload)
+        save_user_settings_bulk(_uid(user), user_payload)
 
     updated = list(global_payload.keys()) + list(user_payload.keys())
     logger.info(f"[WIZARD] step save user={user.get('id')} fields={updated}")

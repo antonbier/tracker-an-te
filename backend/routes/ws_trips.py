@@ -63,13 +63,14 @@ from crud.trips import (
     delete_detected_trip,
 )
 from auth_jwt import get_current_user
-from settings_manager import get_setting_value, get_user_setting_value
+from settings_manager import get_setting_value, get_user_setting_value, resolve_home_location
 import immich_client
 from ws_trips_service import (
     generate_todos,
     fetch_trip_gallery,
     compute_budget_breakdown,
     compute_actual_budget_sync,
+    compute_co2_estimate,
 )
 
 router = APIRouter()
@@ -760,7 +761,10 @@ def get_trip_budget(trip_id: int, user=Depends(get_current_user)):
     except Exception:
         trackers = {}
 
-    return compute_budget_breakdown(trip, trackers)
+    breakdown = compute_budget_breakdown(trip, trackers)
+    home_lat, home_lon, _ = resolve_home_location(_uid(user))
+    breakdown["co2"] = compute_co2_estimate(trip, home_lat, home_lon)
+    return breakdown
 
 
 class ManualExpensesPayload(BaseModel):

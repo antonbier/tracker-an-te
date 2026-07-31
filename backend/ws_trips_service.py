@@ -10,6 +10,7 @@ Writes, wie im übrigen File üblich) zuständig und ruft diese Funktionen auf.
 import base64
 import json
 import logging
+import math
 import os
 
 import httpx
@@ -196,6 +197,56 @@ def compute_budget_breakdown(trip: dict, trackers: dict) -> dict:
         "remaining": remaining,
         "total_spent": total_spent,
         "has_budget": total > 0,
+    }
+
+
+# ── CO2-Schätzung ──────────────────────────────────────────────────────────────
+# Grobe Heuristik, keine wissenschaftliche Bilanzierung — Distanz per Haversine
+# zwischen Heimatort und geocodierten Ziel-Koordinaten (trip.lat/lon, nur gefüllt
+# wenn Geocoding lief). Emissionsfaktoren in der Größenordnung gängiger
+# Reise-CO2-Rechner (myclimate/atmosfair): Flug pro Passagier-km, Auto pro
+# Fahrzeug-km (nicht mit Personenzahl multipliziert, da ein Auto unabhängig von
+# der Belegung dieselbe Strecke fährt).
+CO2_KG_PER_KM_FLIGHT = 0.195
+CO2_KG_PER_KM_CAR    = 0.147
+
+
+def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    r = 6371.0
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lon2 - lon1)
+    a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
+    return 2 * r * math.asin(math.sqrt(a))
+
+
+def compute_co2_estimate(trip: dict, home_lat, home_lon) -> dict | None:
+    """Grobe CO2-Schätzung für Hin+Rückflug/-fahrt. None wenn Ziel- oder
+    Heimat-Koordinaten fehlen (kein Geocoding erfolgt bzw. kein Heimatort gesetzt)."""
+    dest_lat, dest_lon = trip.get("lat"), trip.get("lon")
+    if dest_lat is None or dest_lon is None or home_lat is None or home_lon is None:
+        return None
+    try:
+        home_lat, home_lon = float(home_lat), float(home_lon)
+        dest_lat, dest_lon = float(dest_lat), float(dest_lon)
+    except (TypeError, ValueError):
+        return None
+
+    one_way_km = _haversine_km(home_lat, home_lon, dest_lat, dest_lon)
+    roundtrip_km = one_way_km * 2
+
+    mode = trip.get("travel_mode") or "flight"
+    if mode == "car":
+        kg = roundtrip_km * CO2_KG_PER_KM_CAR
+    else:
+        pax = max(1, int(trip.get("adults") or 1) + int(trip.get("children") or 0))
+        kg = roundtrip_km * CO2_KG_PER_KM_FLIGHT * pax
+
+    return {
+        "distance_km": round(one_way_km),
+        "roundtrip_km": round(roundtrip_km),
+        "co2_kg": round(kg),
+        "travel_mode": mode,
     }
 
 

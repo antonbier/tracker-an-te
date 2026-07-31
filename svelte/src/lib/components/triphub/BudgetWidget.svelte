@@ -107,6 +107,15 @@
     {/if}
   </div>
 
+  <!-- CO2-Schätzung (nur wenn Ziel-Koordinaten + Heimatort bekannt sind) -->
+  {#if budgetBreakdown?.co2}
+    <div class="flex items-center justify-between text-[10px] -mt-2" style="color:var(--ws-muted)"
+      title={$t('hubCo2Hint') || 'Grobe Schätzung, keine wissenschaftliche Bilanzierung'}>
+      <span>🌍 {$t('hubCo2') || 'CO₂ (hin+zurück, geschätzt)'}</span>
+      <span class="font-mono font-semibold" style="color:var(--ws-text)">{budgetBreakdown.co2.co2_kg} kg</span>
+    </div>
+  {/if}
+
   <!-- ── Säule 1: Gesamtbudget ──────────────────────────────────────────── -->
   <div class="flex items-center justify-between py-2 border-b" style="border-color:var(--ws-border)">
     <span class="text-xs font-semibold" style="color:var(--ws-text)">

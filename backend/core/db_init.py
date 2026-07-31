@@ -315,6 +315,9 @@ def init_db():
         # ── Seed default provider configs (idempotent) ────────────────────
         _seed_provider_configs(conn)
 
+        # ── Fix: Guest-Settings (user_id=0) auf 1 migrieren (idempotent) ───
+        _migrate_guest_settings(conn)
+
         # ── Safe migrations (idempotent ALTER TABLE) ──────────────────────────
         migrations = [
             ("trackers",         "user_id INTEGER NOT NULL DEFAULT 1"),
@@ -448,3 +451,36 @@ def _seed_provider_configs(conn) -> None:
                 (name, enabled, test_mode),
             )
     conn.commit()
+
+
+def _migrate_guest_settings(conn) -> None:
+    """
+    Fix: routes/settings.py speicherte Pro-User-Settings (Heimatort, Dawarich,
+    Immich, ActualBudget, ...) frueher unter der rohen Guest-User-ID (0) statt der
+    im Rest der Codebase ueblichen Normalisierung auf 1 (siehe _uid()-Konvention
+    in ws_trips.py, dawarich.py, scheduler.py, discovery.py -- user.get("id", 1) or 1).
+    Kein anderer Consumer sucht unter user_id=0, d.h. im No-Auth-Modus gespeicherte
+    Settings wurden von jedem Feature ausser dem Settings-Modal selbst ignoriert.
+    Migriert bestehende Zeilen einmalig nach user_id=1, ueberschreibt NIE bereits
+    vorhandene user_id=1-Werte (die haben Vorrang, falls schon manuell gesetzt).
+    """
+    rows = conn.execute(
+        "SELECT key, value_enc, updated_at FROM user_settings WHERE user_id=0"
+    ).fetchall()
+    if not rows:
+        return
+    migrated = 0
+    for key, value_enc, updated_at in rows:
+        existing = conn.execute(
+            "SELECT 1 FROM user_settings WHERE user_id=1 AND key=?", (key,)
+        ).fetchone()
+        if not existing:
+            conn.execute(
+                "INSERT INTO user_settings (user_id, key, value_enc, updated_at) VALUES (1, ?, ?, ?)",
+                (key, value_enc, updated_at)
+            )
+            migrated += 1
+    conn.execute("DELETE FROM user_settings WHERE user_id=0")
+    conn.commit()
+    if migrated:
+        logger.info(f"[Migration] {migrated} Guest-Settings (user_id=0 -> 1) migriert")
