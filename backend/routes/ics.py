@@ -7,19 +7,15 @@ GET  /api/ics/{token}.ics (public) -- liefert den VCALENDAR-Feed; der Token selb
                                        damit Kalender-Apps (Google/Apple) den Feed ohne Login abonnieren können.
 """
 
-import hmac as _hmac
 import logging
-import secrets
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 
-from auth_db import list_users
 from auth_jwt import get_current_user
-from crud.settings import get_user_setting, save_user_setting
 from crud.trips import list_ws_trips
-from settings_manager import _get_fernet
+from token_auth import get_or_create_token, resolve_user_by_token
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -27,30 +23,6 @@ logger = logging.getLogger(__name__)
 
 def _uid(user: dict) -> int:
     return user.get("id", 1) or 1
-
-
-def _get_or_create_ics_token(user_id: int) -> str:
-    fernet = _get_fernet()
-    token = get_user_setting(user_id, "ics_token", fernet)
-    if not token:
-        token = secrets.token_urlsafe(24)
-        save_user_setting(user_id, "ics_token", token, fernet)
-    return token
-
-
-def _resolve_user_by_ics_token(token: str) -> int | None:
-    """Find which user owns this ICS token. Self-hosted scale (few users) -> linear scan is fine."""
-    fernet = _get_fernet()
-    candidate_ids = {1}  # Guest/Single-User-Default (kein users-Datensatz im AUTH_ENABLED=false-Modus)
-    try:
-        candidate_ids.update(u["id"] for u in list_users())
-    except Exception:
-        pass
-    for uid in candidate_ids:
-        stored = get_user_setting(uid, "ics_token", fernet)
-        if stored and _hmac.compare_digest(stored, token):
-            return uid
-    return None
 
 
 def _ics_escape(text: str) -> str:
@@ -110,13 +82,13 @@ def _build_ics(trips: list[dict]) -> str:
 @router.get("/token")
 def get_ics_token(user: dict = Depends(get_current_user)):
     """Gibt den Abo-Token des eingeloggten Users zurück (erzeugt ihn beim ersten Aufruf)."""
-    return {"token": _get_or_create_ics_token(_uid(user))}
+    return {"token": get_or_create_token("ics_token", _uid(user))}
 
 
 @router.get("/{token}.ics")
 def get_ics_feed(token: str):
     """Öffentlicher Kalender-Feed — der Token selbst ist die Authentifizierung."""
-    uid = _resolve_user_by_ics_token(token)
+    uid = resolve_user_by_token("ics_token", token)
     if uid is None:
         raise HTTPException(status_code=404, detail="Unbekannter Kalender-Token")
     trips = list_ws_trips(uid)

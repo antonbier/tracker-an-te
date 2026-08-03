@@ -1,6 +1,7 @@
 <script>
   import { t } from '$lib/i18n.js';
   import { api } from '$lib/api.js';
+  import { apiUrl } from '$lib/stores.js';
   import { toast } from '$lib/toast.js';
   import { onMount } from 'svelte';
 
@@ -8,6 +9,31 @@
   let notes    = $state('');
   let loading  = $state(true);
   let saving   = $state(false);
+
+  // ── Notfall-Karte (druckbare/teilbare öffentliche Ansicht) ────────────────
+  let cardToken   = $state('');
+  let cardLoading = $state(false);
+  let cardCopied  = $state(false);
+  const cardUrl = $derived(cardToken ? `${$apiUrl}/api/emergency/card/${cardToken}` : '');
+
+  async function loadCardToken() {
+    if (!$apiUrl || cardToken) return;
+    cardLoading = true;
+    try {
+      const res = await api('/api/emergency/token');
+      cardToken = res?.token || '';
+    } catch {}
+    cardLoading = false;
+  }
+
+  async function copyCardUrl() {
+    if (!cardUrl) return;
+    try {
+      await navigator.clipboard.writeText(cardUrl);
+      cardCopied = true;
+      setTimeout(() => cardCopied = false, 2000);
+    } catch {}
+  }
 
   async function load() {
     loading = true;
@@ -93,5 +119,34 @@
       style="background:var(--ws-accent);color:#fff">
       {saving ? '⏳…' : ('💾 ' + $t('settingsSave'))}
     </button>
+
+    <!-- Notfall-Karte -->
+    <div class="rounded-xl border p-3 space-y-2" style="background:var(--ws-surface2);border-color:var(--ws-border)">
+      <div class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">🖨️ {$t('emergencyCardTitle')}</div>
+      <p class="text-xs" style="color:var(--ws-muted)">{$t('emergencyCardHint')}</p>
+      {#if !cardToken}
+        <button onclick={loadCardToken} disabled={cardLoading || !$apiUrl}
+          class="px-4 py-2 rounded-xl text-xs border font-semibold transition-opacity hover:opacity-70 disabled:opacity-40"
+          style="border-color:var(--ws-border);color:var(--ws-accent);background:var(--ws-surface)">
+          {cardLoading ? '⏳…' : $t('emergencyCardGenerate')}
+        </button>
+      {:else}
+        <div class="flex gap-2">
+          <input readonly value={cardUrl}
+            class="flex-1 px-3 py-2 rounded-xl border text-xs font-mono"
+            style="background:var(--ws-surface);border-color:var(--ws-border);color:var(--ws-text)"/>
+          <button onclick={copyCardUrl}
+            class="px-3 py-2 rounded-xl text-xs border font-semibold transition-opacity hover:opacity-70"
+            style="border-color:var(--ws-border);color:var(--ws-accent);background:var(--ws-surface)">
+            {cardCopied ? '✓' : '📋'}
+          </button>
+          <a href={cardUrl} target="_blank" rel="noopener noreferrer"
+            class="px-3 py-2 rounded-xl text-xs border font-semibold transition-opacity hover:opacity-70 flex items-center"
+            style="border-color:var(--ws-border);color:var(--ws-accent);background:var(--ws-surface)">
+            ↗
+          </a>
+        </div>
+      {/if}
+    </div>
   {/if}
 </div>

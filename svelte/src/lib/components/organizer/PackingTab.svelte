@@ -4,13 +4,15 @@
   import { toast } from '$lib/toast.js';
   import { onMount } from 'svelte';
 
-  let templates   = $state([]);
-  let loading     = $state(true);
-  let expandedId  = $state(null);
-  let newName     = $state('');
-  let creating    = $state(false);
-  let newItemText = $state('');
-  let addingItem  = $state(false);
+  let templates      = $state([]);
+  let loading        = $state(true);
+  let expandedId     = $state(null);
+  let newName        = $state('');
+  let creating       = $state(false);
+  let newItemText    = $state('');
+  let addingItem     = $state(false);
+  let catalogs       = $state([]);
+  let catalogLoading = $state(null); // key des gerade übernommenen Katalogs, sonst null
 
   async function loadTemplates() {
     loading = true;
@@ -22,7 +24,31 @@
     loading = false;
   }
 
-  onMount(loadTemplates);
+  async function loadCatalogs() {
+    try {
+      catalogs = await api('/api/packing-templates/catalog');
+    } catch {
+      catalogs = [];
+    }
+  }
+
+  onMount(() => { loadTemplates(); loadCatalogs(); });
+
+  async function adoptCatalog(cat) {
+    catalogLoading = cat.key;
+    try {
+      const res = await api('/api/packing-templates/from-catalog', {
+        method: 'POST',
+        body: JSON.stringify({ catalog_key: cat.key }),
+      });
+      await loadTemplates();
+      if (res?.id) expandedId = res.id;
+      toast($t('packingCatalogAdopted'), 'success');
+    } catch (e) {
+      toast(e.message || 'Fehler', 'error');
+    }
+    catalogLoading = null;
+  }
 
   function progress(tpl) {
     const total = tpl.items.length;
@@ -110,6 +136,23 @@
 
 <div class="space-y-4">
   <p class="text-xs" style="color:var(--ws-muted)">{$t('packingHint')}</p>
+
+  <!-- Kataloge: Ein-Klick-Übernahme -->
+  {#if catalogs.length > 0}
+    <div class="space-y-1.5">
+      <div class="text-xs font-bold uppercase tracking-wider" style="color:var(--ws-muted)">{$t('packingCatalogTitle')}</div>
+      <div class="flex gap-2 overflow-x-auto pb-1">
+        {#each catalogs as cat}
+          <button onclick={() => adoptCatalog(cat)} disabled={catalogLoading === cat.key}
+            title={cat.items.join(', ')}
+            class="shrink-0 px-3 py-2 rounded-xl border text-xs font-semibold whitespace-nowrap transition-opacity hover:opacity-80 disabled:opacity-40"
+            style="background:var(--ws-surface2);border-color:var(--ws-border);color:var(--ws-text)">
+            {catalogLoading === cat.key ? '⏳' : cat.label}
+          </button>
+        {/each}
+      </div>
+    </div>
+  {/if}
 
   <!-- Neue Liste -->
   <div class="flex gap-2">

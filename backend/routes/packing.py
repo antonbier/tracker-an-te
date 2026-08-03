@@ -4,6 +4,7 @@ Wiederverwendbare Packlisten-Vorlagen, unabhängig von einzelnen Trips.
 """
 
 import re
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -12,6 +13,7 @@ from auth_jwt import get_current_user
 from crud.packing import (
     add_item,
     create_template,
+    create_template_with_items,
     delete_item,
     delete_template,
     list_templates,
@@ -23,6 +25,56 @@ from crud.packing import (
 router = APIRouter()
 
 _TAG_RE = re.compile(r"<[^>]+>")
+
+# ── Statische Katalog-Vorlagen ─────────────────────────────────────────────────
+# Fest eingebaute Listen zum Ein-Klick-Übernehmen — kein KI-Aufwand nötig.
+# KI-generierte Listen (basierend auf Ziel/Dauer/Saison) wären eine spätere
+# Erweiterung, die auf demselben create_template_with_items() aufbauen würde.
+CATALOGS = {
+    "beach": {
+        "label": "🏖️ Strandurlaub", "icon": "🏖️",
+        "items": [
+            ("Badehose / Bikini", "clothing"), ("Sonnencreme", "toiletries"),
+            ("Sonnenbrille", "other"), ("Strandtuch", "other"),
+            ("Flip-Flops", "clothing"), ("After-Sun", "toiletries"),
+            ("Wasserflasche", "other"), ("Buch / E-Reader", "other"),
+        ],
+    },
+    "city": {
+        "label": "🏙️ Städtetrip", "icon": "🏙️",
+        "items": [
+            ("Bequeme Schuhe", "clothing"), ("Offline-Stadtplan / Maps", "documents"),
+            ("Kamera", "electronics"), ("Powerbank", "electronics"),
+            ("Kleiner Rucksack", "other"), ("Regenschirm", "other"),
+        ],
+    },
+    "winter": {
+        "label": "❄️ Winterurlaub", "icon": "❄️",
+        "items": [
+            ("Skijacke", "clothing"), ("Handschuhe", "clothing"),
+            ("Mütze", "clothing"), ("Thermounterwäsche", "clothing"),
+            ("Skibrille", "other"), ("Sonnencreme (Schnee!)", "toiletries"),
+            ("Warme Socken", "clothing"),
+        ],
+    },
+    "business": {
+        "label": "💼 Business-Trip", "icon": "💼",
+        "items": [
+            ("Anzug / Blazer", "clothing"), ("Laptop + Ladekabel", "electronics"),
+            ("Visitenkarten", "documents"), ("Steckdosen-Adapter", "electronics"),
+            ("Formelle Schuhe", "clothing"),
+        ],
+    },
+    "hiking": {
+        "label": "🥾 Wanderurlaub", "icon": "🥾",
+        "items": [
+            ("Wanderschuhe", "clothing"), ("Regenjacke", "clothing"),
+            ("Rucksack", "other"), ("Erste-Hilfe-Set", "other"),
+            ("Trekkingstöcke", "other"), ("Kopflampe", "electronics"),
+            ("Wanderkarte", "documents"),
+        ],
+    },
+}
 
 
 def _sanitize(value: str, max_len: int = 200) -> str:
@@ -44,6 +96,30 @@ class TemplateRename(BaseModel):
 class ItemCreate(BaseModel):
     text: str
     category: str = "general"
+
+
+class FromCatalogRequest(BaseModel):
+    catalog_key: str
+    name: Optional[str] = None
+
+
+@router.get("/catalog")
+def get_catalogs():
+    """Katalog-Vorschau für die Übernehmen-Auswahl — kein Auth nötig, da statisch."""
+    return [
+        {"key": key, "label": c["label"], "icon": c["icon"], "items": [t for t, _ in c["items"]]}
+        for key, c in CATALOGS.items()
+    ]
+
+
+@router.post("/from-catalog")
+def create_from_catalog(data: FromCatalogRequest, user: dict = Depends(get_current_user)):
+    catalog = CATALOGS.get(data.catalog_key)
+    if not catalog:
+        raise HTTPException(404, f"Katalog '{data.catalog_key}' nicht gefunden")
+    name = _sanitize(data.name) if data.name else catalog["label"]
+    tpl_id = create_template_with_items(_uid(user), name, catalog["items"])
+    return {"id": tpl_id, "message": "Vorlage übernommen ✓"}
 
 
 @router.post("")

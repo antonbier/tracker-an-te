@@ -242,7 +242,11 @@ svelte/src/
 | PATCH | `/api/packing-templates/items/{item_id}/toggle` | Abhaken (Ownership-Check per JOIN gegen `packing_templates.user_id`) |
 | DELETE | `/api/packing-templates/items/{item_id}` | Item löschen |
 | POST | `/api/packing-templates/{id}/reset` | Alle Items der Vorlage auf `is_done=0` zurücksetzen |
+| GET | `/api/packing-templates/catalog` | Statische Katalog-Vorlagen (Strandurlaub, Städtetrip, ...) zur Ein-Klick-Übernahme |
+| POST | `/api/packing-templates/from-catalog` | Übernimmt einen Katalog als neue Vorlage inkl. Items |
 | GET/PUT | `/api/emergency` | Notfallkontakte (JSON) + Notizen — Fernet-verschlüsselt im `user_settings`-KV-Store, kein eigenes Tabellenschema |
+| GET | `/api/emergency/token` (JWT) | Pro-User Notfall-Karten-Token (erzeugt ihn beim ersten Aufruf) |
+| GET | `/api/emergency/card/{token}` (public) | Eigenständige druckbare HTML-Seite (kein JS/Auth) — Token selbst ist die Auth, gedacht zum Ausdrucken/Teilen, nicht zum Nachschlagen im Akutfall |
 
 ### Discovery & Bilder
 | Method | Path | Beschreibung |
@@ -586,9 +590,19 @@ noch in MyTrips (= komplett auf einzelne Reisen strukturiert) sauber passt.
 ### Tabs (`pages/Organizer.svelte`)
 | Tab | Komponente | Beschreibung |
 |-----|-----------|-------------|
-| `vault` | `organizer/VaultTab.svelte` | Dokumenten-Vault (aus Settings verschoben — war dort falsch verortet: Vault ist aktiv genutzter Content, keine Konfiguration) |
-| `packing` | `organizer/PackingTab.svelte` | Wiederverwendbare Packlisten-Vorlagen, `is_done` persistent + Reset-Button statt Neuanlage pro Reise |
-| `emergency` | `organizer/EmergencyTab.svelte` | Notfallkontakte + Freitext-Notizen (Blutgruppe/Allergien), Fernet-verschlüsselt über `user_settings`-KV-Store (kein neues Tabellenschema — analog `ics_token`) |
+| `vault` | `organizer/VaultTab.svelte` | Dokumenten-Vault (aus Settings verschoben — war dort falsch verortet: Vault ist aktiv genutzter Content, keine Konfiguration). Karten-Grid, Drag&Drop-Upload, Trip-Verknüpfung, prominenter Ablauf-Countdown |
+| `packing` | `organizer/PackingTab.svelte` | Wiederverwendbare Packlisten-Vorlagen, `is_done` persistent + Reset-Button statt Neuanlage pro Reise. Statische Katalog-Vorlagen (`CATALOGS` in `routes/packing.py`) zur Ein-Klick-Übernahme — KI-generierte Listen (Ziel/Dauer/Saison-basiert) wären eine spätere Erweiterung auf demselben `create_template_with_items()` |
+| `emergency` | `organizer/EmergencyTab.svelte` | Notfallkontakte + Freitext-Notizen (Blutgruppe/Allergien), Fernet-verschlüsselt über `user_settings`-KV-Store (kein neues Tabellenschema — analog `ics_token`). Plus druckbare/teilbare Notfall-Karte (`/api/emergency/card/{token}`) — der eigentliche Mehrwert entsteht nicht durchs Nachschlagen im Akutfall (unrealistisch), sondern durchs vorherige Ausdrucken/Teilen mit Mitreisenden |
+
+### Token-basierte öffentliche Endpoints (`token_auth.py`)
+Gemeinsamer Resolver für ICS-Kalender-Abo (`ics_token`) und Notfall-Karte
+(`emergency_token`): Token liegt als gewöhnlicher Wert im `user_settings`-KV-Store
+(Fernet-verschlüsselt wie jedes andere Setting), Auflösung "Token → User" per
+linearem Scan aller User-IDs (Self-hosted-Skala mit wenigen Usern unkritisch,
+da Fernet-Werte nicht durchsuchbar sind — keine separate Lookup-Tabelle nötig).
+**Neue Token-basierte Features immer über `token_auth.get_or_create_token()`/
+`resolve_user_by_token()` anschließen statt eine dritte eigene Implementierung
+zu schreiben.**
 
 **Ausbaufähig**: Visa/Einreise-Check wurde bewusst zurückgestellt (Datenquelle/Genauigkeit
 noch ungeklärt) — würde als viertes Tab hier andocken, sobald geklärt.
@@ -683,6 +697,7 @@ backend/
 ├── immich_client.py              # Geteilter Immich Search+Thumbnail-Client (optionaler client-Param
 │                                 # für Connection-Reuse bei mehreren Calls in einer Route)
 ├── document_vault.py             # Dokumenten-Vault: Fernet-Verschlüsselung für Dateien in /app/data/vault/
+├── token_auth.py                 # Geteilter Token-Resolver für ICS-Abo + Notfall-Karte (siehe Abschnitt 15)
 ├── scraper.py, google_scraper.py, homair_scraper.py, booking_scraper.py   # Provider-Scraper
 ├── ryanair_provider.py, google_flights_provider.py, duffel_provider.py, kiwi_provider.py
 ├── actual_budget.py, dawarich.py, gemini.py, openai_client.py, notifications.py

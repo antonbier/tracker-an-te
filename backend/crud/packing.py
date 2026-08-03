@@ -50,6 +50,24 @@ def delete_template(template_id: int, user_id: int) -> bool:
     return cur.rowcount > 0
 
 
+def create_template_with_items(user_id: int, name: str, items: list[tuple[str, str]]) -> int:
+    """Legt eine Vorlage an und befüllt sie in einem Zug — genutzt beim Übernehmen
+    eines Katalogs (items: Liste aus (text, category))."""
+    with db() as conn:
+        cur = conn.execute(
+            "INSERT INTO packing_templates (user_id, name, created_at) VALUES (?,?,datetime('now'))",
+            (user_id, name)
+        )
+        template_id = cur.lastrowid
+        for order, (text, category) in enumerate(items):
+            conn.execute(
+                """INSERT INTO packing_template_items (template_id, text, category, sort_order, created_at)
+                   VALUES (?,?,?,?,datetime('now'))""",
+                (template_id, text, category, order)
+            )
+        return template_id
+
+
 def add_item(template_id: int, user_id: int, text: str, category: str = "general") -> int | None:
     """Returns the new item id, or None if the template isn't owned by user_id."""
     with db() as conn:
